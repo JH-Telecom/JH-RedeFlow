@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getDashboardMetrics, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getDashboardMetrics, getRole, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { parseImport } from './imports/parser.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
@@ -100,6 +100,7 @@ app.post('/api/auth/login', (request, response) => {
 });
 app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json({ user: request.authUser }));
 app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), (_request, response) => response.json({ metrics: getDashboardMetrics() }));
+app.get('/api/notificacoes', auth, requirePermission('dashboard.view'), (_request, response) => response.json({ notifications: listNotifications() }));
 app.get('/api/users', auth, requirePermission('users.view'), (_request, response) => response.json({ users: listUsers() }));
 app.post('/api/users', auth, requirePermission('users.create'), (request, response) => {
   const parsed = z.object({ name: z.string().min(2), email: z.string().email(), roleId: z.string(), password: z.string().min(8) }).safeParse(request.body);
@@ -107,12 +108,46 @@ app.post('/api/users', auth, requirePermission('users.create'), (request, respon
   if (getUserByEmail(parsed.data.email)) return response.status(409).json({ message: 'Este e-mail ja esta cadastrado.' });
   return response.status(201).json({ user: addUser(parsed.data) });
 });
+app.patch('/api/users/:id', auth, requirePermission('users.edit'), (request, response) => {
+  const parsed = z.object({ name: z.string().min(2).optional(), email: z.string().email().optional(), roleId: z.string().optional(), active: z.boolean().optional(), password: z.string().min(8).optional() }).safeParse(request.body);
+  if (!parsed.success || (parsed.data.roleId && !getRole(parsed.data.roleId))) return response.status(400).json({ message: 'Dados de usuario invalidos.' });
+  if (parsed.data.email && listUsers().some((user) => user.email.toLowerCase() === parsed.data.email!.toLowerCase() && user.id !== String(request.params.id))) return response.status(409).json({ message: 'Este e-mail ja esta cadastrado.' });
+  const user = updateUser(String(request.params.id), parsed.data);
+  if (!user) return response.status(404).json({ message: 'Usuario nao encontrado.' });
+  return response.json({ user });
+});
 app.get('/api/roles', auth, requirePermission('roles.view'), (_request, response) => response.json({ roles: listRoles(), permissions: listPermissions() }));
+app.post('/api/roles', auth, requirePermission('roles.manage'), (request, response) => {
+  const parsed = z.object({ name: z.string().min(2), description: z.string().min(2), permissions: z.array(z.string()) }).safeParse(request.body);
+  if (!parsed.success || parsed.data.permissions.some((code) => !listPermissions().some((permission) => permission.code === code))) return response.status(400).json({ message: 'Dados de cargo invalidos.' });
+  if (listRoles().some((role) => role.name.toLowerCase() === parsed.data.name.toLowerCase())) return response.status(409).json({ message: 'Este cargo ja existe.' });
+  return response.status(201).json({ role: addRole({ ...parsed.data, permissions: parsed.data.permissions as PermissionCode[] }) });
+});
+app.patch('/api/roles/:id', auth, requirePermission('roles.manage'), (request, response) => {
+  const parsed = z.object({ name: z.string().min(2).optional(), description: z.string().min(2).optional(), permissions: z.array(z.string()).optional() }).safeParse(request.body);
+  if (!parsed.success || parsed.data.permissions?.some((code) => !listPermissions().some((permission) => permission.code === code))) return response.status(400).json({ message: 'Dados de cargo invalidos.' });
+  const role = updateRole(String(request.params.id), { ...parsed.data, permissions: parsed.data.permissions as PermissionCode[] | undefined });
+  if (!role) return response.status(404).json({ message: 'Cargo nao encontrado.' });
+  return response.json({ role });
+});
+app.get('/api/configuracoes', auth, requirePermission('settings.manage'), (_request, response) => response.json({ settings: getSettings() }));
+app.patch('/api/configuracoes', auth, requirePermission('settings.manage'), (request, response) => {
+  const parsed = z.object({ autoRefresh: z.boolean().optional(), refreshIntervalSeconds: z.number().int().min(10).max(3600).optional(), slaAlertHours: z.number().min(1).max(72).optional(), defaultRegion: z.string().min(1).optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Configuracoes invalidas.' });
+  return response.json({ settings: updateSettings(parsed.data) });
+});
 app.get('/api/tecnicos', auth, requirePermission('technicians.view'), (_request, response) => response.json({ technicians: listTechnicians() }));
 app.post('/api/tecnicos', auth, requirePermission('technicians.create'), (request, response) => {
   const parsed = z.object({ name: z.string().min(2), registration: z.string().min(2), supervisorId: z.string().optional(), region: z.string().min(2), shift: z.string().min(2), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).default('Disponivel'), active: z.boolean().default(true) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
   return response.status(201).json({ technician: addTechnician(parsed.data) });
+});
+app.patch('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), (request, response) => {
+  const parsed = z.object({ currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Status de tecnico invalido.' });
+  const technician = updateTechnician(String(request.params.id), parsed.data);
+  if (!technician) return response.status(404).json({ message: 'Tecnico nao encontrado.' });
+  return response.json({ technician });
 });
 app.get('/api/supervisores', auth, requirePermission('supervisors.view'), (_request, response) => response.json({ supervisors: listSupervisors(), technicians: listTechnicians() }));
 app.post('/api/supervisores', auth, requirePermission('supervisors.create'), (request, response) => {
@@ -134,6 +169,7 @@ app.get('/api/chamados/:id', auth, requirePermission('calls.view'), (request, re
 app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), (request: AuthRequest, response) => {
   const parsed = z.object({ status: z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo']).optional(), technicianId: z.string().optional(), notes: z.string().max(5000).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de chamado invalidos.' });
+  if (parsed.data.technicianId && !listTechnicians().some((technician) => technician.id === parsed.data.technicianId && technician.active)) return response.status(422).json({ message: 'Somente tecnicos ativos podem receber chamados.' });
   const call = updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });

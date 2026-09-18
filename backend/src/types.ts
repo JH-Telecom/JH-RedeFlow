@@ -39,6 +39,14 @@ export type User = {
   roleId: string;
   active: boolean;
   createdAt: string;
+  role?: Role;
+};
+
+export type SystemSettings = {
+  autoRefresh: boolean;
+  refreshIntervalSeconds: number;
+  slaAlertHours: number;
+  defaultRegion: string;
 };
 
 export type AuthUser = User & { role: Role };

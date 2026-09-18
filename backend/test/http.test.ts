@@ -67,3 +67,17 @@ test('login rejects repeated attempts and protects the endpoint under light conc
   assert.ok(healthChecks.every((response) => response.status === 200));
   assert.ok(elapsedMs < 3000, `healthcheck concorrente demorou ${Math.round(elapsedMs)}ms`);
 });
+
+test('only active technicians can receive calls and their status can change', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const statusResponse = await fetch(`${baseUrl}/api/tecnicos/tech-bruno`, { method: 'PATCH', headers, body: JSON.stringify({ currentStatus: 'Indisponivel' }) });
+  const assignmentResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, { method: 'PATCH', headers, body: JSON.stringify({ technicianId: 'tech-bruno' }) });
+  assert.equal(statusResponse.status, 200);
+  assert.equal(assignmentResponse.status, 422);
+});

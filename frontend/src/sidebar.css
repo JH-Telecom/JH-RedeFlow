@@ -31,7 +31,6 @@
     margin-left: 76px;
   }
 
-  .sidebar-collapse,
   .menu-button {
     display: grid !important;
   }
@@ -55,10 +54,6 @@
     display: none;
   }
 
-  .sidebar.collapsed .sidebar-collapse {
-    margin: 0;
-  }
-
   .sidebar.collapsed .workspace-switcher,
   .sidebar.collapsed .nav-item,
   .sidebar.collapsed .help-link,
@@ -73,7 +68,4 @@
 }
 
 @media (max-width: 900px) {
-  .sidebar-collapse {
-    display: none !important;
-  }
 }

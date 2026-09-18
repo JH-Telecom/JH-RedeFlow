@@ -12,7 +12,6 @@ import {
   BarChart3,
   Bell,
   Building2,
-  ChevronLeft,
   ChevronRight,
   CircleHelp,
   ClipboardList,
@@ -27,6 +26,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import faviconUrl from "../image/favicon.ico";
 import {
   api,
   type Call,
@@ -35,8 +35,10 @@ import {
   type CallStatus,
   type Role,
   type Technician,
+  type Supervisor,
   type User,
   type Activation,
+  type AppNotification,
   type DashboardMetrics,
   type ImportRecord,
 } from "./api";
@@ -125,7 +127,7 @@ function Login({
     <main className="login-page">
       <section className="login-intro">
         <div className="brand-mark">
-          <span>JH</span>
+          <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
             <strong>JH Telecom</strong>
             <small>RedeFlow</small>
@@ -151,7 +153,7 @@ function Login({
       <section className="login-panel">
         <div className="login-card">
           <div className="mobile-brand">
-            <div className="mini-mark">JH</div>
+            <img className="mini-mark logo-image" src={faviconUrl} alt="JH Telecom" />
             <strong>JH RedeFlow</strong>
           </div>
           <div className="form-heading">
@@ -207,7 +209,11 @@ function Shell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => localStorage.getItem("jh-redeflow-sidebar-collapsed") === "true");
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => { api.notifications().then((data) => setNotifications(data.notifications)).catch(() => setNotifications([])); }, [location.pathname]);
   function toggleSidebar() {
     setDesktopCollapsed((current) => {
       const next = !current;
@@ -241,7 +247,7 @@ function Shell({
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       <aside className={`${desktopCollapsed ? "sidebar collapsed" : "sidebar"}${mobileOpen ? " open" : ""}`}>
         <div className="sidebar-brand">
-          <div className="mini-mark">JH</div>
+          <img className="mini-mark logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
             <strong>JH Telecom</strong>
             <small>RedeFlow</small>
@@ -251,9 +257,6 @@ function Shell({
             onClick={() => setMobileOpen(false)}
           >
             <X size={18} />
-          </button>
-          <button className="icon-button sidebar-collapse" onClick={toggleSidebar} title={desktopCollapsed ? "Expandir menu" : "Recolher menu"}>
-            {desktopCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
         <div className="workspace-switcher">
@@ -312,7 +315,7 @@ function Shell({
             onClick={() => (window.innerWidth <= 900 ? setMobileOpen(true) : toggleSidebar())}
             title={desktopCollapsed ? "Expandir menu" : "Recolher menu"}
           >
-            {desktopCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+            <Menu size={20} />
           </button>
           <div className="breadcrumbs">
             <span>RedeFlow</span>
@@ -323,10 +326,13 @@ function Shell({
             <button className="icon-button">
               <Search size={18} />
             </button>
-            <button className="icon-button notification">
-              <Bell size={18} />
-              <i />
-            </button>
+            <div className="notification-wrap">
+              <button className="icon-button notification" onClick={() => setNotificationsOpen((current) => !current)} title="Notificacoes">
+                <Bell size={18} />
+                {notifications.length > 0 && <i />}
+              </button>
+              {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span></div>{notifications.length ? notifications.map((notification) => <button className="notification-item" key={notification.id} onClick={() => { setNotificationsOpen(false); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
+            </div>
             <div className="topbar-avatar">{user.name.slice(0, 1)}</div>
           </div>
         </header>
@@ -558,6 +564,10 @@ function ActivityRow({
   );
 }
 
+function AdminModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return <div className="modal-backdrop" onClick={onClose}><section className="admin-modal" onClick={(event) => event.stopPropagation()}><div className="modal-heading"><h2>{title}</h2><button className="icon-button" type="button" onClick={onClose} title="Fechar"><X size={18} /></button></div>{children}</section></div>;
+}
+
 function ImportsPage() {
   const [records, setRecords] = useState<ImportRecord[]>([]);
   const [preview, setPreview] = useState<ImportRecord | null>(null);
@@ -594,13 +604,39 @@ function ActivationsPage() {
 }
 function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [editing, setEditing] = useState<User | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", roleId: "role-operator", password: "", active: true });
+  async function load() {
+    try {
+      const [userData, roleData] = await Promise.all([api.users(), api.roles()]);
+      setUsers(userData.users);
+      setRoles(roleData.roles);
+    } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar usuarios."); }
+  }
   useEffect(() => {
-    api
-      .users()
-      .then((data) => setUsers(data.users))
-      .catch((err) => setError(err.message));
+    load();
   }, []);
+  function openForm(user?: User) {
+    setEditing(user || null);
+    setShowForm(true);
+    setForm({ name: user?.name || "", email: user?.email || "", roleId: user?.roleId || roles[0]?.id || "", password: "", active: user?.active ?? true });
+  }
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    try {
+      if (editing) await api.updateUser(editing.id, { ...form, password: form.password || undefined });
+      else await api.createUser({ name: form.name, email: form.email, roleId: form.roleId, password: form.password });
+      setEditing(null); setShowForm(false); setMessage("Usuario salvo com sucesso."); await load();
+    } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar usuario."); }
+  }
+  const visibleUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(query.toLowerCase()) && (activeFilter === "all" || (activeFilter === "active" ? user.active : !user.active)));
   return (
     <>
       <div className="page-heading">
@@ -609,7 +645,7 @@ function UsersPage() {
           <h1>Usuarios</h1>
           <p>Controle quem acessa o RedeFlow e o que cada pessoa pode fazer.</p>
         </div>
-        <button className="primary-button compact">
+        <button className="primary-button compact" onClick={() => openForm()}>
           <Users size={16} /> Novo usuario
         </button>
       </div>
@@ -617,11 +653,12 @@ function UsersPage() {
         <div className="table-toolbar">
           <div className="search-field">
             <Search size={16} />
-            <input placeholder="Buscar por nome ou e-mail" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome ou e-mail" />
           </div>
-          <button className="secondary-button compact">
+          <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
+          {showFilters && <select className="toolbar-select" value={activeFilter} onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)}><option value="all">Todos os status</option><option value="active">Ativos</option><option value="inactive">Inativos</option></select>}
         </div>
         {error ? (
           <div className="empty-state">{error}</div>
@@ -638,7 +675,7 @@ function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {visibleUsers.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <div className="user-cell">
@@ -662,16 +699,16 @@ function UsersPage() {
                     </span>
                   </td>
                   <td>
-                    <span className="status active">
+                    <span className={`status ${user.active ? "active" : "inactive"}`}>
                       <i />
-                      Ativo
+                      {user.active ? "Ativo" : "Inativo"}
                     </span>
                   </td>
                   <td>
                     {new Date(user.createdAt).toLocaleDateString("pt-BR")}
                   </td>
                   <td>
-                    <button className="icon-button">
+                    <button className="icon-button" onClick={() => openForm(user)} title="Editar usuario">
                       <ChevronRight size={17} />
                     </button>
                   </td>
@@ -681,12 +718,26 @@ function UsersPage() {
           </table>
         )}
       </section>
+      {message && <div className="save-message">{message}</div>}
+      {showForm ? <AdminModal title={editing ? "Editar usuario" : "Novo usuario"} onClose={() => { setEditing(null); setShowForm(false); }}>
+        <form className="admin-form" onSubmit={save}>
+          <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+          <label>E-mail<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></label>
+          <label>Cargo<select value={form.roleId} onChange={(event) => setForm({ ...form, roleId: event.target.value })}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+          <label>Senha {editing && <small>(deixe vazio para manter)</small>}<input type="password" minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required={!editing} /></label>
+          {editing && <label className="checkbox-label"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Usuario ativo</label>}
+          <button className="primary-button" type="submit">Salvar usuario <ChevronRight size={16} /></button>
+        </form>
+      </AdminModal> : null}
     </>
   );
 }
 function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState("");
+  const [regionFilter, setRegionFilter] = useState("Todas");
+  const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(status || "Todos");
+  const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   useEffect(() => {
@@ -699,8 +750,9 @@ function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
     [call.orderNumber, call.client, call.bdesk, call.region, call.city]
       .join(" ")
       .toLowerCase()
-      .includes(query.toLowerCase()),
+        .includes(query.toLowerCase()) && (statusFilter === "Todos" || call.status === statusFilter) && (regionFilter === "Todas" || call.region === regionFilter),
   );
+      const regions = [...new Set(calls.map((call) => call.region))];
   return (
     <>
       <div className="page-heading">
@@ -729,9 +781,10 @@ function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
               placeholder="Buscar ordem, cliente, BDESK ou regiao"
             />
           </div>
-          <button className="secondary-button compact">
+          <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
+          {showFilters && <><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select></>}
           <span className="result-count">{visibleCalls.length} resultados</span>
         </div>
         {error ? (
@@ -1127,12 +1180,31 @@ function DetailItem({ label, value }: { label: string; value: string }) {
 function TechniciansPage() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Todos");
+  const [regionFilter, setRegionFilter] = useState("Todas");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
+  const [form, setForm] = useState({ name: "", registration: "", supervisorId: "", region: "", shift: "", currentStatus: "Disponivel" as Technician["currentStatus"], active: true });
+  async function load() {
+    try {
+      const [technicianData, supervisorData] = await Promise.all([api.technicians(), api.supervisors()]);
+      setTechnicians(technicianData.technicians); setSupervisors(supervisorData.supervisors);
+    } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar tecnicos."); }
+  }
   useEffect(() => {
-    api
-      .technicians()
-      .then((data) => setTechnicians(data.technicians))
-      .catch((err) => setError(err.message));
+    load();
   }, []);
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    try { await api.createTechnician({ ...form, supervisorId: form.supervisorId || undefined }); setShowForm(false); setForm({ name: "", registration: "", supervisorId: "", region: "", shift: "", currentStatus: "Disponivel", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar tecnico."); }
+  }
+  const regions = [...new Set(technicians.map((technician) => technician.region))];
+  const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
+  async function changeStatus(technician: Technician, currentStatus: Technician["currentStatus"]) {
+    try { const result = await api.updateTechnician(technician.id, { currentStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar status."); }
+  }
   return (
     <>
       <div className="page-heading">
@@ -1141,7 +1213,7 @@ function TechniciansPage() {
           <h1>Tecnicos</h1>
           <p>Consulte disponibilidade, escala e supervisor de cada tecnico.</p>
         </div>
-        <button className="primary-button compact">
+        <button className="primary-button compact" onClick={() => setShowForm(true)}>
           <Users size={16} /> Novo tecnico
         </button>
       </div>
@@ -1185,11 +1257,12 @@ function TechniciansPage() {
         <div className="table-toolbar">
           <div className="search-field">
             <Search size={16} />
-            <input placeholder="Buscar por nome ou matricula" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome ou matricula" />
           </div>
-          <button className="secondary-button compact">
+          <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
+          {showFilters && <><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select></>}
         </div>
         {error ? (
           <div className="empty-state">{error}</div>
@@ -1207,7 +1280,7 @@ function TechniciansPage() {
               </tr>
             </thead>
             <tbody>
-              {technicians.map((technician) => (
+              {visibleTechnicians.map((technician) => (
                 <tr key={technician.id}>
                   <td>
                     <div className="user-cell">
@@ -1226,12 +1299,9 @@ function TechniciansPage() {
                   <td>{technician.region}</td>
                   <td>{technician.shift}</td>
                   <td>
-                    <span
-                      className={`team-status ${technician.currentStatus === "Em campo" ? "field" : technician.currentStatus === "Disponivel" ? "ready" : "off"}`}
-                    >
-                      <i />
-                      {technician.currentStatus}
-                    </span>
+                    <select className="status-select" value={technician.currentStatus} onChange={(event) => changeStatus(technician, event.target.value as Technician["currentStatus"])} aria-label={`Status de ${technician.name}`}>
+                      <option>Disponivel</option><option>Em campo</option><option>Indisponivel</option>
+                    </select>
                   </td>
                   <td>
                     <span
@@ -1247,6 +1317,15 @@ function TechniciansPage() {
           </table>
         )}
       </section>
+      {showForm && <AdminModal title="Novo tecnico" onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>
+        <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+        <label>Matricula<input value={form.registration} onChange={(event) => setForm({ ...form, registration: event.target.value })} required /></label>
+        <label>Supervisor<select value={form.supervisorId} onChange={(event) => setForm({ ...form, supervisorId: event.target.value })}><option value="">Sem supervisor</option>{supervisors.map((supervisor) => <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>)}</select></label>
+        <label>Regiao<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} required /></label>
+        <label>Turno<input value={form.shift} onChange={(event) => setForm({ ...form, shift: event.target.value })} placeholder="07:00 - 16:00" required /></label>
+        <label>Status<select value={form.currentStatus} onChange={(event) => setForm({ ...form, currentStatus: event.target.value as Technician["currentStatus"] })}><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select></label>
+        <button className="primary-button" type="submit">Cadastrar tecnico <ChevronRight size={16} /></button>
+      </form></AdminModal>}
     </>
   );
 }
@@ -1261,9 +1340,24 @@ function SupervisorsPage() {
     }[];
     technicians: Technician[];
   }>({ supervisors: [], technicians: [] });
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: "", region: "", active: true });
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [regionFilter, setRegionFilter] = useState("Todas");
+  const [showFilters, setShowFilters] = useState(false);
+  async function load() {
+    try { setData(await api.supervisors()); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar supervisores."); }
+  }
   useEffect(() => {
-    api.supervisors().then(setData);
+    load();
   }, []);
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    try { await api.createSupervisor({ ...form }); setShowForm(false); setForm({ name: "", region: "", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar supervisor."); }
+  }
+  const regions = [...new Set(data.supervisors.map((supervisor) => supervisor.region))];
+  const visibleSupervisors = data.supervisors.filter((supervisor) => `${supervisor.name} ${supervisor.region}`.toLowerCase().includes(query.toLowerCase()) && (regionFilter === "Todas" || supervisor.region === regionFilter));
   return (
     <>
       <div className="page-heading">
@@ -1274,12 +1368,14 @@ function SupervisorsPage() {
             Visualize a estrutura das equipes e o tecnico sob cada supervisao.
           </p>
         </div>
-        <button className="primary-button compact">
+        <button className="primary-button compact" onClick={() => setShowForm(true)}>
           <Building2 size={16} /> Novo supervisor
         </button>
       </div>
+      <div className="team-toolbar"><div className="search-field"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar supervisor ou regiao" /></div><button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}><SlidersHorizontal size={15} /> Filtros</button>{showFilters && <select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select>}</div>
       <div className="supervisor-grid">
-        {data.supervisors.map((supervisor) => (
+        {error && <div className="form-error">{error}</div>}
+        {visibleSupervisors.map((supervisor) => (
           <section className="panel supervisor-card" key={supervisor.id}>
             <div className="supervisor-heading">
               <div className="supervisor-avatar">
@@ -1327,6 +1423,11 @@ function SupervisorsPage() {
           </section>
         ))}
       </div>
+      {showForm && <AdminModal title="Novo supervisor" onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>
+        <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+        <label>Regiao<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} required /></label>
+        <button className="primary-button" type="submit">Cadastrar supervisor <ChevronRight size={16} /></button>
+      </form></AdminModal>}
     </>
   );
 }
@@ -1335,12 +1436,21 @@ function RolesPage() {
   const [permissions, setPermissions] = useState<
     { code: string; description: string }[]
   >([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Role | null>(null);
+  const [form, setForm] = useState({ name: "", description: "", permissions: [] as string[] });
+  const [error, setError] = useState("");
+  async function load() {
+    try { const data = await api.roles(); setRoles(data.roles); setPermissions(data.permissions); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar cargos."); }
+  }
   useEffect(() => {
-    api.roles().then((data) => {
-      setRoles(data.roles);
-      setPermissions(data.permissions);
-    });
+    load();
   }, []);
+  function openForm(role?: Role) { setEditing(role || null); setShowForm(true); setForm({ name: role?.name || "", description: role?.description || "", permissions: role?.permissions || [] }); }
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    try { if (editing) await api.updateRole(editing.id, form); else await api.createRole(form); setShowForm(false); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar cargo."); }
+  }
   return (
     <>
       <div className="page-heading">
@@ -1349,7 +1459,7 @@ function RolesPage() {
           <h1>Cargos e permissoes</h1>
           <p>Defina os limites de cada funcao dentro da operacao.</p>
         </div>
-        <button className="primary-button compact">
+        <button className="primary-button compact" onClick={() => openForm()}>
           <ShieldCheck size={16} /> Novo cargo
         </button>
       </div>
@@ -1361,8 +1471,9 @@ function RolesPage() {
               <h2>Perfis de acesso</h2>
             </div>
           </div>
+          {error && <div className="form-error">{error}</div>}
           {roles.map((role) => (
-            <div className="role-row" key={role.id}>
+            <button className="role-row role-row-button" key={role.id} onClick={() => openForm(role)}>
               <div className="role-symbol">
                 <ShieldCheck size={17} />
               </div>
@@ -1372,7 +1483,7 @@ function RolesPage() {
               </div>
               <b>{role.permissions.length} permissoes</b>
               <ChevronRight size={16} />
-            </div>
+            </button>
           ))}
         </section>
         <section className="panel permissions-panel">
@@ -1390,10 +1501,24 @@ function RolesPage() {
           ))}
         </section>
       </div>
+      {showForm && <AdminModal title={editing ? "Editar cargo" : "Novo cargo"} onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>
+        <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+        <label>Descricao<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={2} required /></label>
+        <fieldset><legend>Permissoes</legend>{permissions.map((permission) => <label className="checkbox-label" key={permission.code}><input type="checkbox" checked={form.permissions.includes(permission.code)} onChange={(event) => setForm({ ...form, permissions: event.target.checked ? [...form.permissions, permission.code] : form.permissions.filter((code) => code !== permission.code) })} /> <span><b>{permission.code}</b><small>{permission.description}</small></span></label>)}</fieldset>
+        <button className="primary-button" type="submit">Salvar cargo <ChevronRight size={16} /></button>
+      </form></AdminModal>}
     </>
   );
 }
 function SettingsPage() {
+  const [settings, setSettings] = useState({ autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: "Todas" });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => { api.settings().then((data) => setSettings(data.settings)).catch((err) => setError(err.message)); }, []);
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    try { const result = await api.updateSettings(settings); setSettings(result.settings); setMessage("Configuracoes salvas."); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar configuracoes."); }
+  }
   return (
     <>
       <div className="page-heading">
@@ -1403,19 +1528,20 @@ function SettingsPage() {
           <p>Preferencias gerais do ambiente RedeFlow.</p>
         </div>
       </div>
-      <section className="panel settings-panel">
-        <div className="settings-icon">
-          <Settings size={20} />
+      <form className="panel settings-panel settings-form" onSubmit={save}>
+        <div className="settings-icon"><Settings size={20} /></div>
+        <div className="settings-fields">
+          <h2>Configuracoes operacionais</h2>
+          <p>Defina os parametros usados pelo acompanhamento da operacao.</p>
+          <label className="checkbox-label"><input type="checkbox" checked={settings.autoRefresh} onChange={(event) => setSettings({ ...settings, autoRefresh: event.target.checked })} /> Atualizar indicadores automaticamente</label>
+          <label>Intervalo de atualizacao (segundos)<input type="number" min="10" max="3600" value={settings.refreshIntervalSeconds} onChange={(event) => setSettings({ ...settings, refreshIntervalSeconds: Number(event.target.value) })} /></label>
+          <label>Alerta de SLA (horas)<input type="number" min="1" max="72" value={settings.slaAlertHours} onChange={(event) => setSettings({ ...settings, slaAlertHours: Number(event.target.value) })} /></label>
+          <label>Regiao padrao<input value={settings.defaultRegion} onChange={(event) => setSettings({ ...settings, defaultRegion: event.target.value })} /></label>
+          <button className="primary-button compact" type="submit">Salvar configuracoes <ChevronRight size={16} /></button>
+          {message && <div className="save-message">{message}</div>}
+          {error && <div className="form-error">{error}</div>}
         </div>
-        <div>
-          <h2>Fase 1 em validacao</h2>
-          <p>
-            As configuracoes de tema, status, regras de finalizacao e
-            integracoes serao habilitadas nas proximas fases. O tema atual
-            permanece branco por padrao.
-          </p>
-        </div>
-      </section>
+      </form>
     </>
   );
 }
@@ -1474,7 +1600,7 @@ export default function App() {
   if (hydrating)
     return (
       <div className="app-loading">
-        <div className="loading-mark">JH</div>
+        <img className="loading-mark logo-image" src={faviconUrl} alt="JH Telecom" />
         <span>Carregando RedeFlow...</span>
       </div>
     );

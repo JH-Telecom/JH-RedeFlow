@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, Technician, User } from './types.js';
+import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -65,11 +65,12 @@ const activations = new Map<string, Activation>([
   ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
 ]);
 const imports = new Map<string, ImportRecord>();
+const settings: SystemSettings = { autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: 'Todas' };
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 export function listRoles(): Role[] { return roles; }
 export function listPermissions() { return allPermissions.map((code) => ({ code, description: permissionDescriptions[code] })); }
-export function listUsers(): User[] { return [...users.values()].map(({ passwordHash: _passwordHash, ...user }) => user); }
+export function listUsers(): User[] { return [...users.values()].map(({ passwordHash: _passwordHash, ...user }) => ({ ...user, role: getRole(user.roleId) })); }
 export function getUserByEmail(email: string) { return [...users.values()].find((user) => user.email.toLowerCase() === email.toLowerCase()); }
 export function getAuthUser(user: User): AuthUser {
   const { passwordHash: _passwordHash, ...safeUser } = user as User & { passwordHash?: string };
@@ -83,6 +84,28 @@ export function addUser(input: { name: string; email: string; roleId: string; pa
   const { passwordHash: _passwordHash, ...safeUser } = user;
   return safeUser;
 }
+export function updateUser(id: string, input: { name?: string; email?: string; roleId?: string; active?: boolean; password?: string }): User | undefined {
+  const current = users.get(id);
+  if (!current) return undefined;
+  const updated = { ...current, ...input, passwordHash: input.password ? bcrypt.hashSync(input.password, 10) : current.passwordHash };
+  delete (updated as { password?: string }).password;
+  users.set(id, updated);
+  const { passwordHash: _passwordHash, ...safeUser } = updated;
+  return { ...safeUser, role: getRole(updated.roleId) };
+}
+export function addRole(input: { name: string; description: string; permissions: PermissionCode[] }): Role {
+  const role: Role = { id: `role-${crypto.randomUUID()}`, name: input.name, description: input.description, permissions: input.permissions };
+  roles.push(role);
+  return role;
+}
+export function updateRole(id: string, input: { name?: string; description?: string; permissions?: PermissionCode[] }): Role | undefined {
+  const role = roles.find((item) => item.id === id);
+  if (!role) return undefined;
+  Object.assign(role, input);
+  return role;
+}
+export function getSettings(): SystemSettings { return { ...settings }; }
+export function updateSettings(input: Partial<SystemSettings>): SystemSettings { Object.assign(settings, input); return getSettings(); }
 export function listSupervisors(): Supervisor[] {
   return [...supervisors.values()].map((supervisor) => ({ ...supervisor, technicianCount: [...technicians.values()].filter((technician) => technician.supervisorId === supervisor.id).length }));
 }
@@ -94,6 +117,13 @@ export function addTechnician(input: Omit<Technician, 'id' | 'supervisorName'>):
   technicians.set(technician.id, technician);
   return { ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined };
 }
+export function updateTechnician(id: string, input: { currentStatus?: Technician['currentStatus']; active?: boolean }): Technician | undefined {
+  const current = technicians.get(id);
+  if (!current) return undefined;
+  const updated = { ...current, ...input };
+  technicians.set(id, updated);
+  return { ...updated, supervisorName: updated.supervisorId ? supervisors.get(updated.supervisorId)?.name : undefined };
+}
 export function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCount'>): Supervisor {
   const supervisor = { ...input, id: `supervisor-${crypto.randomUUID()}`, technicianCount: 0 };
   supervisors.set(supervisor.id, supervisor);
@@ -101,6 +131,14 @@ export function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCount'>)
 }
 export function listCalls(status?: CallStatus): Call[] { return [...calls.values()].filter((call) => !status || call.status === status); }
 export function getCall(id: string): Call | undefined { return calls.get(id); }
+export function listNotifications() {
+  const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string }[];
+  const unassigned = [...calls.values()].filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status));
+  if (unassigned.length) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned.length} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos' });
+  const pending = [...activations.values()].filter((activation) => activation.status === 'Pendente');
+  if (pending.length) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending.length} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos' });
+  return notifications;
+}
 export function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>, actor: User): Call | undefined {
   const current = calls.get(id);
   if (!current) return undefined;

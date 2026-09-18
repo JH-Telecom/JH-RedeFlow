@@ -9,5 +9,7 @@ import './activation.css';
 import './imports.css';
 import './dashboard.css';
 import './sidebar.css';
+import './admin.css';
+import './filters.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);
