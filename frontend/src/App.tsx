@@ -191,9 +191,6 @@ function Login({
           <button className="text-button" type="button">
             Esqueci minha senha
           </button>
-          <div className="demo-note">
-            Demo local habilitada para validação da Fase 1.
-          </div>
         </div>
       </section>
     </main>

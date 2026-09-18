@@ -66,6 +66,18 @@ const activations = new Map<string, Activation>([
 ]);
 const imports = new Map<string, ImportRecord>();
 const settings: SystemSettings = { autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: 'Todas' };
+const demoDataEnabled = process.env.REDEFLOW_DEMO_DATA === 'true';
+
+if (!demoDataEnabled) {
+  users.clear();
+  supervisors.clear();
+  technicians.clear();
+  calls.clear();
+  observations.clear();
+  auditLogs.clear();
+  activations.clear();
+  imports.clear();
+}
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 export function listRoles(): Role[] { return roles; }

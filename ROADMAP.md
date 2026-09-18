@@ -36,6 +36,7 @@ Status: concluida para validacao do usuario
 - [x] Runtime local separado do Supabase oficial por configuracao de ambiente.
 - [x] Fluxos administrativos de usuarios, tecnicos, supervisores, cargos/permissoes e configuracoes.
 - [x] Favicon aplicado as marcas do frontend.
+- [x] Dados demo desativados por padrao; produção inicia sem registros ficticios.
 - [ ] Conectar o `store` ao PostgreSQL local e adicionar o driver `pg`.
 
 ## Dados oficiais

@@ -13,7 +13,7 @@ Frontend: `http://localhost:5173`
 
 API: `http://localhost:3333`
 
-Localmente, use `REDEFLOW_RUNTIME=local` e `DATABASE_URL` para o PostgreSQL. Em deploy, use `REDEFLOW_RUNTIME=supabase` (ou `NODE_ENV=production`) com as variáveis Supabase. O backend local nunca usa o Supabase apenas porque as chaves estão presentes no `.env`. O adapter PostgreSQL ainda precisa ser conectado ao `store`; até essa etapa, o runtime local usa os dados demo em memória.
+Localmente, use `REDEFLOW_RUNTIME=local` e `DATABASE_URL` para o PostgreSQL. Em deploy, use `REDEFLOW_RUNTIME=supabase` (ou `NODE_ENV=production`) com as variáveis Supabase. O backend local nunca usa o Supabase apenas porque as chaves estão presentes no `.env`. Dados demo só são carregados quando `REDEFLOW_DEMO_DATA=true`; o padrão é ambiente vazio, sem registros fictícios.
 
 Modo demo: `admin@jhtelecom.com` / `RedeFlow@2026`
 

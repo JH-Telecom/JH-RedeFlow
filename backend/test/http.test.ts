@@ -25,6 +25,7 @@ test.before(async () => {
       ...process.env,
       NODE_ENV: 'test',
       REDEFLOW_RUNTIME: 'local',
+      REDEFLOW_DEMO_DATA: 'true',
       PORT: String(port),
       JWT_SECRET: 'test-jwt-secret',
       WUZAPI_WEBHOOK_TOKEN: 'test-webhook-token',
