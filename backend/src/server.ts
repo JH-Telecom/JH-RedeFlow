@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getDashboardMetrics, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { parseImport } from './imports/parser.js';
+import { checkSupabaseConnection } from './integrations/supabase/client.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
@@ -35,6 +36,10 @@ function requirePermission(permission: PermissionCode) {
 }
 
 app.get('/health', (_request, response) => response.json({ status: 'ok', service: 'jh-redeflow-api' }));
+app.get('/health/supabase', async (_request, response) => {
+  const result = await checkSupabaseConnection();
+  return response.status(result.connected ? 200 : 503).json({ configured: result.configured, connected: result.connected, error: result.connected ? undefined : result.error });
+});
 app.post('/api/auth/login', (request, response) => {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Informe e-mail e senha validos.' });

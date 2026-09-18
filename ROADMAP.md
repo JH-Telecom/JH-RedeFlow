@@ -12,7 +12,7 @@ Status: concluida para validacao do usuario
 - [x] Schema PostgreSQL, indices, soft delete e seeds iniciais.
 - [x] Build do frontend e typecheck do backend validados.
 - [x] Healthcheck e login demo validados contra a API em execucao.
-- [ ] Validacao do usuario e troca do modo demo por PostgreSQL/Supabase. Bloqueada: `DATABASE_URL` e cliente PostgreSQL nao configurados neste ambiente.
+- [ ] Validacao do usuario e troca do modo demo por PostgreSQL/Supabase. Cliente configurado; falta executar a migration `supabase/migrations/202609180001_initial_schema.sql` no projeto Supabase.
 
 ## Fases seguintes, bloqueadas ate validacao
 
@@ -40,4 +40,4 @@ Fonte operacional oficial confirmada: `Rede Externa Forms V2.xlsx`. As abas e o 
 
 ## Como continuar em outra conta
 
-Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao deve ser validar indicadores do dashboard e, antes da Fase 9, configurar PostgreSQL/Supabase para substituir o modo demo em memoria.
+Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao e executar a migration no Supabase SQL Editor, validar `/health/supabase` com `200` e iniciar a troca gradual do store em memoria por consultas Supabase.
