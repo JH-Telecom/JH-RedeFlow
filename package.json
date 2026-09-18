@@ -1,0 +1,15 @@
+{
+  "name": "jh-redeflow",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sistema operacional de Rede da JH Telecom",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace frontend\" \"npm run dev --workspace backend\"",
+    "build": "npm run build --workspace frontend && npm run typecheck --workspace backend",
+    "typecheck": "npm run typecheck --workspace frontend && npm run typecheck --workspace backend"
+  },
+  "workspaces": ["frontend", "backend"],
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

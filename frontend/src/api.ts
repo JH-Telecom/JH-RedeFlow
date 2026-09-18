@@ -1,0 +1,28 @@
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333';
+export type Permission = { code: string; description: string };
+export type Role = { id: string; name: string; description: string; permissions: string[] };
+export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; role?: Role };
+export type Technician = { id: string; supervisorId?: string; name: string; registration: string; supervisorName?: string; region: string; shift: string; currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel'; active: boolean };
+export type Supervisor = { id: string; userId?: string; name: string; region: string; active: boolean; technicianCount: number };
+export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado';
+export type Call = { id: string; orderNumber: string; bdesk: string; officeTrack: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slotPon: string; status: CallStatus; technicianId?: string; technicianName?: string; supervisorName?: string; openedAt: string; assignedAt?: string; notes: string };
+export type Session = { token: string; user: User & { role: Role } };
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem('jh-redeflow-token');
+  const response = await fetch(`${API_URL}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers } });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message || 'Nao foi possivel concluir a operacao.');
+  return payload;
+}
+export const api = {
+  login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
+  users: () => request<{ users: User[] }>('/api/users'),
+  roles: () => request<{ roles: Role[]; permissions: Permission[] }>('/api/roles'),
+  technicians: () => request<{ technicians: Technician[] }>('/api/tecnicos'),
+  supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
+  calls: (status?: CallStatus) => request<{ calls: Call[] }>(`/api/chamados${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  call: (id: string) => request<{ call: Call }>(`/api/chamados/${id}`),
+  updateCall: (id: string, data: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>) => request<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) })
+};
