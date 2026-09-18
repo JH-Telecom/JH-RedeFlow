@@ -153,7 +153,7 @@ function Login({
       <section className="login-panel">
         <div className="login-card">
           <div className="mobile-brand">
-            <img className="mini-mark logo-image" src={faviconUrl} alt="JH Telecom" />
+            <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
             <strong>JH RedeFlow</strong>
           </div>
           <div className="form-heading">
@@ -247,7 +247,7 @@ function Shell({
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       <aside className={`${desktopCollapsed ? "sidebar collapsed" : "sidebar"}${mobileOpen ? " open" : ""}`}>
         <div className="sidebar-brand">
-          <img className="mini-mark logo-image" src={faviconUrl} alt="JH Telecom" />
+          <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
             <strong>JH Telecom</strong>
             <small>RedeFlow</small>
