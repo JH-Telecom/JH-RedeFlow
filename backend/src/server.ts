@@ -202,7 +202,7 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), (request, response) => response.json({ logs: listAuditLogs(String(request.params.id)) }));
 app.post('/api/integrations/wuzapi/webhook', (request, response) => {
   const authorizationToken = request.headers.authorization?.replace(/^Bearer\s+/i, '');
-  const providedToken = request.headers['x-wuzapi-token'] || request.headers['x-webhook-token'] || authorizationToken || request.query.token;
+  const providedToken = request.headers['x-wuzapi-token'] || request.headers['x-webhook-token'] || request.query.token || authorizationToken;
   if (providedToken !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
   const message = parseIncomingMessage(request.body);
   if (message.id) {
