@@ -203,10 +203,11 @@ app.post('/api/integrations/wuzapi/webhook', (request, response) => {
   const providedToken = request.headers['x-wuzapi-token'] || request.headers['x-webhook-token'] || authorizationToken || request.query.token;
   if (providedToken !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
   const message = parseIncomingMessage(request.body);
-  if (activationGroupId && message.chatId !== activationGroupId) {
-    console.warn(`[WuzAPI] acionamento ignorado: chatId recebido="${message.chatId || 'vazio'}" esperado="${activationGroupId}"`);
+  if (activationGroupId && message.chatId && message.chatId !== activationGroupId) {
+    console.warn(`[WuzAPI] acionamento ignorado: chatId recebido="${message.chatId}" esperado="${activationGroupId}"`);
     return response.status(202).json({ status: 'ignored', reason: 'Grupo nao autorizado.', chatId: message.chatId || null });
   }
+  if (activationGroupId && !message.chatId) console.warn(`[WuzAPI] chatId ausente; acionamento aceito sem filtro de grupo.`);
   if (!message.message?.trim()) return response.status(400).json({ message: 'Mensagem vazia.' });
   const activation = receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: extractOperationalData(message.message) });
   return response.status(202).json({ activationId: activation.id, status: activation.status });
