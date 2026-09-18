@@ -25,9 +25,9 @@ Status: concluida para validacao do usuario
 7. Dashboards e indicadores. (concluida para validacao)
 8. Performance, seguranca, testes e refinamento responsivo.
 
-## Dados ainda necessarios
+## Dados oficiais
 
-O arquivo `Rede Externa Forms V2.xlsx` foi localizado em Downloads, junto com outras bases. Antes da Fase 3, confirmar qual arquivo e a fonte operacional oficial e fornecer os cabecalhos das abas relevantes. O modelo de `calls` deve ser fechado somente depois desse mapeamento:
+Fonte operacional oficial confirmada: `Rede Externa Forms V2.xlsx`. As abas e o primeiro mapeamento de campos foram documentados em [official-data-mapping.md](docs/official-data-mapping.md). O modelo definitivo de `calls` deve ser fechado somente depois da aprovação desse mapeamento:
 
 `coluna da planilha -> campo do banco -> tipo -> obrigatorio -> editavel -> dashboard`
 
