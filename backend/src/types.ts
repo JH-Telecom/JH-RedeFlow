@@ -15,6 +15,8 @@ export type PermissionCode =
   | 'calls.create'
   | 'calls.edit'
   | 'calls.assign'
+  | 'calls.view_logs'
+  | 'calls.add_observation'
   | 'settings.manage';
 
 export type Role = {
@@ -78,3 +80,6 @@ export type Call = {
   assignedAt?: string;
   notes: string;
 };
+
+export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
+export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };

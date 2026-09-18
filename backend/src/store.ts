@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import type { AuthUser, Call, CallStatus, PermissionCode, Role, Supervisor, Technician, User } from './types.js';
+import type { AuthUser, Call, CallAuditLog, CallObservation, CallStatus, PermissionCode, Role, Supervisor, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -18,13 +18,15 @@ const permissionDescriptions: Record<PermissionCode, string> = {
   'calls.create': 'Criar chamados',
   'calls.edit': 'Editar chamados',
   'calls.assign': 'Atribuir chamados',
+  'calls.view_logs': 'Visualizar auditoria de chamados',
+  'calls.add_observation': 'Adicionar observacoes em chamados',
   'settings.manage': 'Gerenciar configuracoes'
 };
 
 const allPermissions = Object.keys(permissionDescriptions) as PermissionCode[];
 const now = new Date().toISOString();
 const adminRole: Role = { id: 'role-admin', name: 'Administrador', description: 'Acesso administrativo da plataforma', permissions: allPermissions };
-const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'technicians.view', 'supervisors.view'] };
+const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.view_logs', 'calls.add_observation', 'technicians.view', 'supervisors.view'] };
 const supervisorRole: Role = { id: 'role-supervisor', name: 'Supervisor', description: 'Visao restrita da propria equipe', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
 const counterRole: Role = { id: 'role-counter', name: 'Mesario', description: 'Aceite e recusa de acionamentos', permissions: [] };
 const viewerRole: Role = { id: 'role-viewer', name: 'Visualizacao', description: 'Consulta sem alteracao', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
@@ -51,6 +53,8 @@ const calls = new Map<string, Call>([
   ['call-240917-01', { id: 'call-240917-01', orderNumber: 'RF-240917', bdesk: 'BD-88376', officeTrack: 'OT-71942', client: 'JH Telecom B2C', type: 'NOC TX', reason: 'Afetacao massiva', region: 'Sul', city: 'Diadema', olt: 'VIP-CT2-SPO-OHW-02', slotPon: '8/2', status: 'Atribuido', technicianId: 'tech-carlos', technicianName: 'Carlos Mendes', supervisorName: 'Joao da Silva', openedAt: '2026-09-17T16:20:00-03:00', assignedAt: '2026-09-17T16:55:00-03:00', notes: 'Equipe acionada para diagnostico.' }],
   ['call-240916-01', { id: 'call-240916-01', orderNumber: 'RF-240916', bdesk: 'BD-88291', officeTrack: 'OT-71882', client: 'Edificio Central', type: 'BAIXA TECNICA', reason: 'Cliente sem conexao', region: 'Leste', city: 'Suzano', olt: 'VIP-SMP-SPO-ONK-01', slotPon: '4/9', status: 'Em campo', technicianId: 'tech-andre', technicianName: 'Andre Costa', supervisorName: 'Maria Oliveira', openedAt: '2026-09-16T10:05:00-03:00', assignedAt: '2026-09-16T10:42:00-03:00', notes: 'Tecnico em deslocamento para a CTO.' }]
 ]);
+const observations = new Map<string, CallObservation>();
+const auditLogs = new Map<string, CallAuditLog>();
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 export function listRoles(): Role[] { return roles; }
@@ -87,11 +91,22 @@ export function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCount'>)
 }
 export function listCalls(status?: CallStatus): Call[] { return [...calls.values()].filter((call) => !status || call.status === status); }
 export function getCall(id: string): Call | undefined { return calls.get(id); }
-export function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>): Call | undefined {
+export function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>, actor: User): Call | undefined {
   const current = calls.get(id);
   if (!current) return undefined;
   const technician = input.technicianId ? technicians.get(input.technicianId) : undefined;
   const updated = { ...current, ...input, technicianName: technician?.name ?? current.technicianName, supervisorName: technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : current.assignedAt };
   calls.set(id, updated);
+  const labels: Record<string, string> = { status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+  Object.keys(input).forEach((field) => {
+    const previousValue = String(current[field as keyof Call] ?? '');
+    const newValue = String(updated[field as keyof Call] ?? '');
+    if (previousValue === newValue) return;
+    const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: `${labels[field] || field} alterado`, field, previousValue, newValue, createdAt: new Date().toISOString() };
+    auditLogs.set(log.id, log);
+  });
   return updated;
 }
+export function listObservations(callId: string): CallObservation[] { return [...observations.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+export function addObservation(callId: string, actor: User, text: string): CallObservation { const observation: CallObservation = { id: `obs-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, text, createdAt: new Date().toISOString() }; observations.set(observation.id, observation); return observation; }
+export function listAuditLogs(callId: string): CallAuditLog[] { return [...auditLogs.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }

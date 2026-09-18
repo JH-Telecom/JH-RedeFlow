@@ -107,3 +107,25 @@ CREATE TABLE IF NOT EXISTS calls (
 
 CREATE INDEX IF NOT EXISTS calls_status_opened_idx ON calls(status, opened_at DESC);
 CREATE INDEX IF NOT EXISTS calls_technician_idx ON calls(technician_id) WHERE technician_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS call_observations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_id uuid NOT NULL REFERENCES calls(id) ON DELETE RESTRICT,
+  user_id uuid NOT NULL REFERENCES users(id),
+  text text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS call_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_id uuid NOT NULL REFERENCES calls(id) ON DELETE RESTRICT,
+  user_id uuid NOT NULL REFERENCES users(id),
+  action varchar(120) NOT NULL,
+  field varchar(120) NOT NULL,
+  previous_value text,
+  new_value text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS call_observations_call_idx ON call_observations(call_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS call_logs_call_idx ON call_logs(call_id, created_at DESC);

@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addSupervisor, addTechnician, addUser, getAuthUser, getCall, getRole, getUserByEmail, listCalls, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, updateCall, validatePassword } from './store.js';
+import { addObservation, addSupervisor, addTechnician, addUser, getAuthUser, getCall, getRole, getUserByEmail, listAuditLogs, listCalls, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, updateCall, validatePassword } from './store.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
@@ -72,13 +72,21 @@ app.get('/api/chamados/:id', auth, requirePermission('calls.view'), (request, re
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });
-app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), (request, response) => {
+app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), (request: AuthRequest, response) => {
   const parsed = z.object({ status: z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado']).optional(), technicianId: z.string().optional(), notes: z.string().max(5000).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de chamado invalidos.' });
-  const call = updateCall(String(request.params.id), parsed.data);
+  const call = updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });
+app.get('/api/chamados/:id/observacoes', auth, requirePermission('calls.view'), (request, response) => response.json({ observations: listObservations(String(request.params.id)) }));
+app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_observation'), (request: AuthRequest, response) => {
+  const parsed = z.object({ text: z.string().trim().min(1).max(5000) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'A observacao nao pode ficar vazia.' });
+  if (!getCall(String(request.params.id))) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  return response.status(201).json({ observation: addObservation(String(request.params.id), request.authUser!, parsed.data.text) });
+});
+app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), (request, response) => response.json({ logs: listAuditLogs(String(request.params.id)) }));
 
 app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));
 app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
