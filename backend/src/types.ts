@@ -19,6 +19,8 @@ export type PermissionCode =
   | 'calls.cancel'
   | 'calls.view_logs'
   | 'calls.add_observation'
+  | 'activations.view'
+  | 'activations.decide'
   | 'settings.manage';
 
 export type Role = {
@@ -88,3 +90,18 @@ export type Call = {
 
 export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
+
+export type ActivationStatus = 'Pendente' | 'Processando' | 'Aceito' | 'Recusado';
+export type Activation = {
+  id: string;
+  source: string;
+  originalMessage: string;
+  receivedAt: string;
+  status: ActivationStatus;
+  extractedData: Record<string, string>;
+  confirmedData?: Record<string, string>;
+  decisionBy?: string;
+  decisionAt?: string;
+  createdCallId?: string;
+  rejectionReason?: string;
+};

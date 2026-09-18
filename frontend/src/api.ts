@@ -8,6 +8,7 @@ export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 
 export type Call = { id: string; orderNumber: string; bdesk: string; officeTrack: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slotPon: string; status: CallStatus; technicianId?: string; technicianName?: string; supervisorName?: string; openedAt: string; assignedAt?: string; executedAt?: string; result?: string; cancellationReason?: string; notes: string };
 export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
+export type Activation = { id: string; source: string; originalMessage: string; receivedAt: string; status: 'Pendente' | 'Processando' | 'Aceito' | 'Recusado'; extractedData: Record<string, string>; decisionBy?: string; decisionAt?: string; createdCallId?: string; rejectionReason?: string };
 export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
@@ -35,5 +36,8 @@ export const api = {
   observations: (id: string) => request<{ observations: CallObservation[] }>(`/api/chamados/${id}/observacoes`),
   addObservation: (id: string, text: string) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes`, { method: 'POST', body: JSON.stringify({ text }) }),
   auditLogs: (id: string) => request<{ logs: CallAuditLog[] }>(`/api/chamados/${id}/logs`),
+  activations: (status?: Activation['status']) => request<{ activations: Activation[] }>(`/api/acionamentos${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  acceptActivation: (id: string) => request<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
+  rejectActivation: (id: string, reason: string) => request<{ activation: Activation }>(`/api/acionamentos/${id}/recusar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) })
 };

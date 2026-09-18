@@ -5,5 +5,6 @@ import App from './App';
 import './styles.css';
 import './team.css';
 import './outcome.css';
+import './activation.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

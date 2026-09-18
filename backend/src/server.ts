@@ -3,12 +3,14 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, finishCall, getAuthUser, getCall, getRole, getUserByEmail, listAuditLogs, listCalls, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, updateCall, validatePassword } from './store.js';
+import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, updateCall, validatePassword } from './store.js';
+import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
 const jwtSecret = process.env.JWT_SECRET || 'local-demo-secret-change-me';
+const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || 'local-wuzapi-demo-token';
 app.use(cors({ origin: ['http://localhost:5173'], credentials: true }));
 app.use(express.json());
 
@@ -102,6 +104,26 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
   return response.status(201).json({ observation: addObservation(String(request.params.id), request.authUser!, parsed.data.text) });
 });
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), (request, response) => response.json({ logs: listAuditLogs(String(request.params.id)) }));
+app.post('/api/integrations/wuzapi/webhook', (request, response) => {
+  if (request.headers['x-wuzapi-token'] !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
+  const message = parseIncomingMessage(request.body);
+  if (!message.message?.trim()) return response.status(400).json({ message: 'Mensagem vazia.' });
+  const activation = receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: extractOperationalData(message.message) });
+  return response.status(202).json({ activationId: activation.id, status: activation.status });
+});
+app.get('/api/acionamentos', auth, requirePermission('activations.view'), (request, response) => response.json({ activations: listActivations(request.query.status as 'Pendente' | 'Aceito' | 'Recusado' | undefined) }));
+app.post('/api/acionamentos/:id/aceitar', auth, requirePermission('activations.decide'), (request: AuthRequest, response) => {
+  const result = decideActivation(String(request.params.id), 'Aceito', request.authUser!);
+  if (!result.activation) return response.status(404).json({ message: 'Acionamento nao encontrado ou ja processado.' });
+  return response.json(result);
+});
+app.post('/api/acionamentos/:id/recusar', auth, requirePermission('activations.decide'), (request: AuthRequest, response) => {
+  const parsed = z.object({ reason: z.string().trim().min(3) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe o motivo da recusa.' });
+  const result = decideActivation(String(request.params.id), 'Recusado', request.authUser!, parsed.data.reason);
+  if (!result.activation) return response.status(404).json({ message: 'Acionamento nao encontrado ou ja processado.' });
+  return response.json(result);
+});
 
 app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));
 app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));

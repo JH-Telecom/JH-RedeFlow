@@ -35,6 +35,7 @@ import {
   type Role,
   type Technician,
   type User,
+  type Activation,
 } from "./api";
 
 const navItems = [
@@ -55,6 +56,12 @@ const navItems = [
     to: "/chamados/atendimento",
     icon: Activity,
     permission: "calls.view",
+  },
+  {
+    label: "Acionamentos",
+    to: "/acionamentos",
+    icon: ClipboardList,
+    permission: "activations.view",
   },
   {
     label: "Tecnicos",
@@ -198,6 +205,8 @@ function Shell({
         ? "Chamados abertos"
         : location.pathname.includes("/chamados/atendimento")
           ? "Em atendimento"
+          : location.pathname === "/acionamentos"
+            ? "Acionamentos"
           : location.pathname.includes("/chamados/")
             ? "Detalhe do chamado"
             : location.pathname === "/tecnicos"
@@ -308,6 +317,7 @@ function Shell({
               path="/chamados/atendimento"
               element={<CallsPage title="Chamados em atendimento" />}
             />
+            <Route path="/acionamentos" element={<ActivationsPage />} />
             <Route path="/chamados/:id" element={<CallDetailRoute />} />
             <Route path="/tecnicos" element={<TechniciansPage />} />
             <Route path="/supervisores" element={<SupervisorsPage />} />
@@ -515,6 +525,25 @@ function ActivityRow({
   );
 }
 
+function ActivationsPage() {
+  const [activations, setActivations] = useState<Activation[]>([]);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  async function load() {
+    try {
+      setActivations((await api.activations("Pendente")).activations);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel carregar acionamentos.");
+    }
+  }
+  useEffect(() => { load(); }, []);
+  async function accept(id: string) { await api.acceptActivation(id); setMessage("Acionamento aceito e chamado criado."); await load(); }
+  async function reject(id: string) { if (!reason.trim()) return; await api.rejectActivation(id, reason); setReason(""); setRejecting(null); setMessage("Acionamento recusado."); await load(); }
+  return <><div className="page-heading"><div><span className="section-kicker">MESARIOS</span><h1>Acionamentos pendentes</h1><p>Revise os dados recebidos antes de criar um chamado operacional.</p></div><button className="secondary-button compact" onClick={load}><Activity size={15}/> Atualizar</button></div><section className="panel activation-panel"><div className="activation-summary"><span><b>{activations.length}</b> pendentes</span><span>Origem isolada: WuzAPI</span></div>{error ? <div className="empty-state">{error}</div> : activations.length ? activations.map((activation) => <div className="activation-row" key={activation.id}><div className="activation-main"><div className="activation-icon"><ClipboardList size={17}/></div><div><strong>{activation.extractedData.orderNumber || "Sem ordem identificada"}</strong><span>{activation.extractedData.type} · {activation.extractedData.bdesk || "Sem BDESK"} · recebido {new Date(activation.receivedAt).toLocaleString("pt-BR")}</span></div></div><button className="link-button" onClick={() => setExpanded(expanded === activation.id ? null : activation.id)}>Ver dados</button><button className="accept-button" onClick={() => accept(activation.id)}>Aceitar</button><button className="reject-button" onClick={() => setRejecting(activation.id)}>Recusar</button>{expanded === activation.id && <div className="activation-detail"><div><b>Mensagem original</b><p>{activation.originalMessage}</p></div><div className="extracted-grid">{Object.entries(activation.extractedData).filter(([, value]) => value).map(([key, value]) => <span key={key}><small>{key}</small><strong>{value}</strong></span>)}</div></div>}{rejecting === activation.id && <div className="reject-form"><input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Motivo da recusa"/><button className="reject-button" onClick={() => reject(activation.id)}>Confirmar recusa</button></div>}</div>) : <div className="empty-state">Nenhum acionamento pendente.</div>}{message && <div className="save-message">{message}</div>}</section></>;
+}
 function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [error, setError] = useState("");

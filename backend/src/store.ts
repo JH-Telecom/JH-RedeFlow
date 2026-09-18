@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import type { AuthUser, Call, CallAuditLog, CallObservation, CallStatus, PermissionCode, Role, Supervisor, Technician, User } from './types.js';
+import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, PermissionCode, Role, Supervisor, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -22,15 +22,17 @@ const permissionDescriptions: Record<PermissionCode, string> = {
   'calls.cancel': 'Cancelar chamados',
   'calls.view_logs': 'Visualizar auditoria de chamados',
   'calls.add_observation': 'Adicionar observacoes em chamados',
+  'activations.view': 'Visualizar acionamentos',
+  'activations.decide': 'Aceitar ou recusar acionamentos',
   'settings.manage': 'Gerenciar configuracoes'
 };
 
 const allPermissions = Object.keys(permissionDescriptions) as PermissionCode[];
 const now = new Date().toISOString();
 const adminRole: Role = { id: 'role-admin', name: 'Administrador', description: 'Acesso administrativo da plataforma', permissions: allPermissions };
-const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.view_logs', 'calls.add_observation', 'technicians.view', 'supervisors.view'] };
+const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.view_logs', 'calls.add_observation', 'activations.view', 'activations.decide', 'technicians.view', 'supervisors.view'] };
 const supervisorRole: Role = { id: 'role-supervisor', name: 'Supervisor', description: 'Visao restrita da propria equipe', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
-const counterRole: Role = { id: 'role-counter', name: 'Mesario', description: 'Aceite e recusa de acionamentos', permissions: [] };
+const counterRole: Role = { id: 'role-counter', name: 'Mesario', description: 'Aceite e recusa de acionamentos', permissions: ['activations.view', 'activations.decide'] };
 const viewerRole: Role = { id: 'role-viewer', name: 'Visualizacao', description: 'Consulta sem alteracao', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
 
 const roles: Role[] = [adminRole, operatorRole, supervisorRole, counterRole, viewerRole];
@@ -57,6 +59,9 @@ const calls = new Map<string, Call>([
 ]);
 const observations = new Map<string, CallObservation>();
 const auditLogs = new Map<string, CallAuditLog>();
+const activations = new Map<string, Activation>([
+  ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
+]);
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 export function listRoles(): Role[] { return roles; }
@@ -112,6 +117,20 @@ export function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'tec
 export function listObservations(callId: string): CallObservation[] { return [...observations.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
 export function addObservation(callId: string, actor: User, text: string): CallObservation { const observation: CallObservation = { id: `obs-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, text, createdAt: new Date().toISOString() }; observations.set(observation.id, observation); return observation; }
 export function listAuditLogs(callId: string): CallAuditLog[] { return [...auditLogs.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+export function listActivations(status?: ActivationStatus): Activation[] { return [...activations.values()].filter((item) => !status || item.status === status).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)); }
+export function receiveActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string> }): Activation { const activation: Activation = { id: `activation-${crypto.randomUUID()}`, source: input.source, originalMessage: input.originalMessage, receivedAt: new Date().toISOString(), status: 'Pendente', extractedData: input.extractedData }; activations.set(activation.id, activation); return activation; }
+export function decideActivation(id: string, decision: 'Aceito' | 'Recusado', actor: User, rejectionReason?: string): { activation?: Activation; call?: Call } {
+  const activation = activations.get(id);
+  if (!activation || activation.status !== 'Pendente') return {};
+  activation.status = decision; activation.decisionBy = actor.id; activation.decisionAt = new Date().toISOString(); activation.rejectionReason = rejectionReason;
+  if (decision === 'Aceito') {
+    const data = activation.extractedData;
+    const call: Call = { id: `call-${crypto.randomUUID()}`, orderNumber: data.orderNumber || `PEND-${id.slice(-6)}`, bdesk: data.bdesk || '', officeTrack: data.orderNumber || '', client: data.client || 'Cliente nao identificado', type: data.type || 'NOC ACESSO', reason: data.reason || 'Acionamento recebido', region: data.region || 'Nao informada', city: data.city || 'Nao informada', olt: data.olt || '', slotPon: data.slotPon || '', status: 'Aberto', openedAt: new Date().toISOString(), notes: 'Criado a partir de acionamento aceito.' };
+    calls.set(call.id, call); activation.createdCallId = call.id;
+    return { activation, call };
+  }
+  return { activation };
+}
 export function finishCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: User): { call?: Call; missing: string[] } {
   const current = calls.get(id);
   if (!current) return { missing: ['Chamado nao encontrado'] };

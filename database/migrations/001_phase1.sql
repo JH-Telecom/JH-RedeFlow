@@ -132,3 +132,27 @@ CREATE TABLE IF NOT EXISTS call_logs (
 
 CREATE INDEX IF NOT EXISTS call_observations_call_idx ON call_observations(call_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS call_logs_call_idx ON call_logs(call_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS activations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source varchar(160) NOT NULL,
+  original_message text NOT NULL,
+  received_at timestamptz NOT NULL DEFAULT now(),
+  status varchar(40) NOT NULL DEFAULT 'Pendente',
+  decision_by uuid REFERENCES users(id),
+  decision_at timestamptz,
+  created_call_id uuid REFERENCES calls(id) ON DELETE SET NULL,
+  rejection_reason text
+);
+
+CREATE TABLE IF NOT EXISTS activation_processing (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  activation_id uuid NOT NULL REFERENCES activations(id) ON DELETE CASCADE,
+  extracted_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+  confirmed_data jsonb,
+  processor varchar(80) NOT NULL DEFAULT 'local',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS activations_status_received_idx ON activations(status, received_at DESC);
+CREATE INDEX IF NOT EXISTS activation_processing_activation_idx ON activation_processing(activation_id);
