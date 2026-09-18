@@ -13,7 +13,45 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
 export function extractOperationalData(message: string): Record<string, string> {
   const field = (name: string) => {
     const match = message.match(new RegExp(`(?:${name})\\s*[:=-]\\s*([^\\n\\r]+)`, 'i'));
-    return match?.[1]?.trim() || '';
+    return match?.[1]?.replace(/^\s*[*-]\s*/, '').replace(/\s*[*]\s*$/, '').trim() || '';
   };
-  return { orderNumber: field('ORDEM|OFFICE TRACK|OS OT'), bdesk: field('BDESK|TICKET'), type: message.toUpperCase().includes('NOC TX') ? 'NOC TX' : message.toUpperCase().includes('FIELD') ? 'ACIONAMENTO FIELD' : 'NOC ACESSO', reason: field('MOTIVO|TIPO DE FALHA'), olt: field('OLT'), slotPon: field('SLOT/PON|PLACA/PON'), client: field('CLIENTE'), region: field('REGIAO|REGIÃO'), city: field('CIDADE') };
+  const normalized = message.toUpperCase();
+  const isFieldActivation = normalized.includes('ACIONAMENTO FIELD');
+  const isBackboneActivation = normalized.includes('EVENTO BACKBONE') || normalized.includes('VALIDAR COM NOC TX');
+  const officeTrack = field('TAREFA\\s+OFFICE\\s+TRACK|OFFICE\\s+TRACK|OS\\s+OT|OFFICETRACK');
+  const orderNumber = field('ORDEM|ORDEM\\s+DE\\s+SERVIÇO') || officeTrack;
+  const type = isBackboneActivation ? 'NOC TX' : isFieldActivation ? 'ACIONAMENTO FIELD' : normalized.includes('NOC TX') ? 'NOC TX' : 'NOC ACESSO';
+  const addresses = message.includes('Endereços:') || message.includes('Enderecos:') ? message.split(/Endereços?:/i)[1]?.split(/COPE\s+REDE:/i)[0]?.trim() || '' : '';
+  const slotPon = (() => {
+    const slot = message.match(/SLOT\s*:\s*([^|\n]+).*?PON\s*:\s*([^\n]+)/i);
+    return slot ? `${slot[1].replace(/[*]/g, '').trim()} / ${slot[2].replace(/[*]/g, '').trim()}` : field('SLOT/PON|PLACA/PON');
+  })();
+  return {
+    orderNumber,
+    officeTrack,
+    bdesk: field('BDESK|TICKET'),
+    type,
+    reason: field('MOTIVO|TIPO\\s+DE\\s+FALHA|TIPO'),
+    eventAt: field('DATA\\s*/\\s*HORA\\s+DO\\s+EVENTO|DATA\\s+HORA\\s+DO\\s+EVENTO'),
+    olt: field('OLT'),
+    slotPon,
+    affectedCount: field('AFETADOS|AFETAÇÃO|AFETACAO'),
+    contract: field('CONTRATO(?:S)?\\s+EXEMPLO(?:S)?|CONTRATO'),
+    technician: field('TÉCNICO\\s+REDE|TECNICO\\s+REDE|TÉCNICO|TECNICO'),
+    cope: field('COPE\\s+REDE'),
+    client: field('CLIENTE'),
+    region: field('REGIÃO|REGIAO'),
+    city: field('CIDADE'),
+    phone: field('TELEFONE'),
+    customerOrder: field('O\\.S\\.\\s+CASA\\s+CLIENTE'),
+    ticket: field('TICKET'),
+    serialNumber: field('S/N'),
+    ctoId: field('ID/CTO'),
+    ctoLocation: field('LOC\\s+CTO'),
+    title: field('TITULO'),
+    openedAt: field('ABERTO\\s+EM'),
+    observations: field('OBSERVAÇÕES|OBSERVACOES'),
+    outageStart: field('INÍCIO\\s+DA\\s+QUEDA|INICIO\\s+DA\\s+QUEDA'),
+    addresses,
+  };
 }
