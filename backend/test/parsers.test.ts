@@ -17,6 +17,18 @@ test('normalizes a nested WuzAPI message', () => {
   assert.equal(result.message, 'ORDEM: RF-10');
 });
 
+test('normalizes the group id from a WuzAPI message key', () => {
+  const result = parseIncomingMessage({
+    event: {
+      Info: { ID: 'msg-2' },
+      key: { remoteJid: '120363422003961917@g.us' },
+      Message: { conversation: 'ORDEM: RF-11' },
+    },
+  });
+
+  assert.equal(result.chatId, '120363422003961917@g.us');
+});
+
 test('extracts operational fields from an activation message', () => {
   const result = extractOperationalData(
     'NOC TX\nORDEM: RF-10\nBDESK: BD-20\nMOTIVO: perda de sinal\nOLT: OLT-01\nSLOT/PON: 3/7',

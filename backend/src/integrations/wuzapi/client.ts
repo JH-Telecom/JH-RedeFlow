@@ -5,8 +5,9 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
   const event = (data.event && typeof data.event === 'object' ? data.event : {}) as Record<string, unknown>;
   const message = (event.Message && typeof event.Message === 'object' ? event.Message : {}) as Record<string, unknown>;
   const info = (event.Info && typeof event.Info === 'object' ? event.Info : {}) as Record<string, unknown>;
+  const key = (event.key && typeof event.key === 'object' ? event.key : message.key && typeof message.key === 'object' ? message.key : {}) as Record<string, unknown>;
   const text = String(data.message || data.text || message.conversation || (message.extendedTextMessage as Record<string, unknown> | undefined)?.text || '');
-  const chatId = String(data.chatId || data.chat || info.Chat || info.RemoteJid || info.Sender || '');
+  const chatId = String(data.chatId || data.chat || data.remoteJid || data.remote_jid || info.Chat || info.RemoteJid || info.remoteJid || info.Sender || key.remoteJid || key.participant || '');
   return { ...data, id: String(data.id || info.ID || `wuz-${crypto.randomUUID()}`), message: text, source: String(data.source || chatId || 'wuzapi'), chatId, receivedAt: String(data.receivedAt || new Date().toISOString()) };
 }
 
