@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, PermissionCode, Role, Supervisor, Technician, User } from './types.js';
+import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, ImportRecord, PermissionCode, Role, Supervisor, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -24,13 +24,15 @@ const permissionDescriptions: Record<PermissionCode, string> = {
   'calls.add_observation': 'Adicionar observacoes em chamados',
   'activations.view': 'Visualizar acionamentos',
   'activations.decide': 'Aceitar ou recusar acionamentos',
+  'imports.view': 'Visualizar importacoes',
+  'imports.create': 'Criar e confirmar importacoes',
   'settings.manage': 'Gerenciar configuracoes'
 };
 
 const allPermissions = Object.keys(permissionDescriptions) as PermissionCode[];
 const now = new Date().toISOString();
 const adminRole: Role = { id: 'role-admin', name: 'Administrador', description: 'Acesso administrativo da plataforma', permissions: allPermissions };
-const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.view_logs', 'calls.add_observation', 'activations.view', 'activations.decide', 'technicians.view', 'supervisors.view'] };
+const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.view_logs', 'calls.add_observation', 'activations.view', 'activations.decide', 'imports.view', 'imports.create', 'technicians.view', 'supervisors.view'] };
 const supervisorRole: Role = { id: 'role-supervisor', name: 'Supervisor', description: 'Visao restrita da propria equipe', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
 const counterRole: Role = { id: 'role-counter', name: 'Mesario', description: 'Aceite e recusa de acionamentos', permissions: ['activations.view', 'activations.decide'] };
 const viewerRole: Role = { id: 'role-viewer', name: 'Visualizacao', description: 'Consulta sem alteracao', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
@@ -62,6 +64,7 @@ const auditLogs = new Map<string, CallAuditLog>();
 const activations = new Map<string, Activation>([
   ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
 ]);
+const imports = new Map<string, ImportRecord>();
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 export function listRoles(): Role[] { return roles; }
@@ -156,3 +159,5 @@ export function cancelCall(id: string, reason: string, actor: User): Call | unde
   auditLogs.set(log.id, log);
   return updated;
 }
+export function listImports(): ImportRecord[] { return [...imports.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+export function saveImport(record: ImportRecord): ImportRecord { imports.set(record.id, record); return record; }

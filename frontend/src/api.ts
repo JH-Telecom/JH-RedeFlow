@@ -9,6 +9,7 @@ export type Call = { id: string; orderNumber: string; bdesk: string; officeTrack
 export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
 export type Activation = { id: string; source: string; originalMessage: string; receivedAt: string; status: 'Pendente' | 'Processando' | 'Aceito' | 'Recusado'; extractedData: Record<string, string>; decisionBy?: string; decisionAt?: string; createdCallId?: string; rejectionReason?: string };
+export type ImportRecord = { id: string; fileName: string; fileType: 'csv' | 'xlsx'; sheetName: string; columns: string[]; preview: Record<string, string>[]; totalRows: number; validRows: number; errors: string[]; status: 'Previsualizada' | 'Confirmada' | 'Falhou'; importedBy: string; createdAt: string };
 export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
@@ -39,5 +40,8 @@ export const api = {
   activations: (status?: Activation['status']) => request<{ activations: Activation[] }>(`/api/acionamentos${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   acceptActivation: (id: string) => request<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
   rejectActivation: (id: string, reason: string) => request<{ activation: Activation }>(`/api/acionamentos/${id}/recusar`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  imports: () => request<{ imports: ImportRecord[] }>('/api/importacoes'),
+  previewImport: (fileName: string, content: string) => request<{ import: ImportRecord }>('/api/importacoes/preview', { method: 'POST', body: JSON.stringify({ fileName, content }) }),
+  confirmImport: (id: string) => request<{ import: ImportRecord }>(`/api/importacoes/${id}/confirmar`, { method: 'POST' }),
   createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) })
 };

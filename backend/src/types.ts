@@ -21,6 +21,8 @@ export type PermissionCode =
   | 'calls.add_observation'
   | 'activations.view'
   | 'activations.decide'
+  | 'imports.view'
+  | 'imports.create'
   | 'settings.manage';
 
 export type Role = {
@@ -105,3 +107,6 @@ export type Activation = {
   createdCallId?: string;
   rejectionReason?: string;
 };
+
+export type ImportStatus = 'Previsualizada' | 'Confirmada' | 'Falhou';
+export type ImportRecord = { id: string; fileName: string; fileType: 'csv' | 'xlsx'; sheetName: string; columns: string[]; preview: Record<string, string>[]; totalRows: number; validRows: number; errors: string[]; status: ImportStatus; importedBy: string; createdAt: string };

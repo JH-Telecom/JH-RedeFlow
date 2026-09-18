@@ -156,3 +156,28 @@ CREATE TABLE IF NOT EXISTS activation_processing (
 
 CREATE INDEX IF NOT EXISTS activations_status_received_idx ON activations(status, received_at DESC);
 CREATE INDEX IF NOT EXISTS activation_processing_activation_idx ON activation_processing(activation_id);
+
+CREATE TABLE IF NOT EXISTS imports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  file_name varchar(255) NOT NULL,
+  file_type varchar(20) NOT NULL,
+  sheet_name varchar(160),
+  columns jsonb NOT NULL DEFAULT '[]'::jsonb,
+  total_rows integer NOT NULL DEFAULT 0,
+  valid_rows integer NOT NULL DEFAULT 0,
+  errors jsonb NOT NULL DEFAULT '[]'::jsonb,
+  status varchar(40) NOT NULL DEFAULT 'Previsualizada',
+  imported_by uuid REFERENCES users(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS import_records (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  import_id uuid NOT NULL REFERENCES imports(id) ON DELETE CASCADE,
+  row_number integer NOT NULL,
+  data jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS imports_status_created_idx ON imports(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS import_records_import_idx ON import_records(import_id);

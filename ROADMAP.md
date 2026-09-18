@@ -21,7 +21,7 @@ Status: concluida para validacao do usuario
 3. Observacoes e auditoria persistente. (concluida para validacao)
 4. Finalizacao, cancelamento e regras configuraveis. (concluida para validacao)
 5. WuzAPI, acionamentos, IA e mesarios. (concluida para validacao)
-6. Importacao de bases.
+6. Importacao de bases. (concluida para validacao)
 7. Dashboards e indicadores.
 8. Performance, seguranca, testes e refinamento responsivo.
 
@@ -40,4 +40,4 @@ O arquivo `Rede Externa Forms V2.xlsx` foi localizado em Downloads, junto com ou
 
 ## Como continuar em outra conta
 
-Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao deve ser validar webhook, fila de acionamentos, aceite/recusa e historico dos chamados antes de iniciar a Fase 7.
+Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao deve ser validar upload, pre-visualizacao, confirmacao e historico de importacoes antes de iniciar a Fase 8.

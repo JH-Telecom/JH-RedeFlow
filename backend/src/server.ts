@@ -3,8 +3,9 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, updateCall, validatePassword } from './store.js';
+import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
+import { parseImport } from './imports/parser.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
@@ -12,7 +13,7 @@ const port = Number(process.env.PORT || 3333);
 const jwtSecret = process.env.JWT_SECRET || 'local-demo-secret-change-me';
 const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || 'local-wuzapi-demo-token';
 app.use(cors({ origin: ['http://localhost:5173'], credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
 type AuthRequest = Request & { authUser?: AuthUser };
 function auth(request: AuthRequest, response: Response, next: NextFunction) {
@@ -123,6 +124,22 @@ app.post('/api/acionamentos/:id/recusar', auth, requirePermission('activations.d
   const result = decideActivation(String(request.params.id), 'Recusado', request.authUser!, parsed.data.reason);
   if (!result.activation) return response.status(404).json({ message: 'Acionamento nao encontrado ou ja processado.' });
   return response.json(result);
+});
+app.get('/api/importacoes', auth, requirePermission('imports.view'), (_request, response) => response.json({ imports: listImports() }));
+app.post('/api/importacoes/preview', auth, requirePermission('imports.create'), (request: AuthRequest, response) => {
+  const parsed = z.object({ fileName: z.string().min(1), content: z.string().min(1) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Arquivo de importacao invalido.' });
+  try {
+    const parsedFile = parseImport(parsed.data.fileName, parsed.data.content);
+    const record = saveImport({ id: `import-${crypto.randomUUID()}`, fileName: parsed.data.fileName, fileType: parsedFile.fileType, sheetName: parsedFile.sheetName, columns: parsedFile.columns, preview: parsedFile.rows.slice(0, 10), totalRows: parsedFile.rows.length, validRows: Math.max(0, parsedFile.rows.length - parsedFile.errors.length), errors: parsedFile.errors, status: parsedFile.errors.length ? 'Falhou' : 'Previsualizada', importedBy: request.authUser!.name, createdAt: new Date().toISOString() });
+    return response.status(201).json({ import: record });
+  } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel ler o arquivo.' }); }
+});
+app.post('/api/importacoes/:id/confirmar', auth, requirePermission('imports.create'), (request, response) => {
+  const record = listImports().find((item) => item.id === String(request.params.id));
+  if (!record) return response.status(404).json({ message: 'Importacao nao encontrada.' });
+  if (record.status !== 'Previsualizada') return response.status(409).json({ message: 'Somente uma importacao previsualizada pode ser confirmada.' });
+  return response.json({ import: saveImport({ ...record, status: 'Confirmada' }) });
 });
 
 app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));
