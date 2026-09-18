@@ -83,3 +83,22 @@ test('only active technicians can receive calls and their status can change', as
   assert.equal(statusResponse.status, 200);
   assert.equal(assignmentResponse.status, 422);
 });
+
+test('does not create duplicate activations when WuzAPI retries a message', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const payload = JSON.stringify({ id: 'wuz-message-dedup-test', chatId: '120363422003961917@g.us', message: 'ORDEM: DEDUP-001\nMOTIVO: teste' });
+  const first = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers, body: payload });
+  const second = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers, body: payload });
+  const firstBody = await first.json() as { activationId: string };
+  const secondBody = await second.json() as { activationId: string; duplicate?: boolean };
+  assert.equal(first.status, 202);
+  assert.equal(second.status, 202);
+  assert.equal(secondBody.activationId, firstBody.activationId);
+  assert.equal(secondBody.duplicate, true);
+});

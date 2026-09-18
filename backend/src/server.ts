@@ -16,6 +16,8 @@ const jwtSecret = process.env.JWT_SECRET || (!isProduction ? 'local-demo-secret-
 const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || (!isProduction ? 'local-wuzapi-demo-token' : undefined);
 const activationGroupId = process.env.WUZAPI_ACTIVATION_GROUP_ID?.trim();
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const processedWebhookMessages = new Map<string, { activationId: string; expiresAt: number }>();
+const webhookDeduplicationWindowMs = 24 * 60 * 60 * 1000;
 const loginAttemptWindowMs = 15 * 60 * 1000;
 const maxLoginAttempts = 5;
 if (isProduction && (!jwtSecret || !wuzapiWebhookToken)) {
@@ -203,6 +205,11 @@ app.post('/api/integrations/wuzapi/webhook', (request, response) => {
   const providedToken = request.headers['x-wuzapi-token'] || request.headers['x-webhook-token'] || authorizationToken || request.query.token;
   if (providedToken !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
   const message = parseIncomingMessage(request.body);
+  if (message.id) {
+    const previous = processedWebhookMessages.get(message.id);
+    if (previous && previous.expiresAt > Date.now()) return response.status(202).json({ activationId: previous.activationId, status: 'Pendente', duplicate: true });
+    processedWebhookMessages.delete(message.id);
+  }
   if (activationGroupId && message.chatId && message.chatId !== activationGroupId) {
     console.warn(`[WuzAPI] acionamento ignorado: chatId recebido="${message.chatId}" esperado="${activationGroupId}"`);
     return response.status(202).json({ status: 'ignored', reason: 'Grupo nao autorizado.', chatId: message.chatId || null });
@@ -210,6 +217,7 @@ app.post('/api/integrations/wuzapi/webhook', (request, response) => {
   if (activationGroupId && !message.chatId) console.warn(`[WuzAPI] chatId ausente; acionamento aceito sem filtro de grupo.`);
   if (!message.message?.trim()) return response.status(400).json({ message: 'Mensagem vazia.' });
   const activation = receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: extractOperationalData(message.message) });
+  if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
   return response.status(202).json({ activationId: activation.id, status: activation.status });
 });
 app.get('/api/acionamentos', auth, requirePermission('activations.view'), (request, response) => response.json({ activations: listActivations(request.query.status as 'Pendente' | 'Aceito' | 'Recusado' | undefined) }));
