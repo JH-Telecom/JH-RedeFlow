@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getDashboardMetrics, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { parseImport } from './imports/parser.js';
-import { checkSupabaseConnection } from './integrations/supabase/client.js';
+import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured } from './integrations/supabase/client.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
@@ -17,14 +17,20 @@ app.use(cors({ origin: ['http://localhost:5173'], credentials: true }));
 app.use(express.json({ limit: '15mb' }));
 
 type AuthRequest = Request & { authUser?: AuthUser };
-function auth(request: AuthRequest, response: Response, next: NextFunction) {
+async function auth(request: AuthRequest, response: Response, next: NextFunction) {
   const token = request.headers.authorization?.replace('Bearer ', '');
   if (!token) return response.status(401).json({ message: 'Sessao nao encontrada.' });
   try {
     const payload = jwt.verify(token, jwtSecret) as { sub: string };
-    const user = listUsers().find((item) => item.id === payload.sub);
-    if (!user || !user.active) return response.status(401).json({ message: 'Sessao invalida.' });
-    request.authUser = getAuthUser(user);
+    if (isSupabaseConfigured()) {
+      const supabaseUser = await getSupabaseProfile(payload.sub);
+      if (!supabaseUser || !supabaseUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
+      request.authUser = supabaseUser;
+    } else {
+      const localUser = listUsers().find((item) => item.id === payload.sub);
+      if (!localUser || !localUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
+      request.authUser = getAuthUser(localUser);
+    }
     next();
   } catch { return response.status(401).json({ message: 'Sessao expirada ou invalida.' }); }
 }
@@ -43,6 +49,14 @@ app.get('/health/supabase', async (_request, response) => {
 app.post('/api/auth/login', (request, response) => {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Informe e-mail e senha validos.' });
+  if (isSupabaseConfigured()) {
+    authenticateSupabaseUser(parsed.data.email, parsed.data.password).then((supabaseUser) => {
+      if (!supabaseUser) return response.status(401).json({ message: 'E-mail, senha ou perfil incorretos.' });
+      const token = jwt.sign({ sub: supabaseUser.id }, jwtSecret, { expiresIn: '8h' });
+      return response.json({ token, user: supabaseUser });
+    }).catch(() => response.status(401).json({ message: 'Nao foi possivel autenticar no Supabase.' }));
+    return;
+  }
   const user = getUserByEmail(parsed.data.email);
   if (!user || !user.active || !validatePassword(user, parsed.data.password)) return response.status(401).json({ message: 'E-mail ou senha incorretos.' });
   const token = jwt.sign({ sub: user.id }, jwtSecret, { expiresIn: '8h' });

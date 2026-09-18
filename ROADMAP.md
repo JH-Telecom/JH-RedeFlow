@@ -13,7 +13,7 @@ Status: concluida para validacao do usuario
 - [x] Build do frontend e typecheck do backend validados.
 - [x] Healthcheck e login demo validados contra a API em execucao.
 - [x] Supabase configurado, migration executada e healthcheck conectado.
-- [ ] Troca da autenticacao e dos dados demo por Supabase Auth e consultas persistentes.
+- [ ] Troca da autenticacao e dos dados demo por Supabase Auth e consultas persistentes. Código pronto; falta executar `202609180002_seed_rbac.sql` e testar login real.
 
 ## Fases seguintes, bloqueadas ate validacao
 
@@ -41,4 +41,4 @@ Fonte operacional oficial confirmada: `Rede Externa Forms V2.xlsx`. As abas e o 
 
 ## Como continuar em outra conta
 
-Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao e criar o primeiro usuario no Supabase Auth e iniciar a migracao do login e perfis para o banco persistente.
+Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao e executar `supabase/migrations/202609180002_seed_rbac.sql` e testar o login Supabase com o usuario criado.
