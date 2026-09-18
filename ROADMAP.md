@@ -27,7 +27,7 @@ Status: concluida para validacao do usuario
 
 ## Dados oficiais
 
-Fonte operacional oficial confirmada: `Rede Externa Forms V2.xlsx`. As abas e o primeiro mapeamento de campos foram documentados em [official-data-mapping.md](docs/official-data-mapping.md). O modelo definitivo de `calls` deve ser fechado somente depois da aprovação desse mapeamento:
+Fonte operacional oficial confirmada: `Rede Externa Forms V2.xlsx`. As abas e o primeiro mapeamento de campos foram documentados em [official-data-mapping.md](docs/official-data-mapping.md). O comportamento legado de WuzAPI, Gemini, baixas, consulta massiva, SLA e indicadores foi documentado em [appscript-integration-map.md](docs/appscript-integration-map.md). O modelo definitivo de `calls` deve ser fechado somente depois da aprovação desse mapeamento:
 
 `coluna da planilha -> campo do banco -> tipo -> obrigatorio -> editavel -> dashboard`
 
