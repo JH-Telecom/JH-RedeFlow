@@ -12,7 +12,7 @@ Status: concluida para validacao do usuario
 - [x] Schema PostgreSQL, indices, soft delete e seeds iniciais.
 - [x] Build do frontend e typecheck do backend validados.
 - [x] Healthcheck e login demo validados contra a API em execucao.
-- [ ] Validacao do usuario e troca do modo demo por PostgreSQL/Supabase.
+- [ ] Validacao do usuario e troca do modo demo por PostgreSQL/Supabase. Bloqueada: `DATABASE_URL` e cliente PostgreSQL nao configurados neste ambiente.
 
 ## Fases seguintes, bloqueadas ate validacao
 
@@ -22,7 +22,7 @@ Status: concluida para validacao do usuario
 4. Finalizacao, cancelamento e regras configuraveis. (concluida para validacao)
 5. WuzAPI, acionamentos, IA e mesarios. (concluida para validacao)
 6. Importacao de bases. (concluida para validacao)
-7. Dashboards e indicadores.
+7. Dashboards e indicadores. (concluida para validacao)
 8. Performance, seguranca, testes e refinamento responsivo.
 
 ## Dados ainda necessarios
@@ -40,4 +40,4 @@ O arquivo `Rede Externa Forms V2.xlsx` foi localizado em Downloads, junto com ou
 
 ## Como continuar em outra conta
 
-Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao deve ser validar upload, pre-visualizacao, confirmacao e historico de importacoes antes de iniciar a Fase 8.
+Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao deve ser validar indicadores do dashboard e, antes da Fase 9, configurar PostgreSQL/Supabase para substituir o modo demo em memoria.

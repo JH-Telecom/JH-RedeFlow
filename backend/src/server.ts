@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, validatePassword } from './store.js';
+import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getDashboardMetrics, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { parseImport } from './imports/parser.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
@@ -44,6 +44,7 @@ app.post('/api/auth/login', (request, response) => {
   return response.json({ token, user: getAuthUser(user) });
 });
 app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json({ user: request.authUser }));
+app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), (_request, response) => response.json({ metrics: getDashboardMetrics() }));
 app.get('/api/users', auth, requirePermission('users.view'), (_request, response) => response.json({ users: listUsers() }));
 app.post('/api/users', auth, requirePermission('users.create'), (request, response) => {
   const parsed = z.object({ name: z.string().min(2), email: z.string().email(), roleId: z.string(), password: z.string().min(8) }).safeParse(request.body);

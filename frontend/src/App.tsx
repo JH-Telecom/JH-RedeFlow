@@ -36,6 +36,7 @@ import {
   type Technician,
   type User,
   type Activation,
+  type DashboardMetrics,
   type ImportRecord,
 } from "./api";
 
@@ -317,7 +318,7 @@ function Shell({
         </header>
         <div className="content">
           <Routes>
-            <Route path="/" element={<Dashboard user={user} />} />
+            <Route path="/" element={<OperationalDashboard user={user} />} />
             <Route
               path="/chamados/abertos"
               element={<CallsPage status="Aberto" title="Chamados abertos" />}
@@ -342,6 +343,14 @@ function Shell({
   );
 }
 
+function OperationalDashboard({ user }: { user: User }) {
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => { api.dashboard().then((data) => setMetrics(data.metrics)).catch((err) => setError(err.message)); }, []);
+  if (error) return <div className="empty-state">{error}</div>;
+  if (!metrics) return <div className="empty-state">Carregando indicadores...</div>;
+  return <><div className="page-heading"><div><span className="section-kicker">OPERACAO DE REDE</span><h1>Visao geral</h1><p>Indicadores calculados no backend a partir dos dados operacionais atuais.</p></div><button className="secondary-button" onClick={() => api.dashboard().then((data) => setMetrics(data.metrics))}><Activity size={16}/> Atualizar</button></div><div className="metric-grid"><Metric label="Recebidos hoje" value={String(metrics.receivedToday)} note="Chamados abertos hoje" positive/><Metric label="Chamados abertos" value={String(metrics.open)} note={`${metrics.unassigned} sem tecnico`}/><Metric label="Em atendimento" value={String(metrics.inProgress)} note="Atribuidos ou em campo"/><Metric label="Pendentes de aceite" value={String(metrics.pendingActivations)} note={`${metrics.finished} finalizados`} positive/></div><div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-heading"><div><span className="section-kicker">STATUS</span><h2>Distribuicao dos chamados</h2></div></div><div className="bar-chart">{metrics.byStatus.map((item) => <div className="bar-item" key={item.label}><div className="bar-track"><i style={{ height: `${Math.max(8, item.value * 28)}px` }}/></div><strong>{item.value}</strong><span>{item.label}</span></div>)}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">REGIOES</span><h2>Volume por regiao</h2></div></div><div className="rank-list">{metrics.byRegion.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div><div className="dashboard-grid"><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TECNICOS</span><h2>Chamados atribuidos</h2></div></div><div className="rank-list">{metrics.byTechnician.length ? metrics.byTechnician.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>) : <div className="empty-state">Nenhum chamado atribuido.</div>}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TIPOS</span><h2>Chamados por tipo</h2></div></div><div className="rank-list">{metrics.byType.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div></>;
+}
 function Dashboard({ user }: { user: User }) {
   return (
     <>
