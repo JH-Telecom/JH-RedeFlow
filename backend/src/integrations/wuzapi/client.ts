@@ -1,4 +1,4 @@
-export type WuzApiMessage = { id?: string; message?: string; text?: string; source?: string; receivedAt?: string; [key: string]: unknown };
+export type WuzApiMessage = { id?: string; message?: string; text?: string; source?: string; chatId?: string; receivedAt?: string; [key: string]: unknown };
 
 export function parseIncomingMessage(payload: unknown): WuzApiMessage {
   const data = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>;
@@ -6,7 +6,8 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
   const message = (event.Message && typeof event.Message === 'object' ? event.Message : {}) as Record<string, unknown>;
   const info = (event.Info && typeof event.Info === 'object' ? event.Info : {}) as Record<string, unknown>;
   const text = String(data.message || data.text || message.conversation || (message.extendedTextMessage as Record<string, unknown> | undefined)?.text || '');
-  return { ...data, id: String(data.id || info.ID || `wuz-${crypto.randomUUID()}`), message: text, source: String(data.source || info.Chat || info.Sender || 'wuzapi'), receivedAt: String(data.receivedAt || new Date().toISOString()) };
+  const chatId = String(data.chatId || data.chat || info.Chat || info.RemoteJid || info.Sender || '');
+  return { ...data, id: String(data.id || info.ID || `wuz-${crypto.randomUUID()}`), message: text, source: String(data.source || chatId || 'wuzapi'), chatId, receivedAt: String(data.receivedAt || new Date().toISOString()) };
 }
 
 export function extractOperationalData(message: string): Record<string, string> {

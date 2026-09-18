@@ -14,6 +14,7 @@ const port = Number(process.env.PORT || 3333);
 const isProduction = process.env.NODE_ENV === 'production';
 const jwtSecret = process.env.JWT_SECRET || (!isProduction ? 'local-demo-secret-change-me' : undefined);
 const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || (!isProduction ? 'local-wuzapi-demo-token' : undefined);
+const activationGroupId = process.env.WUZAPI_ACTIVATION_GROUP_ID?.trim();
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const loginAttemptWindowMs = 15 * 60 * 1000;
 const maxLoginAttempts = 5;
@@ -198,8 +199,11 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
 });
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), (request, response) => response.json({ logs: listAuditLogs(String(request.params.id)) }));
 app.post('/api/integrations/wuzapi/webhook', (request, response) => {
-  if (request.headers['x-wuzapi-token'] !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
+  const authorizationToken = request.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const providedToken = request.headers['x-wuzapi-token'] || request.headers['x-webhook-token'] || authorizationToken || request.query.token;
+  if (providedToken !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
   const message = parseIncomingMessage(request.body);
+  if (activationGroupId && message.chatId !== activationGroupId) return response.status(202).json({ status: 'ignored', reason: 'Grupo nao autorizado.' });
   if (!message.message?.trim()) return response.status(400).json({ message: 'Mensagem vazia.' });
   const activation = receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: extractOperationalData(message.message) });
   return response.status(202).json({ activationId: activation.id, status: activation.status });

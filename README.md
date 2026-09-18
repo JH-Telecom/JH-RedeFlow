@@ -22,3 +22,5 @@ O modo demo so e usado quando `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` nao e
 Para validar a conexao, execute `npm run dev --workspace backend` e consulte `http://localhost:3333/health/supabase`.
 
 Testes do backend: `npm test --workspace backend`.
+
+Configuracao do webhook WuzAPI: [docs/wuzapi-webhook.md](docs/wuzapi-webhook.md).
