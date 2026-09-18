@@ -12,7 +12,8 @@ Status: concluida para validacao do usuario
 - [x] Schema PostgreSQL, indices, soft delete e seeds iniciais.
 - [x] Build do frontend e typecheck do backend validados.
 - [x] Healthcheck e login demo validados contra a API em execucao.
-- [ ] Validacao do usuario e troca do modo demo por PostgreSQL/Supabase. Cliente configurado; falta executar a migration `supabase/migrations/202609180001_initial_schema.sql` no projeto Supabase.
+- [x] Supabase configurado, migration executada e healthcheck conectado.
+- [ ] Troca da autenticacao e dos dados demo por Supabase Auth e consultas persistentes.
 
 ## Fases seguintes, bloqueadas ate validacao
 
@@ -40,4 +41,4 @@ Fonte operacional oficial confirmada: `Rede Externa Forms V2.xlsx`. As abas e o 
 
 ## Como continuar em outra conta
 
-Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao e executar a migration no Supabase SQL Editor, validar `/health/supabase` com `200` e iniciar a troca gradual do store em memoria por consultas Supabase.
+Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao e criar o primeiro usuario no Supabase Auth e iniciar a migracao do login e perfis para o banco persistente.
