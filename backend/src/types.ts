@@ -15,6 +15,8 @@ export type PermissionCode =
   | 'calls.create'
   | 'calls.edit'
   | 'calls.assign'
+  | 'calls.finish'
+  | 'calls.cancel'
   | 'calls.view_logs'
   | 'calls.add_observation'
   | 'settings.manage';
@@ -78,6 +80,9 @@ export type Call = {
   supervisorName?: string;
   openedAt: string;
   assignedAt?: string;
+  executedAt?: string;
+  result?: string;
+  cancellationReason?: string;
   notes: string;
 };
 

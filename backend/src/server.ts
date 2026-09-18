@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addSupervisor, addTechnician, addUser, getAuthUser, getCall, getRole, getUserByEmail, listAuditLogs, listCalls, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, updateCall, validatePassword } from './store.js';
+import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, finishCall, getAuthUser, getCall, getRole, getUserByEmail, listAuditLogs, listCalls, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, updateCall, validatePassword } from './store.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
@@ -73,9 +73,24 @@ app.get('/api/chamados/:id', auth, requirePermission('calls.view'), (request, re
   return response.json({ call });
 });
 app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), (request: AuthRequest, response) => {
-  const parsed = z.object({ status: z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado']).optional(), technicianId: z.string().optional(), notes: z.string().max(5000).optional() }).safeParse(request.body);
+  const parsed = z.object({ status: z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo']).optional(), technicianId: z.string().optional(), notes: z.string().max(5000).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de chamado invalidos.' });
   const call = updateCall(String(request.params.id), parsed.data, request.authUser!);
+  if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  return response.json({ call });
+});
+app.post('/api/chamados/:id/finalizar', auth, requirePermission('calls.finish'), (request: AuthRequest, response) => {
+  const parsed = z.object({ result: z.string(), executedAt: z.string(), notes: z.string() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe resultado, data de execucao e observacao.' });
+  const outcome = finishCall(String(request.params.id), parsed.data, request.authUser!);
+  if (outcome.missing.includes('Chamado nao encontrado')) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  if (outcome.missing.length) return response.status(422).json({ message: 'Nao e possivel finalizar este chamado.', missing: outcome.missing });
+  return response.json({ call: outcome.call });
+});
+app.post('/api/chamados/:id/cancelar', auth, requirePermission('calls.cancel'), (request: AuthRequest, response) => {
+  const parsed = z.object({ reason: z.string().trim().min(3) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe o motivo do cancelamento.' });
+  const call = cancelCall(String(request.params.id), parsed.data.reason, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });

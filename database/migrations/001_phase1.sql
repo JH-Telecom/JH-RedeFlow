@@ -100,6 +100,9 @@ CREATE TABLE IF NOT EXISTS calls (
   technician_id uuid REFERENCES technicians(id) ON DELETE SET NULL,
   opened_at timestamptz NOT NULL DEFAULT now(),
   assigned_at timestamptz,
+  executed_at timestamptz,
+  result varchar(255),
+  cancellation_reason text,
   notes text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()

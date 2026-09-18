@@ -18,6 +18,8 @@ const permissionDescriptions: Record<PermissionCode, string> = {
   'calls.create': 'Criar chamados',
   'calls.edit': 'Editar chamados',
   'calls.assign': 'Atribuir chamados',
+  'calls.finish': 'Finalizar chamados',
+  'calls.cancel': 'Cancelar chamados',
   'calls.view_logs': 'Visualizar auditoria de chamados',
   'calls.add_observation': 'Adicionar observacoes em chamados',
   'settings.manage': 'Gerenciar configuracoes'
@@ -26,7 +28,7 @@ const permissionDescriptions: Record<PermissionCode, string> = {
 const allPermissions = Object.keys(permissionDescriptions) as PermissionCode[];
 const now = new Date().toISOString();
 const adminRole: Role = { id: 'role-admin', name: 'Administrador', description: 'Acesso administrativo da plataforma', permissions: allPermissions };
-const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.view_logs', 'calls.add_observation', 'technicians.view', 'supervisors.view'] };
+const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.view_logs', 'calls.add_observation', 'technicians.view', 'supervisors.view'] };
 const supervisorRole: Role = { id: 'role-supervisor', name: 'Supervisor', description: 'Visao restrita da propria equipe', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
 const counterRole: Role = { id: 'role-counter', name: 'Mesario', description: 'Aceite e recusa de acionamentos', permissions: [] };
 const viewerRole: Role = { id: 'role-viewer', name: 'Visualizacao', description: 'Consulta sem alteracao', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
@@ -110,3 +112,28 @@ export function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'tec
 export function listObservations(callId: string): CallObservation[] { return [...observations.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
 export function addObservation(callId: string, actor: User, text: string): CallObservation { const observation: CallObservation = { id: `obs-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, text, createdAt: new Date().toISOString() }; observations.set(observation.id, observation); return observation; }
 export function listAuditLogs(callId: string): CallAuditLog[] { return [...auditLogs.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+export function finishCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: User): { call?: Call; missing: string[] } {
+  const current = calls.get(id);
+  if (!current) return { missing: ['Chamado nao encontrado'] };
+  const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
+  if (missing.length) return { missing };
+  const updated = { ...current, ...input, status: 'Finalizado' as const };
+  calls.set(id, updated);
+  (['status', 'result', 'executedAt', 'notes'] as const).forEach((field) => {
+    const previousValue = String(current[field as keyof Call] ?? '');
+    const newValue = String(updated[field] ?? '');
+    if (previousValue === newValue) return;
+    const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: `${field === 'status' ? 'Status' : field === 'result' ? 'Resultado' : field === 'executedAt' ? 'Data de execucao' : 'Observacoes'} alterado`, field, previousValue, newValue, createdAt: new Date().toISOString() };
+    auditLogs.set(log.id, log);
+  });
+  return { call: updated, missing: [] };
+}
+export function cancelCall(id: string, reason: string, actor: User): Call | undefined {
+  const current = calls.get(id);
+  if (!current) return undefined;
+  const updated = { ...current, status: 'Cancelado' as const, cancellationReason: reason };
+  calls.set(id, updated);
+  const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado cancelado', field: 'cancellationReason', previousValue: '', newValue: reason, createdAt: new Date().toISOString() };
+  auditLogs.set(log.id, log);
+  return updated;
+}

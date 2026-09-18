@@ -5,7 +5,7 @@ export type User = { id: string; name: string; email: string; roleId: string; ac
 export type Technician = { id: string; supervisorId?: string; name: string; registration: string; supervisorName?: string; region: string; shift: string; currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel'; active: boolean };
 export type Supervisor = { id: string; userId?: string; name: string; region: string; active: boolean; technicianCount: number };
 export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado';
-export type Call = { id: string; orderNumber: string; bdesk: string; officeTrack: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slotPon: string; status: CallStatus; technicianId?: string; technicianName?: string; supervisorName?: string; openedAt: string; assignedAt?: string; notes: string };
+export type Call = { id: string; orderNumber: string; bdesk: string; officeTrack: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slotPon: string; status: CallStatus; technicianId?: string; technicianName?: string; supervisorName?: string; openedAt: string; assignedAt?: string; executedAt?: string; result?: string; cancellationReason?: string; notes: string };
 export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
 export type Session = { token: string; user: User & { role: Role } };
@@ -13,7 +13,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
   const response = await fetch(`${API_URL}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers } });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message || 'Nao foi possivel concluir a operacao.');
+  if (!response.ok) {
+    const error = new Error(payload.message || 'Nao foi possivel concluir a operacao.') as Error & { missing?: string[] };
+    error.missing = payload.missing;
+    throw error;
+  }
   return payload;
 }
 export const api = {
@@ -26,6 +30,8 @@ export const api = {
   calls: (status?: CallStatus) => request<{ calls: Call[] }>(`/api/chamados${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   call: (id: string) => request<{ call: Call }>(`/api/chamados/${id}`),
   updateCall: (id: string, data: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>) => request<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => request<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
+  cancelCall: (id: string, reason: string) => request<{ call: Call }>(`/api/chamados/${id}/cancelar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   observations: (id: string) => request<{ observations: CallObservation[] }>(`/api/chamados/${id}/observacoes`),
   addObservation: (id: string, text: string) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes`, { method: 'POST', body: JSON.stringify({ text }) }),
   auditLogs: (id: string) => request<{ logs: CallAuditLog[] }>(`/api/chamados/${id}/logs`),

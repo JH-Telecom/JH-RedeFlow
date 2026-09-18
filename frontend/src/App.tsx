@@ -1,77 +1,1406 @@
-import { useEffect, useState } from 'react';
-import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Activity, BarChart3, Bell, Building2, ChevronRight, CircleHelp, ClipboardList, LayoutDashboard, LockKeyhole, LogOut, Menu, Search, Settings, ShieldCheck, SlidersHorizontal, Users, X } from 'lucide-react';
-import { api, type Call, type CallAuditLog, type CallObservation, type CallStatus, type Role, type Technician, type User } from './api';
+import { useEffect, useState } from "react";
+import {
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import {
+  Activity,
+  BarChart3,
+  Bell,
+  Building2,
+  ChevronRight,
+  CircleHelp,
+  ClipboardList,
+  LayoutDashboard,
+  LockKeyhole,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Users,
+  X,
+} from "lucide-react";
+import {
+  api,
+  type Call,
+  type CallAuditLog,
+  type CallObservation,
+  type CallStatus,
+  type Role,
+  type Technician,
+  type User,
+} from "./api";
 
-const navItems = [{ label: 'Visao geral', to: '/', icon: LayoutDashboard, permission: 'dashboard.view' }, { label: 'Chamados abertos', to: '/chamados/abertos', icon: ClipboardList, permission: 'calls.view' }, { label: 'Em atendimento', to: '/chamados/atendimento', icon: Activity, permission: 'calls.view' }, { label: 'Tecnicos', to: '/tecnicos', icon: Users, permission: 'technicians.view' }, { label: 'Supervisores', to: '/supervisores', icon: Building2, permission: 'supervisors.view' }, { label: 'Usuarios', to: '/usuarios', icon: Users, permission: 'users.view' }, { label: 'Cargos e permissoes', to: '/cargos', icon: ShieldCheck, permission: 'roles.view' }, { label: 'Configuracoes', to: '/configuracoes', icon: Settings, permission: 'settings.manage' }];
+const navItems = [
+  {
+    label: "Visao geral",
+    to: "/",
+    icon: LayoutDashboard,
+    permission: "dashboard.view",
+  },
+  {
+    label: "Chamados abertos",
+    to: "/chamados/abertos",
+    icon: ClipboardList,
+    permission: "calls.view",
+  },
+  {
+    label: "Em atendimento",
+    to: "/chamados/atendimento",
+    icon: Activity,
+    permission: "calls.view",
+  },
+  {
+    label: "Tecnicos",
+    to: "/tecnicos",
+    icon: Users,
+    permission: "technicians.view",
+  },
+  {
+    label: "Supervisores",
+    to: "/supervisores",
+    icon: Building2,
+    permission: "supervisors.view",
+  },
+  { label: "Usuarios", to: "/usuarios", icon: Users, permission: "users.view" },
+  {
+    label: "Cargos e permissoes",
+    to: "/cargos",
+    icon: ShieldCheck,
+    permission: "roles.view",
+  },
+  {
+    label: "Configuracoes",
+    to: "/configuracoes",
+    icon: Settings,
+    permission: "settings.manage",
+  },
+];
 
-function Login({ onLogin }: { onLogin: (session: { token: string; user: User & { role: Role } }) => void }) {
-  const [email, setEmail] = useState('admin@jhtelecom.com'); const [password, setPassword] = useState('RedeFlow@2026'); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
-  async function submit(event: React.FormEvent) { event.preventDefault(); setLoading(true); setError(''); try { const session = await api.login(email, password); onLogin(session); } catch (err) { setError(err instanceof Error ? err.message : 'Nao foi possivel entrar.'); } finally { setLoading(false); } }
-  return <main className="login-page"><section className="login-intro"><div className="brand-mark"><span>JH</span><div><strong>JH Telecom</strong><small>RedeFlow</small></div></div><div className="intro-copy"><p className="eyebrow">OPERACAO DE REDE</p><h1>Controle operacional da Rede em um só lugar.</h1><p>Gerencie ordens, equipes, atendimentos e indicadores de forma simples e centralizada.</p></div><div className="intro-foot"><span><Activity size={16}/> Plataforma em evolução</span><span><LockKeyhole size={16}/> Ambiente corporativo</span></div></section><section className="login-panel"><div className="login-card"><div className="mobile-brand"><div className="mini-mark">JH</div><strong>JH RedeFlow</strong></div><div className="form-heading"><span className="section-kicker">ACESSO INTERNO</span><h2>Entrar</h2><p>Use sua conta corporativa para acessar o sistema.</p></div><form onSubmit={submit}><label>E-mail<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@jhtelecom.com" required /></label><label>Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Digite sua senha" required /></label>{error && <div className="form-error">{error}</div>}<button className="primary-button" disabled={loading}>{loading ? 'Entrando...' : 'Entrar no sistema'}<ChevronRight size={18}/></button></form><button className="text-button" type="button">Esqueci minha senha</button><div className="demo-note">Demo local habilitada para validação da Fase 1.</div></div></section></main>;
+function Login({
+  onLogin,
+}: {
+  onLogin: (session: { token: string; user: User & { role: Role } }) => void;
+}) {
+  const [email, setEmail] = useState("admin@jhtelecom.com");
+  const [password, setPassword] = useState("RedeFlow@2026");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const session = await api.login(email, password);
+      onLogin(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel entrar.");
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <main className="login-page">
+      <section className="login-intro">
+        <div className="brand-mark">
+          <span>JH</span>
+          <div>
+            <strong>JH Telecom</strong>
+            <small>RedeFlow</small>
+          </div>
+        </div>
+        <div className="intro-copy">
+          <p className="eyebrow">OPERACAO DE REDE</p>
+          <h1>Controle operacional da Rede em um só lugar.</h1>
+          <p>
+            Gerencie ordens, equipes, atendimentos e indicadores de forma
+            simples e centralizada.
+          </p>
+        </div>
+        <div className="intro-foot">
+          <span>
+            <Activity size={16} /> Plataforma em evolução
+          </span>
+          <span>
+            <LockKeyhole size={16} /> Ambiente corporativo
+          </span>
+        </div>
+      </section>
+      <section className="login-panel">
+        <div className="login-card">
+          <div className="mobile-brand">
+            <div className="mini-mark">JH</div>
+            <strong>JH RedeFlow</strong>
+          </div>
+          <div className="form-heading">
+            <span className="section-kicker">ACESSO INTERNO</span>
+            <h2>Entrar</h2>
+            <p>Use sua conta corporativa para acessar o sistema.</p>
+          </div>
+          <form onSubmit={submit}>
+            <label>
+              E-mail
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="voce@jhtelecom.com"
+                required
+              />
+            </label>
+            <label>
+              Senha
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Digite sua senha"
+                required
+              />
+            </label>
+            {error && <div className="form-error">{error}</div>}
+            <button className="primary-button" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar no sistema"}
+              <ChevronRight size={18} />
+            </button>
+          </form>
+          <button className="text-button" type="button">
+            Esqueci minha senha
+          </button>
+          <div className="demo-note">
+            Demo local habilitada para validação da Fase 1.
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }
 
-function Shell({ user, onLogout }: { user: User & { role: Role }; onLogout: () => void }) {
-  const [mobileOpen, setMobileOpen] = useState(false); const location = useLocation(); const title = location.pathname === '/' ? 'Visao geral' : location.pathname.includes('/chamados/abertos') ? 'Chamados abertos' : location.pathname.includes('/chamados/atendimento') ? 'Em atendimento' : location.pathname.includes('/chamados/') ? 'Detalhe do chamado' : location.pathname === '/tecnicos' ? 'Tecnicos' : location.pathname === '/supervisores' ? 'Supervisores' : location.pathname === '/usuarios' ? 'Usuarios' : location.pathname === '/cargos' ? 'Cargos e permissoes' : 'Configuracoes';
-  return <div className="app-shell"><aside className={mobileOpen ? 'sidebar open' : 'sidebar'}><div className="sidebar-brand"><div className="mini-mark">JH</div><div><strong>JH Telecom</strong><small>RedeFlow</small></div><button className="icon-button sidebar-close" onClick={() => setMobileOpen(false)}><X size={18}/></button></div><div className="workspace-switcher"><span className="workspace-dot"/><span>Operacao Rede</span><ChevronRight size={15}/></div><nav>{navItems.filter((item) => user.role.permissions.includes(item.permission)).map((item) => <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}><item.icon size={18}/><span>{item.label}</span></NavLink>)}</nav><div className="sidebar-bottom"><div className="help-link"><CircleHelp size={17}/><span>Central de ajuda</span></div><div className="profile-mini"><div className="avatar">{user.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div><div><strong>{user.name}</strong><small>{user.role.name}</small></div><button className="icon-button" onClick={onLogout} title="Sair"><LogOut size={16}/></button></div></div></aside>{mobileOpen && <div className="sidebar-overlay" onClick={() => setMobileOpen(false)}/>}<div className="main-area"><header className="topbar"><button className="icon-button menu-button" onClick={() => setMobileOpen(true)}><Menu size={20}/></button><div className="breadcrumbs"><span>RedeFlow</span><ChevronRight size={14}/><strong>{title}</strong></div><div className="topbar-actions"><button className="icon-button"><Search size={18}/></button><button className="icon-button notification"><Bell size={18}/><i/></button><div className="topbar-avatar">{user.name.slice(0, 1)}</div></div></header><div className="content"><Routes><Route path="/" element={<Dashboard user={user}/>}/><Route path="/chamados/abertos" element={<CallsPage status="Aberto" title="Chamados abertos"/>}/><Route path="/chamados/atendimento" element={<CallsPage title="Chamados em atendimento"/>}/><Route path="/chamados/:id" element={<BaseCallDetailPage/>}/><Route path="/tecnicos" element={<TechniciansPage/>}/><Route path="/supervisores" element={<SupervisorsPage/>}/><Route path="/usuarios" element={<UsersPage/>}/><Route path="/cargos" element={<RolesPage/>}/><Route path="/configuracoes" element={<SettingsPage/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes></div></div></div>;
+function Shell({
+  user,
+  onLogout,
+}: {
+  user: User & { role: Role };
+  onLogout: () => void;
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+  const title =
+    location.pathname === "/"
+      ? "Visao geral"
+      : location.pathname.includes("/chamados/abertos")
+        ? "Chamados abertos"
+        : location.pathname.includes("/chamados/atendimento")
+          ? "Em atendimento"
+          : location.pathname.includes("/chamados/")
+            ? "Detalhe do chamado"
+            : location.pathname === "/tecnicos"
+              ? "Tecnicos"
+              : location.pathname === "/supervisores"
+                ? "Supervisores"
+                : location.pathname === "/usuarios"
+                  ? "Usuarios"
+                  : location.pathname === "/cargos"
+                    ? "Cargos e permissoes"
+                    : "Configuracoes";
+  return (
+    <div className="app-shell">
+      <aside className={mobileOpen ? "sidebar open" : "sidebar"}>
+        <div className="sidebar-brand">
+          <div className="mini-mark">JH</div>
+          <div>
+            <strong>JH Telecom</strong>
+            <small>RedeFlow</small>
+          </div>
+          <button
+            className="icon-button sidebar-close"
+            onClick={() => setMobileOpen(false)}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="workspace-switcher">
+          <span className="workspace-dot" />
+          <span>Operacao Rede</span>
+          <ChevronRight size={15} />
+        </div>
+        <nav>
+          {navItems
+            .filter((item) => user.role.permissions.includes(item.permission))
+            .map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  isActive ? "nav-item active" : "nav-item"
+                }
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <div className="help-link">
+            <CircleHelp size={17} />
+            <span>Central de ajuda</span>
+          </div>
+          <div className="profile-mini">
+            <div className="avatar">
+              {user.name
+                .split(" ")
+                .map((part) => part[0])
+                .slice(0, 2)
+                .join("")}
+            </div>
+            <div>
+              <strong>{user.name}</strong>
+              <small>{user.role.name}</small>
+            </div>
+            <button className="icon-button" onClick={onLogout} title="Sair">
+              <LogOut size={16} />
+            </button>
+          </div>
+        </div>
+      </aside>
+      {mobileOpen && (
+        <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />
+      )}
+      <div className="main-area">
+        <header className="topbar">
+          <button
+            className="icon-button menu-button"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu size={20} />
+          </button>
+          <div className="breadcrumbs">
+            <span>RedeFlow</span>
+            <ChevronRight size={14} />
+            <strong>{title}</strong>
+          </div>
+          <div className="topbar-actions">
+            <button className="icon-button">
+              <Search size={18} />
+            </button>
+            <button className="icon-button notification">
+              <Bell size={18} />
+              <i />
+            </button>
+            <div className="topbar-avatar">{user.name.slice(0, 1)}</div>
+          </div>
+        </header>
+        <div className="content">
+          <Routes>
+            <Route path="/" element={<Dashboard user={user} />} />
+            <Route
+              path="/chamados/abertos"
+              element={<CallsPage status="Aberto" title="Chamados abertos" />}
+            />
+            <Route
+              path="/chamados/atendimento"
+              element={<CallsPage title="Chamados em atendimento" />}
+            />
+            <Route path="/chamados/:id" element={<CallDetailRoute />} />
+            <Route path="/tecnicos" element={<TechniciansPage />} />
+            <Route path="/supervisores" element={<SupervisorsPage />} />
+            <Route path="/usuarios" element={<UsersPage />} />
+            <Route path="/cargos" element={<RolesPage />} />
+            <Route path="/configuracoes" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function Dashboard({ user }: { user: User }) { return <><div className="page-heading"><div><span className="section-kicker">QUARTA-FEIRA, 18 DE SETEMBRO DE 2026</span><h1>Bom dia, {user.name.split(' ')[0]}.</h1><p>Acompanhe o pulso da operação e mantenha sua equipe em movimento.</p></div><button className="secondary-button"><SlidersHorizontal size={16}/> Personalizar</button></div><div className="metric-grid"><Metric label="Chamados recebidos hoje" value="128" note="+12,4% vs. ontem" positive/><Metric label="Chamados abertos" value="42" note="8 sem técnico"/><Metric label="Em atendimento" value="67" note="14 em campo"/><Metric label="Finalizados hoje" value="19" note="Tempo médio 03h42" positive/></div><div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-heading"><div><span className="section-kicker">FLUXO OPERACIONAL</span><h2>Chamados por período</h2></div><button className="select-button">Últimos 7 dias <ChevronRight size={15}/></button></div><div className="chart"><div className="chart-y"><span>160</span><span>120</span><span>80</span><span>40</span><span>0</span></div><div className="chart-area"><div className="grid-line"/><div className="grid-line"/><div className="grid-line"/><div className="grid-line"/><svg viewBox="0 0 700 220" preserveAspectRatio="none"><path className="chart-fill" d="M0,176 C40,160 70,162 110,128 S175,145 220,112 S280,95 325,114 S380,75 430,88 S490,50 535,78 S590,45 640,61 S680,30 700,38 L700,220 L0,220Z"/><path className="chart-line" d="M0,176 C40,160 70,162 110,128 S175,145 220,112 S280,95 325,114 S380,75 430,88 S490,50 535,78 S590,45 640,61 S680,30 700,38"/></svg><div className="chart-labels"><span>12 set</span><span>13 set</span><span>14 set</span><span>15 set</span><span>16 set</span><span>17 set</span><span>18 set</span></div></div></div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">DISTRIBUICAO</span><h2>Status dos chamados</h2></div><BarChart3 size={19} className="muted-icon"/></div><div className="donut-wrap"><div className="donut"><div><strong>128</strong><small>Total</small></div></div><div className="legend"><span><i className="blue"/>Em atendimento <b>67</b></span><span><i className="cyan"/>Abertos <b>42</b></span><span><i className="gray"/>Finalizados <b>19</b></span></div></div></section></div><section className="panel activity-panel"><div className="panel-heading"><div><span className="section-kicker">ACOMPANHAMENTO</span><h2>Atividade recente</h2></div><button className="link-button">Ver tudo <ChevronRight size={15}/></button></div><div className="activity-list"><ActivityRow color="blue" text="Novo chamado recebido" detail="Ordem #RF-240918 · Região Sul" time="há 4 min"/><ActivityRow color="green" text="Chamado finalizado" detail="Ordem #RF-240912 · Carlos Mendes" time="há 18 min"/><ActivityRow color="orange" text="Chamado sem técnico" detail="Ordem #RF-240905 · Região Leste" time="há 31 min"/></div></section></> }
-function Metric({ label, value, note, positive }: { label: string; value: string; note: string; positive?: boolean }) { return <section className="metric"><div className="metric-icon"><ClipboardList size={17}/></div><span>{label}</span><strong>{value}</strong><small className={positive ? 'positive' : ''}>{positive && '↗ '}{note}</small></section> }
-function ActivityRow({ color, text, detail, time }: { color: string; text: string; detail: string; time: string }) { return <div className="activity-row"><i className={`activity-dot ${color}`}/><div><strong>{text}</strong><span>{detail}</span></div><time>{time}</time></div> }
+function Dashboard({ user }: { user: User }) {
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">
+            QUARTA-FEIRA, 18 DE SETEMBRO DE 2026
+          </span>
+          <h1>Bom dia, {user.name.split(" ")[0]}.</h1>
+          <p>
+            Acompanhe o pulso da operação e mantenha sua equipe em movimento.
+          </p>
+        </div>
+        <button className="secondary-button">
+          <SlidersHorizontal size={16} /> Personalizar
+        </button>
+      </div>
+      <div className="metric-grid">
+        <Metric
+          label="Chamados recebidos hoje"
+          value="128"
+          note="+12,4% vs. ontem"
+          positive
+        />
+        <Metric label="Chamados abertos" value="42" note="8 sem técnico" />
+        <Metric label="Em atendimento" value="67" note="14 em campo" />
+        <Metric
+          label="Finalizados hoje"
+          value="19"
+          note="Tempo médio 03h42"
+          positive
+        />
+      </div>
+      <div className="dashboard-grid">
+        <section className="panel chart-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">FLUXO OPERACIONAL</span>
+              <h2>Chamados por período</h2>
+            </div>
+            <button className="select-button">
+              Últimos 7 dias <ChevronRight size={15} />
+            </button>
+          </div>
+          <div className="chart">
+            <div className="chart-y">
+              <span>160</span>
+              <span>120</span>
+              <span>80</span>
+              <span>40</span>
+              <span>0</span>
+            </div>
+            <div className="chart-area">
+              <div className="grid-line" />
+              <div className="grid-line" />
+              <div className="grid-line" />
+              <div className="grid-line" />
+              <svg viewBox="0 0 700 220" preserveAspectRatio="none">
+                <path
+                  className="chart-fill"
+                  d="M0,176 C40,160 70,162 110,128 S175,145 220,112 S280,95 325,114 S380,75 430,88 S490,50 535,78 S590,45 640,61 S680,30 700,38 L700,220 L0,220Z"
+                />
+                <path
+                  className="chart-line"
+                  d="M0,176 C40,160 70,162 110,128 S175,145 220,112 S280,95 325,114 S380,75 430,88 S490,50 535,78 S590,45 640,61 S680,30 700,38"
+                />
+              </svg>
+              <div className="chart-labels">
+                <span>12 set</span>
+                <span>13 set</span>
+                <span>14 set</span>
+                <span>15 set</span>
+                <span>16 set</span>
+                <span>17 set</span>
+                <span>18 set</span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="panel status-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">DISTRIBUICAO</span>
+              <h2>Status dos chamados</h2>
+            </div>
+            <BarChart3 size={19} className="muted-icon" />
+          </div>
+          <div className="donut-wrap">
+            <div className="donut">
+              <div>
+                <strong>128</strong>
+                <small>Total</small>
+              </div>
+            </div>
+            <div className="legend">
+              <span>
+                <i className="blue" />
+                Em atendimento <b>67</b>
+              </span>
+              <span>
+                <i className="cyan" />
+                Abertos <b>42</b>
+              </span>
+              <span>
+                <i className="gray" />
+                Finalizados <b>19</b>
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
+      <section className="panel activity-panel">
+        <div className="panel-heading">
+          <div>
+            <span className="section-kicker">ACOMPANHAMENTO</span>
+            <h2>Atividade recente</h2>
+          </div>
+          <button className="link-button">
+            Ver tudo <ChevronRight size={15} />
+          </button>
+        </div>
+        <div className="activity-list">
+          <ActivityRow
+            color="blue"
+            text="Novo chamado recebido"
+            detail="Ordem #RF-240918 · Região Sul"
+            time="há 4 min"
+          />
+          <ActivityRow
+            color="green"
+            text="Chamado finalizado"
+            detail="Ordem #RF-240912 · Carlos Mendes"
+            time="há 18 min"
+          />
+          <ActivityRow
+            color="orange"
+            text="Chamado sem técnico"
+            detail="Ordem #RF-240905 · Região Leste"
+            time="há 31 min"
+          />
+        </div>
+      </section>
+    </>
+  );
+}
+function Metric({
+  label,
+  value,
+  note,
+  positive,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  positive?: boolean;
+}) {
+  return (
+    <section className="metric">
+      <div className="metric-icon">
+        <ClipboardList size={17} />
+      </div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small className={positive ? "positive" : ""}>
+        {positive && "↗ "}
+        {note}
+      </small>
+    </section>
+  );
+}
+function ActivityRow({
+  color,
+  text,
+  detail,
+  time,
+}: {
+  color: string;
+  text: string;
+  detail: string;
+  time: string;
+}) {
+  return (
+    <div className="activity-row">
+      <i className={`activity-dot ${color}`} />
+      <div>
+        <strong>{text}</strong>
+        <span>{detail}</span>
+      </div>
+      <time>{time}</time>
+    </div>
+  );
+}
 
-function UsersPage() { const [users, setUsers] = useState<User[]>([]); const [error, setError] = useState(''); useEffect(() => { api.users().then((data) => setUsers(data.users)).catch((err) => setError(err.message)); }, []); return <><div className="page-heading"><div><span className="section-kicker">ADMINISTRACAO</span><h1>Usuarios</h1><p>Controle quem acessa o RedeFlow e o que cada pessoa pode fazer.</p></div><button className="primary-button compact"><Users size={16}/> Novo usuario</button></div><section className="panel table-panel"><div className="table-toolbar"><div className="search-field"><Search size={16}/><input placeholder="Buscar por nome ou e-mail"/></div><button className="secondary-button compact"><SlidersHorizontal size={15}/> Filtros</button></div>{error ? <div className="empty-state">{error}</div> : <table><thead><tr><th>Usuario</th><th>E-mail</th><th>Cargo</th><th>Status</th><th>Cadastro</th><th/></tr></thead><tbody>{users.map((user) => <tr key={user.id}><td><div className="user-cell"><div className="avatar">{user.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div><strong>{user.name}</strong></div></td><td>{user.email}</td><td><span className="role-pill">{user.role?.name || (user.roleId === 'role-admin' ? 'Administrador' : 'Operador')}</span></td><td><span className="status active"><i/>Ativo</span></td><td>{new Date(user.createdAt).toLocaleDateString('pt-BR')}</td><td><button className="icon-button"><ChevronRight size={17}/></button></td></tr>)}</tbody></table>}</section></> }
-function CallsPage({ status, title }: { status?: CallStatus; title: string }) { const [calls, setCalls] = useState<Call[]>([]); const [query, setQuery] = useState(''); const [error, setError] = useState(''); const navigate = useNavigate(); useEffect(() => { api.calls(status).then((data) => setCalls(data.calls)).catch((err) => setError(err.message)); }, [status]); const visibleCalls = calls.filter((call) => [call.orderNumber, call.client, call.bdesk, call.region, call.city].join(' ').toLowerCase().includes(query.toLowerCase())); return <><div className="page-heading"><div><span className="section-kicker">OPERACAO</span><h1>{title}</h1><p>{visibleCalls.length} chamados na fila atual. Clique em uma linha para abrir o atendimento.</p></div><button className="secondary-button compact" onClick={() => api.calls(status).then((data) => setCalls(data.calls))}><Activity size={15}/> Atualizar</button></div><section className="panel table-panel calls-table"><div className="table-toolbar"><div className="search-field"><Search size={16}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar ordem, cliente, BDESK ou regiao"/></div><button className="secondary-button compact"><SlidersHorizontal size={15}/> Filtros</button><span className="result-count">{visibleCalls.length} resultados</span></div>{error ? <div className="empty-state">{error}</div> : <table><thead><tr><th>Ordem</th><th>Cliente</th><th>Tipo / motivo</th><th>Regiao</th><th>Abertura</th><th>Tempo aguardando</th><th>Status</th><th>Tecnico</th></tr></thead><tbody>{visibleCalls.map((call) => <tr key={call.id} onClick={() => navigate(`/chamados/${call.id}`)}><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.client}<small className="table-subtext">{call.city}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td>{new Date(call.openedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(' ', '-')}`}>{call.status}</span></td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td></tr>)}</tbody></table>}</section></> }
-function formatWaiting(openedAt: string) { const minutes = Math.max(1, Math.floor((Date.now() - new Date(openedAt).getTime()) / 60000)); return minutes > 59 ? `${Math.floor(minutes / 60)}h ${minutes % 60}min` : `${minutes}min`; }
-function BaseCallDetailPage() { const { pathname } = useLocation(); const id = pathname.split('/').pop()!; const [call, setCall] = useState<Call | null>(null); const [technicians, setTechnicians] = useState<Technician[]>([]); const [status, setStatus] = useState<CallStatus>('Aberto'); const [technicianId, setTechnicianId] = useState(''); const [notes, setNotes] = useState(''); const [message, setMessage] = useState(''); const navigate = useNavigate(); useEffect(() => { Promise.all([api.call(id), api.technicians()]).then(([callData, technicianData]) => { setCall(callData.call); setStatus(callData.call.status); setTechnicianId(callData.call.technicianId || ''); setNotes(callData.call.notes); setTechnicians(technicianData.technicians); }); }, [id]); if (!call) return <div className="empty-state">Carregando chamado...</div>; async function save() { const data = await api.updateCall(id, { status, technicianId: technicianId || undefined, notes }); setCall(data.call); setMessage('Chamado atualizado.'); setTimeout(() => setMessage(''), 2400); } return <><button className="back-button" onClick={() => navigate(-1)}><ChevronRight size={16} className="back-icon"/> Voltar para chamados</button><div className="call-detail-heading"><div><span className="section-kicker">ORDEM {call.orderNumber}</span><h1>{call.client}</h1><p>{call.bdesk} · {call.officeTrack} · {call.city}, {call.region}</p></div><span className={`call-badge ${status.toLowerCase().replace(' ', '-')}`}>{status}</span></div><div className="detail-layout"><section className="panel detail-main"><div className="panel-heading"><div><span className="section-kicker">INFORMACOES DO CHAMADO</span><h2>Dados operacionais</h2></div></div><div className="detail-grid"><DetailItem label="Ordem" value={call.orderNumber}/><DetailItem label="BDESK" value={call.bdesk}/><DetailItem label="Office Track" value={call.officeTrack}/><DetailItem label="Cliente" value={call.client}/><DetailItem label="Tipo" value={call.type}/><DetailItem label="Motivo" value={call.reason}/><DetailItem label="Regiao" value={call.region}/><DetailItem label="Cidade" value={call.city}/><DetailItem label="OLT" value={call.olt}/><DetailItem label="Slot/PON" value={call.slotPon}/><DetailItem label="Abertura" value={new Date(call.openedAt).toLocaleString('pt-BR')}/></div><label className="detail-label">Observacoes<textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={5}/></label></section><aside className="panel detail-actions"><div className="panel-heading"><div><span className="section-kicker">ATENDIMENTO</span><h2>Distribuicao</h2></div></div><label className="detail-label">Status<select value={status} onChange={(event) => setStatus(event.target.value as CallStatus)}>{['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado'].map((item) => <option key={item}>{item}</option>)}</select></label><label className="detail-label">Tecnico<select value={technicianId} onChange={(event) => setTechnicianId(event.target.value)}><option value="">Sem tecnico</option>{technicians.filter((technician) => technician.active).map((technician) => <option key={technician.id} value={technician.id}>{technician.name} · {technician.region}</option>)}</select></label><div className="assignment-note">{technicianId ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || 'Nao definido'}` : 'Este chamado ainda nao possui tecnico.'}</div><button className="primary-button save-call" onClick={save}>Salvar alteracoes <ChevronRight size={17}/></button>{message && <div className="save-message">{message}</div>}</aside></div></> }
-function AuditedCallDetailPage() { const { pathname } = useLocation(); const id = pathname.split('/').pop()!; const [observations, setObservations] = useState<CallObservation[]>([]); const [logs, setLogs] = useState<CallAuditLog[]>([]); const [text, setText] = useState(''); const [tab, setTab] = useState<'observations' | 'logs'>('observations'); async function refreshHistory() { const [observationData, logData] = await Promise.all([api.observations(id), api.auditLogs(id)]); setObservations(observationData.observations); setLogs(logData.logs); } useEffect(() => { refreshHistory(); }, [id]); async function addNote() { if (!text.trim()) return; await api.addObservation(id, text); setText(''); await refreshHistory(); } return <><BaseCallDetailPage/><section className="panel history-panel"><div className="history-tabs"><button className={tab === 'observations' ? 'history-tab active' : 'history-tab'} onClick={() => setTab('observations')}>Observacoes <b>{observations.length}</b></button><button className={tab === 'logs' ? 'history-tab active' : 'history-tab'} onClick={() => setTab('logs')}>Auditoria <b>{logs.length}</b></button></div>{tab === 'observations' ? <><div className="observation-compose"><textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Registrar uma observacao operacional..." rows={3}/><button className="primary-button compact" onClick={addNote}>Adicionar observacao</button></div><div className="history-list">{observations.length ? observations.map((item) => <div className="history-item" key={item.id}><div className="history-avatar">{item.userName.slice(0, 1)}</div><div><strong>{item.userName}</strong><small>{new Date(item.createdAt).toLocaleString('pt-BR')}</small><p>{item.text}</p></div></div>) : <div className="empty-state">Nenhuma observacao registrada.</div>}</div></> : <div className="history-list">{logs.length ? logs.map((item) => <div className="history-item" key={item.id}><div className="history-avatar log">↗</div><div><strong>{item.userName}</strong><small>{new Date(item.createdAt).toLocaleString('pt-BR')}</small><p><b>{item.action}</b><br/>{item.previousValue || 'vazio'} → {item.newValue || 'vazio'}</p></div></div>) : <div className="empty-state">Nenhuma alteracao registrada.</div>}</div>}</section></> }
-function CallDetailPage() { return <AuditedCallDetailPage/> }
-function DetailItem({ label, value }: { label: string; value: string }) { return <div className="detail-item"><span>{label}</span><strong>{value || '-'}</strong></div> }
-function TechniciansPage() { const [technicians, setTechnicians] = useState<Technician[]>([]); const [error, setError] = useState(''); useEffect(() => { api.technicians().then((data) => setTechnicians(data.technicians)).catch((err) => setError(err.message)); }, []); return <><div className="page-heading"><div><span className="section-kicker">EQUIPES</span><h1>Tecnicos</h1><p>Consulte disponibilidade, escala e supervisor de cada tecnico.</p></div><button className="primary-button compact"><Users size={16}/> Novo tecnico</button></div><div className="metric-grid team-metrics"><Metric label="Tecnicos ativos" value={String(technicians.filter((technician) => technician.active).length)} note="Na operacao" positive/><Metric label="Em campo" value={String(technicians.filter((technician) => technician.currentStatus === 'Em campo').length)} note="Atendimento em curso"/><Metric label="Disponiveis" value={String(technicians.filter((technician) => technician.currentStatus === 'Disponivel').length)} note="Prontos para atribuicao" positive/><Metric label="Regioes" value={String(new Set(technicians.map((technician) => technician.region)).size)} note="Areas cobertas"/></div><section className="panel table-panel"><div className="table-toolbar"><div className="search-field"><Search size={16}/><input placeholder="Buscar por nome ou matricula"/></div><button className="secondary-button compact"><SlidersHorizontal size={15}/> Filtros</button></div>{error ? <div className="empty-state">{error}</div> : <table><thead><tr><th>Tecnico</th><th>Matricula</th><th>Supervisor</th><th>Regiao</th><th>Turno</th><th>Situacao</th><th>Status</th></tr></thead><tbody>{technicians.map((technician) => <tr key={technician.id}><td><div className="user-cell"><div className="avatar">{technician.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div><strong>{technician.name}</strong></div></td><td>{technician.registration}</td><td>{technician.supervisorName || 'Sem supervisor'}</td><td>{technician.region}</td><td>{technician.shift}</td><td><span className={`team-status ${technician.currentStatus === 'Em campo' ? 'field' : technician.currentStatus === 'Disponivel' ? 'ready' : 'off'}`}><i/>{technician.currentStatus}</span></td><td><span className={`status ${technician.active ? 'active' : 'inactive'}`}><i/>{technician.active ? 'Ativo' : 'Inativo'}</span></td></tr>)}</tbody></table>}</section></> }
-function SupervisorsPage() { const [data, setData] = useState<{ supervisors: { id: string; name: string; region: string; active: boolean; technicianCount: number }[]; technicians: Technician[] }>({ supervisors: [], technicians: [] }); useEffect(() => { api.supervisors().then(setData); }, []); return <><div className="page-heading"><div><span className="section-kicker">EQUIPES</span><h1>Supervisores</h1><p>Visualize a estrutura das equipes e o tecnico sob cada supervisao.</p></div><button className="primary-button compact"><Building2 size={16}/> Novo supervisor</button></div><div className="supervisor-grid">{data.supervisors.map((supervisor) => <section className="panel supervisor-card" key={supervisor.id}><div className="supervisor-heading"><div className="supervisor-avatar"><Building2 size={17}/></div><div><h2>{supervisor.name}</h2><span>{supervisor.region} · {supervisor.technicianCount} tecnicos</span></div><button className="icon-button"><ChevronRight size={17}/></button></div><div className="team-list">{data.technicians.filter((technician) => technician.supervisorId === supervisor.id).map((technician) => <div className="team-member" key={technician.id}><div className="avatar">{technician.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</div><div><strong>{technician.name}</strong><span>{technician.registration} · {technician.shift}</span></div><i className={`member-dot ${technician.currentStatus === 'Em campo' ? 'field' : technician.active ? 'ready' : 'off'}`}/></div>)}</div><button className="link-button team-link">Ver chamados da equipe <ChevronRight size={14}/></button></section>)}</div></> }
-function RolesPage() { const [roles, setRoles] = useState<Role[]>([]); const [permissions, setPermissions] = useState<{ code: string; description: string }[]>([]); useEffect(() => { api.roles().then((data) => { setRoles(data.roles); setPermissions(data.permissions); }); }, []); return <><div className="page-heading"><div><span className="section-kicker">CONTROLE DE ACESSO</span><h1>Cargos e permissoes</h1><p>Defina os limites de cada funcao dentro da operacao.</p></div><button className="primary-button compact"><ShieldCheck size={16}/> Novo cargo</button></div><div className="roles-layout"><section className="panel roles-list"><div className="panel-heading"><div><span className="section-kicker">CARGOS</span><h2>Perfis de acesso</h2></div></div>{roles.map((role) => <div className="role-row" key={role.id}><div className="role-symbol"><ShieldCheck size={17}/></div><div><strong>{role.name}</strong><span>{role.description}</span></div><b>{role.permissions.length} permissoes</b><ChevronRight size={16}/></div>)}</section><section className="panel permissions-panel"><div className="panel-heading"><div><span className="section-kicker">CATALOGO</span><h2>Permissoes disponiveis</h2></div></div>{permissions.map((permission) => <div className="permission-row" key={permission.code}><span>{permission.code}</span><small>{permission.description}</small></div>)}</section></div></> }
-function SettingsPage() { return <><div className="page-heading"><div><span className="section-kicker">SISTEMA</span><h1>Configuracoes</h1><p>Preferencias gerais do ambiente RedeFlow.</p></div></div><section className="panel settings-panel"><div className="settings-icon"><Settings size={20}/></div><div><h2>Fase 1 em validacao</h2><p>As configuracoes de tema, status, regras de finalizacao e integracoes serao habilitadas nas proximas fases. O tema atual permanece branco por padrao.</p></div></section></> }
+function UsersPage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api
+      .users()
+      .then((data) => setUsers(data.users))
+      .catch((err) => setError(err.message));
+  }, []);
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">ADMINISTRACAO</span>
+          <h1>Usuarios</h1>
+          <p>Controle quem acessa o RedeFlow e o que cada pessoa pode fazer.</p>
+        </div>
+        <button className="primary-button compact">
+          <Users size={16} /> Novo usuario
+        </button>
+      </div>
+      <section className="panel table-panel">
+        <div className="table-toolbar">
+          <div className="search-field">
+            <Search size={16} />
+            <input placeholder="Buscar por nome ou e-mail" />
+          </div>
+          <button className="secondary-button compact">
+            <SlidersHorizontal size={15} /> Filtros
+          </button>
+        </div>
+        {error ? (
+          <div className="empty-state">{error}</div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>E-mail</th>
+                <th>Cargo</th>
+                <th>Status</th>
+                <th>Cadastro</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td>
+                    <div className="user-cell">
+                      <div className="avatar">
+                        {user.name
+                          .split(" ")
+                          .map((part) => part[0])
+                          .slice(0, 2)
+                          .join("")}
+                      </div>
+                      <strong>{user.name}</strong>
+                    </div>
+                  </td>
+                  <td>{user.email}</td>
+                  <td>
+                    <span className="role-pill">
+                      {user.role?.name ||
+                        (user.roleId === "role-admin"
+                          ? "Administrador"
+                          : "Operador")}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="status active">
+                      <i />
+                      Ativo
+                    </span>
+                  </td>
+                  <td>
+                    {new Date(user.createdAt).toLocaleDateString("pt-BR")}
+                  </td>
+                  <td>
+                    <button className="icon-button">
+                      <ChevronRight size={17} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </>
+  );
+}
+function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
+  const [calls, setCalls] = useState<Call[]>([]);
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+  useEffect(() => {
+    api
+      .calls(status)
+      .then((data) => setCalls(data.calls))
+      .catch((err) => setError(err.message));
+  }, [status]);
+  const visibleCalls = calls.filter((call) =>
+    [call.orderNumber, call.client, call.bdesk, call.region, call.city]
+      .join(" ")
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">OPERACAO</span>
+          <h1>{title}</h1>
+          <p>
+            {visibleCalls.length} chamados na fila atual. Clique em uma linha
+            para abrir o atendimento.
+          </p>
+        </div>
+        <button
+          className="secondary-button compact"
+          onClick={() => api.calls(status).then((data) => setCalls(data.calls))}
+        >
+          <Activity size={15} /> Atualizar
+        </button>
+      </div>
+      <section className="panel table-panel calls-table">
+        <div className="table-toolbar">
+          <div className="search-field">
+            <Search size={16} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar ordem, cliente, BDESK ou regiao"
+            />
+          </div>
+          <button className="secondary-button compact">
+            <SlidersHorizontal size={15} /> Filtros
+          </button>
+          <span className="result-count">{visibleCalls.length} resultados</span>
+        </div>
+        {error ? (
+          <div className="empty-state">{error}</div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Ordem</th>
+                <th>Cliente</th>
+                <th>Tipo / motivo</th>
+                <th>Regiao</th>
+                <th>Abertura</th>
+                <th>Tempo aguardando</th>
+                <th>Status</th>
+                <th>Tecnico</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleCalls.map((call) => (
+                <tr
+                  key={call.id}
+                  onClick={() => navigate(`/chamados/${call.id}`)}
+                >
+                  <td>
+                    <strong>{call.orderNumber}</strong>
+                    <small className="table-subtext">{call.bdesk}</small>
+                  </td>
+                  <td>
+                    {call.client}
+                    <small className="table-subtext">{call.city}</small>
+                  </td>
+                  <td>
+                    {call.type}
+                    <small className="table-subtext">{call.reason}</small>
+                  </td>
+                  <td>{call.region}</td>
+                  <td>
+                    {new Date(call.openedAt).toLocaleString("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </td>
+                  <td>{formatWaiting(call.openedAt)}</td>
+                  <td>
+                    <span
+                      className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}
+                    >
+                      {call.status}
+                    </span>
+                  </td>
+                  <td>
+                    {call.technicianName || (
+                      <span className="unassigned">Sem tecnico</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </>
+  );
+}
+function formatWaiting(openedAt: string) {
+  const minutes = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(openedAt).getTime()) / 60000),
+  );
+  return minutes > 59
+    ? `${Math.floor(minutes / 60)}h ${minutes % 60}min`
+    : `${minutes}min`;
+}
+function CallDetailBase() {
+  const { pathname } = useLocation();
+  const id = pathname.split("/").pop()!;
+  const [call, setCall] = useState<Call | null>(null);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [status, setStatus] = useState<CallStatus>("Aberto");
+  const [technicianId, setTechnicianId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [message, setMessage] = useState("");
+  const navigate = useNavigate();
+  useEffect(() => {
+    Promise.all([api.call(id), api.technicians()]).then(
+      ([callData, technicianData]) => {
+        setCall(callData.call);
+        setStatus(callData.call.status);
+        setTechnicianId(callData.call.technicianId || "");
+        setNotes(callData.call.notes);
+        setTechnicians(technicianData.technicians);
+      },
+    );
+  }, [id]);
+  if (!call) return <div className="empty-state">Carregando chamado...</div>;
+  async function save() {
+    const data = await api.updateCall(id, {
+      status,
+      technicianId: technicianId || undefined,
+      notes,
+    });
+    setCall(data.call);
+    setMessage("Chamado atualizado.");
+    setTimeout(() => setMessage(""), 2400);
+  }
+  return (
+    <>
+      <button className="back-button" onClick={() => navigate(-1)}>
+        <ChevronRight size={16} className="back-icon" /> Voltar para chamados
+      </button>
+      <div className="call-detail-heading">
+        <div>
+          <span className="section-kicker">ORDEM {call.orderNumber}</span>
+          <h1>{call.client}</h1>
+          <p>
+            {call.bdesk} · {call.officeTrack} · {call.city}, {call.region}
+          </p>
+        </div>
+        <span
+          className={`call-badge ${status.toLowerCase().replace(" ", "-")}`}
+        >
+          {status}
+        </span>
+      </div>
+      <div className="detail-layout">
+        <section className="panel detail-main">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">INFORMACOES DO CHAMADO</span>
+              <h2>Dados operacionais</h2>
+            </div>
+          </div>
+          <div className="detail-grid">
+            <DetailItem label="Ordem" value={call.orderNumber} />
+            <DetailItem label="BDESK" value={call.bdesk} />
+            <DetailItem label="Office Track" value={call.officeTrack} />
+            <DetailItem label="Cliente" value={call.client} />
+            <DetailItem label="Tipo" value={call.type} />
+            <DetailItem label="Motivo" value={call.reason} />
+            <DetailItem label="Regiao" value={call.region} />
+            <DetailItem label="Cidade" value={call.city} />
+            <DetailItem label="OLT" value={call.olt} />
+            <DetailItem label="Slot/PON" value={call.slotPon} />
+            <DetailItem
+              label="Abertura"
+              value={new Date(call.openedAt).toLocaleString("pt-BR")}
+            />
+          </div>
+          <label className="detail-label">
+            Observacoes
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              rows={5}
+            />
+          </label>
+        </section>
+        <aside className="panel detail-actions">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">ATENDIMENTO</span>
+              <h2>Distribuicao</h2>
+            </div>
+          </div>
+          <label className="detail-label">
+            Status
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value as CallStatus)}
+            >
+              {[
+                "Aberto",
+                "Atribuido",
+                "Deslocamento",
+                "Em campo",
+              ].map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label className="detail-label">
+            Tecnico
+            <select
+              value={technicianId}
+              onChange={(event) => setTechnicianId(event.target.value)}
+            >
+              <option value="">Sem tecnico</option>
+              {technicians
+                .filter((technician) => technician.active)
+                .map((technician) => (
+                  <option key={technician.id} value={technician.id}>
+                    {technician.name} · {technician.region}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <div className="assignment-note">
+            {technicianId
+              ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`
+              : "Este chamado ainda nao possui tecnico."}
+          </div>
+          <button className="primary-button save-call" onClick={save}>
+            Salvar alteracoes <ChevronRight size={17} />
+          </button>
+          {message && <div className="save-message">{message}</div>}
+        </aside>
+      </div>
+    </>
+  );
+}
+function AuditedCallDetailPage() {
+  const { pathname } = useLocation();
+  const id = pathname.split("/").pop()!;
+  const [observations, setObservations] = useState<CallObservation[]>([]);
+  const [logs, setLogs] = useState<CallAuditLog[]>([]);
+  const [text, setText] = useState("");
+  const [tab, setTab] = useState<"observations" | "logs">("observations");
+  async function refreshHistory() {
+    const [observationData, logData] = await Promise.all([
+      api.observations(id),
+      api.auditLogs(id),
+    ]);
+    setObservations(observationData.observations);
+    setLogs(logData.logs);
+  }
+  useEffect(() => {
+    refreshHistory();
+  }, [id]);
+  async function addNote() {
+    if (!text.trim()) return;
+    await api.addObservation(id, text);
+    setText("");
+    await refreshHistory();
+  }
+  return (
+    <>
+      <CallDetailBase />
+      <CallOutcomeActions />
+      <section className="panel history-panel">
+        <div className="history-tabs">
+          <button
+            className={
+              tab === "observations" ? "history-tab active" : "history-tab"
+            }
+            onClick={() => setTab("observations")}
+          >
+            Observacoes <b>{observations.length}</b>
+          </button>
+          <button
+            className={tab === "logs" ? "history-tab active" : "history-tab"}
+            onClick={() => setTab("logs")}
+          >
+            Auditoria <b>{logs.length}</b>
+          </button>
+        </div>
+        {tab === "observations" ? (
+          <>
+            <div className="observation-compose">
+              <textarea
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder="Registrar uma observacao operacional..."
+                rows={3}
+              />
+              <button className="primary-button compact" onClick={addNote}>
+                Adicionar observacao
+              </button>
+            </div>
+            <div className="history-list">
+              {observations.length ? (
+                observations.map((item) => (
+                  <div className="history-item" key={item.id}>
+                    <div className="history-avatar">
+                      {item.userName.slice(0, 1)}
+                    </div>
+                    <div>
+                      <strong>{item.userName}</strong>
+                      <small>
+                        {new Date(item.createdAt).toLocaleString("pt-BR")}
+                      </small>
+                      <p>{item.text}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">
+                  Nenhuma observacao registrada.
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="history-list">
+            {logs.length ? (
+              logs.map((item) => (
+                <div className="history-item" key={item.id}>
+                  <div className="history-avatar log">↗</div>
+                  <div>
+                    <strong>{item.userName}</strong>
+                    <small>
+                      {new Date(item.createdAt).toLocaleString("pt-BR")}
+                    </small>
+                    <p>
+                      <b>{item.action}</b>
+                      <br />
+                      {item.previousValue || "vazio"} →{" "}
+                      {item.newValue || "vazio"}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">Nenhuma alteracao registrada.</div>
+            )}
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+function CallOutcomeActions() {
+  const { pathname } = useLocation();
+  const id = pathname.split("/").pop()!;
+  const [result, setResult] = useState("");
+  const [executedAt, setExecutedAt] = useState("");
+  const [notes, setNotes] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [message, setMessage] = useState("");
+  const [missing, setMissing] = useState<string[]>([]);
+  async function finish() {
+    setMessage("");
+    setMissing([]);
+    try {
+      await api.finishCall(id, { result, executedAt, notes });
+      setMessage("Chamado finalizado com sucesso.");
+    } catch (error) {
+      const typedError = error as Error & { missing?: string[] };
+      setMessage(typedError.message);
+      setMissing(typedError.missing || []);
+    }
+  }
+  async function cancel() {
+    if (!cancelReason.trim()) {
+      setMessage("Informe o motivo do cancelamento.");
+      return;
+    }
+    await api.cancelCall(id, cancelReason);
+    setMessage("Chamado cancelado com sucesso.");
+  }
+  return (
+    <section className="panel outcome-panel">
+      <div className="panel-heading">
+        <div>
+          <span className="section-kicker">ENCERRAMENTO</span>
+          <h2>Finalizar ou cancelar</h2>
+        </div>
+      </div>
+      <div className="outcome-grid">
+        <div>
+          <div className="required-checks">
+            <span>Tecnico</span><span>Resultado</span><span>Data/hora</span><span>Observacao</span>
+          </div>
+          <div className="outcome-fields">
+            <label className="detail-label">Resultado<input value={result} onChange={(event) => setResult(event.target.value)} placeholder="Ex.: reparo realizado" /></label>
+            <label className="detail-label">Data e hora de execucao<input type="datetime-local" value={executedAt} onChange={(event) => setExecutedAt(event.target.value)} /></label>
+            <label className="detail-label">Observacao final<textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="Descreva a execucao" /></label>
+          </div>
+          <button className="primary-button compact" onClick={finish}>Finalizar chamado <ChevronRight size={16} /></button>
+          {missing.length > 0 && <div className="validation-error">Faltando: {missing.join(", ")}</div>}
+        </div>
+        <div className="cancel-box">
+          <span className="section-kicker">CANCELAMENTO</span>
+          <label className="detail-label">Motivo<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
+          <button className="cancel-button" onClick={cancel}>Cancelar chamado</button>
+        </div>
+      </div>
+      {message && <div className="save-message">{message}</div>}
+    </section>
+  );
+}
+function CallDetailRoute() {
+  return <AuditedCallDetailPage />;
+}
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="detail-item">
+      <span>{label}</span>
+      <strong>{value || "-"}</strong>
+    </div>
+  );
+}
+function TechniciansPage() {
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api
+      .technicians()
+      .then((data) => setTechnicians(data.technicians))
+      .catch((err) => setError(err.message));
+  }, []);
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">EQUIPES</span>
+          <h1>Tecnicos</h1>
+          <p>Consulte disponibilidade, escala e supervisor de cada tecnico.</p>
+        </div>
+        <button className="primary-button compact">
+          <Users size={16} /> Novo tecnico
+        </button>
+      </div>
+      <div className="metric-grid team-metrics">
+        <Metric
+          label="Tecnicos ativos"
+          value={String(
+            technicians.filter((technician) => technician.active).length,
+          )}
+          note="Na operacao"
+          positive
+        />
+        <Metric
+          label="Em campo"
+          value={String(
+            technicians.filter(
+              (technician) => technician.currentStatus === "Em campo",
+            ).length,
+          )}
+          note="Atendimento em curso"
+        />
+        <Metric
+          label="Disponiveis"
+          value={String(
+            technicians.filter(
+              (technician) => technician.currentStatus === "Disponivel",
+            ).length,
+          )}
+          note="Prontos para atribuicao"
+          positive
+        />
+        <Metric
+          label="Regioes"
+          value={String(
+            new Set(technicians.map((technician) => technician.region)).size,
+          )}
+          note="Areas cobertas"
+        />
+      </div>
+      <section className="panel table-panel">
+        <div className="table-toolbar">
+          <div className="search-field">
+            <Search size={16} />
+            <input placeholder="Buscar por nome ou matricula" />
+          </div>
+          <button className="secondary-button compact">
+            <SlidersHorizontal size={15} /> Filtros
+          </button>
+        </div>
+        {error ? (
+          <div className="empty-state">{error}</div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Tecnico</th>
+                <th>Matricula</th>
+                <th>Supervisor</th>
+                <th>Regiao</th>
+                <th>Turno</th>
+                <th>Situacao</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {technicians.map((technician) => (
+                <tr key={technician.id}>
+                  <td>
+                    <div className="user-cell">
+                      <div className="avatar">
+                        {technician.name
+                          .split(" ")
+                          .map((part) => part[0])
+                          .slice(0, 2)
+                          .join("")}
+                      </div>
+                      <strong>{technician.name}</strong>
+                    </div>
+                  </td>
+                  <td>{technician.registration}</td>
+                  <td>{technician.supervisorName || "Sem supervisor"}</td>
+                  <td>{technician.region}</td>
+                  <td>{technician.shift}</td>
+                  <td>
+                    <span
+                      className={`team-status ${technician.currentStatus === "Em campo" ? "field" : technician.currentStatus === "Disponivel" ? "ready" : "off"}`}
+                    >
+                      <i />
+                      {technician.currentStatus}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`status ${technician.active ? "active" : "inactive"}`}
+                    >
+                      <i />
+                      {technician.active ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </>
+  );
+}
+function SupervisorsPage() {
+  const [data, setData] = useState<{
+    supervisors: {
+      id: string;
+      name: string;
+      region: string;
+      active: boolean;
+      technicianCount: number;
+    }[];
+    technicians: Technician[];
+  }>({ supervisors: [], technicians: [] });
+  useEffect(() => {
+    api.supervisors().then(setData);
+  }, []);
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">EQUIPES</span>
+          <h1>Supervisores</h1>
+          <p>
+            Visualize a estrutura das equipes e o tecnico sob cada supervisao.
+          </p>
+        </div>
+        <button className="primary-button compact">
+          <Building2 size={16} /> Novo supervisor
+        </button>
+      </div>
+      <div className="supervisor-grid">
+        {data.supervisors.map((supervisor) => (
+          <section className="panel supervisor-card" key={supervisor.id}>
+            <div className="supervisor-heading">
+              <div className="supervisor-avatar">
+                <Building2 size={17} />
+              </div>
+              <div>
+                <h2>{supervisor.name}</h2>
+                <span>
+                  {supervisor.region} · {supervisor.technicianCount} tecnicos
+                </span>
+              </div>
+              <button className="icon-button">
+                <ChevronRight size={17} />
+              </button>
+            </div>
+            <div className="team-list">
+              {data.technicians
+                .filter(
+                  (technician) => technician.supervisorId === supervisor.id,
+                )
+                .map((technician) => (
+                  <div className="team-member" key={technician.id}>
+                    <div className="avatar">
+                      {technician.name
+                        .split(" ")
+                        .map((part) => part[0])
+                        .slice(0, 2)
+                        .join("")}
+                    </div>
+                    <div>
+                      <strong>{technician.name}</strong>
+                      <span>
+                        {technician.registration} · {technician.shift}
+                      </span>
+                    </div>
+                    <i
+                      className={`member-dot ${technician.currentStatus === "Em campo" ? "field" : technician.active ? "ready" : "off"}`}
+                    />
+                  </div>
+                ))}
+            </div>
+            <button className="link-button team-link">
+              Ver chamados da equipe <ChevronRight size={14} />
+            </button>
+          </section>
+        ))}
+      </div>
+    </>
+  );
+}
+function RolesPage() {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<
+    { code: string; description: string }[]
+  >([]);
+  useEffect(() => {
+    api.roles().then((data) => {
+      setRoles(data.roles);
+      setPermissions(data.permissions);
+    });
+  }, []);
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">CONTROLE DE ACESSO</span>
+          <h1>Cargos e permissoes</h1>
+          <p>Defina os limites de cada funcao dentro da operacao.</p>
+        </div>
+        <button className="primary-button compact">
+          <ShieldCheck size={16} /> Novo cargo
+        </button>
+      </div>
+      <div className="roles-layout">
+        <section className="panel roles-list">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">CARGOS</span>
+              <h2>Perfis de acesso</h2>
+            </div>
+          </div>
+          {roles.map((role) => (
+            <div className="role-row" key={role.id}>
+              <div className="role-symbol">
+                <ShieldCheck size={17} />
+              </div>
+              <div>
+                <strong>{role.name}</strong>
+                <span>{role.description}</span>
+              </div>
+              <b>{role.permissions.length} permissoes</b>
+              <ChevronRight size={16} />
+            </div>
+          ))}
+        </section>
+        <section className="panel permissions-panel">
+          <div className="panel-heading">
+            <div>
+              <span className="section-kicker">CATALOGO</span>
+              <h2>Permissoes disponiveis</h2>
+            </div>
+          </div>
+          {permissions.map((permission) => (
+            <div className="permission-row" key={permission.code}>
+              <span>{permission.code}</span>
+              <small>{permission.description}</small>
+            </div>
+          ))}
+        </section>
+      </div>
+    </>
+  );
+}
+function SettingsPage() {
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">SISTEMA</span>
+          <h1>Configuracoes</h1>
+          <p>Preferencias gerais do ambiente RedeFlow.</p>
+        </div>
+      </div>
+      <section className="panel settings-panel">
+        <div className="settings-icon">
+          <Settings size={20} />
+        </div>
+        <div>
+          <h2>Fase 1 em validacao</h2>
+          <p>
+            As configuracoes de tema, status, regras de finalizacao e
+            integracoes serao habilitadas nas proximas fases. O tema atual
+            permanece branco por padrao.
+          </p>
+        </div>
+      </section>
+    </>
+  );
+}
 
 export default function App() {
-  const [session, setSession] = useState<{ token: string; user: User & { role: Role } } | null>(() => {
-    const raw = localStorage.getItem('jh-redeflow-session');
+  const [session, setSession] = useState<{
+    token: string;
+    user: User & { role: Role };
+  } | null>(() => {
+    const raw = localStorage.getItem("jh-redeflow-session");
     return raw ? JSON.parse(raw) : null;
   });
-  const [hydrating, setHydrating] = useState(() => Boolean(localStorage.getItem('jh-redeflow-token')));
+  const [hydrating, setHydrating] = useState(() =>
+    Boolean(localStorage.getItem("jh-redeflow-token")),
+  );
 
   useEffect(() => {
-    if (!localStorage.getItem('jh-redeflow-token')) {
+    if (!localStorage.getItem("jh-redeflow-token")) {
       setHydrating(false);
       return;
     }
 
-    api.me()
+    api
+      .me()
       .then(({ user }) => {
-        const refreshedSession = { token: localStorage.getItem('jh-redeflow-token')!, user };
-        localStorage.setItem('jh-redeflow-session', JSON.stringify(refreshedSession));
+        const refreshedSession = {
+          token: localStorage.getItem("jh-redeflow-token")!,
+          user,
+        };
+        localStorage.setItem(
+          "jh-redeflow-session",
+          JSON.stringify(refreshedSession),
+        );
         setSession(refreshedSession);
       })
       .catch(() => {
-        localStorage.removeItem('jh-redeflow-token');
-        localStorage.removeItem('jh-redeflow-session');
+        localStorage.removeItem("jh-redeflow-token");
+        localStorage.removeItem("jh-redeflow-session");
         setSession(null);
       })
       .finally(() => setHydrating(false));
   }, []);
 
   function login(nextSession: { token: string; user: User & { role: Role } }) {
-    localStorage.setItem('jh-redeflow-token', nextSession.token);
-    localStorage.setItem('jh-redeflow-session', JSON.stringify(nextSession));
+    localStorage.setItem("jh-redeflow-token", nextSession.token);
+    localStorage.setItem("jh-redeflow-session", JSON.stringify(nextSession));
     setSession(nextSession);
   }
 
   function logout() {
-    localStorage.removeItem('jh-redeflow-token');
-    localStorage.removeItem('jh-redeflow-session');
+    localStorage.removeItem("jh-redeflow-token");
+    localStorage.removeItem("jh-redeflow-session");
     setSession(null);
   }
 
-  if (hydrating) return <div className="app-loading"><div className="loading-mark">JH</div><span>Carregando RedeFlow...</span></div>;
-  if (!session) return <Login onLogin={login}/>;
-  return <Shell user={session.user} onLogout={logout}/>;
+  if (hydrating)
+    return (
+      <div className="app-loading">
+        <div className="loading-mark">JH</div>
+        <span>Carregando RedeFlow...</span>
+      </div>
+    );
+  if (!session) return <Login onLogin={login} />;
+  return <Shell user={session.user} onLogout={logout} />;
 }
