@@ -12,6 +12,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  ChevronLeft,
   ChevronRight,
   CircleHelp,
   ClipboardList,
@@ -205,7 +206,15 @@ function Shell({
   onLogout: () => void;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(() => localStorage.getItem("jh-redeflow-sidebar-collapsed") === "true");
   const location = useLocation();
+  function toggleSidebar() {
+    setDesktopCollapsed((current) => {
+      const next = !current;
+      localStorage.setItem("jh-redeflow-sidebar-collapsed", String(next));
+      return next;
+    });
+  }
   const title =
     location.pathname === "/"
       ? "Visao geral"
@@ -229,8 +238,8 @@ function Shell({
                     ? "Cargos e permissoes"
                     : "Configuracoes";
   return (
-    <div className="app-shell">
-      <aside className={mobileOpen ? "sidebar open" : "sidebar"}>
+    <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
+      <aside className={`${desktopCollapsed ? "sidebar collapsed" : "sidebar"}${mobileOpen ? " open" : ""}`}>
         <div className="sidebar-brand">
           <div className="mini-mark">JH</div>
           <div>
@@ -242,6 +251,9 @@ function Shell({
             onClick={() => setMobileOpen(false)}
           >
             <X size={18} />
+          </button>
+          <button className="icon-button sidebar-collapse" onClick={toggleSidebar} title={desktopCollapsed ? "Expandir menu" : "Recolher menu"}>
+            {desktopCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
         <div className="workspace-switcher">
@@ -257,6 +269,7 @@ function Shell({
                 key={item.to}
                 to={item.to}
                 onClick={() => setMobileOpen(false)}
+                title={desktopCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   isActive ? "nav-item active" : "nav-item"
                 }
@@ -296,9 +309,10 @@ function Shell({
         <header className="topbar">
           <button
             className="icon-button menu-button"
-            onClick={() => setMobileOpen(true)}
+            onClick={() => (window.innerWidth <= 900 ? setMobileOpen(true) : toggleSidebar())}
+            title={desktopCollapsed ? "Expandir menu" : "Recolher menu"}
           >
-            <Menu size={20} />
+            {desktopCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
           </button>
           <div className="breadcrumbs">
             <span>RedeFlow</span>

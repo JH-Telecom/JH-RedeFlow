@@ -24,7 +24,17 @@ Status: concluida para validacao do usuario
 5. WuzAPI, acionamentos, IA e mesarios. (concluida para validacao)
 6. Importacao de bases. (concluida para validacao)
 7. Dashboards e indicadores. (concluida para validacao)
-8. Performance, seguranca, testes e refinamento responsivo.
+8. Performance, seguranca, testes e refinamento responsivo. (em andamento)
+
+### Fase 8 - entregas atuais
+
+- [x] Segredos obrigatorios em producao e headers HTTP basicos de seguranca.
+- [x] Limite de tentativas de login por IP e e-mail.
+- [x] Testes automatizados para importacao e normalizacao WuzAPI.
+- [x] Correcao da extracao de campos com alternativas (`ORDEM|OFFICE TRACK`, etc.).
+- [x] Testes de fluxo HTTP, carga leve e validacao visual responsiva desktop/mobile.
+- [x] Runtime local separado do Supabase oficial por configuracao de ambiente.
+- [ ] Conectar o `store` ao PostgreSQL local e adicionar o driver `pg`.
 
 ## Dados oficiais
 

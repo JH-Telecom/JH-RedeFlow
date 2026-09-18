@@ -3,8 +3,12 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 let adminClient: SupabaseClient | null = null;
 let authClient: SupabaseClient | null = null;
 
+export function isSupabaseRuntime() {
+  return process.env.REDEFLOW_RUNTIME === 'supabase' || (!process.env.REDEFLOW_RUNTIME && process.env.NODE_ENV === 'production');
+}
+
 export function isSupabaseConfigured() {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return isSupabaseRuntime() && Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 export function getSupabaseAdmin() {
@@ -41,7 +45,10 @@ export async function getSupabaseProfile(id: string, createdAt?: string) {
   const profileRecord = profile as any;
   const role = Array.isArray(profileRecord.roles) ? profileRecord.roles[0] : profileRecord.roles;
   const rolePermissions = Array.isArray(role?.role_permissions) ? role.role_permissions : [];
-  const permissions = rolePermissions.flatMap((item: { permissions?: { code?: string }[] | null }) => (item.permissions || []).map((permission) => permission.code).filter(Boolean));
+  const permissions = rolePermissions.flatMap((item: { permissions?: { code?: string } | { code?: string }[] | null }) => {
+    const permissionRows = Array.isArray(item.permissions) ? item.permissions : item.permissions ? [item.permissions] : [];
+    return permissionRows.map((permission) => permission.code).filter(Boolean);
+  });
   return { id: profileRecord.id, name: profileRecord.name, email: profileRecord.email, roleId: profileRecord.role_id, active: profileRecord.active, createdAt: createdAt || profileRecord.created_at, role: { id: role?.id || profileRecord.role_id, name: role?.name || 'Sem cargo', description: role?.description || '', permissions } };
 }
 

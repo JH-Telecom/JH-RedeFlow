@@ -11,7 +11,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
 
 export function extractOperationalData(message: string): Record<string, string> {
   const field = (name: string) => {
-    const match = message.match(new RegExp(`${name}\\s*[:=-]\\s*([^\\n\\r]+)`, 'i'));
+    const match = message.match(new RegExp(`(?:${name})\\s*[:=-]\\s*([^\\n\\r]+)`, 'i'));
     return match?.[1]?.trim() || '';
   };
   return { orderNumber: field('ORDEM|OFFICE TRACK|OS OT'), bdesk: field('BDESK|TICKET'), type: message.toUpperCase().includes('NOC TX') ? 'NOC TX' : message.toUpperCase().includes('FIELD') ? 'ACIONAMENTO FIELD' : 'NOC ACESSO', reason: field('MOTIVO|TIPO DE FALHA'), olt: field('OLT'), slotPon: field('SLOT/PON|PLACA/PON'), client: field('CLIENTE'), region: field('REGIAO|REGIÃO'), city: field('CIDADE') };

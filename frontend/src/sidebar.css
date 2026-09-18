@@ -1,0 +1,79 @@
+@media (min-width: 901px) {
+  .app-shell {
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0;
+    width: 240px;
+    height: 100vh;
+    min-height: 100vh;
+    max-height: 100vh;
+    overflow-y: auto;
+    z-index: 10;
+    transition: width 180ms ease;
+  }
+
+  .main-area {
+    width: calc(100% - 240px);
+    min-height: 100vh;
+    margin-left: 240px;
+    transition: width 180ms ease, margin-left 180ms ease;
+  }
+
+  .app-shell.sidebar-collapsed .sidebar {
+    width: 76px;
+  }
+
+  .app-shell.sidebar-collapsed .main-area {
+    width: calc(100% - 76px);
+    margin-left: 76px;
+  }
+
+  .sidebar-collapse,
+  .menu-button {
+    display: grid !important;
+  }
+
+  .sidebar-close {
+    display: none !important;
+  }
+
+  .sidebar.collapsed .sidebar-brand {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .sidebar.collapsed .sidebar-brand > div:not(.mini-mark),
+  .sidebar.collapsed .workspace-switcher span:not(.workspace-dot),
+  .sidebar.collapsed .workspace-switcher svg,
+  .sidebar.collapsed .nav-item span,
+  .sidebar.collapsed .help-link span,
+  .sidebar.collapsed .profile-mini > div:not(.avatar),
+  .sidebar.collapsed .profile-mini button {
+    display: none;
+  }
+
+  .sidebar.collapsed .sidebar-collapse {
+    margin: 0;
+  }
+
+  .sidebar.collapsed .workspace-switcher,
+  .sidebar.collapsed .nav-item,
+  .sidebar.collapsed .help-link,
+  .sidebar.collapsed .profile-mini {
+    justify-content: center;
+  }
+
+  .sidebar.collapsed .workspace-switcher {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar-collapse {
+    display: none !important;
+  }
+}

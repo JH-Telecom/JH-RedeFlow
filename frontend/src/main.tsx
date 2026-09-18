@@ -8,5 +8,6 @@ import './outcome.css';
 import './activation.css';
 import './imports.css';
 import './dashboard.css';
+import './sidebar.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

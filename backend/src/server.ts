@@ -6,14 +6,31 @@ import { z } from 'zod';
 import { addObservation, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, getAuthUser, getCall, getDashboardMetrics, getRole, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, updateCall, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { parseImport } from './imports/parser.js';
-import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured } from './integrations/supabase/client.js';
+import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
-const jwtSecret = process.env.JWT_SECRET || 'local-demo-secret-change-me';
-const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || 'local-wuzapi-demo-token';
-app.use(cors({ origin: ['http://localhost:5173'], credentials: true }));
+const isProduction = process.env.NODE_ENV === 'production';
+const jwtSecret = process.env.JWT_SECRET || (!isProduction ? 'local-demo-secret-change-me' : undefined);
+const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || (!isProduction ? 'local-wuzapi-demo-token' : undefined);
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const loginAttemptWindowMs = 15 * 60 * 1000;
+const maxLoginAttempts = 5;
+if (isProduction && (!jwtSecret || !wuzapiWebhookToken)) {
+  throw new Error('JWT_SECRET e WUZAPI_WEBHOOK_TOKEN sao obrigatorios em producao.');
+}
+if (isSupabaseRuntime() && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SUPABASE_ANON_KEY)) {
+  throw new Error('SUPABASE_URL, SUPABASE_ANON_KEY e SUPABASE_SERVICE_ROLE_KEY sao obrigatorios no runtime Supabase.');
+}
+app.disable('x-powered-by');
+app.use((_request, response, next) => {
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('X-Frame-Options', 'DENY');
+  response.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], credentials: true }));
 app.use(express.json({ limit: '15mb' }));
 
 type AuthRequest = Request & { authUser?: AuthUser };
@@ -21,7 +38,7 @@ async function auth(request: AuthRequest, response: Response, next: NextFunction
   const token = request.headers.authorization?.replace('Bearer ', '');
   if (!token) return response.status(401).json({ message: 'Sessao nao encontrada.' });
   try {
-    const payload = jwt.verify(token, jwtSecret) as { sub: string };
+    const payload = jwt.verify(token, jwtSecret!) as { sub: string };
     if (isSupabaseConfigured()) {
       const supabaseUser = await getSupabaseProfile(payload.sub);
       if (!supabaseUser || !supabaseUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
@@ -40,6 +57,22 @@ function requirePermission(permission: PermissionCode) {
     next();
   };
 }
+function getLoginAttemptKey(request: Request, email: string) {
+  return `${request.ip}:${email.toLowerCase()}`;
+}
+function isLoginRateLimited(request: Request, email: string) {
+  const key = getLoginAttemptKey(request, email);
+  const current = loginAttempts.get(key);
+  if (!current || current.resetAt <= Date.now()) {
+    loginAttempts.set(key, { count: 1, resetAt: Date.now() + loginAttemptWindowMs });
+    return false;
+  }
+  current.count += 1;
+  return current.count > maxLoginAttempts;
+}
+function clearLoginAttempts(request: Request, email: string) {
+  loginAttempts.delete(getLoginAttemptKey(request, email));
+}
 
 app.get('/health', (_request, response) => response.json({ status: 'ok', service: 'jh-redeflow-api' }));
 app.get('/health/supabase', async (_request, response) => {
@@ -49,17 +82,20 @@ app.get('/health/supabase', async (_request, response) => {
 app.post('/api/auth/login', (request, response) => {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Informe e-mail e senha validos.' });
+  if (isLoginRateLimited(request, parsed.data.email)) return response.status(429).json({ message: 'Muitas tentativas de login. Tente novamente mais tarde.' });
   if (isSupabaseConfigured()) {
     authenticateSupabaseUser(parsed.data.email, parsed.data.password).then((supabaseUser) => {
       if (!supabaseUser) return response.status(401).json({ message: 'E-mail, senha ou perfil incorretos.' });
-      const token = jwt.sign({ sub: supabaseUser.id }, jwtSecret, { expiresIn: '8h' });
+      clearLoginAttempts(request, parsed.data.email);
+      const token = jwt.sign({ sub: supabaseUser.id }, jwtSecret!, { expiresIn: '8h' });
       return response.json({ token, user: supabaseUser });
     }).catch(() => response.status(401).json({ message: 'Nao foi possivel autenticar no Supabase.' }));
     return;
   }
   const user = getUserByEmail(parsed.data.email);
   if (!user || !user.active || !validatePassword(user, parsed.data.password)) return response.status(401).json({ message: 'E-mail ou senha incorretos.' });
-  const token = jwt.sign({ sub: user.id }, jwtSecret, { expiresIn: '8h' });
+  clearLoginAttempts(request, parsed.data.email);
+  const token = jwt.sign({ sub: user.id }, jwtSecret!, { expiresIn: '8h' });
   return response.json({ token, user: getAuthUser(user) });
 });
 app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json({ user: request.authUser }));
