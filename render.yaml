@@ -3,7 +3,7 @@ services:
     name: jh-redeflow-api
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build --workspace backend
+    buildCommand: npm ci --include=dev && npm run build --workspace backend
     startCommand: node backend/dist/server.js
     healthCheckPath: /health
     envVars:
