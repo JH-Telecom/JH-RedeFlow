@@ -349,7 +349,7 @@ function Shell({
             />
             <Route
               path="/chamados/atendimento"
-              element={<CallsPage title="Chamados em atendimento" />}
+              element={<CallsPage title="Chamados em atendimento" assignedOnly />}
             />
             <Route path="/acionamentos" element={<ActivationsPage />} />
             <Route path="/importacoes" element={<ImportsPage />} />
@@ -752,7 +752,7 @@ function UsersPage() {
     </>
   );
 }
-function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
+function CallsPage({ status, title, assignedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean }) {
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -772,12 +772,15 @@ function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
     try { setCalls((await api.calls(status)).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
   }
   const visibleCalls = calls.filter((call) =>
+    (!assignedOnly || Boolean(call.technicianId || call.technicianName)) &&
     [call.orderNumber, call.client, call.bdesk, call.region, call.city]
       .join(" ")
       .toLowerCase()
-        .includes(query.toLowerCase()) && (statusFilter === "Todos" || call.status === statusFilter) && (regionFilter === "Todas" || call.region === regionFilter),
+      .includes(query.toLowerCase()) &&
+    (statusFilter === "Todos" || call.status === statusFilter) &&
+    (regionFilter === "Todas" || call.region === regionFilter),
   );
-      const regions = [...new Set(calls.map((call) => call.region))];
+  const regions = [...new Set(calls.map((call) => call.region))];
   return (
     <>
       <div className="page-heading">
