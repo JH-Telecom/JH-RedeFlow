@@ -88,6 +88,12 @@ export async function listSupabaseSupervisors() {
   return (data || []).map((row) => ({ id: row.id, userId: row.profile_id || undefined, name: row.name, region: row.region || '', active: row.active, technicianCount: 0 }));
 }
 
+export async function createSupabaseSupervisor(input: { userId?: string; name: string; region: string; active: boolean }) {
+  const { data, error } = await getSupabaseAdmin().from('supervisors').insert({ profile_id: input.userId || null, name: input.name, region: input.region, active: input.active }).select('id, profile_id, name, region, active').single();
+  if (error || !data) throw new Error(error?.message || 'Nao foi possivel cadastrar o supervisor.');
+  return { id: data.id, userId: data.profile_id || undefined, name: data.name, region: data.region || '', active: data.active, technicianCount: 0 };
+}
+
 export async function listSupabaseTechnicians() {
   const { data, error } = await getSupabaseAdmin().from('technicians').select('id, supervisor_id, name, registration, region, shift, current_status, active, supervisors(name)').is('deleted_at', null).order('name');
   if (error) throw new Error(error.message);

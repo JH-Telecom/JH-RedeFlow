@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseActivation, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
+import { createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -379,6 +379,7 @@ export async function updateTechnician(id: string, input: { supervisorId?: strin
   return { ...updated, supervisorName: updated.supervisorId ? supervisors.get(updated.supervisorId)?.name : undefined };
 }
 export async function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCount'>): Promise<Supervisor> {
+  if (isSupabaseConfigured()) return await createSupabaseSupervisor(input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; user_id: string | null; name: string; region: string | null; active: boolean }>(
