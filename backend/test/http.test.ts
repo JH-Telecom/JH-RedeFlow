@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import test from 'node:test';
+import { parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
 
 const port = 3433;
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -26,9 +27,11 @@ test.before(async () => {
       NODE_ENV: 'test',
       REDEFLOW_RUNTIME: 'local',
       REDEFLOW_DEMO_DATA: 'true',
+      DATABASE_URL: '',
       PORT: String(port),
       JWT_SECRET: 'test-jwt-secret',
       WUZAPI_WEBHOOK_TOKEN: 'test-webhook-token',
+      WUZAPI_ACTIVATION_GROUP_ID: '120363422003961917@g.us',
       SUPABASE_URL: '',
       SUPABASE_ANON_KEY: '',
       SUPABASE_SERVICE_ROLE_KEY: '',
@@ -84,6 +87,70 @@ test('only active technicians can receive calls and their status can change', as
   assert.equal(assignmentResponse.status, 422);
 });
 
+test('parses WuzAPI group metadata without conflating sender and chat', () => {
+  const payload = {
+    event: {
+      Info: {
+        Chat: '120363422003961917@g.us',
+        Sender: '551199999999@s.whatsapp.net',
+        IsGroup: true,
+        ID: 'msg-123',
+      },
+      type: 'Message',
+      Message: {
+        conversation: 'VALIDAR COM NOC ACESSO\nORDEM: RF-TESTE-99\nMOTIVO: perda de sinal',
+      },
+    },
+  };
+
+  const parsed = parseIncomingMessage(payload);
+  assert.equal(parsed.chatId, '120363422003961917@g.us');
+  assert.equal(parsed.sender, '551199999999@s.whatsapp.net');
+  assert.equal(parsed.isGroup, true);
+  assert.equal(parsed.message?.startsWith('VALIDAR COM NOC ACESSO'), true);
+});
+
+test('ignores private WuzAPI messages and rejects mismatched groups', async () => {
+  const privateMessage = JSON.stringify({
+    type: 'Message',
+    event: {
+      Info: {
+        Sender: '551199999999@s.whatsapp.net',
+        IsGroup: false,
+      },
+      Message: { conversation: 'ORDEM: RF-PRIVATE-01' },
+    },
+  });
+  const privateResponse = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: privateMessage,
+  });
+  assert.equal(privateResponse.status, 202);
+  const privateBody = await privateResponse.json() as { status?: string; reason?: string };
+  assert.equal(privateBody.status, 'ignored');
+
+  const mismatchResponse = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      event: {
+        type: 'Message',
+        Info: {
+          Chat: 'other-group@g.us',
+          Sender: '551199999999@s.whatsapp.net',
+          IsGroup: true,
+        },
+        Message: { conversation: 'ORDEM: RF-OTHER-01\nMOTIVO: teste' },
+      },
+    }),
+  });
+  assert.equal(mismatchResponse.status, 202);
+  const mismatchBody = await mismatchResponse.json() as { status?: string; reason?: string; chatId?: string };
+  assert.equal(mismatchBody.status, 'ignored');
+  assert.equal(mismatchBody.reason, 'Grupo nao autorizado.');
+});
+
 test('does not create duplicate activations when WuzAPI retries a message', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
@@ -92,7 +159,7 @@ test('does not create duplicate activations when WuzAPI retries a message', asyn
   });
   const session = await loginResponse.json() as { token: string };
   const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
-  const payload = JSON.stringify({ id: 'wuz-message-dedup-test', chatId: '120363422003961917@g.us', message: 'ORDEM: DEDUP-001\nMOTIVO: teste' });
+  const payload = JSON.stringify({ id: 'wuz-message-dedup-test', type: 'Message', chatId: '120363422003961917@g.us', isGroup: true, message: 'ORDEM: DEDUP-001\nMOTIVO: teste' });
   const first = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers, body: payload });
   const second = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers, body: payload });
   const firstBody = await first.json() as { activationId: string };
@@ -101,4 +168,29 @@ test('does not create duplicate activations when WuzAPI retries a message', asyn
   assert.equal(second.status, 202);
   assert.equal(secondBody.activationId, firstBody.activationId);
   assert.equal(secondBody.duplicate, true);
+});
+
+test('rejects missing chatId even when sender identifies a WhatsApp user', async () => {
+  const response = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'Message', event: { Info: { Sender: '551199999999@s.whatsapp.net', IsGroup: true }, Message: { conversation: 'ORDEM: RF-NO-CHAT' } } }),
+  });
+  assert.equal(response.status, 202);
+  assert.equal((await response.json() as { status?: string }).status, 'ignored');
+});
+
+test('accepts a valid jsonData group payload', async () => {
+  const body = JSON.stringify({
+    jsonData: JSON.stringify({
+      type: 'Message',
+      event: {
+        Info: { ID: 'json-data-message', Chat: '120363422003961917@g.us', Sender: '551188888888@s.whatsapp.net', IsGroup: true },
+        Message: { conversation: 'ORDEM: RF-JSON-DATA\nMOTIVO: teste' },
+      },
+    }),
+  });
+  const response = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+  assert.equal(response.status, 202);
+  assert.equal((await response.json() as { status?: string }).status, 'Pendente');
 });

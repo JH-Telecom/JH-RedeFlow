@@ -24,3 +24,32 @@ Para validar a conexao, execute `npm run dev --workspace backend` e consulte `ht
 Testes do backend: `npm test --workspace backend`.
 
 Configuracao do webhook WuzAPI: [docs/wuzapi-webhook.md](docs/wuzapi-webhook.md).
+
+## Deploy do backend no Render
+
+O arquivo `render.yaml` cria o servico web da API usando Supabase como runtime. No Render, selecione **New > Blueprint**, conecte este repositorio e confirme o blueprint. Alternativamente, crie um Web Service com:
+
+```text
+Build Command: npm install && npm run build --workspace backend
+Start Command: node backend/dist/server.js
+Health Check Path: /health
+```
+
+Cadastre no Render as variaveis marcadas como `sync: false` no `render.yaml`:
+
+```text
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+WUZAPI_WEBHOOK_TOKEN
+WUZAPI_ACTIVATION_GROUP_ID
+CORS_ORIGINS
+```
+
+Depois do deploy, teste `https://SEU-SERVICO.onrender.com/health` e configure no WuzAPI:
+
+```text
+https://SEU-SERVICO.onrender.com/api/integrations/wuzapi/webhook
+```
+
+O Render injeta `PORT` automaticamente. Nao envie o arquivo `backend/.env` para o repositorio nem copie segredos para `render.yaml`.

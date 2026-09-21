@@ -1,58 +1,172 @@
-export type WuzApiMessage = { id?: string; message?: string; text?: string; source?: string; chatId?: string; receivedAt?: string; [key: string]: unknown };
+export type WuzApiMessage = {
+  id?: string;
+  message?: string;
+  text?: string;
+  source?: string;
+  chatId?: string;
+  sender?: string;
+  isGroup?: boolean;
+  receivedAt?: string;
+  eventType?: string;
+  [key: string]: unknown;
+};
+
+function getObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function readString(...values: unknown[]): string {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function readBoolean(...values: unknown[]): boolean {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'y'].includes(normalized)) return true;
+      if (['false', '0', 'no', 'n'].includes(normalized)) return false;
+    }
+    if (typeof value === 'number') return value === 1;
+  }
+  return false;
+}
 
 export function parseIncomingMessage(payload: unknown): WuzApiMessage {
-  const data = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>;
-  const event = (data.event && typeof data.event === 'object' ? data.event : {}) as Record<string, unknown>;
-  const message = (event.Message && typeof event.Message === 'object' ? event.Message : {}) as Record<string, unknown>;
-  const info = (event.Info && typeof event.Info === 'object' ? event.Info : {}) as Record<string, unknown>;
-  const key = (event.key && typeof event.key === 'object' ? event.key : message.key && typeof message.key === 'object' ? message.key : {}) as Record<string, unknown>;
-  const text = String(data.message || data.text || message.conversation || (message.extendedTextMessage as Record<string, unknown> | undefined)?.text || '');
-  const chatId = String(data.chatId || data.chat || data.remoteJid || data.remote_jid || info.Chat || info.RemoteJid || info.remoteJid || info.Sender || key.remoteJid || key.participant || '');
-  return { ...data, id: String(data.id || info.ID || `wuz-${crypto.randomUUID()}`), message: text, source: String(data.source || chatId || 'wuzapi'), chatId, receivedAt: String(data.receivedAt || new Date().toISOString()) };
+  const data = getObject(payload);
+  let nestedPayload: unknown = data.data ?? data.payload ?? data.event ?? {};
+  if (data.jsonData && typeof data.jsonData === 'string') {
+    try {
+      nestedPayload = JSON.parse(data.jsonData);
+    } catch {
+      nestedPayload = {};
+    }
+  }
+  const nestedData = getObject(nestedPayload);
+  const event = getObject(nestedData.event ?? data.event ?? {});
+  const info = getObject(event.Info ?? event.info ?? data.Info ?? data.info ?? {});
+  const messageNode = getObject(event.Message ?? event.message ?? (event.Message as Record<string, unknown> | undefined) ?? {});
+  const text = readString(
+    data.message,
+    data.text,
+    event.message,
+    event.text,
+    messageNode.conversation,
+    messageNode.text,
+    messageNode.body,
+    messageNode.content,
+    (messageNode.extendedTextMessage as Record<string, unknown> | undefined)?.text,
+    (messageNode.imageMessage as Record<string, unknown> | undefined)?.caption,
+  );
+  const chatId = readString(
+    info.Chat,
+    info.chat,
+    info.chatId,
+    info.groupJid,
+    info.remoteJid,
+    info.remoteJid,
+    event.chatId,
+    event.chat,
+    event.remoteJid,
+    data.chatId,
+    data.chat,
+    data.remoteJid,
+    event.key && typeof event.key === 'object' ? (event.key as Record<string, unknown>).remoteJid : undefined,
+  );
+  const sender = readString(
+    info.Sender,
+    info.sender,
+    info.participant,
+    event.sender,
+    data.sender,
+    event.key && typeof event.key === 'object' ? (event.key as Record<string, unknown>).participant : undefined,
+  );
+  const isGroup = readBoolean(info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, data.isGroup, data.IsGroup);
+  const receivedAt = readString(
+    data.receivedAt,
+    event.receivedAt,
+    info.Timestamp,
+    info.timestamp,
+    event.Timestamp,
+    new Date().toISOString(),
+  );
+  const source = readString(data.source, event.source, chatId || sender || 'wuzapi');
+
+  return {
+    ...data,
+    ...nestedData,
+    ...event,
+    id: readString(data.id, event.id, info.ID, info.id, event.key && typeof event.key === 'object' ? (event.key as Record<string, unknown>).id : undefined, `wuz-${crypto.randomUUID()}`),
+    message: text,
+    source,
+    chatId: chatId || undefined,
+    sender: sender || undefined,
+    isGroup,
+    receivedAt,
+    eventType: readString(data.type, nestedData.type, event.type, event.eventType, event.name),
+  };
 }
 
 export function extractOperationalData(message: string): Record<string, string> {
-  const field = (name: string) => {
-    const match = message.match(new RegExp(`(?:${name})\\s*[:=-]\\s*([^\\n\\r]+)`, 'i'));
-    return match?.[1]?.replace(/^\s*[*-]\s*/, '').replace(/\s*[*]\s*$/, '').trim() || '';
+  const valueFor = (candidate: string, patterns: RegExp[], fallbackPattern?: RegExp) => {
+    for (const pattern of patterns) {
+      const match = candidate.match(pattern);
+      if (match && match[1]) return match[1].replace(/^\s*[*-]\s*/, '').replace(/\s*[*]\s*$/, '').trim();
+    }
+    if (fallbackPattern) {
+      const match = candidate.match(fallbackPattern);
+      if (match && match[1]) return match[1].replace(/^\s*[*-]\s*/, '').replace(/\s*[*]\s*$/, '').trim();
+    }
+    return '';
   };
   const normalized = message.toUpperCase();
-  const isFieldActivation = normalized.includes('ACIONAMENTO FIELD');
-  const isBackboneActivation = normalized.includes('EVENTO BACKBONE') || normalized.includes('VALIDAR COM NOC TX');
-  const officeTrack = field('TAREFA\\s+OFFICE\\s+TRACK|OFFICE\\s+TRACK|OS\\s+OT|OFFICETRACK');
-  const orderNumber = field('ORDEM|ORDEM\\s+DE\\s+SERVIÇO') || officeTrack;
-  const type = isBackboneActivation ? 'NOC TX' : isFieldActivation ? 'ACIONAMENTO FIELD' : normalized.includes('NOC TX') ? 'NOC TX' : 'NOC ACESSO';
-  const addresses = message.includes('Endereços:') || message.includes('Enderecos:') ? message.split(/Endereços?:/i)[1]?.split(/COPE\s+REDE:/i)[0]?.trim() || '' : '';
+  const isFieldActivation = /ACIONAMENTO\s+FIELD/i.test(message);
+  const isBackboneActivation = /EVENTO\s+BACKBONE|VALIDAR\s+COM\s+NOC\s+TX/i.test(message);
+  const hasNocTx = /NOC\s+TX/i.test(normalized);
+  const officeTrack = valueFor(message, [/TAREFA\s+OFFICE\s+TRACK\s*[:=-]\s*([^\n\r]+)/i, /OFFICE\s+TRACK\s*[:=-]\s*([^\n\r]+)/i, /OS\s+OT\s*[:=-]\s*([^\n\r]+)/i, /OFFICETRACK\s*[:=-]\s*([^\n\r]+)/i, /OFFICETRACK\s+([^\n\r]+)/i]);
+  const orderNumber = valueFor(message, [/ORDEM\s+DE\s+SERVIÇO\s*[:=-]\s*([^\n\r]+)/i, /ORDEM\s*[:=-]\s*([^\n\r]+)/i, /ORDEM\s+([^\n\r]+)/i, /O\.S\.\s*[:=-]\s*([^\n\r]+)/i]) || officeTrack;
+  const type = isBackboneActivation ? 'NOC TX' : isFieldActivation ? 'ACIONAMENTO FIELD' : hasNocTx ? 'NOC TX' : 'NOC ACESSO';
+  const addresses = /Endere[cç]os?\s*:/i.test(message) ? message.split(/Endere[cç]os?\s*:/i)[1]?.split(/COPE\s+REDE:/i)[0]?.trim() || '' : '';
   const slotPon = (() => {
-    const slot = message.match(/SLOT\s*:\s*([^|\n]+).*?PON\s*:\s*([^\n]+)/i);
-    return slot ? `${slot[1].replace(/[*]/g, '').trim()} / ${slot[2].replace(/[*]/g, '').trim()}` : field('SLOT/PON|PLACA/PON');
+    const combined = message.match(/SLOT\s*\/\s*PON\s*[:=-]\s*([^\n\r]+)/i);
+    if (combined) return combined[1].replace(/[*]/g, '').trim();
+    const slot = message.match(/SLOT\s*[:=-]?\s*([^|\n]+).*?PON\s*[:=-]?\s*([^\n]+)/i);
+    if (slot) return `${slot[1].replace(/[*]/g, '').trim()} / ${slot[2].replace(/[*]/g, '').trim()}`;
+    return valueFor(message, [/SLOT\s*(?:\/|[-:])?\s*PON\s*[:=-]\s*([^\n\r]+)/i, /SLOT\s*\/\s*PON\s*[:=-]\s*([^\n\r]+)/i, /PLACA\s*\/\s*PON\s*[:=-]\s*([^\n\r]+)/i, /PLACA\s*[:=-]\s*([^\n\r]+)/i]);
   })();
+
   return {
     orderNumber,
     officeTrack,
-    bdesk: field('BDESK|TICKET'),
+    bdesk: valueFor(message, [/BDESK\s*[:=-]\s*([^\n\r]+)/i, /TICKET\s*[:=-]\s*([^\n\r]+)/i]),
     type,
-    reason: field('MOTIVO|TIPO\\s+DE\\s+FALHA|TIPO'),
-    eventAt: field('DATA\\s*/\\s*HORA\\s+DO\\s+EVENTO|DATA\\s+HORA\\s+DO\\s+EVENTO'),
-    olt: field('OLT'),
+    reason: valueFor(message, [/MOTIVO\s*[:=-]\s*([^\n\r]+)/i, /TIPO\s+DE\s+FALHA\s*[:=-]\s*([^\n\r]+)/i, /TIPO\s*[:=-]\s*([^\n\r]+)/i]),
+    eventAt: valueFor(message, [/DATA\s*(?:\/|[-])?\s*HORA\s+DO\s+EVENTO\s*[:=-]\s*([^\n\r]+)/i, /DATA\s*(?:\/|[-])?\s*HORA\s*[:=-]\s*([^\n\r]+)/i, /DATA\s+HORA\s+DO\s+EVENTO\s*[:=-]\s*([^\n\r]+)/i]),
+    olt: valueFor(message, [/OLT\s*[:=-]\s*([^\n\r]+)/i]),
     slotPon,
-    affectedCount: field('AFETADOS|AFETAÇÃO|AFETACAO'),
-    contract: field('CONTRATO(?:S)?\\s+EXEMPLO(?:S)?|CONTRATO'),
-    technician: field('TÉCNICO\\s+REDE|TECNICO\\s+REDE|TÉCNICO|TECNICO'),
-    cope: field('COPE\\s+REDE'),
-    client: field('CLIENTE'),
-    region: field('REGIÃO|REGIAO'),
-    city: field('CIDADE'),
-    phone: field('TELEFONE'),
-    customerOrder: field('O\\.S\\.\\s+CASA\\s+CLIENTE'),
-    ticket: field('TICKET'),
-    serialNumber: field('S/N'),
-    ctoId: field('ID/CTO'),
-    ctoLocation: field('LOC\\s+CTO'),
-    title: field('TITULO'),
-    openedAt: field('ABERTO\\s+EM'),
-    observations: field('OBSERVAÇÕES|OBSERVACOES'),
-    outageStart: field('INÍCIO\\s+DA\\s+QUEDA|INICIO\\s+DA\\s+QUEDA'),
+    affectedCount: valueFor(message, [/AFETADOS\s*[:=-]\s*([^\n\r]+)/i, /AFETA[ÇC]Ã?O\s*[:=-]\s*([^\n\r]+)/i]),
+    contract: valueFor(message, [/CONTRATO(?:S)?\s+EXEMPLO(?:S)?\s*[:=-]\s*([^\n\r]+)/i, /CONTRATO\s*[:=-]\s*([^\n\r]+)/i]),
+    technician: valueFor(message, [/TÉCNICO\s+REDE\s*[:=-]\s*([^\n\r]+)/i, /TECNICO\s+REDE\s*[:=-]\s*([^\n\r]+)/i, /TÉCNICO\s*[:=-]\s*([^\n\r]+)/i, /TECNICO\s*[:=-]\s*([^\n\r]+)/i]),
+    cope: valueFor(message, [/COPE\s+REDE\s*[:=-]\s*([^\n\r]+)/i]),
+    client: valueFor(message, [/CLIENTE\s*[:=-]\s*([^\n\r]+)/i]),
+    region: valueFor(message, [/REGIÃ?O\s*[:=-]\s*([^\n\r]+)/i, /REGIAO\s*[:=-]\s*([^\n\r]+)/i]),
+    city: valueFor(message, [/CIDADE\s*[:=-]\s*([^\n\r]+)/i]),
+    phone: valueFor(message, [/TELEFONE\s*[:=-]\s*([^\n\r]+)/i]),
+    customerOrder: valueFor(message, [/O\.S\.\s*CASA\s+CLIENTE\s*[:=-]\s*([^\n\r]+)/i, /O\.S\.?\s*[:=-]\s*([^\n\r]+)/i]),
+    ticket: valueFor(message, [/TICKET\s*[:=-]\s*([^\n\r]+)/i]),
+    serialNumber: valueFor(message, [/S\/N\s*[:=-]\s*([^\n\r]+)/i]),
+    ctoId: valueFor(message, [/ID\s*\/\s*CTO\s*[:=-]\s*([^\n\r]+)/i, /ID\/CTO\s*[:=-]\s*([^\n\r]+)/i]),
+    ctoLocation: valueFor(message, [/LOC\s+CTO\s*[:=-]\s*([^\n\r]+)/i]),
+    title: valueFor(message, [/TITULO\s*[:=-]\s*([^\n\r]+)/i, /TÍTULO\s*[:=-]\s*([^\n\r]+)/i]),
+    openedAt: valueFor(message, [/ABERTO\s+EM\s*[:=-]\s*([^\n\r]+)/i]),
+    observations: valueFor(message, [/OBSERVA[ÇC]Õ?ES\s*[:=-]\s*([^\n\r]+)/i]),
+    outageStart: valueFor(message, [/INÍ?CIO\s+DA\s+QUEDA\s*[:=-]\s*([^\n\r]+)/i, /INICIO\s+DA\s+QUEDA\s*[:=-]\s*([^\n\r]+)/i]),
     addresses,
   };
 }

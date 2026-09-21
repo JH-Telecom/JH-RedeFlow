@@ -47,20 +47,37 @@ Use tokens diferentes entre local e produção.
 
 ## Teste local
 
-Com o backend rodando em `http://localhost:3333`, execute:
+Com o backend rodando em `http://localhost:3333`, execute no PowerShell:
 
 ```bash
-curl -X POST http://localhost:3333/api/integrations/wuzapi/webhook \
-  -H "Content-Type: application/json" \
-  -H "x-wuzapi-token: SEU_TOKEN_LOCAL" \
-  -d '{"source":"grupo_acionamentos_rede","message":"VALIDAR COM NOC ACESSO\nORDEM: RF-TESTE-01\nBDESK: BD-TESTE-01\nMOTIVO: perda de sinal\nOLT: OLT-01\nSLOT/PON: 3/7"}'
+$payload = @{
+  type = "Message"
+  event = @{
+    Info = @{
+      ID = "local-test-001"
+      Chat = "120363422003961917@g.us"
+      Sender = "551199999999@s.whatsapp.net"
+      IsGroup = $true
+      Timestamp = (Get-Date).ToUniversalTime().ToString("o")
+    }
+    Message = @{
+      conversation = "VALIDAR COM NOC ACESSO`nORDEM: RF-TESTE-01`nBDESK: BD-TESTE-01`nMOTIVO: perda de sinal`nOLT: OLT-01`nSLOT/PON: 3/7"
+    }
+  }
+} | ConvertTo-Json -Depth 10
+
+Invoke-RestMethod http://localhost:3333/api/integrations/wuzapi/webhook `
+  -Method Post `
+  -Headers @{ "x-wuzapi-token" = "SEU_TOKEN_LOCAL" } `
+  -ContentType "application/json" `
+  -Body $payload
 ```
 
 Resposta esperada:
 
-```json
-{"activationId":"...","status":"Pendente"}
-```
+Resposta esperada: `activationId` preenchido e `status` igual a `Pendente`.
+
+O grupo usado no payload precisa ser exatamente o valor de `WUZAPI_ACTIVATION_GROUP_ID`.
 
 Sem token ou com token incorreto, a resposta deve ser `401`. Sem mensagem, deve ser `400`.
 
