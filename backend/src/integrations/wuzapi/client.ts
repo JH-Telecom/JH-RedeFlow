@@ -118,6 +118,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     messageNode.quotedMessage,
     quotedNode && typeof quotedNode === 'object' ? (quotedNode as Record<string, unknown>).conversation : undefined,
     quotedNode && typeof quotedNode === 'object' ? (quotedNode as Record<string, unknown>).text : undefined,
+    quotedNode && typeof quotedNode === 'object' ? ((quotedNode as Record<string, unknown>).extendedTextMessage as Record<string, unknown> | undefined)?.text : undefined,
   );
   const messageType = Object.keys(messageNode).find((key) => /Message$/.test(key)) || (text ? 'text' : 'unknown');
   const explicitGroup = [info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, nestedData.isGroup, nestedData.IsGroup, data.isGroup, data.IsGroup].some((value) => value !== undefined && value !== null);

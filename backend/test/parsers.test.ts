@@ -59,6 +59,28 @@ test('normalizes sender, recipient, timestamp, message type and quoted text', ()
   assert.equal(result.isFromMe, false);
 });
 
+test('extracts the operational text from an extended-text quoted message', () => {
+  const result = parseIncomingMessage({
+    type: 'Message',
+    event: {
+      Info: { ID: 'msg-quoted-activation', Chat: '120363422003961917@g.us', IsGroup: true, IsFromMe: false },
+      Message: {
+        extendedTextMessage: {
+          text: 'Validado e encerrado',
+          contextInfo: {
+            quotedMessage: {
+              extendedTextMessage: { text: 'VALIDAR COM NOC ACESSO\nBDESK: 648948\nOLT: VIP-SZN-SPO-OHW-01' },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  assert.equal(result.message, 'Validado e encerrado');
+  assert.match(result.quotedMessage || '', /VALIDAR COM NOC ACESSO/);
+});
+
 test('semantically analyzes NOC access data without confusing address, date or Office Track fields', () => {
   const result = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️
 - OLT: * VIP-SZN-SPO-OHW-01

@@ -310,14 +310,16 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const knownNonMessageEvent = ['connected', 'connection', 'presence', 'presence.update', 'receipt', 'message.ack', 'logout'].includes(eventType);
   if (knownNonMessageEvent || (eventType && !knownMessageEvent && !message.message?.trim())) return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' });
   if (message.isFromMe) return response.status(202).json({ status: 'ignored', reason: 'Mensagem enviada pelo proprio bot.' });
-  if (!message.message?.trim()) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' });
-  const fallbackAnalysis = analyzeOperationalMessage(message);
+  if (!message.message?.trim() && !message.quotedMessage?.trim()) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' });
+  const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
+  const fallbackAnalysis = analyzeOperationalMessage(analysisMessage);
   if (!fallbackAnalysis.eh_acionamento) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' });
-  const analysis = await interpretWithGemini(message, fallbackAnalysis);
+  const analysis = await interpretWithGemini(analysisMessage, fallbackAnalysis);
   if (!analysis.eh_acionamento) return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' });
-  const legacyData = extractOperationalData(message.message);
+  const operationalText = analysisMessage.message || '';
+  const legacyData = extractOperationalData(operationalText);
   try {
-    const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: legacyData, analysis });
+    const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
     if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
     return response.status(202).json({ activationId: activation.id, status: activation.status });
   } catch (error) {
