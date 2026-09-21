@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
+import { createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -396,6 +396,7 @@ export async function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCo
   return supervisor;
 }
 export async function listCalls(status?: CallStatus): Promise<Call[]> {
+  if (isSupabaseConfigured()) return await listSupabaseCalls(status);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; order_number: string; bdesk: string; office_track: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slot_pon: string; status: string; technician_id: string | null; technician_name: string | null; supervisor_name: string | null; opened_at: string; assigned_at: string | null; executed_at: string | null; result: string | null; cancellation_reason: string | null; notes: string }>(
@@ -409,6 +410,7 @@ export async function listCalls(status?: CallStatus): Promise<Call[]> {
   return [...calls.values()].filter((call) => !status || call.status === status);
 }
 export async function getCall(id: string): Promise<Call | undefined> {
+  if (isSupabaseConfigured()) return (await listSupabaseCalls()).find((call) => call.id === id);
   if (shouldUseLocalDatabase()) {
     const callsList = await listCalls();
     return callsList.find((call) => call.id === id);

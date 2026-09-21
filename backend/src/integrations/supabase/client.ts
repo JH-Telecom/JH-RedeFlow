@@ -122,6 +122,18 @@ export async function updateSupabaseTechnician(id: string, input: { supervisorId
   return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active };
 }
 
+export async function listSupabaseCalls(status?: CallStatus): Promise<Call[]> {
+  let query = getSupabaseAdmin().from('calls').select('id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, technicians(name, supervisors(name))').order('opened_at', { ascending: false });
+  if (status) query = query.eq('status', status);
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => {
+    const technician = Array.isArray(row.technicians) ? row.technicians[0] : row.technicians;
+    const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
+    return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '' };
+  });
+}
+
 export async function getSupabaseRole(roleId: string) {
   const { data, error } = await getSupabaseAdmin()
     .from('roles')
