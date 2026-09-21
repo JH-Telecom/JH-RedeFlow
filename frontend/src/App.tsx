@@ -804,7 +804,7 @@ function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar ordem, cliente, BDESK ou regiao"
+              placeholder="Buscar ordem, tecnico B2C, BDESK ou regiao"
             />
           </div>
           <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
@@ -820,7 +820,7 @@ function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
             <thead>
               <tr>
                 <th>Ordem</th>
-                <th>Cliente</th>
+                <th>Tecnico B2C</th>
                 <th>Tipo / motivo</th>
                 <th>Regiao</th>
                 <th>Abertura</th>
@@ -949,7 +949,7 @@ function CallDetailBase() {
             <DetailItem label="Ordem" value={call.orderNumber} />
             <DetailItem label="BDESK" value={call.bdesk} />
             <DetailItem label="Office Track" value={call.officeTrack} />
-            <DetailItem label="Cliente" value={call.client} />
+            <DetailItem label="Tecnico B2C" value={call.client} />
             <DetailItem label="Tipo" value={call.type} />
             <DetailItem label="Motivo" value={call.reason} />
             <DetailItem label="Regiao" value={call.region} />
