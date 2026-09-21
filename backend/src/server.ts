@@ -87,7 +87,7 @@ function redactWuzApiPayload(request: Request, body: unknown) {
 
 function extractWuzApiToken(request: Request, body: unknown): string | undefined {
   const source = (body && typeof body === 'object' ? body as Record<string, unknown> : {}) as Record<string, unknown>;
-  const rawToken = request.headers['x-wuzapi-token'] || request.headers['x-webhook-token'] || request.query.token || source.token || request.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const rawToken = request.headers['x-wuzapi-token'] || request.headers['x-webhook-token'] || request.headers['x-api-key'] || request.headers.apikey || request.headers.token || request.query.token || source.token || source.webhookToken || request.headers.authorization?.replace(/^Bearer\s+/i, '');
   return typeof rawToken === 'string' ? rawToken : undefined;
 }
 
@@ -316,9 +316,14 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const analysis = await interpretWithGemini(message, fallbackAnalysis);
   if (!analysis.eh_acionamento) return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' });
   const legacyData = extractOperationalData(message.message);
-  const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: legacyData, analysis });
-  if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
-  return response.status(202).json({ activationId: activation.id, status: activation.status });
+  try {
+    const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: legacyData, analysis });
+    if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
+    return response.status(202).json({ activationId: activation.id, status: activation.status });
+  } catch (error) {
+    console.error('[WuzAPI] falha ao registrar acionamento:', error);
+    return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel registrar o acionamento.' });
+  }
 });
 app.get('/api/acionamentos', auth, requirePermission('activations.view'), async (request, response) => response.json({ activations: await listActivations(request.query.status as 'Pendente' | 'Aceito' | 'Recusado' | undefined) }));
 app.post('/api/acionamentos/:id/aceitar', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
