@@ -106,8 +106,8 @@ function Login({
 }: {
   onLogin: (session: { token: string; user: User & { role: Role } }) => void;
 }) {
-  const [email, setEmail] = useState("admin@jhtelecom.com");
-  const [password, setPassword] = useState("RedeFlow@2026");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   async function submit(event: React.FormEvent) {
@@ -161,11 +161,12 @@ function Login({
             <h2>Entrar</h2>
             <p>Use sua conta corporativa para acessar o sistema.</p>
           </div>
-          <form onSubmit={submit}>
+          <form onSubmit={submit} autoComplete="off">
             <label>
               E-mail
               <input
                 type="email"
+                autoComplete="off"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="voce@jhtelecom.com"
@@ -176,6 +177,7 @@ function Login({
               Senha
               <input
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Digite sua senha"
