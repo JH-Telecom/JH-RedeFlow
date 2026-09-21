@@ -210,9 +210,14 @@ function Shell({
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => localStorage.getItem("jh-redeflow-sidebar-collapsed") === "true");
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  useEffect(() => { api.notifications().then((data) => setNotifications(data.notifications)).catch(() => setNotifications([])); }, [location.pathname]);
+  async function loadNotifications() {
+    setNotificationsLoading(true);
+    try { setNotifications((await api.notifications()).notifications); } catch { setNotifications([]); } finally { setNotificationsLoading(false); }
+  }
+  useEffect(() => { void loadNotifications(); const interval = window.setInterval(() => void loadNotifications(), 15000); return () => window.clearInterval(interval); }, [location.pathname]);
   function toggleSidebar() {
     setDesktopCollapsed((current) => {
       const next = !current;
@@ -225,8 +230,8 @@ function Shell({
       ? "Visao geral"
       : location.pathname.includes("/chamados/abertos")
         ? "Chamados abertos"
-        : location.pathname.includes("/chamados/atendimento")
-          ? "Em atendimento"
+          : location.pathname.includes("/chamados/atendimento")
+            ? "Em atendimento"
           : location.pathname === "/acionamentos"
             ? "Acionamentos"
           : location.pathname === "/importacoes"
@@ -326,7 +331,7 @@ function Shell({
               <Search size={18} />
             </button>
             <div className="notification-wrap">
-              <button className="icon-button notification" onClick={() => setNotificationsOpen((current) => !current)} title="Notificacoes">
+              <button className={`icon-button notification ${notificationsLoading ? "is-refreshing" : ""}`} onClick={() => { setNotificationsOpen((current) => !current); void loadNotifications(); }} title="Notificacoes">
                 <Bell size={18} />
                 {notifications.length > 0 && <i />}
               </button>
@@ -750,6 +755,7 @@ function UsersPage() {
 function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
   const [regionFilter, setRegionFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(status || "Todos");
   const [showFilters, setShowFilters] = useState(false);
@@ -761,6 +767,10 @@ function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
       .then((data) => setCalls(data.calls))
       .catch((err) => setError(err.message));
   }, [status]);
+  async function refreshCalls() {
+    setLoading(true);
+    try { setCalls((await api.calls(status)).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
+  }
   const visibleCalls = calls.filter((call) =>
     [call.orderNumber, call.client, call.bdesk, call.region, call.city]
       .join(" ")
@@ -780,8 +790,9 @@ function CallsPage({ status, title }: { status?: CallStatus; title: string }) {
           </p>
         </div>
         <button
-          className="secondary-button compact"
-          onClick={() => api.calls(status).then((data) => setCalls(data.calls))}
+          className={`secondary-button compact ${loading ? "is-refreshing" : ""}`}
+          onClick={() => void refreshCalls()}
+          disabled={loading}
         >
           <Activity size={15} /> Atualizar
         </button>

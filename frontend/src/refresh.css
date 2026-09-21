@@ -1,0 +1,14 @@
+.is-refreshing svg {
+  animation: refresh-spin 0.85s linear infinite;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

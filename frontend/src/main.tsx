@@ -11,5 +11,6 @@ import './dashboard.css';
 import './sidebar.css';
 import './admin.css';
 import './filters.css';
+import './refresh.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);
