@@ -22,6 +22,7 @@ const permissionDescriptions: Record<PermissionCode, string> = {
   'calls.assign': 'Atribuir chamados',
   'calls.finish': 'Finalizar chamados',
   'calls.cancel': 'Cancelar chamados',
+  'calls.delete': 'Apagar chamados de teste',
   'calls.reopen': 'Reabrir chamados encerrados',
   'calls.view_logs': 'Visualizar auditoria de chamados',
   'calls.add_observation': 'Adicionar observacoes em chamados',
@@ -484,6 +485,62 @@ export async function getCall(id: string): Promise<Call | undefined> {
     return callsList.find((call) => call.id === id);
   }
   return calls.get(id);
+}
+export async function deleteCall(id: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    try {
+      const admin = getSupabaseAdmin();
+      const { error: logsError } = await admin.from('call_logs').delete().eq('call_id', id);
+      if (logsError) throw new Error(logsError.message || 'Nao foi possivel remover os logs do chamado.');
+      const { error: observationsError } = await admin.from('call_observations').delete().eq('call_id', id);
+      if (observationsError) throw new Error(observationsError.message || 'Nao foi possivel remover as observacoes do chamado.');
+      const { error } = await admin.from('calls').delete().eq('id', id).select('id').maybeSingle();
+      if (error) throw new Error(error.message || 'Nao foi possivel apagar o chamado.');
+      return true;
+    } catch (error) {
+      if (shouldUseLocalDatabase()) {
+        // local fallback below
+      } else {
+        const removed = calls.delete(id);
+        if (removed) {
+          for (const [observationId, observation] of [...observations.entries()]) {
+            if (observation.callId === id) observations.delete(observationId);
+          }
+          for (const [logId, log] of [...auditLogs.entries()]) {
+            if (log.callId === id) auditLogs.delete(logId);
+          }
+          return true;
+        }
+        const message = error instanceof Error ? error.message : 'Nao foi possivel apagar o chamado.';
+        throw new Error(`Supabase indisponivel ao apagar o chamado. ${message}`);
+      }
+    }
+  }
+
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    try {
+      await client.query('BEGIN');
+      await client.query(`DELETE FROM call_logs WHERE call_id = $1`, [id]);
+      await client.query(`DELETE FROM call_observations WHERE call_id = $1`, [id]);
+      const result = await client.query<{ id: string }>(`DELETE FROM calls WHERE id = $1 RETURNING id`, [id]);
+      await client.query('COMMIT');
+      return Boolean(result.rowCount && result.rowCount > 0);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  }
+
+  const removed = calls.delete(id);
+  if (!removed) return false;
+  for (const [observationId, observation] of [...observations.entries()]) {
+    if (observation.callId === id) observations.delete(observationId);
+  }
+  for (const [logId, log] of [...auditLogs.entries()]) {
+    if (log.callId === id) auditLogs.delete(logId);
+  }
+  return true;
 }
 export async function listNotifications() {
   const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string }[];

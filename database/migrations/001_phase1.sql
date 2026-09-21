@@ -44,6 +44,7 @@ INSERT INTO permissions (code, description) VALUES
   ('users.edit', 'Editar usuarios'),
   ('roles.view', 'Visualizar cargos'),
   ('roles.manage', 'Gerenciar cargos e permissoes'),
+  ('calls.delete', 'Apagar chamados de teste'),
   ('settings.manage', 'Gerenciar configuracoes')
 ON CONFLICT (code) DO NOTHING;
 

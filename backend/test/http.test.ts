@@ -223,6 +223,30 @@ test('ignores private WuzAPI messages and rejects mismatched groups', async () =
   assert.equal(mismatchBody.reason, 'Grupo nao autorizado.');
 });
 
+test('admin can delete a test call through the protected API route', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+
+  const deleteResponse = await fetch(`${baseUrl}/api/chamados/call-240918-02`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  assert.equal(deleteResponse.status, 200);
+  const body = await deleteResponse.json() as { deleted: boolean };
+  assert.equal(body.deleted, true);
+
+  const fetchResponse = await fetch(`${baseUrl}/api/chamados/call-240918-02`, {
+    headers,
+  });
+  assert.equal(fetchResponse.status, 404);
+});
+
 test('does not create duplicate activations when WuzAPI retries a message', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

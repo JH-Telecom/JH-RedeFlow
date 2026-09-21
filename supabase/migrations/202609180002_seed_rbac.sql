@@ -17,6 +17,7 @@ insert into public.permissions (code, description) values
   ('calls.assign', 'Atribuir chamados'),
   ('calls.finish', 'Finalizar chamados'),
   ('calls.cancel', 'Cancelar chamados'),
+  ('calls.delete', 'Apagar chamados de teste'),
   ('calls.reopen', 'Reabrir chamados encerrados'),
   ('calls.view_logs', 'Visualizar auditoria de chamados'),
   ('calls.add_observation', 'Adicionar observacoes em chamados'),

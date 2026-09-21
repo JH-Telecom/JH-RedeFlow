@@ -1147,7 +1147,17 @@ function CallOutcomeActions() {
   const [message, setMessage] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [canDeleteCall, setCanDeleteCall] = useState(false);
   useEffect(() => { api.call(id).then((data) => setCall(data.call)).catch(() => setCall(null)); }, [id]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('jh-redeflow-session');
+      const session = raw ? JSON.parse(raw) : null;
+      setCanDeleteCall(Boolean(session?.user?.role?.permissions?.includes('calls.delete')));
+    } catch {
+      setCanDeleteCall(false);
+    }
+  }, []);
   async function finish() {
     setMessage("");
     setMissing([]);
@@ -1176,6 +1186,19 @@ function CallOutcomeActions() {
     catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel reabrir o chamado."); }
     finally { setSaving(false); }
   }
+  async function remove() {
+    if (!window.confirm('Deseja apagar este chamado de teste? Essa acao nao pode ser desfeita.')) return;
+    setSaving(true);
+    try {
+      await api.deleteCall(id);
+      setMessage('Chamado removido com sucesso.');
+      setTimeout(() => { window.location.href = '/chamados/abertos'; }, 600);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Nao foi possivel apagar o chamado.');
+    } finally {
+      setSaving(false);
+    }
+  }
   const closed = call ? ["Finalizado", "Cancelado"].includes(call.status) : false;
   return (
     <section className="panel outcome-panel">
@@ -1202,6 +1225,9 @@ function CallOutcomeActions() {
           <span className="section-kicker">CANCELAMENTO</span>
           <label className="detail-label">Motivo<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
           <button className={`cancel-button ${saving ? "is-refreshing" : ""}`} onClick={cancel} disabled={saving}>{saving ? "Cancelando..." : "Cancelar chamado"}</button>
+          {canDeleteCall && (
+            <button className={`delete-button ${saving ? "is-refreshing" : ""}`} onClick={remove} disabled={saving}>{saving ? "Excluindo..." : "Apagar chamado"}</button>
+          )}
         </div>
       </div>}
       {message && <div className="save-message">{message}</div>}

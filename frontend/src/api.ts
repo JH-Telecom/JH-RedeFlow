@@ -59,6 +59,7 @@ export const api = {
   updateCall: (id: string, data: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>) => request<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => request<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
   cancelCall: (id: string, reason: string) => request<{ call: Call }>(`/api/chamados/${id}/cancelar`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  deleteCall: (id: string) => request<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),
   reopenCall: (id: string) => request<{ call: Call }>(`/api/chamados/${id}/reabrir`, { method: 'POST' }),
   observations: (id: string) => request<{ observations: CallObservation[] }>(`/api/chamados/${id}/observacoes`),
   addObservation: (id: string, text: string) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes`, { method: 'POST', body: JSON.stringify({ text }) }),
