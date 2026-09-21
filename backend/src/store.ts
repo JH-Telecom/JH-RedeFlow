@@ -262,6 +262,33 @@ export async function deleteUser(id: string): Promise<boolean> {
   return users.delete(id);
 }
 export async function addRole(input: { name: string; description: string; permissions: PermissionCode[] }): Promise<Role> {
+  if (isSupabaseConfigured()) {
+    try {
+      const admin = getSupabaseAdmin();
+      const { data: roleData, error: roleError } = await admin.from('roles').insert({ name: input.name, description: input.description }).select('id, name, description').single();
+      if (roleError || !roleData) throw new Error(roleError?.message || 'Nao foi possivel criar o cargo no Supabase.');
+
+      if (input.permissions.length) {
+        const { data: permissionRows, error: permissionError } = await admin.from('permissions').select('id, code').in('code', input.permissions);
+        if (permissionError) throw new Error(permissionError.message || 'Nao foi possivel carregar as permissoes do cargo.');
+        const permissionIds = permissionRows?.map((row) => row.id) || [];
+        for (const permissionId of permissionIds) {
+          const { error: linkError } = await admin.from('role_permissions').insert({ role_id: roleData.id, permission_id: permissionId }).select();
+          if (linkError && !String(linkError.message).includes('duplicate key')) throw new Error(linkError.message || 'Nao foi possivel vincular a permissao ao cargo.');
+        }
+      }
+
+      return { id: roleData.id, name: roleData.name, description: roleData.description || '', permissions: input.permissions };
+    } catch (error) {
+      if (shouldUseLocalDatabase()) {
+        // falls through to the local database when configured as a local runtime with DB access
+      } else {
+        const message = error instanceof Error && error.message ? error.message : 'Nao foi possivel criar o cargo no Supabase.';
+        throw new Error(`Supabase indisponivel ao criar o cargo. ${message}`);
+      }
+    }
+  }
+
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; name: string; description: string }>(
@@ -283,10 +310,50 @@ export async function addRole(input: { name: string; description: string; permis
   return role;
 }
 export async function updateRole(id: string, input: { name?: string; description?: string; permissions?: PermissionCode[] }): Promise<Role | undefined> {
+  if (isSupabaseConfigured()) {
+    try {
+      const admin = getSupabaseAdmin();
+
+      if (input.name !== undefined || input.description !== undefined) {
+        const updatePayload: Record<string, string> = {};
+        if (input.name !== undefined) updatePayload.name = input.name;
+        if (input.description !== undefined) updatePayload.description = input.description;
+        const { error: updateRoleError } = await admin.from('roles').update(updatePayload).eq('id', id).is('deleted_at', null);
+        if (updateRoleError) throw new Error(updateRoleError.message || 'Nao foi possivel atualizar o cargo no Supabase.');
+      }
+
+      if (input.permissions) {
+        const { error: deleteError } = await admin.from('role_permissions').delete().eq('role_id', id);
+        if (deleteError) throw new Error(deleteError.message || 'Nao foi possivel limpar as permissoes do cargo.');
+
+        if (input.permissions.length) {
+          const { data: permissionRows, error: permissionError } = await admin.from('permissions').select('id, code').in('code', input.permissions);
+          if (permissionError) throw new Error(permissionError.message || 'Nao foi possivel carregar as permissoes do cargo.');
+          const permissionIds = permissionRows?.map((row) => row.id) || [];
+          for (const permissionId of permissionIds) {
+            const { error: linkError } = await admin.from('role_permissions').insert({ role_id: id, permission_id: permissionId });
+            if (linkError && !String(linkError.message).includes('duplicate key')) throw new Error(linkError.message || 'Nao foi possivel vincular a permissao ao cargo.');
+          }
+        }
+      }
+
+      const refreshed = await getSupabaseRole(id);
+      if (!refreshed) return undefined;
+      return refreshed;
+    } catch (error) {
+      if (shouldUseLocalDatabase()) {
+        // falls through to the local database when configured as a local runtime with DB access
+      } else {
+        const message = error instanceof Error && error.message ? error.message : 'Nao foi possivel atualizar o cargo no Supabase.';
+        throw new Error(`Supabase indisponivel ao atualizar o cargo. ${message}`);
+      }
+    }
+  }
+
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    if (input.name) await client.query(`UPDATE roles SET name = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.name, id]);
-    if (input.description) await client.query(`UPDATE roles SET description = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.description, id]);
+    if (input.name !== undefined) await client.query(`UPDATE roles SET name = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.name, id]);
+    if (input.description !== undefined) await client.query(`UPDATE roles SET description = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.description, id]);
     if (input.permissions) {
       await client.query(`DELETE FROM role_permissions WHERE role_id = $1`, [id]);
       for (const permission of input.permissions) {

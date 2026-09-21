@@ -102,6 +102,31 @@ test('falls back to built-in roles when Supabase is configured but unreachable',
   }
 });
 
+test('surfaces a clear error when a role update is attempted against a configured but unreachable Supabase instance', async () => {
+  const previousRuntime = process.env.REDEFLOW_RUNTIME;
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousAnon = process.env.SUPABASE_ANON_KEY;
+  const previousServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  try {
+    process.env.REDEFLOW_RUNTIME = 'local';
+    process.env.SUPABASE_URL = 'http://127.0.0.1:1';
+    process.env.SUPABASE_ANON_KEY = 'anon-key';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+    const { updateRole } = await import('../src/store.js');
+    await assert.rejects(
+      () => updateRole('11111111-1111-1111-1111-111111111111', { permissions: ['dashboard.view'] }),
+      /Supabase|configur|nao foi possivel/i,
+    );
+  } finally {
+    if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
+    if (previousUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = previousUrl;
+    if (previousAnon === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = previousAnon;
+    if (previousServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = previousServiceRole;
+  }
+});
+
 test('login rejects repeated attempts and protects the endpoint under light concurrency', async () => {
   const payload = JSON.stringify({ email: 'unknown@example.com', password: 'wrong-password' });
   const attempts = await Promise.all(
