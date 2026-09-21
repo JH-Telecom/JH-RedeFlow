@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com');
+const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
 export type Permission = { code: string; description: string };
 export type Role = { id: string; name: string; description: string; permissions: string[] };
 export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; role?: Role };
@@ -17,7 +17,24 @@ export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
   const response = await fetch(`${API_URL}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers } });
-  const payload = await response.json();
+
+  const rawText = await response.text();
+  let payload: any = {};
+
+  if (rawText) {
+    const contentType = response.headers.get('content-type') || '';
+    const looksLikeJson = contentType.includes('application/json') || rawText.trim().startsWith('{') || rawText.trim().startsWith('[');
+    if (!looksLikeJson) {
+      throw new Error('A API respondeu com HTML em vez de JSON. Verifique se a variavel VITE_API_URL aponta para o backend correto.');
+    }
+
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      throw new Error('A API respondeu com um corpo invalido. Verifique a URL do backend e o CORS.');
+    }
+  }
+
   if (!response.ok) {
     const error = new Error(payload.message || 'Nao foi possivel concluir a operacao.') as Error & { missing?: string[] };
     error.missing = payload.missing;
