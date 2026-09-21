@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
+import { createSupabaseUser, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured } from './integrations/supabase/client.js';
 import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -118,6 +119,7 @@ export async function findLocalUserById(id: string): Promise<(User & { passwordH
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 export async function getRoleById(roleId: string): Promise<Role | undefined> {
+  if (isSupabaseConfigured()) return await getSupabaseRole(roleId) as Role | undefined;
   if (!shouldUseLocalDatabase()) return getRole(roleId);
   const client = await getDatabaseClient();
   const result = await client.query<{ id: string; name: string; description: string | null; permissions: string[] }>(
@@ -170,6 +172,7 @@ export function getAuthUser(user: User): AuthUser {
 }
 export function validatePassword(user: User & { passwordHash: string }, password: string) { return bcrypt.compareSync(password, user.passwordHash); }
 export async function addUser(input: { name: string; email: string; roleId: string; password: string }): Promise<User> {
+  if (isSupabaseConfigured()) return await createSupabaseUser(input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const passwordHash = bcrypt.hashSync(input.password, 10);
@@ -219,6 +222,26 @@ export async function updateUser(id: string, input: { name?: string; email?: str
   users.set(id, updated);
   const { passwordHash: _passwordHash, ...safeUser } = updated;
   return { ...safeUser, role: getRole(updated.roleId) };
+}
+export async function deleteUser(id: string): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    const { error } = await getSupabaseAdmin()
+      .from('profiles')
+      .update({ active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null);
+    if (error) throw new Error(error.message || 'Nao foi possivel remover o usuario.');
+    return true;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ id: string }>(
+      `UPDATE users SET deleted_at = now(), active = false, updated_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+      [id],
+    );
+    return result.rowCount > 0;
+  }
+  return users.delete(id);
 }
 export async function addRole(input: { name: string; description: string; permissions: PermissionCode[] }): Promise<Role> {
   if (shouldUseLocalDatabase()) {

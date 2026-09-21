@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { parseImport } from './imports/parser.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
@@ -191,6 +191,13 @@ app.patch('/api/users/:id', auth, requirePermission('users.edit'), async (reques
   const user = await updateUser(String(request.params.id), parsed.data);
   if (!user) return response.status(404).json({ message: 'Usuario nao encontrado.' });
   return response.json({ user });
+});
+app.delete('/api/users/:id', auth, requirePermission('users.edit'), async (request, response) => {
+  const userId = String(request.params.id);
+  if (request.authUser?.id === userId) return response.status(400).json({ message: 'Voce nao pode remover o proprio usuario.' });
+  const deleted = await deleteUser(userId);
+  if (!deleted) return response.status(404).json({ message: 'Usuario nao encontrado.' });
+  return response.json({ deleted: true });
 });
 app.get('/api/roles', auth, requirePermission('roles.view'), async (_request, response) => response.json({ roles: await listRoles(), permissions: listPermissions() }));
 app.post('/api/roles', auth, requirePermission('roles.manage'), async (request, response) => {

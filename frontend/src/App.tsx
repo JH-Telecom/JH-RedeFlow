@@ -635,6 +635,17 @@ function UsersPage() {
       setEditing(null); setShowForm(false); setMessage("Usuario salvo com sucesso."); await load();
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar usuario."); }
   }
+  async function handleDelete(user: User) {
+    const confirmed = window.confirm(`Deseja apagar o usuario ${user.name}?`);
+    if (!confirmed) return;
+    try {
+      await api.deleteUser(user.id);
+      setMessage("Usuario removido com sucesso.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel remover o usuario.");
+    }
+  }
   const visibleUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(query.toLowerCase()) && (activeFilter === "all" || (activeFilter === "active" ? user.active : !user.active)));
   return (
     <>
@@ -707,9 +718,14 @@ function UsersPage() {
                     {new Date(user.createdAt).toLocaleDateString("pt-BR")}
                   </td>
                   <td>
-                    <button className="icon-button" onClick={() => openForm(user)} title="Editar usuario">
-                      <ChevronRight size={17} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                      <button className="secondary-button compact" type="button" onClick={() => openForm(user)} title="Editar usuario">
+                        Editar
+                      </button>
+                      <button className="secondary-button compact" type="button" onClick={() => handleDelete(user)} title="Apagar usuario" style={{ background: '#e63946', borderColor: '#e63946', color: '#fff' }}>
+                        Apagar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
