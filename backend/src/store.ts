@@ -343,12 +343,13 @@ export async function addTechnician(input: Omit<Technician, 'id' | 'supervisorNa
   technicians.set(technician.id, technician);
   return { ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined };
 }
-export async function updateTechnician(id: string, input: { currentStatus?: Technician['currentStatus']; active?: boolean }): Promise<Technician | undefined> {
+export async function updateTechnician(id: string, input: { supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean }): Promise<Technician | undefined> {
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
+    if (input.supervisorId !== undefined) { sets.push(`supervisor_id = $${index++}`); values.push(input.supervisorId || null); }
     if (input.currentStatus) { sets.push(`current_status = $${index++}`); values.push(input.currentStatus); }
     if (input.active !== undefined) { sets.push(`active = $${index++}`); values.push(input.active); }
     if (!sets.length) return (await listTechnicians()).find((tech) => tech.id === id);

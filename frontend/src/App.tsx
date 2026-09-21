@@ -1361,6 +1361,8 @@ function SupervisorsPage() {
   const [query, setQuery] = useState("");
   const [regionFilter, setRegionFilter] = useState("Todas");
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedSupervisor, setSelectedSupervisor] = useState<typeof data.supervisors[number] | null>(null);
+  const [assigning, setAssigning] = useState(false);
   async function load() {
     try { setData(await api.supervisors()); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar supervisores."); }
   }
@@ -1370,6 +1372,21 @@ function SupervisorsPage() {
   async function save(event: React.FormEvent) {
     event.preventDefault();
     try { await api.createSupervisor({ ...form }); setShowForm(false); setForm({ name: "", region: "", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar supervisor."); }
+  }
+  function openTeam(supervisor: typeof data.supervisors[number]) { setSelectedSupervisor(supervisor); }
+  async function assignTechnician(event: React.ChangeEvent<HTMLSelectElement>) {
+    const technicianId = event.target.value;
+    if (!technicianId || !selectedSupervisor) return;
+    setAssigning(true);
+    try {
+      await api.updateTechnician(technicianId, { supervisorId: selectedSupervisor.id });
+      await load();
+      setSelectedSupervisor(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel adicionar tecnico.");
+    } finally {
+      setAssigning(false);
+    }
   }
   const regions = [...new Set(data.supervisors.map((supervisor) => supervisor.region))];
   const visibleSupervisors = data.supervisors.filter((supervisor) => `${supervisor.name} ${supervisor.region}`.toLowerCase().includes(query.toLowerCase()) && (regionFilter === "Todas" || supervisor.region === regionFilter));
@@ -1402,7 +1419,7 @@ function SupervisorsPage() {
                   {supervisor.region} · {supervisor.technicianCount} tecnicos
                 </span>
               </div>
-              <button className="icon-button">
+              <button className="icon-button" type="button" onClick={() => openTeam(supervisor)} title="Abrir equipe">
                 <ChevronRight size={17} />
               </button>
             </div>
@@ -1432,7 +1449,7 @@ function SupervisorsPage() {
                   </div>
                 ))}
             </div>
-            <button className="link-button team-link">
+            <button className="link-button team-link" type="button" onClick={() => openTeam(supervisor)}>
               Ver chamados da equipe <ChevronRight size={14} />
             </button>
           </section>
@@ -1443,6 +1460,14 @@ function SupervisorsPage() {
         <label>Regiao<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} required /></label>
         <button className="primary-button" type="submit">Cadastrar supervisor <ChevronRight size={16} /></button>
       </form></AdminModal>}
+      {selectedSupervisor && <AdminModal title={`Equipe de ${selectedSupervisor.name}`} onClose={() => setSelectedSupervisor(null)}>
+        <div className="team-detail-list">
+          <div className="panel-heading"><div><span className="section-kicker">EQUIPE ATUAL</span><h2>{data.technicians.filter((technician) => technician.supervisorId === selectedSupervisor.id).length} tecnicos</h2></div></div>
+          {data.technicians.filter((technician) => technician.supervisorId === selectedSupervisor.id).map((technician) => <div className="team-member" key={technician.id}><div className="avatar">{technician.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</div><div><strong>{technician.name}</strong><span>{technician.registration} · {technician.shift}</span></div><i className={`member-dot ${technician.currentStatus === "Em campo" ? "field" : technician.active ? "ready" : "off"}`} /></div>)}
+          {!data.technicians.some((technician) => technician.supervisorId === selectedSupervisor.id) && <div className="empty-state">Nenhum tecnico nesta equipe.</div>}
+        </div>
+        <label className="detail-label">Adicionar tecnico<select defaultValue="" disabled={assigning} onChange={assignTechnician}><option value="">Selecione um tecnico</option>{data.technicians.filter((technician) => technician.supervisorId !== selectedSupervisor.id).map((technician) => <option key={technician.id} value={technician.id}>{technician.name} · {technician.registration}</option>)}</select></label>
+      </AdminModal>}
     </>
   );
 }

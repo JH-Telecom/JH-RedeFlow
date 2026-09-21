@@ -228,8 +228,8 @@ app.post('/api/tecnicos', auth, requirePermission('technicians.create'), async (
   return response.status(201).json({ technician: await addTechnician(parsed.data) });
 });
 app.patch('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), async (request, response) => {
-  const parsed = z.object({ currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
-  if (!parsed.success) return response.status(400).json({ message: 'Status de tecnico invalido.' });
+  const parsed = z.object({ supervisorId: z.string().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
   const technician = await updateTechnician(String(request.params.id), parsed.data);
   if (!technician) return response.status(404).json({ message: 'Tecnico nao encontrado.' });
   return response.json({ technician });

@@ -51,7 +51,7 @@ export const api = {
   roles: () => request<{ roles: Role[]; permissions: Permission[] }>('/api/roles'),
   technicians: () => request<{ technicians: Technician[] }>('/api/tecnicos'),
   createTechnician: (data: Omit<Technician, 'id' | 'supervisorName'>) => request<{ technician: Technician }>('/api/tecnicos', { method: 'POST', body: JSON.stringify(data) }),
-  updateTechnician: (id: string, data: { currentStatus?: Technician['currentStatus']; active?: boolean }) => request<{ technician: Technician }>(`/api/tecnicos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateTechnician: (id: string, data: { supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean }) => request<{ technician: Technician }>(`/api/tecnicos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
   calls: (status?: CallStatus) => request<{ calls: Call[] }>(`/api/chamados${status ? `?status=${encodeURIComponent(status)}` : ''}`),
