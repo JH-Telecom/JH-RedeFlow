@@ -894,6 +894,7 @@ function CallDetailBase() {
   const [technicianId, setTechnicianId] = useState("");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {
     Promise.all([api.call(id), api.technicians()]).then(
@@ -909,14 +910,13 @@ function CallDetailBase() {
   if (!call) return <div className="empty-state">Carregando chamado...</div>;
   async function save() {
     if (['Finalizado', 'Cancelado'].includes(call?.status || '')) return;
-    const data = await api.updateCall(id, {
-      status,
-      technicianId: technicianId || undefined,
-      notes,
-    });
-    setCall(data.call);
-    setMessage("Chamado atualizado.");
-    setTimeout(() => setMessage(""), 2400);
+    setSaving(true);
+    try {
+      const data = await api.updateCall(id, { status, technicianId: technicianId || undefined, notes });
+      setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || "");
+      setMessage("Chamado atualizado."); setTimeout(() => setMessage(""), 2400);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar alteracoes."); }
+    finally { setSaving(false); }
   }
   return (
     <>
@@ -1017,8 +1017,8 @@ function CallDetailBase() {
               ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`
               : "Este chamado ainda nao possui tecnico."}
           </div>
-          <button className="primary-button save-call" onClick={save} disabled={['Finalizado', 'Cancelado'].includes(call.status)}>
-            Salvar alteracoes <ChevronRight size={17} />
+          <button className={`primary-button save-call ${saving ? "is-refreshing" : ""}`} onClick={save} disabled={saving || ['Finalizado', 'Cancelado'].includes(call.status)}>
+            {saving ? "Salvando..." : "Salvar alteracoes"} <ChevronRight size={17} />
           </button>
           {message && <div className="save-message">{message}</div>}
         </aside>
@@ -1146,10 +1146,12 @@ function CallOutcomeActions() {
   const [cancelReason, setCancelReason] = useState("");
   const [message, setMessage] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   useEffect(() => { api.call(id).then((data) => setCall(data.call)).catch(() => setCall(null)); }, [id]);
   async function finish() {
     setMessage("");
     setMissing([]);
+    setSaving(true);
     try {
       await api.finishCall(id, { result, executedAt, notes });
       setMessage("Chamado finalizado com sucesso.");
@@ -1157,19 +1159,22 @@ function CallOutcomeActions() {
       const typedError = error as Error & { missing?: string[] };
       setMessage(typedError.message);
       setMissing(typedError.missing || []);
-    }
+    } finally { setSaving(false); }
   }
   async function cancel() {
     if (!cancelReason.trim()) {
       setMessage("Informe o motivo do cancelamento.");
       return;
     }
-    await api.cancelCall(id, cancelReason);
-    setMessage("Chamado cancelado com sucesso.");
+    setSaving(true);
+    try { await api.cancelCall(id, cancelReason); setMessage("Chamado cancelado com sucesso."); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel cancelar o chamado."); }
+    finally { setSaving(false); }
   }
   async function reopen() {
-    try { const data = await api.reopenCall(id); setCall(data.call); setMessage("Chamado reaberto com sucesso."); }
+    try { setSaving(true); const data = await api.reopenCall(id); setCall(data.call); setMessage("Chamado reaberto com sucesso."); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel reabrir o chamado."); }
+    finally { setSaving(false); }
   }
   const closed = call ? ["Finalizado", "Cancelado"].includes(call.status) : false;
   return (
@@ -1180,7 +1185,7 @@ function CallOutcomeActions() {
           <h2>Finalizar ou cancelar</h2>
         </div>
       </div>
-      {closed ? <div className="closed-call-action"><p>Este chamado está encerrado e não pode mais ser alterado.</p><button className="primary-button compact" onClick={reopen}>Reabrir chamado <ChevronRight size={16} /></button></div> : <div className="outcome-grid">
+      {closed ? <div className="closed-call-action"><p>Este chamado está encerrado e não pode mais ser alterado.</p><button className={`primary-button compact ${saving ? "is-refreshing" : ""}`} onClick={reopen} disabled={saving}>{saving ? "Reabrindo..." : "Reabrir chamado"} <ChevronRight size={16} /></button></div> : <div className="outcome-grid">
         <div>
           <div className="required-checks">
             <span>Tecnico</span><span>Resultado</span><span>Data/hora</span><span>Observacao</span>
@@ -1190,13 +1195,13 @@ function CallOutcomeActions() {
             <label className="detail-label">Data e hora de execucao<input type="datetime-local" value={executedAt} onChange={(event) => setExecutedAt(event.target.value)} /></label>
             <label className="detail-label">Observacao final<textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="Descreva a execucao" /></label>
           </div>
-          <button className="primary-button compact" onClick={finish}>Finalizar chamado <ChevronRight size={16} /></button>
+          <button className={`primary-button compact ${saving ? "is-refreshing" : ""}`} onClick={finish} disabled={saving}>{saving ? "Finalizando..." : "Finalizar chamado"} <ChevronRight size={16} /></button>
           {missing.length > 0 && <div className="validation-error">Faltando: {missing.join(", ")}</div>}
         </div>
         <div className="cancel-box">
           <span className="section-kicker">CANCELAMENTO</span>
           <label className="detail-label">Motivo<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
-          <button className="cancel-button" onClick={cancel}>Cancelar chamado</button>
+          <button className={`cancel-button ${saving ? "is-refreshing" : ""}`} onClick={cancel} disabled={saving}>{saving ? "Cancelando..." : "Cancelar chamado"}</button>
         </div>
       </div>}
       {message && <div className="save-message">{message}</div>}

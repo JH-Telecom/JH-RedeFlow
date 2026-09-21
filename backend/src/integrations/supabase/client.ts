@@ -172,7 +172,7 @@ export async function updateSupabaseCall(id: string, input: { status?: string; t
   if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.status !== undefined) changes.status = input.status;
-  if (input.technicianId !== undefined) changes.technician_id = input.technicianId || null;
+  if (input.technicianId !== undefined) { changes.technician_id = input.technicianId || null; changes.assigned_at = input.technicianId ? new Date().toISOString() : null; }
   if (input.notes !== undefined) changes.notes = input.notes;
   const { data, error } = await getSupabaseAdmin().from('calls').update(changes).eq('id', id).select('id').maybeSingle();
   if (error) throw new Error(error.message);
