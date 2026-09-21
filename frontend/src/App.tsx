@@ -129,8 +129,8 @@ function Login({
         <div className="brand-mark">
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
-            <strong>JH Telecom</strong>
-            <small>O&amp;M</small>
+            <strong>JH Telecom - Rede</strong>
+            <small>Rede</small>
           </div>
         </div>
         <div className="intro-copy">
@@ -154,7 +154,7 @@ function Login({
         <div className="login-card">
           <div className="mobile-brand">
             <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
-            <strong>O&amp;M</strong>
+            <strong>JH Telecom - Rede</strong>
           </div>
           <div className="form-heading">
             <span className="section-kicker">ACESSO INTERNO</span>
@@ -253,8 +253,8 @@ function Shell({
         <div className="sidebar-brand">
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
-            <strong>JH Telecom</strong>
-            <small>O&amp;M</small>
+            <strong>JH Telecom - Rede</strong>
+            <small>Rede</small>
           </div>
           <button
             className="icon-button sidebar-close"
