@@ -557,6 +557,10 @@ export async function listActivations(status?: ActivationStatus): Promise<Activa
 }
 export async function receiveActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string>; analysis?: ActivationAnalysis }): Promise<Activation> {
   if (isSupabaseConfigured()) return await createSupabaseActivation(input);
+  const comparable = (value: string | undefined) => value?.trim().toLowerCase() || '';
+  const incomingKeys = [input.originalMessage, input.extractedData.bdesk, input.extractedData.officeTrack, input.extractedData.orderNumber].map(comparable).filter(Boolean);
+  const existing = [...activations.values()].find((activation) => activation.status !== 'Recusado' && [activation.originalMessage, activation.extractedData.bdesk, activation.extractedData.officeTrack, activation.extractedData.orderNumber].map(comparable).some((key) => incomingKeys.includes(key)));
+  if (existing) return existing;
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     try {

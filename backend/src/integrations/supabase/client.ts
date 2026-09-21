@@ -184,6 +184,18 @@ export async function listSupabaseRoles() {
 
 export async function createSupabaseActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string>; analysis?: ActivationAnalysis }): Promise<Activation> {
   const admin = getSupabaseAdmin();
+  const normalize = (value: unknown) => String(value || '').trim().toLowerCase();
+  const incomingKeys = [input.originalMessage, input.extractedData.bdesk, input.extractedData.officeTrack, input.extractedData.orderNumber].map(normalize).filter(Boolean);
+  const { data: pendingRows, error: pendingError } = await admin.from('activations').select('id, source, original_message, received_at, status').eq('source', input.source).in('status', ['Pendente', 'Aceito']).order('received_at', { ascending: false });
+  if (pendingError) throw new Error(pendingError.message);
+  for (const pending of pendingRows || []) {
+    const { data: processing } = await admin.from('activation_processing').select('extracted_data').eq('activation_id', pending.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const stored = (processing?.extracted_data || {}) as Record<string, unknown>;
+    const storedKeys = [pending.original_message, stored.bdesk, stored.officeTrack, stored.orderNumber].map(normalize).filter(Boolean);
+    if (!incomingKeys.some((key) => storedKeys.includes(key))) continue;
+    const { _analysis: analysis, ...extractedData } = stored;
+    return { id: pending.id, source: pending.source, originalMessage: pending.original_message, receivedAt: pending.received_at, status: pending.status as ActivationStatus, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
+  }
   const { data: activation, error } = await admin.from('activations').insert({ source: input.source, original_message: input.originalMessage, status: 'Pendente' }).select('id, source, original_message, received_at, status').single();
   if (error || !activation) throw new Error(error?.message || 'Nao foi possivel registrar o acionamento.');
   const extractedData = { ...input.extractedData, _analysis: input.analysis };

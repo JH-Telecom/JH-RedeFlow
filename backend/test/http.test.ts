@@ -217,6 +217,17 @@ test('does not create duplicate activations when WuzAPI retries a message', asyn
   assert.equal(secondBody.duplicate, true);
 });
 
+test('does not create duplicate activations when the same call has different message IDs', async () => {
+  const payload = (id: string) => JSON.stringify({ id, type: 'Message', chatId: '120363422003961917@g.us', isGroup: true, message: 'VALIDAR COM NOC ACESSO\nBDESK: SAME-CALL-001\nTAREFA OFFICE TRACK: OT-SAME-CALL-001\nMOTIVO: teste' });
+  const first = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: payload('different-id-1') });
+  const second = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: payload('different-id-2') });
+  const firstBody = await first.json() as { activationId: string };
+  const secondBody = await second.json() as { activationId: string };
+  assert.equal(first.status, 202);
+  assert.equal(second.status, 202);
+  assert.equal(secondBody.activationId, firstBody.activationId);
+});
+
 test('rejects missing chatId even when sender identifies a WhatsApp user', async () => {
   const response = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, {
     method: 'POST',
