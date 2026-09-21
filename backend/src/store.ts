@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseUser, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseRoles } from './integrations/supabase/client.js';
-import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
+import { createSupabaseActivation, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles } from './integrations/supabase/client.js';
+import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -519,9 +519,10 @@ export async function listAuditLogs(callId: string): Promise<CallAuditLog[]> {
   return [...auditLogs.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 export async function listActivations(status?: ActivationStatus): Promise<Activation[]> {
+  if (isSupabaseConfigured()) return await listSupabaseActivations(status);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    const result = await client.query<{ id: string; source: string; original_message: string; received_at: string; status: string; decision_by: string | null; decision_at: string | null; created_call_id: string | null; rejection_reason: string | null; extracted_data: Record<string, string> }>(
+    const result = await client.query<{ id: string; source: string; original_message: string; received_at: string; status: string; decision_by: string | null; decision_at: string | null; created_call_id: string | null; rejection_reason: string | null; extracted_data: Record<string, unknown> }>(
       `SELECT a.id, a.source, a.original_message, a.received_at, a.status, a.decision_by, a.decision_at, a.created_call_id, a.rejection_reason, COALESCE(p.extracted_data, '{}'::jsonb) AS extracted_data
        FROM activations a LEFT JOIN LATERAL (
          SELECT extracted_data FROM activation_processing WHERE activation_id = a.id ORDER BY created_at DESC LIMIT 1
@@ -529,11 +530,15 @@ export async function listActivations(status?: ActivationStatus): Promise<Activa
        WHERE ($1::text IS NULL OR a.status = $1) ORDER BY a.received_at DESC`,
       [status ?? null],
     );
-    return result.rows.map((row) => ({ id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, decisionBy: row.decision_by ?? undefined, decisionAt: row.decision_at ?? undefined, createdCallId: row.created_call_id ?? undefined, rejectionReason: row.rejection_reason ?? undefined, extractedData: row.extracted_data ?? {} }));
+    return result.rows.map((row) => {
+      const { _analysis: analysis, ...extractedData } = row.extracted_data ?? {};
+      return { id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, decisionBy: row.decision_by ?? undefined, decisionAt: row.decision_at ?? undefined, createdCallId: row.created_call_id ?? undefined, rejectionReason: row.rejection_reason ?? undefined, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
+    });
   }
   return [...activations.values()].filter((item) => !status || item.status === status).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
 }
-export async function receiveActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string> }): Promise<Activation> {
+export async function receiveActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string>; analysis?: ActivationAnalysis }): Promise<Activation> {
+  if (isSupabaseConfigured()) return await createSupabaseActivation(input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     try {
@@ -544,17 +549,18 @@ export async function receiveActivation(input: { source: string; originalMessage
          RETURNING id, source, original_message, received_at, status`, [input.source, input.originalMessage],
       );
       const row = result.rows[0];
-      await client.query(`INSERT INTO activation_processing (activation_id, extracted_data, processor) VALUES ($1, $2, 'wuzapi')`, [row.id, input.extractedData]);
+      await client.query(`INSERT INTO activation_processing (activation_id, extracted_data, processor) VALUES ($1, $2, 'gemini-semantic')`, [row.id, JSON.stringify({ ...input.extractedData, _analysis: input.analysis })]);
       await client.query('COMMIT');
-      return { id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, extractedData: input.extractedData };
+      return { id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, extractedData: input.extractedData, analysis: input.analysis };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     }
   }
-  const activation: Activation = { id: `activation-${crypto.randomUUID()}`, source: input.source, originalMessage: input.originalMessage, receivedAt: new Date().toISOString(), status: 'Pendente', extractedData: input.extractedData }; activations.set(activation.id, activation); return activation;
+  const activation: Activation = { id: `activation-${crypto.randomUUID()}`, source: input.source, originalMessage: input.originalMessage, receivedAt: new Date().toISOString(), status: 'Pendente', extractedData: input.extractedData, analysis: input.analysis }; activations.set(activation.id, activation); return activation;
 }
 export async function decideActivation(id: string, decision: 'Aceito' | 'Recusado', actor: User, rejectionReason?: string): Promise<{ activation?: Activation; call?: Call }> {
+  if (isSupabaseConfigured()) return await decideSupabaseActivation(id, decision, actor.id, rejectionReason);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     try {

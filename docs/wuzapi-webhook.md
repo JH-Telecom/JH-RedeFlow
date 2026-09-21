@@ -32,6 +32,9 @@ No ambiente local:
 WUZAPI_WEBHOOK_TOKEN=um-token-local-forte
 WUZAPI_ACTIVATION_GROUP_ID=120363422003961917@g.us
 REDEFLOW_RUNTIME=local
+# Opcional: habilita enriquecimento semantico; sem a chave usa o parser local seguro
+GEMINI_API_KEY=chave-do-backend
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 No deploy:
@@ -41,6 +44,8 @@ NODE_ENV=production
 REDEFLOW_RUNTIME=supabase
 WUZAPI_WEBHOOK_TOKEN=um-token-de-producao-forte
 WUZAPI_ACTIVATION_GROUP_ID=120363422003961917@g.us
+GEMINI_API_KEY=chave-do-backend
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 Use tokens diferentes entre local e produção.
@@ -102,9 +107,14 @@ Para produção, use o domínio HTTPS do deploy e configure o mesmo `WUZAPI_WEBH
 1. WuzAPI envia a mensagem para o endpoint.
 2. O backend aceita somente o grupo definido em `WUZAPI_ACTIVATION_GROUP_ID`.
 3. O backend normaliza texto simples ou payload aninhado em `event.Message`.
-4. O parser extrai ordem, BDESK, motivo, OLT, SLOT/PON, cliente, região e cidade.
-5. O acionamento aparece como `Pendente` na tela de Acionamentos.
-6. Um usuário com `activations.decide` aceita ou recusa.
-7. Ao aceitar, o backend cria o chamado operacional.
+4. A mensagem é normalizada, filtrada e classificada; mensagens do próprio bot, sem texto, fora do grupo e sem sinais operacionais são ignoradas.
+5. O analisador semântico extrai os dados completos, preserva os endereços e grava a mensagem original junto com o resultado estruturado. O Gemini é opcional; se estiver indisponível, o parser local continua funcionando sem inventar valores.
+6. O acionamento aparece como `Pendente` na tela de Acionamentos.
+7. Um usuário com `activations.decide` aceita ou recusa.
+8. Ao aceitar, o backend cria o chamado operacional; ao recusar, registra o motivo.
+
+## Banco Supabase
+
+Execute também a migration `202609210003_activation_triage.sql`. Ela cria `activations` e `activation_processing`, incluindo o JSON completo da análise semântica e os dados originais para auditoria.
 
 O endpoint atual não deve receber chamadas do navegador. Toda integração deve ocorrer entre WuzAPI e backend.

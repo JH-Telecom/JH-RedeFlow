@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
+import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
@@ -304,9 +305,16 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
     console.warn(`[WuzAPI] acionamento ignorado: grupo esperado="${activationGroupId}" chatId recebido="${message.chatId || 'nenhum'}" sender="${message.sender || 'nenhum'}" isGroup=${String(message.isGroup)}`);
     return response.status(202).json({ status: 'ignored', reason, chatId: message.chatId || null, isGroup: message.isGroup ?? false });
   }
-  if (!message.eventType || !['message', 'messages.upsert', 'message.upsert'].includes(message.eventType.toLowerCase())) return response.status(202).json({ status: 'ignored' });
-  if (!message.message?.trim()) return response.status(400).json({ message: 'Mensagem vazia.' });
-  const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: extractOperationalData(message.message) });
+  const eventType = message.eventType?.toLowerCase() || '';
+  if (!['message', 'messages.upsert', 'message.upsert'].includes(eventType)) return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' });
+  if (message.isFromMe) return response.status(202).json({ status: 'ignored', reason: 'Mensagem enviada pelo proprio bot.' });
+  if (!message.message?.trim()) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' });
+  const fallbackAnalysis = analyzeOperationalMessage(message);
+  if (!fallbackAnalysis.eh_acionamento) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' });
+  const analysis = await interpretWithGemini(message, fallbackAnalysis);
+  if (!analysis.eh_acionamento) return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' });
+  const legacyData = extractOperationalData(message.message);
+  const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: message.message, extractedData: legacyData, analysis });
   if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
   return response.status(202).json({ activationId: activation.id, status: activation.status });
 });

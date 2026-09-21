@@ -8,6 +8,15 @@ export type WuzApiMessage = {
   isGroup?: boolean;
   receivedAt?: string;
   eventType?: string;
+  timestamp?: string;
+  from?: string;
+  to?: string;
+  groupId?: string;
+  isFromMe?: boolean;
+  senderName?: string;
+  messageType?: string;
+  quotedMessage?: string;
+  rawPayload?: unknown;
   [key: string]: unknown;
 };
 
@@ -93,15 +102,25 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     data.sender,
     event.key && typeof event.key === 'object' ? (event.key as Record<string, unknown>).participant : undefined,
   );
-  const isGroup = readBoolean(info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, nestedData.isGroup, nestedData.IsGroup, data.isGroup, data.IsGroup);
-  const receivedAt = readString(
-    data.receivedAt,
-    event.receivedAt,
-    info.Timestamp,
-    info.timestamp,
-    event.Timestamp,
-    new Date().toISOString(),
+  const recipient = readString(info.To, info.to, info.Recipient, info.recipient, event.to, event.recipient, data.to);
+  const senderName = readString(info.PushName, info.pushName, info.SenderName, info.senderName, event.senderName, data.senderName);
+  const timestamp = readString(data.timestamp, data.receivedAt, event.timestamp, event.receivedAt, info.Timestamp, info.timestamp, event.Timestamp, new Date().toISOString());
+  const isFromMe = readBoolean(info.IsFromMe, info.isFromMe, event.isFromMe, data.isFromMe);
+  const typedMessageNode = Object.values(messageNode).find((value) => value && typeof value === 'object') as Record<string, unknown> | undefined;
+  const contextInfo = typedMessageNode?.contextInfo && typeof typedMessageNode.contextInfo === 'object'
+    ? typedMessageNode.contextInfo as Record<string, unknown>
+    : messageNode.contextInfo && typeof messageNode.contextInfo === 'object'
+      ? messageNode.contextInfo as Record<string, unknown>
+      : undefined;
+  const quotedNode = contextInfo?.quotedMessage;
+  const quotedMessage = readString(
+    messageNode.quotedMessage,
+    quotedNode && typeof quotedNode === 'object' ? (quotedNode as Record<string, unknown>).conversation : undefined,
+    quotedNode && typeof quotedNode === 'object' ? (quotedNode as Record<string, unknown>).text : undefined,
   );
+  const messageType = Object.keys(messageNode).find((key) => /Message$/.test(key)) || (text ? 'text' : 'unknown');
+  const isGroup = readBoolean(info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, nestedData.isGroup, nestedData.IsGroup, data.isGroup, data.IsGroup);
+  const receivedAt = timestamp;
   const source = readString(data.source, event.source, chatId || sender || 'wuzapi');
 
   return {
@@ -115,6 +134,15 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     sender: sender || undefined,
     isGroup,
     receivedAt,
+    timestamp,
+    from: sender || undefined,
+    to: recipient || undefined,
+    groupId: isGroup ? chatId || undefined : undefined,
+    isFromMe,
+    senderName: senderName || undefined,
+    messageType,
+    quotedMessage: quotedMessage || undefined,
+    rawPayload: payload,
     eventType: readString(data.type, typeof data.event === 'string' ? data.event : undefined, nestedData.type, typeof nestedData.event === 'string' ? nestedData.event : undefined, event.type, event.eventType, event.name),
   };
 }

@@ -102,6 +102,40 @@ export type CallObservation = { id: string; callId: string; userId: string; user
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
 
 export type ActivationStatus = 'Pendente' | 'Processando' | 'Aceito' | 'Recusado';
+export type ActivationAnalysis = {
+  eh_acionamento: boolean;
+  tipo_registro: string | null;
+  tipo_card: string | null;
+  categoria: string | null;
+  origem: string | null;
+  prioridade: string | null;
+  tecnico: string | null;
+  auxiliar: string | null;
+  telefone: string | null;
+  bdesk: string | null;
+  ticket: string | null;
+  office_track: string | null;
+  os_ot: string | null;
+  os_casa_cliente: string | null;
+  contrato: string | null;
+  sn: string | null;
+  olt: string | null;
+  slot_pon: string[] | null;
+  placa_pon: string | null;
+  tipo_falha: string | null;
+  motivo: string | null;
+  afetados: number | null;
+  data_hora_evento: string | null;
+  tratativa_realizada: string | null;
+  localizacao: string[] | null;
+  id_cto: string | null;
+  loc_cto: string | null;
+  materiais_utilizados: string | null;
+  tecnico_rede: string | null;
+  cope_rede: string | null;
+  observacoes: string | null;
+  raw_text: string;
+};
 export type Activation = {
   id: string;
   source: string;
@@ -109,6 +143,7 @@ export type Activation = {
   receivedAt: string;
   status: ActivationStatus;
   extractedData: Record<string, string>;
+  analysis?: ActivationAnalysis;
   confirmedData?: Record<string, string>;
   decisionBy?: string;
   decisionAt?: string;

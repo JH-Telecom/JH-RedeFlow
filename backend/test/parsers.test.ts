@@ -3,6 +3,7 @@ import test from 'node:test';
 import XLSX from 'xlsx';
 import { parseImport } from '../src/imports/parser.js';
 import { extractOperationalData, parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
+import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 
 test('normalizes a nested WuzAPI message', () => {
   const result = parseIncomingMessage({
@@ -27,6 +28,58 @@ test('normalizes the group id from a WuzAPI message key', () => {
   });
 
   assert.equal(result.chatId, '120363422003961917@g.us');
+});
+
+test('normalizes sender, recipient, timestamp, message type and quoted text', () => {
+  const result = parseIncomingMessage({
+    event: {
+      Info: { ID: 'msg-metadata', Chat: 'group-rede', Sender: '551199999999@s.whatsapp.net', To: 'bot@s.whatsapp.net', IsGroup: true, IsFromMe: false, Timestamp: '2026-09-21T14:03:00Z', PushName: 'Operador' },
+      Message: { extendedTextMessage: { text: 'ACIONAMENTO FIELD', contextInfo: { quotedMessage: { conversation: 'mensagem anterior' } } } },
+    },
+  });
+
+  assert.equal(result.from, '551199999999@s.whatsapp.net');
+  assert.equal(result.to, 'bot@s.whatsapp.net');
+  assert.equal(result.timestamp, '2026-09-21T14:03:00Z');
+  assert.equal(result.senderName, 'Operador');
+  assert.equal(result.quotedMessage, 'mensagem anterior');
+  assert.equal(result.isFromMe, false);
+});
+
+test('semantically analyzes NOC access data without confusing address, date or Office Track fields', () => {
+  const result = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️
+- OLT: * VIP-SZN-SPO-OHW-01
+- SLOT/PON: * 06/00, 05/14, 05/13
+- Tipo de Falha: * -
+- Data/Hora do Evento: * 21/09/2026 11:03
+- Contrato(s) Exemplos:
+NOME: REINALDO BATISTA FIALHO
+CONTRATO: 4492580
+- Afetados: * 132
+- BDESK: * 648969
+- Tarefa Office Track: 602117355170102
+- Endereços:
+CEP: 08411-570
+RUA PARATI, 59 VILA MARILENA, SAO PAULO - SP
+
+CEP: 08663-125
+RUA EXPEDITO, 30 CASA 2, SUZANO - SP
+- COPE REDE: NICOLLI`);
+
+  assert.equal(result.eh_acionamento, true);
+  assert.equal(result.tipo_card, 'ACESSO');
+  assert.equal(result.olt, 'VIP-SZN-SPO-OHW-01');
+  assert.deepEqual(result.slot_pon, ['06/00', '05/14', '05/13']);
+  assert.equal(result.data_hora_evento, '21/09/2026 11:03');
+  assert.equal(result.office_track, '602117355170102');
+  assert.equal(result.contrato, '4492580');
+  assert.equal(result.afetados, 132);
+  assert.equal(result.localizacao?.length, 2);
+  assert.equal(result.cope_rede, 'NICOLLI');
+});
+
+test('does not classify ordinary group conversation as an activation', () => {
+  assert.equal(analyzeOperationalMessage('Bom dia, equipe. Reuniao as 14h.').eh_acionamento, false);
 });
 
 test('normalizes WuzAPI event string with message data envelope', () => {
