@@ -55,6 +55,28 @@ test('healthcheck exposes security headers', async () => {
   assert.equal(response.headers.get('access-control-allow-origin'), 'http://127.0.0.1:5173');
 });
 
+test('prefers Supabase whenever credentials are configured, even if runtime is local', async () => {
+  const previousRuntime = process.env.REDEFLOW_RUNTIME;
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousAnon = process.env.SUPABASE_ANON_KEY;
+  const previousServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  try {
+    process.env.REDEFLOW_RUNTIME = 'local';
+    process.env.SUPABASE_URL = 'https://example.supabase.co';
+    process.env.SUPABASE_ANON_KEY = 'anon-key';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+
+    const { isSupabaseConfigured } = await import('../src/integrations/supabase/client.js');
+    assert.equal(isSupabaseConfigured(), true);
+  } finally {
+    if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
+    if (previousUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = previousUrl;
+    if (previousAnon === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = previousAnon;
+    if (previousServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = previousServiceRole;
+  }
+});
+
 test('login rejects repeated attempts and protects the endpoint under light concurrency', async () => {
   const payload = JSON.stringify({ email: 'unknown@example.com', password: 'wrong-password' });
   const attempts = await Promise.all(
