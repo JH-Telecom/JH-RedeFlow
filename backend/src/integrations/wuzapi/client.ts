@@ -49,14 +49,17 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     }
   }
   const nestedData = getObject(nestedPayload);
-  const event = getObject(nestedData.event ?? data.event ?? {});
-  const info = getObject(event.Info ?? event.info ?? data.Info ?? data.info ?? {});
-  const messageNode = getObject(event.Message ?? event.message ?? (event.Message as Record<string, unknown> | undefined) ?? {});
+  const eventValue = nestedData.event ?? data.event;
+  const event = getObject(eventValue);
+  const info = getObject(event.Info ?? event.info ?? nestedData.Info ?? nestedData.info ?? data.Info ?? data.info ?? {});
+  const messageNode = getObject(event.Message ?? event.message ?? nestedData.Message ?? nestedData.message ?? data.Message ?? data.message ?? {});
   const text = readString(
     data.message,
     data.text,
     event.message,
     event.text,
+    nestedData.message,
+    nestedData.text,
     messageNode.conversation,
     messageNode.text,
     messageNode.body,
@@ -74,6 +77,9 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     event.chatId,
     event.chat,
     event.remoteJid,
+    nestedData.chatId,
+    nestedData.chat,
+    nestedData.remoteJid,
     data.chatId,
     data.chat,
     data.remoteJid,
@@ -87,7 +93,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     data.sender,
     event.key && typeof event.key === 'object' ? (event.key as Record<string, unknown>).participant : undefined,
   );
-  const isGroup = readBoolean(info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, data.isGroup, data.IsGroup);
+  const isGroup = readBoolean(info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, nestedData.isGroup, nestedData.IsGroup, data.isGroup, data.IsGroup);
   const receivedAt = readString(
     data.receivedAt,
     event.receivedAt,
@@ -109,7 +115,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     sender: sender || undefined,
     isGroup,
     receivedAt,
-    eventType: readString(data.type, nestedData.type, event.type, event.eventType, event.name),
+    eventType: readString(data.type, typeof data.event === 'string' ? data.event : undefined, nestedData.type, typeof nestedData.event === 'string' ? nestedData.event : undefined, event.type, event.eventType, event.name),
   };
 }
 

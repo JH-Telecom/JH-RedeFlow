@@ -29,6 +29,28 @@ test('normalizes the group id from a WuzAPI message key', () => {
   assert.equal(result.chatId, '120363422003961917@g.us');
 });
 
+test('normalizes WuzAPI event string with message data envelope', () => {
+  const result = parseIncomingMessage({
+    event: 'Message',
+    data: {
+      Info: {
+        ID: 'msg-envelope',
+        Chat: '120363422003961917@g.us',
+        Sender: '551199999999@s.whatsapp.net',
+        IsGroup: true,
+      },
+      Message: { conversation: 'ORDEM: RF-ENVELOPE' },
+    },
+  });
+
+  assert.equal(result.eventType, 'Message');
+  assert.equal(result.id, 'msg-envelope');
+  assert.equal(result.chatId, '120363422003961917@g.us');
+  assert.equal(result.sender, '551199999999@s.whatsapp.net');
+  assert.equal(result.isGroup, true);
+  assert.equal(result.message, 'ORDEM: RF-ENVELOPE');
+});
+
 test('extracts operational fields from an activation message', () => {
   const result = extractOperationalData(
     'NOC TX\nORDEM: RF-10\nBDESK: BD-20\nMOTIVO: perda de sinal\nOLT: OLT-01\nSLOT/PON: 3/7',
