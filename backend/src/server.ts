@@ -192,7 +192,7 @@ app.patch('/api/users/:id', auth, requirePermission('users.edit'), async (reques
   if (!user) return response.status(404).json({ message: 'Usuario nao encontrado.' });
   return response.json({ user });
 });
-app.delete('/api/users/:id', auth, requirePermission('users.edit'), async (request, response) => {
+app.delete('/api/users/:id', auth, requirePermission('users.edit'), async (request: AuthRequest, response) => {
   const userId = String(request.params.id);
   if (request.authUser?.id === userId) return response.status(400).json({ message: 'Voce nao pode remover o proprio usuario.' });
   const deleted = await deleteUser(userId);

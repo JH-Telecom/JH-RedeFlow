@@ -239,7 +239,7 @@ export async function deleteUser(id: string): Promise<boolean> {
       `UPDATE users SET deleted_at = now(), active = false, updated_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
       [id],
     );
-    return result.rowCount > 0;
+    return Boolean(result.rowCount && result.rowCount > 0);
   }
   return users.delete(id);
 }
