@@ -91,6 +91,10 @@ function extractWuzApiToken(request: Request, body: unknown): string | undefined
   return typeof rawToken === 'string' ? rawToken : undefined;
 }
 
+function logWuzApiDecision(stage: string, details: Record<string, unknown>) {
+  if (wuzapiDebug) console.log(`[WuzAPI] ${stage}`, JSON.stringify(details));
+}
+
 type AuthRequest = Request & { authUser?: AuthUser };
 async function auth(request: AuthRequest, response: Response, next: NextFunction) {
   const token = request.headers.authorization?.replace('Bearer ', '');
@@ -291,6 +295,7 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   if (providedToken !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
   if (!activationGroupId && !skipWuzapiGroupFilter) return response.status(503).json({ status: 'ignored' });
   const message = parseIncomingMessage(body);
+  logWuzApiDecision('mensagem normalizada', { id: message.id, chatId: message.chatId, isGroup: message.isGroup, eventType: message.eventType, hasText: Boolean(message.message?.trim()), hasQuotedText: Boolean(message.quotedMessage?.trim()), isFromMe: message.isFromMe });
   if (message.id) {
     const previous = processedWebhookMessages.get(message.id);
     if (previous && previous.expiresAt > Date.now()) return response.status(202).json({ activationId: previous.activationId, status: 'Pendente', duplicate: true });
@@ -303,23 +308,25 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
         ? 'Chat nao identificado.'
         : 'Grupo nao autorizado.';
     console.warn(`[WuzAPI] acionamento ignorado: grupo esperado="${activationGroupId}" chatId recebido="${message.chatId || 'nenhum'}" sender="${message.sender || 'nenhum'}" isGroup=${String(message.isGroup)}`);
+    logWuzApiDecision('ignorado por grupo', { reason, expectedGroup: activationGroupId, receivedGroup: message.chatId || null });
     return response.status(202).json({ status: 'ignored', reason, chatId: message.chatId || null, isGroup: message.isGroup ?? false });
   }
   const eventType = message.eventType?.toLowerCase() || '';
   const knownMessageEvent = ['message', 'messages.upsert', 'message.upsert', 'message.new', 'messages.new'].includes(eventType);
   const knownNonMessageEvent = ['connected', 'connection', 'presence', 'presence.update', 'receipt', 'message.ack', 'logout'].includes(eventType);
-  if (knownNonMessageEvent || (eventType && !knownMessageEvent && !message.message?.trim())) return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' });
-  if (message.isFromMe) return response.status(202).json({ status: 'ignored', reason: 'Mensagem enviada pelo proprio bot.' });
-  if (!message.message?.trim() && !message.quotedMessage?.trim()) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' });
+  if (knownNonMessageEvent || (eventType && !knownMessageEvent && !message.message?.trim())) { logWuzApiDecision('ignorado por tipo', { eventType }); return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' }); }
+  if (message.isFromMe) { logWuzApiDecision('ignorado propria mensagem', { id: message.id }); return response.status(202).json({ status: 'ignored', reason: 'Mensagem enviada pelo proprio bot.' }); }
+  if (!message.message?.trim() && !message.quotedMessage?.trim()) { logWuzApiDecision('ignorado sem texto', { id: message.id }); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' }); }
   const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
   const fallbackAnalysis = analyzeOperationalMessage(analysisMessage);
-  if (!fallbackAnalysis.eh_acionamento) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' });
+  if (!fallbackAnalysis.eh_acionamento) { logWuzApiDecision('ignorado sem sinais operacionais', { id: message.id }); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' }); }
   const analysis = await interpretWithGemini(analysisMessage, fallbackAnalysis);
-  if (!analysis.eh_acionamento) return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' });
+  if (!analysis.eh_acionamento) { logWuzApiDecision('ignorado pela analise', { id: message.id }); return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' }); }
   const operationalText = analysisMessage.message || '';
   const legacyData = extractOperationalData(operationalText);
   try {
     const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
+    logWuzApiDecision('acionamento registrado', { id: message.id, activationId: activation.id, status: activation.status });
     if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
     return response.status(202).json({ activationId: activation.id, status: activation.status });
   } catch (error) {

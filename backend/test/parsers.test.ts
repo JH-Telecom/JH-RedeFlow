@@ -81,6 +81,31 @@ test('extracts the operational text from an extended-text quoted message', () =>
   assert.match(result.quotedMessage || '', /VALIDAR COM NOC ACESSO/);
 });
 
+test('analyzes the exact direct WuzAPI envelope from Render logs', () => {
+  const result = parseIncomingMessage({
+    event: {
+      Info: {
+        Chat: '120363422003961917@g.us',
+        Sender: '230086028566614@lid',
+        IsFromMe: false,
+        IsGroup: true,
+        ID: '3EB08D25A58373F2326496',
+        Type: 'text',
+        Timestamp: '2026-09-21T13:07:53-03:00',
+      },
+      Message: {
+        conversation: 'VALIDAR COM NOC ACESSO\nOLT: VIP-SZN-SPO-OHW-01\nSLOT/PON: 02/13\nDATA/HORA DO EVENTO: 21/09/2026 10:21\nAFETADOS: 19\nBDESK: 648948\nTarefa Office Track: 602141494090102',
+      },
+    },
+    type: 'Message',
+  });
+
+  assert.equal(result.eventType, 'Message');
+  assert.equal(result.chatId, '120363422003961917@g.us');
+  assert.equal(result.isGroup, true);
+  assert.equal(analyzeOperationalMessage(result).eh_acionamento, true);
+});
+
 test('semantically analyzes NOC access data without confusing address, date or Office Track fields', () => {
   const result = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️
 - OLT: * VIP-SZN-SPO-OHW-01
