@@ -130,7 +130,7 @@ function Login({
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
             <strong>JH Telecom</strong>
-            <small>RedeFlow</small>
+            <small>O&amp;M</small>
           </div>
         </div>
         <div className="intro-copy">
@@ -154,7 +154,7 @@ function Login({
         <div className="login-card">
           <div className="mobile-brand">
             <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
-            <strong>JH RedeFlow</strong>
+            <strong>O&amp;M</strong>
           </div>
           <div className="form-heading">
             <span className="section-kicker">ACESSO INTERNO</span>
@@ -254,7 +254,7 @@ function Shell({
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
             <strong>JH Telecom</strong>
-            <small>RedeFlow</small>
+            <small>O&amp;M</small>
           </div>
           <button
             className="icon-button sidebar-close"
@@ -322,7 +322,7 @@ function Shell({
             <Menu size={20} />
           </button>
           <div className="breadcrumbs">
-            <span>RedeFlow</span>
+            <span>O&amp;M</span>
             <ChevronRight size={14} />
             <strong>{title}</strong>
           </div>
@@ -658,7 +658,7 @@ function UsersPage() {
         <div>
           <span className="section-kicker">ADMINISTRACAO</span>
           <h1>Usuarios</h1>
-          <p>Controle quem acessa o RedeFlow e o que cada pessoa pode fazer.</p>
+          <p>Controle quem acessa o O&amp;M e o que cada pessoa pode fazer.</p>
         </div>
         <button className="primary-button compact" onClick={() => openForm()}>
           <Users size={16} /> Novo usuario
@@ -1592,7 +1592,7 @@ function SettingsPage() {
         <div>
           <span className="section-kicker">SISTEMA</span>
           <h1>Configuracoes</h1>
-          <p>Preferencias gerais do ambiente RedeFlow.</p>
+          <p>Preferencias gerais do ambiente O&amp;M.</p>
         </div>
       </div>
       <form className="panel settings-panel settings-form" onSubmit={save}>
@@ -1668,7 +1668,7 @@ export default function App() {
     return (
       <div className="app-loading">
         <img className="loading-mark logo-image" src={faviconUrl} alt="JH Telecom" />
-        <span>Carregando RedeFlow...</span>
+        <span>Carregando O&amp;M...</span>
       </div>
     );
   if (!session) return <Login onLogin={login} />;
