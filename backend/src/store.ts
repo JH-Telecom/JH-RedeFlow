@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseActivation, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles } from './integrations/supabase/client.js';
+import { createSupabaseActivation, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseUsers } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -170,6 +170,7 @@ export async function listRoles(): Promise<Role[]> {
 }
 export function listPermissions() { return allPermissions.map((code) => ({ code, description: permissionDescriptions[code] })); }
 export async function listUsers(): Promise<User[]> {
+  if (isSupabaseConfigured()) return await listSupabaseUsers() as User[];
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string }>(

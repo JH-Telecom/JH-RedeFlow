@@ -55,6 +55,33 @@ export async function getSupabaseProfile(id: string, createdAt?: string) {
   return { id: profileRecord.id, name: profileRecord.name, email: profileRecord.email, roleId: profileRecord.role_id, active: profileRecord.active, createdAt: createdAt || profileRecord.created_at, role: { id: role?.id || profileRecord.role_id, name: role?.name || 'Sem cargo', description: role?.description || '', permissions } };
 }
 
+export async function listSupabaseUsers() {
+  const { data, error } = await getSupabaseAdmin()
+    .from('profiles')
+    .select('id, name, email, role_id, active, created_at, roles(id, name, description, role_permissions(permissions(code)))')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []).map((profile) => {
+    const record = profile as any;
+    const roleRecord = Array.isArray(record.roles) ? record.roles[0] : record.roles;
+    const rolePermissions = Array.isArray(roleRecord?.role_permissions) ? roleRecord.role_permissions : [];
+    const permissions = rolePermissions.flatMap((item: { permissions?: { code?: string } | { code?: string }[] | null }) => {
+      const values = Array.isArray(item.permissions) ? item.permissions : item.permissions ? [item.permissions] : [];
+      return values.map((permission) => permission.code).filter(Boolean);
+    });
+    return {
+      id: record.id,
+      name: record.name,
+      email: record.email,
+      roleId: record.role_id,
+      active: record.active,
+      createdAt: record.created_at,
+      role: record.role_id ? { id: roleRecord?.id || record.role_id, name: roleRecord?.name || 'Sem cargo', description: roleRecord?.description || '', permissions } : undefined,
+    };
+  });
+}
+
 export async function getSupabaseRole(roleId: string) {
   const { data, error } = await getSupabaseAdmin()
     .from('roles')
