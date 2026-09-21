@@ -119,8 +119,17 @@ export async function findLocalUserById(id: string): Promise<(User & { passwordH
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 export async function getRoleById(roleId: string): Promise<Role | undefined> {
-  if (isSupabaseConfigured()) return await getSupabaseRole(roleId) as Role | undefined;
-  if (!shouldUseLocalDatabase()) return getRole(roleId);
+  if (isSupabaseConfigured()) {
+    try {
+      const supabaseRole = await getSupabaseRole(roleId) as Role | undefined;
+      if (supabaseRole) return supabaseRole;
+    } catch {
+      // fall through to the built-in role catalog when Supabase is configured but unreachable
+    }
+  }
+  const fallbackRole = getRole(roleId);
+  if (fallbackRole) return fallbackRole;
+  if (!shouldUseLocalDatabase()) return undefined;
   const client = await getDatabaseClient();
   const result = await client.query<{ id: string; name: string; description: string | null; permissions: string[] }>(
     `SELECT r.id, r.name, r.description,
