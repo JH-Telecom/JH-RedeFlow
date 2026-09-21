@@ -71,6 +71,23 @@ export async function getSupabaseRole(roleId: string) {
   return { id: record.id, name: record.name, description: record.description || '', permissions };
 }
 
+export async function listSupabaseRoles() {
+  const { data, error } = await getSupabaseAdmin()
+    .from('roles')
+    .select('id, name, description, role_permissions(permissions(code))')
+    .is('deleted_at', null)
+    .order('name');
+  if (error) throw new Error(error.message);
+  return (data || []).map((record) => {
+    const rows = Array.isArray(record.role_permissions) ? record.role_permissions : [];
+    const permissions = rows.flatMap((item: { permissions?: { code?: string } | { code?: string }[] | null }) => {
+      const values = Array.isArray(item.permissions) ? item.permissions : item.permissions ? [item.permissions] : [];
+      return values.map((permission) => permission.code).filter(Boolean);
+    });
+    return { id: record.id, name: record.name, description: record.description || '', permissions };
+  });
+}
+
 export async function createSupabaseUser(input: { name: string; email: string; roleId: string; password: string }) {
   const admin = getSupabaseAdmin();
   const { data: created, error: authError } = await admin.auth.admin.createUser({

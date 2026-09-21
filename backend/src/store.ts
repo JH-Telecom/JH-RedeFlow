@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseUser, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured } from './integrations/supabase/client.js';
+import { createSupabaseUser, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseRoles } from './integrations/supabase/client.js';
 import type { Activation, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -145,6 +145,13 @@ export async function getRoleById(roleId: string): Promise<Role | undefined> {
   return row ? { id: row.id, name: row.name, description: row.description ?? '', permissions: Array.isArray(row.permissions) ? row.permissions as PermissionCode[] : [] } : undefined;
 }
 export async function listRoles(): Promise<Role[]> {
+  if (isSupabaseConfigured()) {
+    try {
+      return await listSupabaseRoles() as Role[];
+    } catch {
+      // use the local catalog while Supabase is temporarily unavailable
+    }
+  }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; name: string; description: string; permissions: string[] }>(
