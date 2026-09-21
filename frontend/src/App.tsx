@@ -1542,7 +1542,12 @@ function RolesPage() {
   function openForm(role?: Role) { setEditing(role || null); setShowForm(true); setForm({ name: role?.name || "", description: role?.description || "", permissions: role?.permissions || [] }); }
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    try { if (editing) await api.updateRole(editing.id, form); else await api.createRole(form); setShowForm(false); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar cargo."); }
+    try {
+      if (editing) await api.updateRole(editing.id, form); else await api.createRole(form);
+      setShowForm(false);
+      await load();
+      window.location.reload();
+    } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar cargo."); }
   }
   return (
     <>
