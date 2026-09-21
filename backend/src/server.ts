@@ -16,13 +16,14 @@ const jwtSecret = process.env.JWT_SECRET || (!isProduction ? 'local-demo-secret-
 const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || (!isProduction ? 'local-wuzapi-demo-token' : undefined);
 const activationGroupId = process.env.WUZAPI_ACTIVATION_GROUP_ID?.trim();
 const wuzapiDebug = process.env.WUZAPI_DEBUG === 'true';
+const skipWuzapiGroupFilter = process.env.WUZAPI_SKIP_GROUP_FILTER === 'true';
 const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean);
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 const processedWebhookMessages = new Map<string, { activationId: string; expiresAt: number }>();
 const webhookDeduplicationWindowMs = 24 * 60 * 60 * 1000;
 const loginAttemptWindowMs = 15 * 60 * 1000;
 const maxLoginAttempts = 5;
-if (isProduction && (!jwtSecret || !wuzapiWebhookToken || !activationGroupId)) {
+if (isProduction && (!jwtSecret || !wuzapiWebhookToken || (!activationGroupId && !skipWuzapiGroupFilter))) {
   throw new Error('JWT_SECRET, WUZAPI_WEBHOOK_TOKEN e WUZAPI_ACTIVATION_GROUP_ID sao obrigatorios em producao.');
 }
 if (isSupabaseRuntime() && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SUPABASE_ANON_KEY)) {
@@ -277,17 +278,17 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), async (request, response) => response.json({ logs: await listAuditLogs(String(request.params.id)) }));
 app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const body = normalizeWuzApiBody(request);
+  if (wuzapiDebug) console.log('[WuzAPI] JSON recebido:', JSON.stringify(redactWuzApiPayload(request, body), null, 2));
   const providedToken = extractWuzApiToken(request, body);
   if (providedToken !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
-  if (!activationGroupId) return response.status(503).json({ status: 'ignored' });
-  if (wuzapiDebug) console.log('[WuzAPI] payload recebido:', JSON.stringify(redactWuzApiPayload(request, body), null, 2));
+  if (!activationGroupId && !skipWuzapiGroupFilter) return response.status(503).json({ status: 'ignored' });
   const message = parseIncomingMessage(body);
   if (message.id) {
     const previous = processedWebhookMessages.get(message.id);
     if (previous && previous.expiresAt > Date.now()) return response.status(202).json({ activationId: previous.activationId, status: 'Pendente', duplicate: true });
     processedWebhookMessages.delete(message.id);
   }
-  if (activationGroupId && (message.isGroup !== true || !message.chatId || message.chatId !== activationGroupId)) {
+  if (!skipWuzapiGroupFilter && activationGroupId && (message.isGroup !== true || !message.chatId || message.chatId !== activationGroupId)) {
     const reason = message.isGroup !== true
       ? 'Mensagem privada nao autorizada.'
       : !message.chatId
