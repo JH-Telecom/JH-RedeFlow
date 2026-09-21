@@ -134,6 +134,20 @@ export async function listSupabaseCalls(status?: CallStatus): Promise<Call[]> {
   });
 }
 
+export async function finishSupabaseCall(id: string, input: { result: string; executedAt: string; notes: string }) {
+  const { data, error } = await getSupabaseAdmin().from('calls').update({ result: input.result, executed_at: input.executedAt, notes: input.notes, status: 'Finalizado', updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
+  return (await listSupabaseCalls()).find((call) => call.id === id);
+}
+
+export async function cancelSupabaseCall(id: string, reason: string) {
+  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Cancelado', cancellation_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
+  return (await listSupabaseCalls()).find((call) => call.id === id);
+}
+
 export async function getSupabaseRole(roleId: string) {
   const { data, error } = await getSupabaseAdmin()
     .from('roles')

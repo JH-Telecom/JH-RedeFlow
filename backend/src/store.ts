@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
+import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -624,6 +624,15 @@ export async function decideActivation(id: string, decision: 'Aceito' | 'Recusad
   return { activation };
 }
 export async function finishCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: User): Promise<{ call?: Call; missing: string[] }> {
+  if (isSupabaseConfigured()) {
+    const current = await getCall(id);
+    if (!current) return { missing: ['Chamado nao encontrado'] };
+    if (['Finalizado', 'Cancelado'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
+    const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
+    if (missing.length) return { missing };
+    const call = await finishSupabaseCall(id, input);
+    return call ? { call, missing: [] } : { missing: ['Chamado ja encerrado'] };
+  }
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
     if (!current) return { missing: ['Chamado nao encontrado'] };
@@ -666,6 +675,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
   return { call: updated, missing: [] };
 }
 export async function cancelCall(id: string, reason: string, actor: User): Promise<Call | undefined> {
+  if (isSupabaseConfigured()) return await cancelSupabaseCall(id, reason);
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
     if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
