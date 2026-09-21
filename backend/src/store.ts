@@ -733,6 +733,13 @@ export async function saveImport(record: ImportRecord): Promise<ImportRecord> {
   imports.set(record.id, record); return record;
 }
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  if (isSupabaseConfigured()) {
+    const allCalls = await listSupabaseCalls();
+    const activations = await listSupabaseActivations();
+    const today = new Date().toISOString().slice(0, 10);
+    const countBy = (values: string[]) => Object.entries(values.reduce<Record<string, number>>((accumulator, value) => { accumulator[value] = (accumulator[value] || 0) + 1; return accumulator; }, {})).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+    return { receivedToday: allCalls.filter((call) => call.openedAt.slice(0, 10) === today).length, open: allCalls.filter((call) => call.status === 'Aberto').length, unassigned: allCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)).length, inProgress: allCalls.filter((call) => ['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)).length, finished: allCalls.filter((call) => call.status === 'Finalizado').length, cancelled: allCalls.filter((call) => call.status === 'Cancelado').length, pendingActivations: activations.filter((activation) => activation.status === 'Pendente').length, byStatus: countBy(allCalls.map((call) => call.status)), byRegion: countBy(allCalls.map((call) => call.region)), byTechnician: countBy(allCalls.filter((call) => call.technicianName).map((call) => call.technicianName!)), byType: countBy(allCalls.map((call) => call.type)) };
+  }
   if (shouldUseLocalDatabase()) {
     const allCalls = await listCalls();
     const activations = await listActivations();
