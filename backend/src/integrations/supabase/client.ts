@@ -134,17 +134,55 @@ export async function listSupabaseCalls(status?: CallStatus): Promise<Call[]> {
   });
 }
 
-export async function finishSupabaseCall(id: string, input: { result: string; executedAt: string; notes: string }) {
+export async function finishSupabaseCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: { id: string; name: string }) {
+  const current = (await listSupabaseCalls()).find((call) => call.id === id);
+  if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
   const { data, error } = await getSupabaseAdmin().from('calls').update({ result: input.result, executed_at: input.executedAt, notes: input.notes, status: 'Finalizado', updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
+  for (const [field, value] of Object.entries({ status: 'Finalizado', result: input.result, executedAt: input.executedAt, notes: input.notes })) {
+    const previousValue = String(current[field as keyof Call] ?? '');
+    if (previousValue !== value) await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${field} alterado`, field, previous_value: previousValue, new_value: value });
+  }
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 
-export async function cancelSupabaseCall(id: string, reason: string) {
+export async function cancelSupabaseCall(id: string, reason: string, actor: { id: string; name: string }) {
+  const current = (await listSupabaseCalls()).find((call) => call.id === id);
+  if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
   const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Cancelado', cancellation_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
+  await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Chamado cancelado', field: 'cancellationReason', previous_value: current.cancellationReason || '', new_value: reason });
+  return (await listSupabaseCalls()).find((call) => call.id === id);
+}
+
+export async function reopenSupabaseCall(id: string, actor: { id: string; name: string }) {
+  const current = (await listSupabaseCalls()).find((call) => call.id === id);
+  if (!current || !['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Aberto', cancellation_reason: null, result: null, executed_at: null, updated_at: new Date().toISOString() }).eq('id', id).in('status', ['Finalizado', 'Cancelado']).select('id').maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
+  await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Chamado reaberto', field: 'status', previous_value: current.status, new_value: 'Aberto' });
+  return (await listSupabaseCalls()).find((call) => call.id === id);
+}
+
+export async function updateSupabaseCall(id: string, input: { status?: string; technicianId?: string; notes?: string }, actor: { id: string; name: string }) {
+  const current = (await listSupabaseCalls()).find((call) => call.id === id);
+  if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+  const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.status !== undefined) changes.status = input.status;
+  if (input.technicianId !== undefined) changes.technician_id = input.technicianId || null;
+  if (input.notes !== undefined) changes.notes = input.notes;
+  const { data, error } = await getSupabaseAdmin().from('calls').update(changes).eq('id', id).select('id').maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
+  const labels: Record<string, string> = { status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+  for (const field of Object.keys(input)) {
+    const previousValue = String(current[field as keyof Call] ?? '');
+    const newValue = String(input[field as keyof typeof input] ?? '');
+    if (previousValue !== newValue) await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${labels[field] || field} alterado`, field, previous_value: previousValue, new_value: newValue });
+  }
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 

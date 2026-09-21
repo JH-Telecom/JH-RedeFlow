@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, saveImport, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
@@ -260,6 +260,9 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   if (!parsed.success) return response.status(400).json({ message: 'Dados de chamado invalidos.' });
   const technicians = await listTechnicians();
   if (parsed.data.technicianId && !technicians.some((technician) => technician.id === parsed.data.technicianId && technician.active)) return response.status(422).json({ message: 'Somente tecnicos ativos podem receber chamados.' });
+  const existing = await getCall(String(request.params.id));
+  if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  if (['Finalizado', 'Cancelado'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Solicite permissao para reabri-lo antes de alterar.' });
   const call = await updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
@@ -279,12 +282,18 @@ app.post('/api/chamados/:id/cancelar', auth, requirePermission('calls.cancel'), 
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });
+app.post('/api/chamados/:id/reabrir', auth, requirePermission('calls.reopen'), async (request: AuthRequest, response) => {
+  const call = await reopenCall(String(request.params.id), request.authUser!);
+  if (!call) return response.status(409).json({ message: 'Somente chamados finalizados ou cancelados podem ser reabertos.' });
+  return response.json({ call });
+});
 app.get('/api/chamados/:id/observacoes', auth, requirePermission('calls.view'), async (request, response) => response.json({ observations: await listObservations(String(request.params.id)) }));
 app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_observation'), async (request: AuthRequest, response) => {
   const parsed = z.object({ text: z.string().trim().min(1).max(5000) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'A observacao nao pode ficar vazia.' });
   const existing = await getCall(String(request.params.id));
   if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  if (['Finalizado', 'Cancelado'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
   return response.status(201).json({ observation: await addObservation(String(request.params.id), request.authUser!, parsed.data.text) });
 });
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), async (request, response) => response.json({ logs: await listAuditLogs(String(request.params.id)) }));

@@ -908,6 +908,7 @@ function CallDetailBase() {
   }, [id]);
   if (!call) return <div className="empty-state">Carregando chamado...</div>;
   async function save() {
+    if (['Finalizado', 'Cancelado'].includes(call?.status || '')) return;
     const data = await api.updateCall(id, {
       status,
       technicianId: technicianId || undefined,
@@ -966,6 +967,7 @@ function CallDetailBase() {
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={5}
+              disabled={['Finalizado', 'Cancelado'].includes(call.status)}
             />
           </label>
         </section>
@@ -981,6 +983,7 @@ function CallDetailBase() {
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as CallStatus)}
+              disabled={['Finalizado', 'Cancelado'].includes(call.status)}
             >
               {[
                 "Aberto",
@@ -997,6 +1000,7 @@ function CallDetailBase() {
             <select
               value={technicianId}
               onChange={(event) => setTechnicianId(event.target.value)}
+              disabled={['Finalizado', 'Cancelado'].includes(call.status)}
             >
               <option value="">Sem tecnico</option>
               {technicians
@@ -1013,7 +1017,7 @@ function CallDetailBase() {
               ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`
               : "Este chamado ainda nao possui tecnico."}
           </div>
-          <button className="primary-button save-call" onClick={save}>
+          <button className="primary-button save-call" onClick={save} disabled={['Finalizado', 'Cancelado'].includes(call.status)}>
             Salvar alteracoes <ChevronRight size={17} />
           </button>
           {message && <div className="save-message">{message}</div>}
@@ -1135,12 +1139,14 @@ function AuditedCallDetailPage() {
 function CallOutcomeActions() {
   const { pathname } = useLocation();
   const id = pathname.split("/").pop()!;
+  const [call, setCall] = useState<Call | null>(null);
   const [result, setResult] = useState("");
   const [executedAt, setExecutedAt] = useState("");
   const [notes, setNotes] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [message, setMessage] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
+  useEffect(() => { api.call(id).then((data) => setCall(data.call)).catch(() => setCall(null)); }, [id]);
   async function finish() {
     setMessage("");
     setMissing([]);
@@ -1161,6 +1167,11 @@ function CallOutcomeActions() {
     await api.cancelCall(id, cancelReason);
     setMessage("Chamado cancelado com sucesso.");
   }
+  async function reopen() {
+    try { const data = await api.reopenCall(id); setCall(data.call); setMessage("Chamado reaberto com sucesso."); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel reabrir o chamado."); }
+  }
+  const closed = call ? ["Finalizado", "Cancelado"].includes(call.status) : false;
   return (
     <section className="panel outcome-panel">
       <div className="panel-heading">
@@ -1169,7 +1180,7 @@ function CallOutcomeActions() {
           <h2>Finalizar ou cancelar</h2>
         </div>
       </div>
-      <div className="outcome-grid">
+      {closed ? <div className="closed-call-action"><p>Este chamado está encerrado e não pode mais ser alterado.</p><button className="primary-button compact" onClick={reopen}>Reabrir chamado <ChevronRight size={16} /></button></div> : <div className="outcome-grid">
         <div>
           <div className="required-checks">
             <span>Tecnico</span><span>Resultado</span><span>Data/hora</span><span>Observacao</span>
@@ -1187,7 +1198,7 @@ function CallOutcomeActions() {
           <label className="detail-label">Motivo<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
           <button className="cancel-button" onClick={cancel}>Cancelar chamado</button>
         </div>
-      </div>
+      </div>}
       {message && <div className="save-message">{message}</div>}
     </section>
   );

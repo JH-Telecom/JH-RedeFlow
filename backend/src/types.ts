@@ -17,6 +17,7 @@ export type PermissionCode =
   | 'calls.assign'
   | 'calls.finish'
   | 'calls.cancel'
+  | 'calls.reopen'
   | 'calls.view_logs'
   | 'calls.add_observation'
   | 'activations.view'

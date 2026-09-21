@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
+import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseTechnician } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -22,6 +22,7 @@ const permissionDescriptions: Record<PermissionCode, string> = {
   'calls.assign': 'Atribuir chamados',
   'calls.finish': 'Finalizar chamados',
   'calls.cancel': 'Cancelar chamados',
+  'calls.reopen': 'Reabrir chamados encerrados',
   'calls.view_logs': 'Visualizar auditoria de chamados',
   'calls.add_observation': 'Adicionar observacoes em chamados',
   'activations.view': 'Visualizar acionamentos',
@@ -34,7 +35,7 @@ const permissionDescriptions: Record<PermissionCode, string> = {
 const allPermissions = Object.keys(permissionDescriptions) as PermissionCode[];
 const now = new Date().toISOString();
 const adminRole: Role = { id: 'role-admin', name: 'Administrador', description: 'Acesso administrativo da plataforma', permissions: allPermissions };
-const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.view_logs', 'calls.add_observation', 'activations.view', 'activations.decide', 'imports.view', 'imports.create', 'technicians.view', 'supervisors.view'] };
+const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.reopen', 'calls.view_logs', 'calls.add_observation', 'activations.view', 'activations.decide', 'imports.view', 'imports.create', 'technicians.view', 'supervisors.view'] };
 const supervisorRole: Role = { id: 'role-supervisor', name: 'Supervisor', description: 'Visao restrita da propria equipe', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
 const counterRole: Role = { id: 'role-counter', name: 'Mesario', description: 'Aceite e recusa de acionamentos', permissions: ['activations.view', 'activations.decide'] };
 const viewerRole: Role = { id: 'role-viewer', name: 'Visualizacao', description: 'Consulta sem alteracao', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
@@ -433,9 +434,11 @@ function normalizeTechnicianId(id?: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate) ? candidate : id;
 }
 export async function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>, actor: User): Promise<Call | undefined> {
+  if (isSupabaseConfigured()) return await updateSupabaseCall(id, input, actor);
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
     if (!current) return undefined;
+    if (['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
     const client = await getDatabaseClient();
     const sets: string[] = [];
     const values: unknown[] = [];
@@ -634,7 +637,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
     if (['Finalizado', 'Cancelado'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
     const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
     if (missing.length) return { missing };
-    const call = await finishSupabaseCall(id, input);
+    const call = await finishSupabaseCall(id, input, actor);
     return call ? { call, missing: [] } : { missing: ['Chamado ja encerrado'] };
   }
   if (shouldUseLocalDatabase()) {
@@ -679,7 +682,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
   return { call: updated, missing: [] };
 }
 export async function cancelCall(id: string, reason: string, actor: User): Promise<Call | undefined> {
-  if (isSupabaseConfigured()) return await cancelSupabaseCall(id, reason);
+  if (isSupabaseConfigured()) return await cancelSupabaseCall(id, reason, actor);
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
     if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
@@ -704,6 +707,16 @@ export async function cancelCall(id: string, reason: string, actor: User): Promi
   const updated = { ...current, status: 'Cancelado' as const, cancellationReason: reason };
   calls.set(id, updated);
   const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado cancelado', field: 'cancellationReason', previousValue: '', newValue: reason, createdAt: new Date().toISOString() };
+  auditLogs.set(log.id, log);
+  return updated;
+}
+export async function reopenCall(id: string, actor: User): Promise<Call | undefined> {
+  if (isSupabaseConfigured()) return await reopenSupabaseCall(id, actor);
+  const current = calls.get(id);
+  if (!current || !['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+  const updated = { ...current, status: 'Aberto' as const, result: undefined, executedAt: undefined, cancellationReason: undefined };
+  calls.set(id, updated);
+  const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado reaberto', field: 'status', previousValue: current.status, newValue: 'Aberto', createdAt: new Date().toISOString() };
   auditLogs.set(log.id, log);
   return updated;
 }

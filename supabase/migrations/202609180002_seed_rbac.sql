@@ -17,6 +17,7 @@ insert into public.permissions (code, description) values
   ('calls.assign', 'Atribuir chamados'),
   ('calls.finish', 'Finalizar chamados'),
   ('calls.cancel', 'Cancelar chamados'),
+  ('calls.reopen', 'Reabrir chamados encerrados'),
   ('calls.view_logs', 'Visualizar auditoria de chamados'),
   ('calls.add_observation', 'Adicionar observacoes em chamados'),
   ('activations.view', 'Visualizar acionamentos'),
@@ -38,6 +39,12 @@ insert into public.role_permissions (role_id, permission_id)
 select r.id, p.id
 from public.roles r cross join public.permissions p
 where r.name = 'Administrador'
+on conflict do nothing;
+
+insert into public.role_permissions (role_id, permission_id)
+select r.id, p.id
+from public.roles r cross join public.permissions p
+where r.name = 'Operador' and p.code = 'calls.reopen'
 on conflict do nothing;
 
 update public.profiles
