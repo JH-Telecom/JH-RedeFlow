@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseActivation, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseUsers } from './integrations/supabase/client.js';
+import { createSupabaseActivation, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -308,6 +308,11 @@ export async function updateRole(id: string, input: { name?: string; description
 export function getSettings(): SystemSettings { return { ...settings }; }
 export function updateSettings(input: Partial<SystemSettings>): SystemSettings { Object.assign(settings, input); return getSettings(); }
 export async function listSupervisors(): Promise<Supervisor[]> {
+  if (isSupabaseConfigured()) {
+    const supervisors = await listSupabaseSupervisors();
+    const technicians = await listSupabaseTechnicians();
+    return supervisors.map((supervisor) => ({ ...supervisor, technicianCount: technicians.filter((technician) => technician.supervisorId === supervisor.id).length }));
+  }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; user_id: string | null; name: string; region: string | null; active: boolean }>(`SELECT id, user_id, name, region, active FROM supervisors WHERE deleted_at IS NULL ORDER BY name ASC`);
@@ -317,6 +322,7 @@ export async function listSupervisors(): Promise<Supervisor[]> {
   return [...supervisors.values()].map((supervisor) => ({ ...supervisor, technicianCount: [...technicians.values()].filter((technician) => technician.supervisorId === supervisor.id).length }));
 }
 export async function listTechnicians(): Promise<Technician[]> {
+  if (isSupabaseConfigured()) return await listSupabaseTechnicians();
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean }>(`SELECT id, supervisor_id, name, registration, region, shift, current_status, active FROM technicians WHERE deleted_at IS NULL ORDER BY name ASC`);
@@ -344,6 +350,7 @@ export async function addTechnician(input: Omit<Technician, 'id' | 'supervisorNa
   return { ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined };
 }
 export async function updateTechnician(id: string, input: { supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean }): Promise<Technician | undefined> {
+  if (isSupabaseConfigured()) return await updateSupabaseTechnician(id, input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const sets: string[] = [];

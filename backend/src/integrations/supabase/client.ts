@@ -82,6 +82,33 @@ export async function listSupabaseUsers() {
   });
 }
 
+export async function listSupabaseSupervisors() {
+  const { data, error } = await getSupabaseAdmin().from('supervisors').select('id, profile_id, name, region, active').is('deleted_at', null).order('name');
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => ({ id: row.id, userId: row.profile_id || undefined, name: row.name, region: row.region || '', active: row.active, technicianCount: 0 }));
+}
+
+export async function listSupabaseTechnicians() {
+  const { data, error } = await getSupabaseAdmin().from('technicians').select('id, supervisor_id, name, registration, region, shift, current_status, active, supervisors(name)').is('deleted_at', null).order('name');
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => {
+    const supervisor = Array.isArray(row.supervisors) ? row.supervisors[0] : row.supervisors;
+    return { id: row.id, supervisorId: row.supervisor_id || undefined, name: row.name, registration: row.registration, supervisorName: supervisor?.name || undefined, region: row.region || '', shift: row.shift || '', currentStatus: row.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: row.active };
+  });
+}
+
+export async function updateSupabaseTechnician(id: string, input: { supervisorId?: string; currentStatus?: string; active?: boolean }) {
+  const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.supervisorId !== undefined) changes.supervisor_id = input.supervisorId || null;
+  if (input.currentStatus !== undefined) changes.current_status = input.currentStatus;
+  if (input.active !== undefined) changes.active = input.active;
+  const { data, error } = await getSupabaseAdmin().from('technicians').update(changes).eq('id', id).is('deleted_at', null).select('id, supervisor_id, name, registration, region, shift, current_status, active, supervisors(name)').maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
+  const supervisor = Array.isArray(data.supervisors) ? data.supervisors[0] : data.supervisors;
+  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active };
+}
+
 export async function getSupabaseRole(roleId: string) {
   const { data, error } = await getSupabaseAdmin()
     .from('roles')
