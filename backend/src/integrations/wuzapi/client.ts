@@ -94,6 +94,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     data.remoteJid,
     event.key && typeof event.key === 'object' ? (event.key as Record<string, unknown>).remoteJid : undefined,
   );
+  const key = event.key && typeof event.key === 'object' ? event.key as Record<string, unknown> : {};
   const sender = readString(
     info.Sender,
     info.sender,
@@ -105,7 +106,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
   const recipient = readString(info.To, info.to, info.Recipient, info.recipient, event.to, event.recipient, data.to);
   const senderName = readString(info.PushName, info.pushName, info.SenderName, info.senderName, event.senderName, data.senderName);
   const timestamp = readString(data.timestamp, data.receivedAt, event.timestamp, event.receivedAt, info.Timestamp, info.timestamp, event.Timestamp, new Date().toISOString());
-  const isFromMe = readBoolean(info.IsFromMe, info.isFromMe, event.isFromMe, data.isFromMe);
+  const isFromMe = readBoolean(info.IsFromMe, info.isFromMe, info.FromMe, info.fromMe, event.isFromMe, event.fromMe, data.isFromMe, data.fromMe, key.fromMe);
   const typedMessageNode = Object.values(messageNode).find((value) => value && typeof value === 'object') as Record<string, unknown> | undefined;
   const contextInfo = typedMessageNode?.contextInfo && typeof typedMessageNode.contextInfo === 'object'
     ? typedMessageNode.contextInfo as Record<string, unknown>
@@ -119,7 +120,10 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     quotedNode && typeof quotedNode === 'object' ? (quotedNode as Record<string, unknown>).text : undefined,
   );
   const messageType = Object.keys(messageNode).find((key) => /Message$/.test(key)) || (text ? 'text' : 'unknown');
-  const isGroup = readBoolean(info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, nestedData.isGroup, nestedData.IsGroup, data.isGroup, data.IsGroup);
+  const explicitGroup = [info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, nestedData.isGroup, nestedData.IsGroup, data.isGroup, data.IsGroup].some((value) => value !== undefined && value !== null);
+  const isGroup = explicitGroup
+    ? readBoolean(info.IsGroup, info.isGroup, event.isGroup, event.IsGroup, nestedData.isGroup, nestedData.IsGroup, data.isGroup, data.IsGroup)
+    : /@g\.us$/i.test(chatId);
   const receivedAt = timestamp;
   const source = readString(data.source, event.source, chatId || sender || 'wuzapi');
 

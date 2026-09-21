@@ -306,7 +306,9 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
     return response.status(202).json({ status: 'ignored', reason, chatId: message.chatId || null, isGroup: message.isGroup ?? false });
   }
   const eventType = message.eventType?.toLowerCase() || '';
-  if (!['message', 'messages.upsert', 'message.upsert'].includes(eventType)) return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' });
+  const knownMessageEvent = ['message', 'messages.upsert', 'message.upsert', 'message.new', 'messages.new'].includes(eventType);
+  const knownNonMessageEvent = ['connected', 'connection', 'presence', 'presence.update', 'receipt', 'message.ack', 'logout'].includes(eventType);
+  if (knownNonMessageEvent || (eventType && !knownMessageEvent && !message.message?.trim())) return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' });
   if (message.isFromMe) return response.status(202).json({ status: 'ignored', reason: 'Mensagem enviada pelo proprio bot.' });
   if (!message.message?.trim()) return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' });
   const fallbackAnalysis = analyzeOperationalMessage(message);

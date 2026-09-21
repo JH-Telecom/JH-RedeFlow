@@ -30,6 +30,19 @@ test('normalizes the group id from a WuzAPI message key', () => {
   assert.equal(result.chatId, '120363422003961917@g.us');
 });
 
+test('infers group messages from a group JID when IsGroup is omitted', () => {
+  const result = parseIncomingMessage({
+    type: 'MessageEvent',
+    event: {
+      Info: { ID: 'msg-inferred-group', Chat: '120363422003961917@g.us', Sender: '551199999999@s.whatsapp.net' },
+      Message: { conversation: 'VALIDAR COM NOC ACESSO\nBDESK: 648969' },
+    },
+  });
+
+  assert.equal(result.isGroup, true);
+  assert.equal(result.message, 'VALIDAR COM NOC ACESSO\nBDESK: 648969');
+});
+
 test('normalizes sender, recipient, timestamp, message type and quoted text', () => {
   const result = parseIncomingMessage({
     event: {
