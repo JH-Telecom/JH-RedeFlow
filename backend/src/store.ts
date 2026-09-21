@@ -352,22 +352,27 @@ export async function updateRole(id: string, input: { name?: string; description
   }
 
   if (shouldUseLocalDatabase()) {
-    const client = await getDatabaseClient();
-    if (input.name !== undefined) await client.query(`UPDATE roles SET name = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.name, id]);
-    if (input.description !== undefined) await client.query(`UPDATE roles SET description = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.description, id]);
-    if (input.permissions) {
-      await client.query(`DELETE FROM role_permissions WHERE role_id = $1`, [id]);
-      for (const permission of input.permissions) {
-        const permissionRow = await client.query<{ id: string }>(`SELECT id FROM permissions WHERE code = $1`, [permission]);
-        const permissionId = permissionRow.rows[0]?.id;
-        if (permissionId) await client.query(`INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [id, permissionId]);
+    try {
+      const client = await getDatabaseClient();
+      if (input.name !== undefined) await client.query(`UPDATE roles SET name = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.name, id]);
+      if (input.description !== undefined) await client.query(`UPDATE roles SET description = $1, updated_at = now() WHERE id = $2 AND deleted_at IS NULL`, [input.description, id]);
+      if (input.permissions) {
+        await client.query(`DELETE FROM role_permissions WHERE role_id = $1`, [id]);
+        for (const permission of input.permissions) {
+          const permissionRow = await client.query<{ id: string }>(`SELECT id FROM permissions WHERE code = $1`, [permission]);
+          const permissionId = permissionRow.rows[0]?.id;
+          if (permissionId) await client.query(`INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [id, permissionId]);
+        }
       }
+      const refreshed = await client.query<{ id: string; name: string; description: string }>(`SELECT id, name, description FROM roles WHERE id = $1 AND deleted_at IS NULL`, [id]);
+      const row = refreshed.rows[0];
+      if (!row) return undefined;
+      const permissions = (await client.query<{ code: string }>(`SELECT p.code FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = $1`, [id])).rows.map((item) => item.code as PermissionCode);
+      return { id: row.id, name: row.name, description: row.description, permissions };
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : 'Nao foi possivel atualizar o cargo.';
+      throw new Error(`Nao foi possivel atualizar o cargo no banco local. ${message}`);
     }
-    const refreshed = await client.query<{ id: string; name: string; description: string }>(`SELECT id, name, description FROM roles WHERE id = $1 AND deleted_at IS NULL`, [id]);
-    const row = refreshed.rows[0];
-    if (!row) return undefined;
-    const permissions = (await client.query<{ code: string }>(`SELECT p.code FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = $1`, [id])).rows.map((item) => item.code as PermissionCode);
-    return { id: row.id, name: row.name, description: row.description, permissions };
   }
   const role = roles.find((item) => item.id === id);
   if (!role) return undefined;
