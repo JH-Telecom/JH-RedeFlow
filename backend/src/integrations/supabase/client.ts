@@ -97,6 +97,13 @@ export async function listSupabaseTechnicians() {
   });
 }
 
+export async function createSupabaseTechnician(input: { supervisorId?: string; name: string; registration: string; region: string; shift: string; currentStatus: string; active: boolean }) {
+  const { data, error } = await getSupabaseAdmin().from('technicians').insert({ supervisor_id: input.supervisorId || null, name: input.name, registration: input.registration, region: input.region, shift: input.shift, current_status: input.currentStatus, active: input.active }).select('id, supervisor_id, name, registration, region, shift, current_status, active, supervisors(name)').single();
+  if (error || !data) throw new Error(error?.message || 'Nao foi possivel cadastrar o tecnico.');
+  const supervisor = Array.isArray(data.supervisors) ? data.supervisors[0] : data.supervisors;
+  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active };
+}
+
 export async function updateSupabaseTechnician(id: string, input: { supervisorId?: string; currentStatus?: string; active?: boolean }) {
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.supervisorId !== undefined) changes.supervisor_id = input.supervisorId || null;

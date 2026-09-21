@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { createSupabaseActivation, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
+import { createSupabaseActivation, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, updateSupabaseTechnician } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -333,6 +333,7 @@ export async function listTechnicians(): Promise<Technician[]> {
   return [...technicians.values()].map((technician) => ({ ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined }));
 }
 export async function addTechnician(input: Omit<Technician, 'id' | 'supervisorName'>): Promise<Technician> {
+  if (isSupabaseConfigured()) return await createSupabaseTechnician(input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean }>(
@@ -423,6 +424,11 @@ export async function listNotifications() {
   if (pending.length) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending.length} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos' });
   return notifications;
 }
+function normalizeTechnicianId(id?: string) {
+  if (!id) return id;
+  const candidate = id.replace(/^tech-/, '');
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate) ? candidate : id;
+}
 export async function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>, actor: User): Promise<Call | undefined> {
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
@@ -434,7 +440,7 @@ export async function updateCall(id: string, input: Partial<Pick<Call, 'status' 
     if (input.status) { sets.push(`status = $${index++}`); values.push(input.status); }
     if (input.technicianId !== undefined) {
       sets.push(`technician_id = $${index}`);
-      values.push(input.technicianId || null);
+      values.push(normalizeTechnicianId(input.technicianId) || null);
       sets.push(`assigned_at = CASE WHEN $${index}::uuid IS NULL THEN NULL WHEN assigned_at IS NULL THEN now() ELSE assigned_at END`);
       index += 1;
     }
