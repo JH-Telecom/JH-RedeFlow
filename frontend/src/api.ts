@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333';
+const API_URL = import.meta.env.DEV ? (import.meta.env.VITE_API_URL || 'http://localhost:3333') : '';
 export type Permission = { code: string; description: string };
 export type Role = { id: string; name: string; description: string; permissions: string[] };
 export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; role?: Role };
