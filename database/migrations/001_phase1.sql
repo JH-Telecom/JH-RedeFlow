@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS technicians (
   shift varchar(80),
   current_status varchar(40) NOT NULL DEFAULT 'Disponivel',
   active boolean NOT NULL DEFAULT true,
+  active_override boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   deleted_at timestamptz

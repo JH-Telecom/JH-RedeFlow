@@ -72,6 +72,7 @@ export type Technician = {
   shift: string;
   currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel';
   active: boolean;
+  activeOverride?: boolean;
 };
 
 export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado';

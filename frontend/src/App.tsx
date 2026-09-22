@@ -1266,6 +1266,8 @@ function TechniciansPage() {
   }
   useEffect(() => {
     load();
+    const interval = window.setInterval(() => void load(), 60000);
+    return () => window.clearInterval(interval);
   }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -1275,6 +1277,9 @@ function TechniciansPage() {
   const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
   async function changeStatus(technician: Technician, currentStatus: Technician["currentStatus"]) {
     try { const result = await api.updateTechnician(technician.id, { currentStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar status."); }
+  }
+  async function changeActive(technician: Technician, active: boolean) {
+    try { const result = await api.updateTechnician(technician.id, { active }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar a ativacao."); }
   }
   return (
     <>
@@ -1375,12 +1380,10 @@ function TechniciansPage() {
                     </select>
                   </td>
                   <td>
-                    <span
-                      className={`status ${technician.active ? "active" : "inactive"}`}
-                    >
-                      <i />
-                      {technician.active ? "Ativo" : "Inativo"}
-                    </span>
+                    <select className="status-select" value={technician.active ? "true" : "false"} onChange={(event) => void changeActive(technician, event.target.value === "true")} aria-label={`Ativacao de ${technician.name}`}>
+                      <option value="true">Ativo</option>
+                      <option value="false">Inativo</option>
+                    </select>
                   </td>
                 </tr>
               ))}

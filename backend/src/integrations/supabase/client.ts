@@ -95,31 +95,31 @@ export async function createSupabaseSupervisor(input: { userId?: string; name: s
 }
 
 export async function listSupabaseTechnicians() {
-  const { data, error } = await getSupabaseAdmin().from('technicians').select('id, supervisor_id, name, registration, region, shift, current_status, active, supervisors(name)').is('deleted_at', null).order('name');
+  const { data, error } = await getSupabaseAdmin().from('technicians').select('id, supervisor_id, name, registration, region, shift, current_status, active, active_override, supervisors(name)').is('deleted_at', null).order('name');
   if (error) throw new Error(error.message);
   return (data || []).map((row) => {
     const supervisor = Array.isArray(row.supervisors) ? row.supervisors[0] : row.supervisors;
-    return { id: row.id, supervisorId: row.supervisor_id || undefined, name: row.name, registration: row.registration, supervisorName: supervisor?.name || undefined, region: row.region || '', shift: row.shift || '', currentStatus: row.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: row.active };
+    return { id: row.id, supervisorId: row.supervisor_id || undefined, name: row.name, registration: row.registration, supervisorName: supervisor?.name || undefined, region: row.region || '', shift: row.shift || '', currentStatus: row.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: row.active, activeOverride: row.active_override ?? false };
   });
 }
 
 export async function createSupabaseTechnician(input: { supervisorId?: string; name: string; registration: string; region: string; shift: string; currentStatus: string; active: boolean }) {
-  const { data, error } = await getSupabaseAdmin().from('technicians').insert({ supervisor_id: input.supervisorId || null, name: input.name, registration: input.registration, region: input.region, shift: input.shift, current_status: input.currentStatus, active: input.active }).select('id, supervisor_id, name, registration, region, shift, current_status, active, supervisors(name)').single();
+  const { data, error } = await getSupabaseAdmin().from('technicians').insert({ supervisor_id: input.supervisorId || null, name: input.name, registration: input.registration, region: input.region, shift: input.shift, current_status: input.currentStatus, active: input.active, active_override: false }).select('id, supervisor_id, name, registration, region, shift, current_status, active, active_override, supervisors(name)').single();
   if (error || !data) throw new Error(error?.message || 'Nao foi possivel cadastrar o tecnico.');
   const supervisor = Array.isArray(data.supervisors) ? data.supervisors[0] : data.supervisors;
-  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active };
+  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false };
 }
 
 export async function updateSupabaseTechnician(id: string, input: { supervisorId?: string; currentStatus?: string; active?: boolean }) {
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.supervisorId !== undefined) changes.supervisor_id = input.supervisorId || null;
   if (input.currentStatus !== undefined) changes.current_status = input.currentStatus;
-  if (input.active !== undefined) changes.active = input.active;
-  const { data, error } = await getSupabaseAdmin().from('technicians').update(changes).eq('id', id).is('deleted_at', null).select('id, supervisor_id, name, registration, region, shift, current_status, active, supervisors(name)').maybeSingle();
+  if (input.active !== undefined) { changes.active = input.active; changes.active_override = true; }
+  const { data, error } = await getSupabaseAdmin().from('technicians').update(changes).eq('id', id).is('deleted_at', null).select('id, supervisor_id, name, registration, region, shift, current_status, active, active_override, supervisors(name)').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const supervisor = Array.isArray(data.supervisors) ? data.supervisors[0] : data.supervisors;
-  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active };
+  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false };
 }
 
 export async function listSupabaseCalls(status?: CallStatus): Promise<Call[]> {

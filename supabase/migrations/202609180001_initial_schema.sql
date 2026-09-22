@@ -53,6 +53,7 @@ create table if not exists public.technicians (
   shift varchar(80),
   current_status varchar(40) not null default 'Disponivel',
   active boolean not null default true,
+  active_override boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz

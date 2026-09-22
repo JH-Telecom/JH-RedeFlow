@@ -395,30 +395,43 @@ export async function listSupervisors(): Promise<Supervisor[]> {
   }
   return [...supervisors.values()].map((supervisor) => ({ ...supervisor, technicianCount: [...technicians.values()].filter((technician) => technician.supervisorId === supervisor.id).length }));
 }
+function isWithinTechnicianShift(shift: string) {
+  const match = shift.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+  if (!match) return undefined;
+  const start = Number(match[1]) * 60 + Number(match[2]);
+  const end = Number(match[3]) * 60 + Number(match[4]);
+  const now = new Date();
+  const current = now.getHours() * 60 + now.getMinutes();
+  return start <= end ? current >= start && current < end : current >= start || current < end;
+}
+function resolveTechnicianActive(technician: Technician) {
+  if (technician.activeOverride) return technician.active;
+  return isWithinTechnicianShift(technician.shift) ?? technician.active;
+}
 export async function listTechnicians(): Promise<Technician[]> {
-  if (isSupabaseConfigured()) return await listSupabaseTechnicians();
+  if (isSupabaseConfigured()) return (await listSupabaseTechnicians()).map((technician) => ({ ...technician, active: resolveTechnicianActive(technician) }));
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean }>(`SELECT id, supervisor_id, name, registration, region, shift, current_status, active FROM technicians WHERE deleted_at IS NULL ORDER BY name ASC`);
+    const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean; active_override: boolean }>(`SELECT id, supervisor_id, name, registration, region, shift, current_status, active, active_override FROM technicians WHERE deleted_at IS NULL ORDER BY name ASC`);
     const supervisorRows = await client.query<{ id: string; name: string }>(`SELECT id, name FROM supervisors WHERE deleted_at IS NULL`);
     const supervisorMap = new Map(supervisorRows.rows.map((row) => [row.id, row.name]));
-    return result.rows.map((row) => ({ id: row.id, supervisorId: row.supervisor_id ?? undefined, name: row.name, registration: row.registration, supervisorName: row.supervisor_id ? supervisorMap.get(row.supervisor_id) : undefined, region: row.region ?? '', shift: row.shift ?? '', currentStatus: row.current_status as Technician['currentStatus'], active: row.active }));
+    return result.rows.map((row) => { const technician = { id: row.id, supervisorId: row.supervisor_id ?? undefined, name: row.name, registration: row.registration, supervisorName: row.supervisor_id ? supervisorMap.get(row.supervisor_id) : undefined, region: row.region ?? '', shift: row.shift ?? '', currentStatus: row.current_status as Technician['currentStatus'], active: row.active, activeOverride: row.active_override }; return { ...technician, active: resolveTechnicianActive(technician) }; });
   }
-  return [...technicians.values()].map((technician) => ({ ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined }));
+  return [...technicians.values()].map((technician) => ({ ...technician, active: resolveTechnicianActive(technician), supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined }));
 }
 export async function addTechnician(input: Omit<Technician, 'id' | 'supervisorName'>): Promise<Technician> {
   if (isSupabaseConfigured()) return await createSupabaseTechnician(input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean }>(
-      `INSERT INTO technicians (supervisor_id, name, registration, region, shift, current_status, active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, now(), now())
-       RETURNING id, supervisor_id, name, registration, region, shift, current_status, active`,
+    const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean; active_override: boolean }>(
+      `INSERT INTO technicians (supervisor_id, name, registration, region, shift, current_status, active, active_override, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, false, now(), now())
+       RETURNING id, supervisor_id, name, registration, region, shift, current_status, active, active_override`,
       [input.supervisorId ?? null, input.name, input.registration, input.region, input.shift, input.currentStatus, input.active],
     );
     const row = result.rows[0];
     const supervisorName = row.supervisor_id ? (await client.query<{ name: string }>(`SELECT name FROM supervisors WHERE id = $1 LIMIT 1`, [row.supervisor_id])).rows[0]?.name : undefined;
-    return { id: row.id, supervisorId: row.supervisor_id ?? undefined, name: row.name, registration: row.registration, supervisorName, region: row.region ?? '', shift: row.shift ?? '', currentStatus: row.current_status as Technician['currentStatus'], active: row.active };
+    return { id: row.id, supervisorId: row.supervisor_id ?? undefined, name: row.name, registration: row.registration, supervisorName, region: row.region ?? '', shift: row.shift ?? '', currentStatus: row.current_status as Technician['currentStatus'], active: row.active, activeOverride: row.active_override };
   }
   const technician = { ...input, id: `tech-${crypto.randomUUID()}` };
   technicians.set(technician.id, technician);
@@ -433,24 +446,24 @@ export async function updateTechnician(id: string, input: { supervisorId?: strin
     let index = 1;
     if (input.supervisorId !== undefined) { sets.push(`supervisor_id = $${index++}`); values.push(input.supervisorId || null); }
     if (input.currentStatus) { sets.push(`current_status = $${index++}`); values.push(input.currentStatus); }
-    if (input.active !== undefined) { sets.push(`active = $${index++}`); values.push(input.active); }
+    if (input.active !== undefined) { sets.push(`active = $${index++}`); values.push(input.active); sets.push(`active_override = true`); }
     if (!sets.length) return (await listTechnicians()).find((tech) => tech.id === id);
     sets.push(`updated_at = now()`);
     values.push(id);
-    const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean }>(
-      `UPDATE technicians SET ${sets.join(', ')} WHERE id = $${index} AND deleted_at IS NULL RETURNING id, supervisor_id, name, registration, region, shift, current_status, active`,
+    const result = await client.query<{ id: string; supervisor_id: string | null; name: string; registration: string; region: string | null; shift: string | null; current_status: string; active: boolean; active_override: boolean }>(
+      `UPDATE technicians SET ${sets.join(', ')} WHERE id = $${index} AND deleted_at IS NULL RETURNING id, supervisor_id, name, registration, region, shift, current_status, active, active_override`,
       values,
     );
     const row = result.rows[0];
     if (!row) return undefined;
     const supervisorName = row.supervisor_id ? (await client.query<{ name: string }>(`SELECT name FROM supervisors WHERE id = $1 LIMIT 1`, [row.supervisor_id])).rows[0]?.name : undefined;
-    return { id: row.id, supervisorId: row.supervisor_id ?? undefined, name: row.name, registration: row.registration, supervisorName, region: row.region ?? '', shift: row.shift ?? '', currentStatus: row.current_status as Technician['currentStatus'], active: row.active };
+    return { id: row.id, supervisorId: row.supervisor_id ?? undefined, name: row.name, registration: row.registration, supervisorName, region: row.region ?? '', shift: row.shift ?? '', currentStatus: row.current_status as Technician['currentStatus'], active: row.active, activeOverride: row.active_override };
   }
   const current = technicians.get(id);
   if (!current) return undefined;
-  const updated = { ...current, ...input };
+  const updated = { ...current, ...input, activeOverride: input.active !== undefined ? true : current.activeOverride };
   technicians.set(id, updated);
-  return { ...updated, supervisorName: updated.supervisorId ? supervisors.get(updated.supervisorId)?.name : undefined };
+  return { ...updated, active: resolveTechnicianActive(updated), supervisorName: updated.supervisorId ? supervisors.get(updated.supervisorId)?.name : undefined };
 }
 export async function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCount'>): Promise<Supervisor> {
   if (isSupabaseConfigured()) return await createSupabaseSupervisor(input);
