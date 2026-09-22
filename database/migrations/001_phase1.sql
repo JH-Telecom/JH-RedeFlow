@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS calls (
   region varchar(100),
   city varchar(100),
   olt varchar(120),
-  slot_pon varchar(40),
+  slot_pon varchar(255),
   status varchar(40) NOT NULL DEFAULT 'Aberto',
   technician_id uuid REFERENCES technicians(id) ON DELETE SET NULL,
   opened_at timestamptz NOT NULL DEFAULT now(),

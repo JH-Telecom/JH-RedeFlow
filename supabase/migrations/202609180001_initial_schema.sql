@@ -70,7 +70,7 @@ create table if not exists public.calls (
   region varchar(100),
   city varchar(100),
   olt varchar(120),
-  slot_pon varchar(40),
+  slot_pon varchar(255),
   status varchar(40) not null default 'Aberto',
   technician_id uuid references public.technicians(id) on delete set null,
   opened_at timestamptz not null default now(),
