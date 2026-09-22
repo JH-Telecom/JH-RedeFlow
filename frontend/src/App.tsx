@@ -169,7 +169,7 @@ function Login({
                 autoComplete="on"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="voce@jhtelecom.com"
+                placeholder="user@jhtelecom.com"
                 required
               />
             </label>
