@@ -140,9 +140,10 @@ export async function finishSupabaseCall(id: string, input: { result: string; ex
   const { data, error } = await getSupabaseAdmin().from('calls').update({ result: input.result, executed_at: input.executedAt, notes: input.notes, status: 'Finalizado', updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
+  const labels: Record<string, string> = { status: 'Status', result: 'Resultado', executedAt: 'Data de execucao', notes: 'Observacoes' };
   for (const [field, value] of Object.entries({ status: 'Finalizado', result: input.result, executedAt: input.executedAt, notes: input.notes })) {
     const previousValue = String(current[field as keyof Call] ?? '');
-    if (previousValue !== value) await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${field} alterado`, field, previous_value: previousValue, new_value: value });
+    if (previousValue !== value) { const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${labels[field]} alterado`, field, previous_value: previousValue, new_value: value }); if (logError) throw new Error(logError.message); }
   }
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
@@ -153,7 +154,8 @@ export async function cancelSupabaseCall(id: string, reason: string, actor: { id
   const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Cancelado', cancellation_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Chamado cancelado', field: 'cancellationReason', previous_value: current.cancellationReason || '', new_value: reason });
+  const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Motivo de cancelamento alterado', field: 'cancellationReason', previous_value: current.cancellationReason || '', new_value: reason });
+  if (logError) throw new Error(logError.message);
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 
@@ -163,25 +165,30 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
   const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Aberto', cancellation_reason: null, result: null, executed_at: null, updated_at: new Date().toISOString() }).eq('id', id).in('status', ['Finalizado', 'Cancelado']).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Chamado reaberto', field: 'status', previous_value: current.status, new_value: 'Aberto' });
+  const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Status alterado', field: 'status', previous_value: current.status, new_value: 'Aberto' });
+  if (logError) throw new Error(logError.message);
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 
-export async function updateSupabaseCall(id: string, input: { status?: string; technicianId?: string; notes?: string }, actor: { id: string; name: string }) {
+export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; notes?: string }, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
   if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (input.status !== undefined) changes.status = input.status;
+  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', notes: 'notes' };
+  for (const field of Object.keys(databaseFields)) {
+    const value = input[field as keyof typeof input];
+    if (value !== undefined) changes[databaseFields[field]] = value;
+  }
   if (input.technicianId !== undefined) { changes.technician_id = input.technicianId || null; changes.assigned_at = input.technicianId ? new Date().toISOString() : null; }
   if (input.notes !== undefined) changes.notes = input.notes;
   const { data, error } = await getSupabaseAdmin().from('calls').update(changes).eq('id', id).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  const labels: Record<string, string> = { status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
   for (const field of Object.keys(input)) {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(input[field as keyof typeof input] ?? '');
-    if (previousValue !== newValue) await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${labels[field] || field} alterado`, field, previous_value: previousValue, new_value: newValue });
+    if (previousValue !== newValue) { const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${labels[field] || field} alterado`, field, previous_value: previousValue, new_value: newValue }); if (logError) throw new Error(logError.message); }
   }
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }

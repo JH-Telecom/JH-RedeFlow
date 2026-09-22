@@ -213,7 +213,7 @@ function Shell({
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  async function loadNotifications() {
+        async function loadNotifications() {
     setNotificationsLoading(true);
     try { setNotifications((await api.notifications()).notifications); } catch { setNotifications([]); } finally { setNotificationsLoading(false); }
   }
@@ -619,7 +619,7 @@ function ActivationsPage() {
     try {
       await Promise.all(ids.map((id) => api.acceptActivation(id)));
       setSelectedIds([]);
-      setMessage(ids.length === 1 ? "Acionamento aceito e chamado criado." : `${ids.length} acionamentos aceitos e chamados criados.`);
+      setMessage(ids.length === 1 ? "Tudo certo: o acionamento foi aceito e o chamado já está na fila operacional." : `Tudo certo: ${ids.length} acionamentos foram aceitos e os chamados já estão na fila operacional.`);
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel aceitar os acionamentos."); }
     finally { setProcessing(false); }
@@ -630,7 +630,7 @@ function ActivationsPage() {
     try {
       await Promise.all(ids.map((id) => api.rejectActivation(id, rejectionReason)));
       setSelectedIds([]); setReason(""); setRejecting(null);
-      setMessage(ids.length === 1 ? "Acionamento recusado." : `${ids.length} acionamentos recusados.`);
+      setMessage(ids.length === 1 ? "Acionamento recusado com sucesso." : `${ids.length} acionamentos recusados com sucesso.`);
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel recusar os acionamentos."); }
     finally { setProcessing(false); }
@@ -934,6 +934,17 @@ function CallDetailBase() {
   const [technicianId, setTechnicianId] = useState("");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [bdesk, setBdesk] = useState("");
+  const [officeTrack, setOfficeTrack] = useState("");
+  const [client, setClient] = useState("");
+  const [type, setType] = useState("");
+  const [reason, setReason] = useState("");
+  const [region, setRegion] = useState("");
+  const [city, setCity] = useState("");
+  const [olt, setOlt] = useState("");
+  const [slotPon, setSlotPon] = useState("");
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {
@@ -943,18 +954,18 @@ function CallDetailBase() {
         setStatus(callData.call.status);
         setTechnicianId(callData.call.technicianId || "");
         setNotes(callData.call.notes);
+        setOrderNumber(callData.call.orderNumber); setBdesk(callData.call.bdesk); setOfficeTrack(callData.call.officeTrack); setClient(callData.call.client); setType(callData.call.type); setReason(callData.call.reason); setRegion(callData.call.region); setCity(callData.call.city); setOlt(callData.call.olt); setSlotPon(callData.call.slotPon);
         setTechnicians(technicianData.technicians);
       },
     );
   }, [id]);
   if (!call) return <div className="empty-state">Carregando chamado...</div>;
   async function save() {
-    if (['Finalizado', 'Cancelado'].includes(call?.status || '')) return;
     setSaving(true);
     try {
-      const data = await api.updateCall(id, { status, technicianId: technicianId || undefined, notes });
+      const data = await api.updateCall(id, { orderNumber, bdesk, officeTrack, client, type, reason, region, city, olt, slotPon, status, technicianId: technicianId || null, notes });
       setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || "");
-      setMessage("Chamado atualizado."); setTimeout(() => setMessage(""), 2400);
+      setMessage("Chamado atualizado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar alteracoes."); }
     finally { setSaving(false); }
   }
@@ -986,20 +997,17 @@ function CallDetailBase() {
             </div>
           </div>
           <div className="detail-grid">
-            <DetailItem label="Ordem" value={call.orderNumber} />
-            <DetailItem label="BDESK" value={call.bdesk} />
-            <DetailItem label="Office Track" value={call.officeTrack} />
-            <DetailItem label="Tecnico B2C" value={call.client} />
-            <DetailItem label="Tipo" value={call.type} />
-            <DetailItem label="Motivo" value={call.reason} />
-            <DetailItem label="Regiao" value={call.region} />
-            <DetailItem label="Cidade" value={call.city} />
-            <DetailItem label="OLT" value={call.olt} />
-            <DetailItem label="Slot/PON" value={call.slotPon} />
-            <DetailItem
-              label="Abertura"
-              value={new Date(call.openedAt).toLocaleString("pt-BR")}
-            />
+            <EditableDetailItem label="Ordem" value={orderNumber} onChange={setOrderNumber} />
+            <EditableDetailItem label="BDESK" value={bdesk} onChange={setBdesk} />
+            <EditableDetailItem label="Office Track" value={officeTrack} onChange={setOfficeTrack} />
+            <EditableDetailItem label={`Tecnico B2C${["NOC TX", "NOC ACESSO"].includes(type.trim().toUpperCase()) ? " (opcional)" : ""}`} value={client} onChange={setClient} />
+            <EditableDetailItem label="Tipo" value={type} onChange={setType} />
+            <EditableDetailItem label="Motivo" value={reason} onChange={setReason} />
+            <EditableDetailItem label="Regiao" value={region} onChange={setRegion} />
+            <EditableDetailItem label="Cidade" value={city} onChange={setCity} />
+            <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
+            <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
+            <DetailItem label="Abertura" value={new Date(call.openedAt).toLocaleString("pt-BR")} />
           </div>
           <label className="detail-label">
             Observacoes
@@ -1007,7 +1015,6 @@ function CallDetailBase() {
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={5}
-              disabled={['Finalizado', 'Cancelado'].includes(call.status)}
             />
           </label>
         </section>
@@ -1023,7 +1030,6 @@ function CallDetailBase() {
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as CallStatus)}
-              disabled={['Finalizado', 'Cancelado'].includes(call.status)}
             >
               {[
                 "Aberto",
@@ -1040,7 +1046,6 @@ function CallDetailBase() {
             <select
               value={technicianId}
               onChange={(event) => setTechnicianId(event.target.value)}
-              disabled={['Finalizado', 'Cancelado'].includes(call.status)}
             >
               <option value="">Sem tecnico</option>
               {technicians
@@ -1057,14 +1062,18 @@ function CallDetailBase() {
               ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`
               : "Este chamado ainda nao possui tecnico."}
           </div>
-          <button className={`primary-button save-call ${saving ? "is-refreshing" : ""}`} onClick={save} disabled={saving || ['Finalizado', 'Cancelado'].includes(call.status)}>
+          <button className="primary-button save-call" onClick={save} disabled={saving}>
             {saving ? "Salvando..." : "Salvar alteracoes"} <ChevronRight size={17} />
           </button>
           {message && <div className="save-message">{message}</div>}
         </aside>
       </div>
+      {confirmed && <div className="call-confirmation" role="status"><span>✓</span><strong>Alteração confirmada</strong><small>A ordem foi atualizada. Recarregando os dados...</small></div>}
     </>
   );
+}
+function EditableDetailItem({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="detail-item editable-detail-item"><span>{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 function AuditedCallDetailPage() {
   const { pathname } = useLocation();
@@ -1187,6 +1196,7 @@ function CallOutcomeActions() {
   const [message, setMessage] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const [canDeleteCall, setCanDeleteCall] = useState(false);
   useEffect(() => { api.call(id).then((data) => setCall(data.call)).catch(() => setCall(null)); }, [id]);
   useEffect(() => {
@@ -1204,7 +1214,7 @@ function CallOutcomeActions() {
     setSaving(true);
     try {
       await api.finishCall(id, { result, executedAt, notes });
-      setMessage("Chamado finalizado com sucesso.");
+      setMessage("Chamado finalizado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
     } catch (error) {
       const typedError = error as Error & { missing?: string[] };
       setMessage(typedError.message);
@@ -1217,12 +1227,12 @@ function CallOutcomeActions() {
       return;
     }
     setSaving(true);
-    try { await api.cancelCall(id, cancelReason); setMessage("Chamado cancelado com sucesso."); }
+    try { await api.cancelCall(id, cancelReason); setMessage("Chamado cancelado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel cancelar o chamado."); }
     finally { setSaving(false); }
   }
   async function reopen() {
-    try { setSaving(true); const data = await api.reopenCall(id); setCall(data.call); setMessage("Chamado reaberto com sucesso."); }
+    try { setSaving(true); const data = await api.reopenCall(id); setCall(data.call); setMessage("Chamado reaberto com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100); }
     catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel reabrir o chamado."); }
     finally { setSaving(false); }
   }
@@ -1248,7 +1258,7 @@ function CallOutcomeActions() {
           <h2>Finalizar ou cancelar</h2>
         </div>
       </div>
-      {closed ? <div className="closed-call-action"><p>Este chamado está encerrado e não pode mais ser alterado.</p><button className={`primary-button compact ${saving ? "is-refreshing" : ""}`} onClick={reopen} disabled={saving}>{saving ? "Reabrindo..." : "Reabrir chamado"} <ChevronRight size={16} /></button></div> : <div className="outcome-grid">
+      {closed ? <div className="closed-call-action"><p>Este chamado está encerrado e não pode mais ser alterado.</p><button className="primary-button compact" onClick={reopen} disabled={saving}>{saving ? "Reabrindo..." : "Reabrir chamado"} <ChevronRight size={16} /></button></div> : <div className="outcome-grid">
         <div>
           <div className="required-checks">
             <span>Tecnico</span><span>Resultado</span><span>Data/hora</span><span>Observacao</span>
@@ -1258,19 +1268,20 @@ function CallOutcomeActions() {
             <label className="detail-label">Data e hora de execucao<input type="datetime-local" value={executedAt} onChange={(event) => setExecutedAt(event.target.value)} /></label>
             <label className="detail-label">Observacao final<textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="Descreva a execucao" /></label>
           </div>
-          <button className={`primary-button compact ${saving ? "is-refreshing" : ""}`} onClick={finish} disabled={saving}>{saving ? "Finalizando..." : "Finalizar chamado"} <ChevronRight size={16} /></button>
+          <button className="primary-button compact" onClick={finish} disabled={saving}>{saving ? "Finalizando..." : "Finalizar chamado"} <ChevronRight size={16} /></button>
           {missing.length > 0 && <div className="validation-error">Faltando: {missing.join(", ")}</div>}
         </div>
         <div className="cancel-box">
           <span className="section-kicker">CANCELAMENTO</span>
           <label className="detail-label">Motivo<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
-          <button className={`cancel-button ${saving ? "is-refreshing" : ""}`} onClick={cancel} disabled={saving}>{saving ? "Cancelando..." : "Cancelar chamado"}</button>
+          <button className="cancel-button" onClick={cancel} disabled={saving}>{saving ? "Cancelando..." : "Cancelar chamado"}</button>
           {canDeleteCall && (
-            <button className={`delete-button ${saving ? "is-refreshing" : ""}`} onClick={remove} disabled={saving}>{saving ? "Excluindo..." : "Apagar chamado"}</button>
+            <button className="delete-button" onClick={remove} disabled={saving}>{saving ? "Excluindo..." : "Apagar chamado"}</button>
           )}
         </div>
       </div>}
       {message && <div className="save-message">{message}</div>}
+      {confirmed && <div className="call-confirmation" role="status"><span>✓</span><strong>Alteração confirmada</strong><small>Atualizando a ordem...</small></div>}
     </section>
   );
 }

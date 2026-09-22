@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
 import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseTechnician } from './integrations/supabase/client.js';
-import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
+import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -570,12 +570,12 @@ export async function listNotifications() {
   if (pending.length) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending.length} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos' });
   return notifications;
 }
-function normalizeTechnicianId(id?: string) {
+function normalizeTechnicianId(id?: string | null) {
   if (!id) return id;
   const candidate = id.replace(/^tech-/, '');
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate) ? candidate : id;
 }
-export async function updateCall(id: string, input: Partial<Pick<Call, 'status' | 'technicianId' | 'notes'>>, actor: User): Promise<Call | undefined> {
+export async function updateCall(id: string, input: Partial<EditableCallFields>, actor: User): Promise<Call | undefined> {
   if (isSupabaseConfigured()) return await updateSupabaseCall(id, input, actor);
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
@@ -585,7 +585,11 @@ export async function updateCall(id: string, input: Partial<Pick<Call, 'status' 
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
-    if (input.status) { sets.push(`status = $${index++}`); values.push(input.status); }
+    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', notes: 'notes' };
+    for (const field of Object.keys(databaseFields)) {
+      const value = input[field as keyof typeof input];
+      if (value !== undefined) { sets.push(`${databaseFields[field]} = $${index++}`); values.push(value); }
+    }
     if (input.technicianId !== undefined) {
       sets.push(`technician_id = $${index}`);
       values.push(normalizeTechnicianId(input.technicianId) || null);
@@ -602,7 +606,7 @@ export async function updateCall(id: string, input: Partial<Pick<Call, 'status' 
       if (!result.rows[0]) { await client.query('ROLLBACK'); return undefined; }
       const updated = await getCall(id);
       if (!updated) { await client.query('ROLLBACK'); return undefined; }
-      const labels: Record<string, string> = { status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
       for (const field of Object.keys(input)) {
         const previousValue = String(current[field as keyof Call] ?? '');
         const newValue = String(updated[field as keyof Call] ?? '');
@@ -618,9 +622,9 @@ export async function updateCall(id: string, input: Partial<Pick<Call, 'status' 
   const current = calls.get(id);
   if (!current) return undefined;
   const technician = input.technicianId ? technicians.get(input.technicianId) : undefined;
-  const updated = { ...current, ...input, technicianName: technician?.name ?? current.technicianName, supervisorName: technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : current.assignedAt };
+  const updated = { ...current, ...input, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
   calls.set(id, updated);
-  const labels: Record<string, string> = { status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
   Object.keys(input).forEach((field) => {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(updated[field as keyof Call] ?? '');
@@ -631,6 +635,11 @@ export async function updateCall(id: string, input: Partial<Pick<Call, 'status' 
   return updated;
 }
 export async function listObservations(callId: string): Promise<CallObservation[]> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('call_observations').select('id, call_id, user_id, text, created_at, profiles(name)').eq('call_id', callId).order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []).map((row: any) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Usuario' : row.profiles?.name || 'Usuario', text: row.text, createdAt: row.created_at }));
+  }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; call_id: string; user_id: string; user_name: string; text: string; created_at: string }>(
@@ -643,6 +652,15 @@ export async function listObservations(callId: string): Promise<CallObservation[
   return [...observations.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 export async function addObservation(callId: string, actor: User, text: string): Promise<CallObservation> {
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin.from('call_observations').insert({ call_id: callId, user_id: actor.id, text }).select('id, call_id, user_id, text, created_at, profiles(name)').single();
+    if (error || !data) throw new Error(error?.message || 'Nao foi possivel adicionar a observacao.');
+    const observation = { id: data.id, callId: data.call_id, userId: data.user_id, userName: actor.name, text: data.text, createdAt: data.created_at };
+    const { error: logError } = await admin.from('call_logs').insert({ call_id: callId, user_id: actor.id, action: 'Observacao adicionada', field: 'observations', previous_value: '', new_value: text });
+    if (logError) throw new Error(logError.message);
+    return observation;
+  }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     try {
@@ -670,6 +688,11 @@ export async function addObservation(callId: string, actor: User, text: string):
   return observation;
 }
 export async function listAuditLogs(callId: string): Promise<CallAuditLog[]> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('call_logs').select('id, call_id, user_id, action, field, previous_value, new_value, created_at, profiles(name)').eq('call_id', callId).order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data || []).map((row: any) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Usuario' : row.profiles?.name || 'Usuario', action: row.action, field: row.field, previousValue: row.previous_value || '', newValue: row.new_value || '', createdAt: row.created_at }));
+  }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; call_id: string; user_id: string; user_name: string; action: string; field: string; previous_value: string | null; new_value: string | null; created_at: string }>(
@@ -798,7 +821,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
       for (const field of ['status', 'result', 'executedAt', 'notes'] as const) {
         const previousValue = String(current[field as keyof Call] ?? '');
         const newValue = String(updated[field] ?? '');
-        if (previousValue !== newValue) await client.query(`INSERT INTO call_logs (call_id, user_id, action, field, previous_value, new_value) VALUES ($1, $2, $3, $4, $5, $6)`, [id, actor.id, `${field} alterado`, field, previousValue, newValue]);
+        if (previousValue !== newValue) { const labels: Record<string, string> = { status: 'Status', result: 'Resultado', executedAt: 'Data de execucao', notes: 'Observacoes' }; await client.query(`INSERT INTO call_logs (call_id, user_id, action, field, previous_value, new_value) VALUES ($1, $2, $3, $4, $5, $6)`, [id, actor.id, `${labels[field]} alterado`, field, previousValue, newValue]); }
       }
       await client.query('COMMIT');
       return { call: updated, missing: [] };
@@ -818,7 +841,8 @@ export async function finishCall(id: string, input: { result: string; executedAt
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(updated[field] ?? '');
     if (previousValue === newValue) return;
-    const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: `${field === 'status' ? 'Status' : field === 'result' ? 'Resultado' : field === 'executedAt' ? 'Data de execucao' : 'Observacoes'} alterado`, field, previousValue, newValue, createdAt: new Date().toISOString() };
+    const labels: Record<string, string> = { status: 'Status', result: 'Resultado', executedAt: 'Data de execucao', notes: 'Observacoes' };
+    const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: `${labels[field]} alterado`, field, previousValue, newValue, createdAt: new Date().toISOString() };
     auditLogs.set(log.id, log);
   });
   return { call: updated, missing: [] };

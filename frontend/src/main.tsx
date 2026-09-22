@@ -7,6 +7,7 @@ import './team.css';
 import './outcome.css';
 import './activation.css';
 import './activation-overrides.css';
+import './call-detail-overrides.css';
 import './imports.css';
 import './dashboard.css';
 import './sidebar.css';
