@@ -7,6 +7,7 @@ import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelC
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
+import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
 
@@ -256,7 +257,7 @@ app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (reque
   return response.json({ call });
 });
 app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
-  const parsed = z.object({ orderNumber: z.string().trim().min(1).max(100).optional(), bdesk: z.string().trim().max(100).optional(), officeTrack: z.string().trim().max(100).optional(), client: z.string().trim().max(180).optional(), type: z.string().trim().max(100).optional(), reason: z.string().trim().max(255).optional(), region: z.string().trim().max(100).optional(), city: z.string().trim().max(100).optional(), olt: z.string().trim().max(120).optional(), slotPon: z.string().trim().max(255).optional(), status: z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo']).optional(), technicianId: z.string().nullable().optional(), notes: z.string().max(5000).optional() }).safeParse(request.body);
+  const parsed = z.object({ orderNumber: z.string().trim().min(1).max(100).optional(), bdesk: z.string().trim().max(100).optional(), officeTrack: z.string().trim().max(100).optional(), client: z.string().trim().max(180).optional(), type: z.string().trim().max(100).optional(), reason: z.string().trim().max(255).optional(), region: z.string().trim().max(100).optional(), city: z.string().trim().max(100).optional(), olt: z.string().trim().max(120).optional(), slotPon: z.string().trim().max(255).optional(), status: z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado']).optional(), technicianId: z.string().nullable().optional(), executedAt: z.string().datetime().optional(), result: z.string().trim().max(255).optional(), notes: z.string().max(5000).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de chamado invalidos.' });
   const technicians = await listTechnicians();
   if (parsed.data.technicianId && !technicians.some((technician) => technician.id === parsed.data.technicianId && technician.active)) return response.status(422).json({ message: 'Somente tecnicos ativos podem receber chamados.' });
@@ -377,6 +378,28 @@ app.post('/api/importacoes/:id/confirmar', auth, requirePermission('imports.crea
   if (record.status !== 'Previsualizada') return response.status(409).json({ message: 'Somente uma importacao previsualizada pode ser confirmada.' });
   return response.json({ import: await saveImport({ ...record, status: 'Confirmada' }) });
 });
+app.post('/api/integrations/google-drive/sync', auth, requirePermission('imports.create'), async (_request, response) => {
+  try { return response.json({ sync: await syncCallsFromDrive() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel sincronizar o Google Drive.' }); }
+});
 
 app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));
+let lastDriveSyncDate = '';
+function startDriveSchedule() {
+  if (process.env.GOOGLE_DRIVE_SYNC_ENABLED !== 'true') return;
+  const syncHour = Number(process.env.GOOGLE_DRIVE_SYNC_HOUR || 9);
+  const timezone = process.env.GOOGLE_DRIVE_TIMEZONE || 'America/Sao_Paulo';
+  const check = async () => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date());
+    const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || '';
+    const date = `${get('year')}-${get('month')}-${get('day')}`;
+    if (Number(get('hour')) < syncHour || lastDriveSyncDate === date) return;
+    lastDriveSyncDate = date;
+    try { console.log('[Google Drive] sincronizacao iniciada:', JSON.stringify(await syncCallsFromDrive())); }
+    catch (error) { console.error('[Google Drive] falha na sincronizacao:', error); lastDriveSyncDate = ''; }
+  };
+  void check();
+  setInterval(() => void check(), 60_000);
+}
+startDriveSchedule();
 app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));

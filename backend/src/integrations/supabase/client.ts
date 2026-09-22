@@ -170,11 +170,11 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 
-export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; notes?: string }, actor: { id: string; name: string }) {
+export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; executedAt?: string; result?: string; notes?: string }, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
   if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', notes: 'notes' };
+  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', notes: 'notes' };
   for (const field of Object.keys(databaseFields)) {
     const value = input[field as keyof typeof input];
     if (value !== undefined) changes[databaseFields[field]] = value;
@@ -184,7 +184,7 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
   const { data, error } = await getSupabaseAdmin().from('calls').update(changes).eq('id', id).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', notes: 'Observacoes' };
   for (const field of Object.keys(input)) {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(input[field as keyof typeof input] ?? '');

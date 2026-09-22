@@ -585,7 +585,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
-    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', notes: 'notes' };
+    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', notes: 'notes' };
     for (const field of Object.keys(databaseFields)) {
       const value = input[field as keyof typeof input];
       if (value !== undefined) { sets.push(`${databaseFields[field]} = $${index++}`); values.push(value); }
@@ -606,7 +606,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
       if (!result.rows[0]) { await client.query('ROLLBACK'); return undefined; }
       const updated = await getCall(id);
       if (!updated) { await client.query('ROLLBACK'); return undefined; }
-        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', notes: 'Observacoes' };
       for (const field of Object.keys(input)) {
         const previousValue = String(current[field as keyof Call] ?? '');
         const newValue = String(updated[field as keyof Call] ?? '');
@@ -624,7 +624,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   const technician = input.technicianId ? technicians.get(input.technicianId) : undefined;
   const updated = { ...current, ...input, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
   calls.set(id, updated);
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', notes: 'Observacoes' };
   Object.keys(input).forEach((field) => {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(updated[field as keyof Call] ?? '');
