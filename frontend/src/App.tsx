@@ -166,10 +166,10 @@ function Login({
               E-mail
               <input
                 type="email"
-                autoComplete="off"
+                autoComplete="on"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="voce@jhtelecom.com"
+                placeholder="user@jhtelecom.com"
                 required
               />
             </label>
@@ -416,7 +416,11 @@ function Dashboard({ user }: { user: User }) {
               <h2>Chamados por período</h2>
             </div>
             <button className="select-button">
-              Últimos 7 dias <ChevronRight size={15} />
+              <div className="page-actions">
+                <button className={`secondary-button compact ${syncing ? "is-refreshing" : ""}`} onClick={() => void syncDrive()} disabled={syncing}>
+                  <Activity size={15}/> {syncing ? "Sincronizando..." : "Sincronizar Drive"}
+                </button>
+                <label className="primary-button compact file-button">
             </button>
           </div>
           <div className="chart">
@@ -577,6 +581,7 @@ function ImportsPage() {
   const [preview, setPreview] = useState<ImportRecord | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [syncing, setSyncing] = useState(false);
   useEffect(() => { api.imports().then((data) => setRecords(data.imports)).catch((err) => setError(err.message)); }, []);
   async function selectFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -585,6 +590,15 @@ function ImportsPage() {
     try { const result = await api.previewImport(file.name, content); setPreview(result.import); setRecords((current) => [result.import, ...current]); setMessage("Pré-visualização pronta para conferência."); } catch (err) { setError(err instanceof Error ? err.message : "Falha ao ler arquivo."); }
   }
   async function confirm() { if (!preview) return; const result = await api.confirmImport(preview.id); setPreview(result.import); setRecords((current) => current.map((item) => item.id === result.import.id ? result.import : item)); setMessage("Importação confirmada e registrada."); }
+  async function syncDrive() {
+    setSyncing(true); setError(""); setMessage("");
+    try {
+      const { sync } = await api.syncGoogleDrive();
+      setMessage(`Sincronização concluída: ${sync.updated} chamados atualizados em ${sync.files} arquivo(s). ${sync.skipped} linha(s) ignorada(s).`);
+      if (sync.errors.length) setError(sync.errors.join(" "));
+    } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel sincronizar o Google Drive."); }
+    finally { setSyncing(false); }
+  }
   return <><div className="page-heading"><div><span className="section-kicker">DADOS</span><h1>Importacoes</h1><p>Leia bases externas, valide os dados e confirme somente depois da conferência.</p></div><label className="primary-button compact file-button"><ClipboardList size={16}/> Selecionar arquivo<input type="file" accept=".csv,.xlsx,.xls" onChange={selectFile}/></label></div>{error && <div className="form-error import-error">{error}</div>}{message && <div className="save-message import-message">{message}</div>}{preview && <section className="panel import-preview"><div className="panel-heading"><div><span className="section-kicker">PRÉ-VISUALIZACAO</span><h2>{preview.fileName}</h2></div><span className={`call-badge ${preview.status.toLowerCase()}`}>{preview.status}</span></div><div className="import-stats"><span><b>{preview.totalRows}</b> linhas</span><span><b>{preview.validRows}</b> validas</span><span><b>{preview.columns.length}</b> colunas</span><span>{preview.sheetName}</span></div><div className="import-table-wrap"><table><thead><tr>{preview.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{preview.preview.map((row, index) => <tr key={index}>{preview.columns.map((column) => <td key={column}>{row[column]}</td>)}</tr>)}</tbody></table></div>{preview.status === "Previsualizada" && <button className="primary-button compact confirm-import" onClick={confirm}>Confirmar importacao <ChevronRight size={16}/></button>}</section>}<section className="panel import-history"><div className="panel-heading"><div><span className="section-kicker">HISTORICO</span><h2>Importacoes recentes</h2></div></div>{records.map((record) => <div className="import-history-row" key={record.id}><div><strong>{record.fileName}</strong><span>{record.fileType.toUpperCase()} · {record.totalRows} linhas · {record.importedBy}</span></div><span className={`call-badge ${record.status.toLowerCase()}`}>{record.status}</span><small>{new Date(record.createdAt).toLocaleString("pt-BR")}</small></div>)}{!records.length && <div className="empty-state">Nenhuma importacao registrada.</div>}</section></>;
 }
 function ActivationsPage() {

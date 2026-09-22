@@ -68,6 +68,7 @@ export const api = {
   acceptActivation: (id: string) => request<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
   rejectActivation: (id: string, reason: string) => request<{ activation: Activation }>(`/api/acionamentos/${id}/recusar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   imports: () => request<{ imports: ImportRecord[] }>('/api/importacoes'),
+  syncGoogleDrive: () => request<{ sync: { files: number; rows: number; updated: number; skipped: number; errors: string[] } }>('/api/integrations/google-drive/sync', { method: 'POST' }),
   previewImport: (fileName: string, content: string) => request<{ import: ImportRecord }>('/api/importacoes/preview', { method: 'POST', body: JSON.stringify({ fileName, content }) }),
   confirmImport: (id: string) => request<{ import: ImportRecord }>(`/api/importacoes/${id}/confirmar`, { method: 'POST' }),
   createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
