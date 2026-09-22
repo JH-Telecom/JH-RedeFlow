@@ -130,7 +130,7 @@ function Login({
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
             <strong>JH Telecom - Rede</strong>
-            <small>Rede</small>
+            <small>O&amp;M</small>
           </div>
         </div>
         <div className="intro-copy">
@@ -254,7 +254,7 @@ function Shell({
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
           <div>
             <strong>JH Telecom - Rede</strong>
-            <small>Rede</small>
+            <small>O&amp;M</small>
           </div>
           <button
             className="icon-button sidebar-close"
