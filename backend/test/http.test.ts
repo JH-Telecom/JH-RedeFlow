@@ -159,6 +159,35 @@ test('only active technicians can receive calls and their status can change', as
   assert.equal(assignmentResponse.status, 422);
 });
 
+test('shares, replaces and clears the daily dashboard base', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const data = { activities: [], technicians: [], orders: [], updatedAt: new Date().toLocaleString('pt-BR') };
+
+  const firstSave = await fetch(`${baseUrl}/api/dashboards/painel-diario/base`, { method: 'PUT', headers, body: JSON.stringify({ fileName: 'base-a.csv', data }) });
+  assert.equal(firstSave.status, 200);
+  const firstBase = await firstSave.json() as { base: { fileName: string } };
+  assert.equal(firstBase.base.fileName, 'base-a.csv');
+
+  const replacement = await fetch(`${baseUrl}/api/dashboards/painel-diario/base`, { method: 'PUT', headers, body: JSON.stringify({ fileName: 'base-b.csv', data }) });
+  assert.equal(replacement.status, 200);
+  const shared = await fetch(`${baseUrl}/api/dashboards/painel-diario/base`, { headers });
+  const sharedBody = await shared.json() as { base: { fileName: string } };
+  assert.equal(shared.status, 200);
+  assert.equal(sharedBody.base.fileName, 'base-b.csv');
+
+  const cleared = await fetch(`${baseUrl}/api/dashboards/painel-diario/base`, { method: 'DELETE', headers });
+  assert.equal(cleared.status, 200);
+  const afterClear = await fetch(`${baseUrl}/api/dashboards/painel-diario/base`, { headers });
+  const afterClearBody = await afterClear.json() as { base?: unknown };
+  assert.equal(afterClearBody.base, undefined);
+});
+
 test('parses WuzAPI group metadata without conflating sender and chat', () => {
   const payload = {
     event: {

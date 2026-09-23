@@ -861,10 +861,30 @@ function ManualProductionDashboard() {
   const [uploadError, setUploadError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
 
-  function clearBase() {
-    setData(null);
-    setUploadError("");
-    setSelectedFileName("");
+  useEffect(() => {
+    const loadBase = () => api.dailyBase().then((result) => {
+      if (!result.base) {
+        setData(null);
+        setSelectedFileName("");
+        return;
+      }
+      setData(result.base.data);
+      setSelectedFileName(result.base.fileName);
+    }).catch((error) => setUploadError(error instanceof Error ? error.message : "Nao foi possivel carregar a base salva."));
+    void loadBase();
+    const interval = window.setInterval(loadBase, 15000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  async function clearBase() {
+    try {
+      await api.clearDailyBase();
+      setData(null);
+      setUploadError("");
+      setSelectedFileName("");
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Nao foi possivel limpar a base.");
+    }
   }
 
   async function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
@@ -887,13 +907,13 @@ function ManualProductionDashboard() {
       }
 
       const parsed = parseManualProductionData(nextRaw);
-      setSelectedFileName(file.name);
-      setData(parsed);
-      setUploadError(
-        parsed.activities.length || parsed.technicians.length || parsed.orders.length
-          ? ""
-          : "Arquivo carregado, mas não foi possível identificar as tabelas de produção. Verifique se o arquivo é o base do painel diário."
-      );
+      if (!parsed.activities.length && !parsed.technicians.length && !parsed.orders.length) {
+        throw new Error("Arquivo carregado, mas não foi possível identificar as tabelas de produção. Verifique se o arquivo é o base do painel diário.");
+      }
+      const saved = await api.saveDailyBase(file.name, parsed);
+      setSelectedFileName(saved.base.fileName);
+      setData(saved.base.data);
+      setUploadError("");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Nao foi possivel carregar o arquivo.";
       setUploadError(message);

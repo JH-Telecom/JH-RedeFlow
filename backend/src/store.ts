@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
 import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseTechnician } from './integrations/supabase/client.js';
-import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
+import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -69,6 +69,7 @@ const activations = new Map<string, Activation>([
   ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
 ]);
 const imports = new Map<string, ImportRecord>();
+const manualDailyBases = new Map<string, ManualDailyBase>();
 const settings: SystemSettings = { autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: 'Todas' };
 const demoDataEnabled = process.env.REDEFLOW_DEMO_DATA === 'true';
 
@@ -81,6 +82,7 @@ if (!demoDataEnabled) {
   auditLogs.clear();
   activations.clear();
   imports.clear();
+  manualDailyBases.clear();
 }
 
 export function shouldUseLocalDatabase() {
@@ -910,6 +912,57 @@ export async function saveImport(record: ImportRecord): Promise<ImportRecord> {
     return { id: row.id, fileName: row.file_name, fileType: row.file_type as 'csv' | 'xlsx', sheetName: row.sheet_name ?? '', columns: row.columns ?? [], preview: record.preview, totalRows: row.total_rows, validRows: row.valid_rows, errors: row.errors ?? [], status: row.status as ImportRecord['status'], importedBy: row.imported_by, createdAt: row.created_at };
   }
   imports.set(record.id, record); return record;
+}
+function manualBaseDate(date?: string) {
+  return date || new Date().toISOString().slice(0, 10);
+}
+function mapManualBase(row: { business_date: string; file_name: string; payload: ManualProductionData; uploaded_by: string; updated_at: string }): ManualDailyBase {
+  return { businessDate: row.business_date, fileName: row.file_name, data: row.payload, uploadedBy: row.uploaded_by, updatedAt: row.updated_at };
+}
+export async function getManualDailyBase(date?: string): Promise<ManualDailyBase | undefined> {
+  const businessDate = manualBaseDate(date);
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('manual_daily_bases').select('business_date, file_name, payload, uploaded_by, updated_at').eq('business_date', businessDate).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? mapManualBase(data as { business_date: string; file_name: string; payload: ManualProductionData; uploaded_by: string; updated_at: string }) : undefined;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ business_date: string; file_name: string; payload: ManualProductionData; uploaded_by: string; updated_at: string }>('SELECT business_date, file_name, payload, uploaded_by, updated_at FROM manual_daily_bases WHERE business_date = $1', [businessDate]);
+    return result.rows[0] ? mapManualBase(result.rows[0]) : undefined;
+  }
+  return manualDailyBases.get(businessDate);
+}
+export async function saveManualDailyBase(fileName: string, data: ManualProductionData, uploadedBy: string, date?: string): Promise<ManualDailyBase> {
+  const businessDate = manualBaseDate(date);
+  const updatedAt = new Date().toISOString();
+  if (isSupabaseConfigured()) {
+    const { data: row, error } = await getSupabaseAdmin().from('manual_daily_bases').upsert({ business_date: businessDate, file_name: fileName, payload: data, uploaded_by: uploadedBy, updated_at: updatedAt }).select('business_date, file_name, payload, uploaded_by, updated_at').single();
+    if (error || !row) throw new Error(error?.message || 'Nao foi possivel salvar a base diaria.');
+    return mapManualBase(row as { business_date: string; file_name: string; payload: ManualProductionData; uploaded_by: string; updated_at: string });
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ business_date: string; file_name: string; payload: ManualProductionData; uploaded_by: string; updated_at: string }>(`INSERT INTO manual_daily_bases (business_date, file_name, payload, uploaded_by, updated_at) VALUES ($1, $2, $3::jsonb, $4, $5) ON CONFLICT (business_date) DO UPDATE SET file_name = EXCLUDED.file_name, payload = EXCLUDED.payload, uploaded_by = EXCLUDED.uploaded_by, updated_at = EXCLUDED.updated_at RETURNING business_date, file_name, payload, uploaded_by, updated_at`, [businessDate, fileName, JSON.stringify(data), uploadedBy, updatedAt]);
+    return mapManualBase(result.rows[0]);
+  }
+  const record = { businessDate, fileName, data, uploadedBy, updatedAt };
+  manualDailyBases.set(businessDate, record);
+  return record;
+}
+export async function deleteManualDailyBase(date?: string): Promise<boolean> {
+  const businessDate = manualBaseDate(date);
+  if (isSupabaseConfigured()) {
+    const { error, count } = await getSupabaseAdmin().from('manual_daily_bases').delete({ count: 'exact' }).eq('business_date', businessDate);
+    if (error) throw new Error(error.message);
+    return Boolean(count);
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query('DELETE FROM manual_daily_bases WHERE business_date = $1', [businessDate]);
+    return Boolean(result.rowCount);
+  }
+  return manualDailyBases.delete(businessDate);
 }
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   if (isSupabaseConfigured()) {
