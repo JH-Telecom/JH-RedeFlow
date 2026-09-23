@@ -504,24 +504,34 @@ export async function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCo
   supervisors.set(supervisor.id, supervisor);
   return supervisor;
 }
-export async function listCalls(status?: CallStatus): Promise<Call[]> {
-  if (isSupabaseConfigured()) return await listSupabaseCalls(status);
+export type CallQuery = { from?: string; to?: string; supervisorId?: string };
+export async function getSupervisorIdForUser(userId: string): Promise<string | undefined> {
+  if (isSupabaseConfigured()) return (await listSupabaseSupervisors()).find((item) => item.userId === userId)?.id;
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ id: string }>('SELECT id FROM supervisors WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1', [userId]);
+    return result.rows[0]?.id;
+  }
+  return [...supervisors.values()].find((item) => item.userId === userId)?.id;
+}
+export async function listCalls(status?: CallStatus, query: CallQuery = {}): Promise<Call[]> {
+  if (isSupabaseConfigured()) return await listSupabaseCalls(status, query);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; order_number: string; bdesk: string; office_track: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slot_pon: string; status: string; technician_id: string | null; technician_name: string | null; supervisor_name: string | null; opened_at: string; assigned_at: string | null; executed_at: string | null; result: string | null; cancellation_reason: string | null; notes: string }>(
       `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
-       WHERE ($1::text IS NULL OR c.status = $1) ORDER BY c.opened_at DESC`,
-      [status ?? null],
+       WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR c.opened_at::date >= $2::date) AND ($3::date IS NULL OR c.opened_at::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
+      [status ?? null, query.from ?? null, query.to ?? null, query.supervisorId ?? null],
     );
     return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '' }));
   }
-  return [...calls.values()].filter((call) => !status || call.status === status);
+  return [...calls.values()].filter((call) => (!status || call.status === status) && (!query.from || call.openedAt.slice(0, 10) >= query.from) && (!query.to || call.openedAt.slice(0, 10) <= query.to));
 }
-export async function getCall(id: string): Promise<Call | undefined> {
-  if (isSupabaseConfigured()) return (await listSupabaseCalls()).find((call) => call.id === id);
+export async function getCall(id: string, query: CallQuery = {}): Promise<Call | undefined> {
+  if (isSupabaseConfigured()) return (await listSupabaseCalls(undefined, query)).find((call) => call.id === id);
   if (shouldUseLocalDatabase()) {
-    const callsList = await listCalls();
+    const callsList = await listCalls(undefined, query);
     return callsList.find((call) => call.id === id);
   }
   return calls.get(id);
@@ -984,7 +994,13 @@ export async function deleteManualDailyBase(date?: string): Promise<boolean> {
   }
   return manualDailyBases.delete(businessDate);
 }
-export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+export async function getDashboardMetrics(query: CallQuery = {}): Promise<DashboardMetrics> {
+  if (query.from || query.to || query.supervisorId) {
+    const allCalls = await listCalls(undefined, query);
+    const activations = await listActivations();
+    const countBy = (values: string[]) => Object.entries(values.reduce<Record<string, number>>((accumulator, value) => { accumulator[value] = (accumulator[value] || 0) + 1; return accumulator; }, {})).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+    return { receivedToday: allCalls.filter((call) => call.openedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length, open: allCalls.filter((call) => call.status === 'Aberto').length, unassigned: allCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)).length, inProgress: allCalls.filter((call) => ['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)).length, finished: allCalls.filter((call) => call.status === 'Finalizado').length, cancelled: allCalls.filter((call) => call.status === 'Cancelado').length, pendingActivations: activations.filter((activation) => activation.status === 'Pendente').length, byStatus: countBy(allCalls.map((call) => call.status)), byRegion: countBy(allCalls.map((call) => call.region)), byTechnician: countBy(allCalls.filter((call) => call.technicianName).map((call) => call.technicianName!)), byType: countBy(allCalls.map((call) => call.type)) };
+  }
   if (isSupabaseConfigured()) {
     const allCalls = await listSupabaseCalls();
     const activations = await listSupabaseActivations();

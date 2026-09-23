@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getManualDailyBase, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getManualDailyBase, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
@@ -125,6 +125,17 @@ function requirePermission(permission: PermissionCode) {
     next();
   };
 }
+async function getScopedCallQuery(request: AuthRequest) {
+  const from = typeof request.query.from === 'string' ? request.query.from : undefined;
+  const to = typeof request.query.to === 'string' ? request.query.to : undefined;
+  if ((from && !/^\d{4}-\d{2}-\d{2}$/.test(from)) || (to && !/^\d{4}-\d{2}-\d{2}$/.test(to))) throw new Error('Periodo invalido.');
+  if (request.authUser?.role.name === 'Supervisor') {
+    const supervisorId = await getSupervisorIdForUser(request.authUser.id);
+    if (!supervisorId) throw new Error('Supervisor sem equipe vinculada.');
+    return { from, to, supervisorId };
+  }
+  return { from, to };
+}
 function getLoginAttemptKey(request: Request, email: string) {
   return `${request.ip}:${email.toLowerCase()}`;
 }
@@ -176,9 +187,9 @@ app.post('/api/auth/login', async (request, response) => {
   return response.json({ token, user: getAuthUser(user) });
 });
 app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json({ user: request.authUser }));
-app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), async (_request, response) => {
-  const metrics = await getDashboardMetrics();
-  return response.json({ metrics });
+app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  try { return response.json({ metrics: await getDashboardMetrics(await getScopedCallQuery(request)) }); }
+  catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o dashboard.' }); }
 });
 app.get('/api/dashboards/painel-diario/base', auth, requirePermission('dashboard.view'), async (request, response) => {
   return response.json({ base: await getManualDailyBase(typeof request.query.date === 'string' ? request.query.date : undefined) });
@@ -261,14 +272,15 @@ app.post('/api/supervisores', auth, requirePermission('supervisors.create'), asy
   if (!parsed.success) return response.status(400).json({ message: 'Dados de supervisor invalidos.' });
   return response.status(201).json({ supervisor: await addSupervisor(parsed.data) });
 });
-app.get('/api/chamados', auth, requirePermission('calls.view'), async (request, response) => {
+app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const status = request.query.status;
   const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado'];
   if (status && !validStatuses.includes(String(status) as CallStatus)) return response.status(400).json({ message: 'Status de chamado invalido.' });
-  return response.json({ calls: await listCalls(status as CallStatus | undefined) });
+  try { return response.json({ calls: await listCalls(status as CallStatus | undefined, await getScopedCallQuery(request)) }); }
+  catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
 });
 app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (request, response) => {
-  const call = await getCall(String(request.params.id));
+  const call = await getCall(String(request.params.id), await getScopedCallQuery(request as AuthRequest));
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });

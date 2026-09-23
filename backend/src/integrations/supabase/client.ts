@@ -135,9 +135,13 @@ export async function deleteSupabaseTechnician(id: string) {
   return true;
 }
 
-export async function listSupabaseCalls(status?: CallStatus): Promise<Call[]> {
-  let query = getSupabaseAdmin().from('calls').select('id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, technicians(name, supervisors(name))').order('opened_at', { ascending: false });
+export async function listSupabaseCalls(status?: CallStatus, filters: { from?: string; to?: string; supervisorId?: string } = {}): Promise<Call[]> {
+  const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
+  let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, ${technicianJoin}`).order('opened_at', { ascending: false });
   if (status) query = query.eq('status', status);
+  if (filters.from) query = query.gte('opened_at', `${filters.from}T00:00:00.000Z`);
+  if (filters.to) query = query.lt('opened_at', `${filters.to}T23:59:59.999Z`);
+  if (filters.supervisorId) query = query.eq('technicians.supervisor_id', filters.supervisorId);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data || []).map((row) => {

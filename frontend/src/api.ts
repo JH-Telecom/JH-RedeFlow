@@ -47,7 +47,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
-  dashboard: () => request<{ metrics: DashboardMetrics }>('/api/dashboards/operacao'),
+  dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dailyBase: () => request<{ base?: ManualDailyBase }>('/api/dashboards/painel-diario/base'),
   saveDailyBase: (fileName: string, data: ManualProductionData) => request<{ base: ManualDailyBase }>('/api/dashboards/painel-diario/base', { method: 'PUT', body: JSON.stringify({ fileName, data }) }),
   clearDailyBase: () => request<{ deleted: boolean }>('/api/dashboards/painel-diario/base', { method: 'DELETE' }),
@@ -60,7 +60,7 @@ export const api = {
   deleteTechnician: (id: string) => request<{ deleted: boolean }>(`/api/tecnicos/${id}`, { method: 'DELETE' }),
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
-  calls: (status?: CallStatus) => request<{ calls: Call[] }>(`/api/chamados${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  calls: (status?: CallStatus, filters?: { from?: string; to?: string }) => { const params = new URLSearchParams(); if (status) params.set('status', status); if (filters?.from) params.set('from', filters.from); if (filters?.to) params.set('to', filters.to); return request<{ calls: Call[] }>(`/api/chamados${params.toString() ? `?${params}` : ''}`); },
   call: (id: string) => request<{ call: Call }>(`/api/chamados/${id}`),
   updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'olt' | 'slotPon' | 'status' | 'notes'>> & { technicianId?: string | null }) => request<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => request<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
