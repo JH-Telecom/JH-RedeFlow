@@ -619,6 +619,37 @@ type ManualProductionData = {
   updatedAt: string;
 };
 
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+
+    if (character === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (character === ',' && !inQuotes) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
 function parseManualProductionData(raw: string): ManualProductionData {
   const rows = raw
     .split(/\r?\n/)
@@ -636,8 +667,7 @@ function parseManualProductionData(raw: string): ManualProductionData {
   let section: "activity" | "technician" | "orders" | null = null;
 
   for (const row of rows) {
-    const cells = row
-      .split(/\t|;/)
+    const cells = parseCsvLine(row)
       .map((cell) => cell.trim())
       .filter((cell) => cell.length > 0);
 
@@ -652,7 +682,7 @@ function parseManualProductionData(raw: string): ManualProductionData {
       section = "technician";
       continue;
     }
-    if (label.includes("ordens indicadas") || label.includes("dados da planilha")) {
+    if (label.includes("ordens indicadas") || label.includes("orders") || label.includes("ordens")) {
       section = "orders";
       continue;
     }
@@ -662,16 +692,16 @@ function parseManualProductionData(raw: string): ManualProductionData {
 
     if (section === "activity" && cells.length >= 8) {
       const [type, pending, enRoute, started, concluded, cancelled, suspended, total] = cells;
-      if (/\d/.test(pending) || /\d/.test(total)) {
+      if (type && /[A-Za-zÀ-ÿ]/.test(type) && /\d/.test(String(total ?? ""))) {
         activities.push({
           type,
-          pending: Number(pending || 0),
-          enRoute: Number(enRoute || 0),
-          started: Number(started || 0),
-          concluded: Number(concluded || 0),
-          cancelled: Number(cancelled || 0),
-          suspended: Number(suspended || 0),
-          total: Number(total || 0),
+          pending: Number(String(pending ?? "0").replace(/[^0-9]/g, "")) || 0,
+          enRoute: Number(String(enRoute ?? "0").replace(/[^0-9]/g, "")) || 0,
+          started: Number(String(started ?? "0").replace(/[^0-9]/g, "")) || 0,
+          concluded: Number(String(concluded ?? "0").replace(/[^0-9]/g, "")) || 0,
+          cancelled: Number(String(cancelled ?? "0").replace(/[^0-9]/g, "")) || 0,
+          suspended: Number(String(suspended ?? "0").replace(/[^0-9]/g, "")) || 0,
+          total: Number(String(total ?? "0").replace(/[^0-9]/g, "")) || 0,
         });
       }
       continue;
@@ -679,16 +709,16 @@ function parseManualProductionData(raw: string): ManualProductionData {
 
     if (section === "technician" && cells.length >= 8) {
       const [name, pending, enRoute, started, concluded, cancelled, suspended, total] = cells;
-      if (name && /\d/.test(pending) || /\d/.test(total)) {
+      if (name && /[A-Za-zÀ-ÿ]/.test(name) && /\d/.test(String(total ?? ""))) {
         technicians.push({
           name,
-          pending: Number(pending || 0),
-          enRoute: Number(enRoute || 0),
-          started: Number(started || 0),
-          concluded: Number(concluded || 0),
-          cancelled: Number(cancelled || 0),
-          suspended: Number(suspended || 0),
-          total: Number(total || 0),
+          pending: Number(String(pending ?? "0").replace(/[^0-9]/g, "")) || 0,
+          enRoute: Number(String(enRoute ?? "0").replace(/[^0-9]/g, "")) || 0,
+          started: Number(String(started ?? "0").replace(/[^0-9]/g, "")) || 0,
+          concluded: Number(String(concluded ?? "0").replace(/[^0-9]/g, "")) || 0,
+          cancelled: Number(String(cancelled ?? "0").replace(/[^0-9]/g, "")) || 0,
+          suspended: Number(String(suspended ?? "0").replace(/[^0-9]/g, "")) || 0,
+          total: Number(String(total ?? "0").replace(/[^0-9]/g, "")) || 0,
         });
       }
       continue;
@@ -696,13 +726,8 @@ function parseManualProductionData(raw: string): ManualProductionData {
 
     if (section === "orders" && cells.length >= 4) {
       const [order, technician, inicio, tempo] = cells;
-      if (order && (order.toLowerCase().includes("ordens") || /[A-Z0-9]/.test(order))) {
-        orders.push({
-          order,
-          technician,
-          inicio,
-          tempo,
-        });
+      if (order && /[A-Za-z0-9]/.test(order) && !order.toLowerCase().includes("orders")) {
+        orders.push({ order, technician: technician || "", inicio: inicio || "", tempo: tempo || "" });
       }
     }
   }
@@ -716,36 +741,15 @@ function parseManualProductionData(raw: string): ManualProductionData {
 }
 
 function ManualProductionDashboard() {
-  const [raw, setRaw] = useState(`PRODUÇÃO POR ATIVIDADES
-Tipo da Atividade	Pendente	Em Rota	Iniciado	Concluído	Cancelado	Suspenso	Total
-Manutenção Preventiva de Rede	0	0	0	2	0	0	2
-Manutenção Corretiva de Rede	6	0	1	28	2	3	40
-Manutenção de Rede Field	7	0	0	9	4	1	21
-Soma	13	0	1	39	6	4	63
-
-PRODUÇÃO POR TÉCNICO
-Técnicos	Pendente	Em Rota	Iniciado	Concluído	Cancelado	Suspenso	Total
-Adriano Jose de Melo	0	0	0	1	0	1	12
-Alécio Quierione Brito	0	0	0	1	0	0	1
-Antonlo Carlos de Lima Pinheiro	5	0	0	0	0	0	5
-
-ORDENS INDICADAS
-Orders	Técnico	Início	Tempo
-6022000000000000	Francinildo lima de Freitas	14:41	21:46:40
-602258395440102	Weverton José Domingos jacquet	16:56	19:31:40`);
-  const [data, setData] = useState<ManualProductionData | null>(parseManualProductionData(raw));
+  const [data, setData] = useState<ManualProductionData | null>(null);
   const [uploadError, setUploadError] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
 
   function clearBase() {
-    setRaw("");
     setData(null);
     setUploadError("");
+    setSelectedFileName("");
   }
-
-  const process = () => {
-    const parsed = parseManualProductionData(raw);
-    setData(parsed);
-  };
 
   async function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -766,12 +770,14 @@ Orders	Técnico	Início	Tempo
         throw new Error("Formato de arquivo não suportado. Use CSV, TSV, TXT, XLS ou XLSX.");
       }
 
-      setRaw(nextRaw);
-      setData(parseManualProductionData(nextRaw));
+      const parsed = parseManualProductionData(nextRaw);
+      setSelectedFileName(file.name);
+      setData(parsed);
       setUploadError("");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Nao foi possivel carregar o arquivo.";
       setUploadError(message);
+      setData(null);
     } finally {
       event.target.value = "";
     }
@@ -783,12 +789,9 @@ Orders	Técnico	Início	Tempo
         <div>
           <span className="section-kicker">OPERACAO DE REDE</span>
           <h1>Painel diario</h1>
-          <p>Selecione a base do dia ou cole o conteúdo para atualizar rapidamente as ordens e a produção.</p>
+          <p>Selecione a base do dia para atualizar as ordens e a produção.</p>
         </div>
         <div className="page-actions compact-actions">
-          <button className="secondary-button compact" onClick={process} type="button">
-            <BarChart3 size={16} /> Atualizar base
-          </button>
           <button className="secondary-button compact danger-button" onClick={clearBase} type="button">
             Limpar base
           </button>
@@ -801,16 +804,9 @@ Orders	Técnico	Início	Tempo
             <input type="file" accept=".csv,.tsv,.txt,.xls,.xlsx" onChange={handleFileSelection} />
             <span>Selecionar arquivo</span>
           </label>
+          {selectedFileName && <span className="selected-file-name">{selectedFileName}</span>}
         </div>
 
-        <label className="manual-editor">
-          <span>Base da planilha</span>
-          <textarea
-            value={raw}
-            onChange={(event) => setRaw(event.target.value)}
-            placeholder="Cole aqui as linhas da planilha em CSV, TSV ou texto com tabulação..."
-          />
-        </label>
         {uploadError && <div className="form-error import-error">{uploadError}</div>}
       </div>
 
