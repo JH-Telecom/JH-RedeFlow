@@ -70,6 +70,12 @@ const navItems = [
     permission: "activations.view",
   },
   {
+    label: "Painel diario",
+    to: "/painel-diario",
+    icon: BarChart3,
+    permission: "dashboard.view",
+  },
+  {
     label: "Importacoes",
     to: "/importacoes",
     icon: ClipboardList,
@@ -235,6 +241,8 @@ function Shell({
             ? "Em atendimento"
           : location.pathname === "/acionamentos"
             ? "Acionamentos"
+          : location.pathname === "/painel-diario"
+            ? "Painel diario"
           : location.pathname === "/importacoes"
             ? "Importacoes"
           : location.pathname.includes("/chamados/")
@@ -353,6 +361,7 @@ function Shell({
               element={<CallsPage title="Chamados em atendimento" assignedOnly />}
             />
             <Route path="/acionamentos" element={<ActivationsPage />} />
+            <Route path="/painel-diario" element={<ManualProductionDashboard />} />
             <Route path="/importacoes" element={<ImportsPage />} />
             <Route path="/chamados/:id" element={<CallDetailRoute />} />
             <Route path="/tecnicos" element={<TechniciansPage />} />
@@ -571,6 +580,312 @@ function ActivityRow({
 
 function AdminModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return <div className="modal-backdrop" onClick={onClose}><section className="admin-modal" onClick={(event) => event.stopPropagation()}><div className="modal-heading"><h2>{title}</h2><button className="icon-button" type="button" onClick={onClose} title="Fechar"><X size={18} /></button></div>{children}</section></div>;
+}
+
+type ManualProductionActivity = {
+  type: string;
+  pending: number;
+  enRoute: number;
+  started: number;
+  concluded: number;
+  cancelled: number;
+  suspended: number;
+  total: number;
+};
+
+type ManualProductionTechnician = {
+  name: string;
+  pending: number;
+  enRoute: number;
+  started: number;
+  concluded: number;
+  cancelled: number;
+  suspended: number;
+  total: number;
+};
+
+type ManualProductionOrder = {
+  order: string;
+  technician: string;
+  inicio: string;
+  tempo: string;
+};
+
+type ManualProductionData = {
+  activities: ManualProductionActivity[];
+  technicians: ManualProductionTechnician[];
+  orders: ManualProductionOrder[];
+  updatedAt: string;
+};
+
+function parseManualProductionData(raw: string): ManualProductionData {
+  const rows = raw
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s+|\s+$/g, ""))
+    .filter(Boolean);
+
+  if (!rows.length) {
+    return { activities: [], technicians: [], orders: [], updatedAt: new Date().toLocaleString("pt-BR") };
+  }
+
+  const activities: ManualProductionActivity[] = [];
+  const technicians: ManualProductionTechnician[] = [];
+  const orders: ManualProductionOrder[] = [];
+
+  let section: "activity" | "technician" | "orders" | null = null;
+
+  for (const row of rows) {
+    const cells = row
+      .split(/\t|;/)
+      .map((cell) => cell.trim())
+      .filter((cell) => cell.length > 0);
+
+    if (!cells.length) continue;
+
+    const label = cells.join(" ").toLowerCase();
+    if (label.includes("produção por atividades") || label.includes("tipo da atividade")) {
+      section = "activity";
+      continue;
+    }
+    if (label.includes("produção por técnico") || label.includes("técnicos")) {
+      section = "technician";
+      continue;
+    }
+    if (label.includes("ordens indicadas") || label.includes("dados da planilha")) {
+      section = "orders";
+      continue;
+    }
+    if (label.includes("soma") && section === "activity") {
+      continue;
+    }
+
+    if (section === "activity" && cells.length >= 8) {
+      const [type, pending, enRoute, started, concluded, cancelled, suspended, total] = cells;
+      if (/\d/.test(pending) || /\d/.test(total)) {
+        activities.push({
+          type,
+          pending: Number(pending || 0),
+          enRoute: Number(enRoute || 0),
+          started: Number(started || 0),
+          concluded: Number(concluded || 0),
+          cancelled: Number(cancelled || 0),
+          suspended: Number(suspended || 0),
+          total: Number(total || 0),
+        });
+      }
+      continue;
+    }
+
+    if (section === "technician" && cells.length >= 8) {
+      const [name, pending, enRoute, started, concluded, cancelled, suspended, total] = cells;
+      if (name && /\d/.test(pending) || /\d/.test(total)) {
+        technicians.push({
+          name,
+          pending: Number(pending || 0),
+          enRoute: Number(enRoute || 0),
+          started: Number(started || 0),
+          concluded: Number(concluded || 0),
+          cancelled: Number(cancelled || 0),
+          suspended: Number(suspended || 0),
+          total: Number(total || 0),
+        });
+      }
+      continue;
+    }
+
+    if (section === "orders" && cells.length >= 4) {
+      const [order, technician, inicio, tempo] = cells;
+      if (order && (order.toLowerCase().includes("ordens") || /[A-Z0-9]/.test(order))) {
+        orders.push({
+          order,
+          technician,
+          inicio,
+          tempo,
+        });
+      }
+    }
+  }
+
+  return {
+    activities: activities.filter((item) => item.type && item.type !== ""),
+    technicians: technicians.filter((item) => item.name && item.name !== ""),
+    orders: orders.filter((item) => item.order && item.order !== ""),
+    updatedAt: new Date().toLocaleString("pt-BR"),
+  };
+}
+
+function ManualProductionDashboard() {
+  const [raw, setRaw] = useState(`PRODUÇÃO POR ATIVIDADES
+Tipo da Atividade	Pendente	Em Rota	Iniciado	Concluído	Cancelado	Suspenso	Total
+Manutenção Preventiva de Rede	0	0	0	2	0	0	2
+Manutenção Corretiva de Rede	6	0	1	28	2	3	40
+Manutenção de Rede Field	7	0	0	9	4	1	21
+Soma	13	0	1	39	6	4	63
+
+PRODUÇÃO POR TÉCNICO
+Técnicos	Pendente	Em Rota	Iniciado	Concluído	Cancelado	Suspenso	Total
+Adriano Jose de Melo	0	0	0	1	0	1	12
+Alécio Quierione Brito	0	0	0	1	0	0	1
+Antonlo Carlos de Lima Pinheiro	5	0	0	0	0	0	5
+
+ORDENS INDICADAS
+Orders	Técnico	Início	Tempo
+6022000000000000	Francinildo lima de Freitas	14:41	21:46:40
+602258395440102	Weverton José Domingos jacquet	16:56	19:31:40`);
+  const [data, setData] = useState<ManualProductionData | null>(parseManualProductionData(raw));
+
+  const process = () => {
+    const parsed = parseManualProductionData(raw);
+    setData(parsed);
+  };
+
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">OPERACAO DE REDE</span>
+          <h1>Painel diario</h1>
+          <p>Cole a base da planilha do dia para atualizar rapidamente as ordens e a produção.</p>
+        </div>
+        <button className="secondary-button" onClick={process} type="button">
+          <BarChart3 size={16} /> Atualizar base
+        </button>
+      </div>
+
+      <div className="manual-dashboard-tools">
+        <label className="manual-editor">
+          <span>Base da planilha</span>
+          <textarea
+            value={raw}
+            onChange={(event) => setRaw(event.target.value)}
+            placeholder="Cole aqui as linhas da planilha em CSV, TSV ou texto com tabulação..."
+          />
+        </label>
+      </div>
+
+      {data && (
+        <>
+          <div className="manual-summary-row">
+            <div className="summary-badge">
+              <span>Última atualização</span>
+              <strong>{data.updatedAt}</strong>
+            </div>
+          </div>
+
+          <div className="manual-production-grid">
+            <section className="panel panel-elevated">
+              <div className="panel-heading">
+                <div>
+                  <span className="section-kicker">PRODUCAO</span>
+                  <h2>Produção por atividades</h2>
+                </div>
+              </div>
+              <div className="manual-table-wrap">
+                <table className="manual-table">
+                  <thead>
+                    <tr>
+                      <th>Tipo da Atividade</th>
+                      <th>Pendente</th>
+                      <th>Em Rota</th>
+                      <th>Iniciado</th>
+                      <th>Concluído</th>
+                      <th>Cancelado</th>
+                      <th>Suspenso</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.activities.map((item) => (
+                      <tr key={`${item.type}-${item.total}`}>
+                        <td>{item.type}</td>
+                        <td>{item.pending}</td>
+                        <td>{item.enRoute}</td>
+                        <td>{item.started}</td>
+                        <td>{item.concluded}</td>
+                        <td>{item.cancelled}</td>
+                        <td>{item.suspended}</td>
+                        <td>{item.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="panel panel-elevated">
+              <div className="panel-heading">
+                <div>
+                  <span className="section-kicker">TÉCNICOS</span>
+                  <h2>Produção por técnico</h2>
+                </div>
+              </div>
+              <div className="manual-table-wrap compact">
+                <table className="manual-table">
+                  <thead>
+                    <tr>
+                      <th>Técnicos</th>
+                      <th>Pendente</th>
+                      <th>Em Rota</th>
+                      <th>Iniciado</th>
+                      <th>Concluído</th>
+                      <th>Cancelado</th>
+                      <th>Suspenso</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.technicians.map((item) => (
+                      <tr key={`${item.name}-${item.total}`}>
+                        <td>{item.name}</td>
+                        <td>{item.pending}</td>
+                        <td>{item.enRoute}</td>
+                        <td>{item.started}</td>
+                        <td>{item.concluded}</td>
+                        <td>{item.cancelled}</td>
+                        <td>{item.suspended}</td>
+                        <td>{item.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="panel panel-elevated orders-panel">
+              <div className="panel-heading">
+                <div>
+                  <span className="section-kicker">ORDENS</span>
+                  <h2>Ordens indicadas</h2>
+                </div>
+              </div>
+              <div className="manual-table-wrap compact">
+                <table className="manual-table">
+                  <thead>
+                    <tr>
+                      <th>Orders</th>
+                      <th>Técnico</th>
+                      <th>Início</th>
+                      <th>Tempo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.orders.map((item, index) => (
+                      <tr key={`${item.order}-${index}`}>
+                        <td>{item.order}</td>
+                        <td>{item.technician}</td>
+                        <td>{item.inicio}</td>
+                        <td>{item.tempo}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 function ImportsPage() {
