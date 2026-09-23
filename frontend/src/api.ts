@@ -70,6 +70,7 @@ export const api = {
   imports: () => request<{ imports: ImportRecord[] }>('/api/importacoes'),
   previewImport: (fileName: string, content: string) => request<{ import: ImportRecord }>('/api/importacoes/preview', { method: 'POST', body: JSON.stringify({ fileName, content }) }),
   confirmImport: (id: string) => request<{ import: ImportRecord }>(`/api/importacoes/${id}/confirmar`, { method: 'POST' }),
+  syncGoogleDrive: () => request<{ sync: { files: number; rows: number; updated: number; skipped: number; errors: string[] } }>('/api/integrations/google-drive/sync', { method: 'POST' }),
   createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUser: (id: string, data: { name?: string; email?: string; roleId?: string; active?: boolean; password?: string }) => request<{ user: User }>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteUser: (id: string) => request<{ deleted: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),
