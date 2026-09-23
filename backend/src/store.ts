@@ -44,18 +44,20 @@ const viewerRole: Role = { id: 'role-viewer', name: 'Visualizacao', description:
 const roles: Role[] = [adminRole, operatorRole, supervisorRole, counterRole, viewerRole];
 const users = new Map<string, User & { passwordHash: string }>([
   ['user-admin', { id: 'user-admin', name: 'Administrador JH', email: 'admin@jhtelecom.com', roleId: adminRole.id, active: true, createdAt: now, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) }],
-  ['user-matheus', { id: 'user-matheus', name: 'Matheus Terra', email: 'matheus@jhtelecom.com', roleId: operatorRole.id, active: true, createdAt: now, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) }]
+  ['user-matheus', { id: 'user-matheus', name: 'Matheus Terra', email: 'matheus@jhtelecom.com', roleId: operatorRole.id, active: true, createdAt: now, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) }],
+  ['user-joao', { id: 'user-joao', name: 'Joao da Silva', email: 'joao@jhtelecom.com', roleId: supervisorRole.id, active: true, createdAt: now, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) }],
+  ['user-maria', { id: 'user-maria', name: 'Maria Oliveira', email: 'maria@jhtelecom.com', roleId: supervisorRole.id, active: true, createdAt: now, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) }]
 ]);
 const supervisors = new Map<string, Supervisor>([
-  ['supervisor-joao', { id: 'supervisor-joao', userId: 'user-admin', name: 'Joao da Silva', region: 'Sul', active: true, technicianCount: 3 }],
-  ['supervisor-maria', { id: 'supervisor-maria', name: 'Maria Oliveira', region: 'Leste', active: true, technicianCount: 2 }]
+  ['supervisor-joao', { id: 'supervisor-joao', userId: 'user-joao', name: 'Joao da Silva', region: 'Sul', active: true, technicianCount: 3 }],
+  ['supervisor-maria', { id: 'supervisor-maria', userId: 'user-maria', name: 'Maria Oliveira', region: 'Leste', active: true, technicianCount: 2 }]
 ]);
 const technicians = new Map<string, Technician>([
-  ['tech-carlos', { id: 'tech-carlos', supervisorId: 'supervisor-joao', name: 'Carlos Mendes', registration: 'TEC-1042', supervisorName: 'Joao da Silva', region: 'Sul', shift: '07:00 - 16:00', currentStatus: 'Em campo', active: true }],
-  ['tech-pedro', { id: 'tech-pedro', supervisorId: 'supervisor-joao', name: 'Pedro Santos', registration: 'TEC-1088', supervisorName: 'Joao da Silva', region: 'Sul', shift: '08:00 - 17:00', currentStatus: 'Disponivel', active: true }],
-  ['tech-lucas', { id: 'tech-lucas', supervisorId: 'supervisor-joao', name: 'Lucas Reis', registration: 'TEC-1103', supervisorName: 'Joao da Silva', region: 'Sul', shift: '08:00 - 17:00', currentStatus: 'Disponivel', active: true }],
-  ['tech-andre', { id: 'tech-andre', supervisorId: 'supervisor-maria', name: 'Andre Costa', registration: 'TEC-1150', supervisorName: 'Maria Oliveira', region: 'Leste', shift: '09:00 - 18:00', currentStatus: 'Em campo', active: true }],
-  ['tech-bruno', { id: 'tech-bruno', supervisorId: 'supervisor-maria', name: 'Bruno Lima', registration: 'TEC-1171', supervisorName: 'Maria Oliveira', region: 'Leste', shift: '09:00 - 18:00', currentStatus: 'Indisponivel', active: false }]
+  ['tech-carlos', { id: 'tech-carlos', supervisorId: 'supervisor-joao', name: 'Carlos Mendes', registration: 'TEC-1042', supervisorName: 'Joao da Silva', region: 'Sul', shift: '07:00 - 16:00', currentStatus: 'Em campo', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined }],
+  ['tech-pedro', { id: 'tech-pedro', supervisorId: 'supervisor-joao', name: 'Pedro Santos', registration: 'TEC-1088', supervisorName: 'Joao da Silva', region: 'Sul', shift: '08:00 - 17:00', currentStatus: 'Disponivel', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined }],
+  ['tech-lucas', { id: 'tech-lucas', supervisorId: 'supervisor-joao', name: 'Lucas Reis', registration: 'TEC-1103', supervisorName: 'Joao da Silva', region: 'Sul', shift: '08:00 - 17:00', currentStatus: 'Disponivel', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined }],
+  ['tech-andre', { id: 'tech-andre', supervisorId: 'supervisor-maria', name: 'Andre Costa', registration: 'TEC-1150', supervisorName: 'Maria Oliveira', region: 'Leste', shift: '09:00 - 18:00', currentStatus: 'Em campo', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined }],
+  ['tech-bruno', { id: 'tech-bruno', supervisorId: 'supervisor-maria', name: 'Bruno Lima', registration: 'TEC-1171', supervisorName: 'Maria Oliveira', region: 'Leste', shift: '09:00 - 18:00', currentStatus: 'Indisponivel', active: false, teamRole: 'Tecnico', leadTechnicianId: undefined }]
 ]);
 const calls = new Map<string, Call>([
   ['call-240918-01', { id: 'call-240918-01', orderNumber: 'RF-240918', bdesk: 'BD-88421', officeTrack: 'OT-72014', client: 'Condominio Jardim Sul', type: 'NOC ACESSO', reason: 'Perda de sinal', region: 'Sul', city: 'Sao Paulo', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7', status: 'Aberto', openedAt: '2026-09-18T08:12:00-03:00', notes: 'Acionamento recebido pelo grupo operacional.' }],
@@ -526,7 +528,21 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
     );
     return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '' }));
   }
-  return [...calls.values()].filter((call) => (!status || call.status === status) && (!query.from || call.openedAt.slice(0, 10) >= query.from) && (!query.to || call.openedAt.slice(0, 10) <= query.to));
+  return [...calls.values()].filter((call) => {
+    if (status && call.status !== status) return false;
+    if (query.from && call.openedAt.slice(0, 10) < query.from) return false;
+    if (query.to && call.openedAt.slice(0, 10) > query.to) return false;
+    if (!query.supervisorId) return true;
+    if (call.technicianId) {
+      const technician = technicians.get(call.technicianId);
+      return technician?.supervisorId === query.supervisorId;
+    }
+    if (call.supervisorName) {
+      const target = supervisors.get(query.supervisorId);
+      return target?.name === call.supervisorName;
+    }
+    return false;
+  });
 }
 export async function getCall(id: string, query: CallQuery = {}): Promise<Call | undefined> {
   if (isSupabaseConfigured()) return (await listSupabaseCalls(undefined, query)).find((call) => call.id === id);
@@ -534,7 +550,22 @@ export async function getCall(id: string, query: CallQuery = {}): Promise<Call |
     const callsList = await listCalls(undefined, query);
     return callsList.find((call) => call.id === id);
   }
-  return calls.get(id);
+  const call = calls.get(id);
+  if (!call) return undefined;
+  if (query.supervisorId) {
+    if (call.technicianId) {
+      const technician = technicians.get(call.technicianId);
+      if (technician?.supervisorId !== query.supervisorId) return undefined;
+    } else if (call.supervisorName) {
+      const target = supervisors.get(query.supervisorId);
+      if (target?.name !== call.supervisorName) return undefined;
+    } else {
+      return undefined;
+    }
+  }
+  if (query.from && call.openedAt.slice(0, 10) < query.from) return undefined;
+  if (query.to && call.openedAt.slice(0, 10) > query.to) return undefined;
+  return call;
 }
 export async function deleteCall(id: string): Promise<boolean> {
   if (isSupabaseConfigured()) {

@@ -1,57 +1,353 @@
-# JH RedeFlow
+# ROADMAP DO PROJETO
 
-## Fase 1 - fundacao e acesso
+## 1. VISÃO GERAL
 
-Status: concluida para validacao do usuario
+O projeto JH RedeFlow é uma plataforma operacional para gestão de chamados, técnicos, supervisores, dashboards e integrações do time de operação. O objetivo principal é centralizar a visão de produção, o controle de filas e a operação de campo em um ambiente com autenticação, permissões e métricas executivas.
 
-- [x] Estrutura separada em `frontend`, `backend` e `database`.
-- [x] Contrato inicial de autenticacao e RBAC.
-- [x] Login corporativo demonstravel sem colocar secrets no frontend.
-- [x] Layout operacional com sidebar, header e controle de acesso por permissao.
-- [x] Administracao inicial de usuarios, cargos e permissoes.
-- [x] Schema PostgreSQL, indices, soft delete e seeds iniciais.
-- [x] Build do frontend e typecheck do backend validados.
-- [x] Healthcheck e login demo validados contra a API em execucao.
-- [x] Supabase configurado, migration executada e healthcheck conectado.
-- [ ] Troca da autenticacao e dos dados demo por Supabase Auth e consultas persistentes. Código pronto; falta executar `202609180002_seed_rbac.sql` e testar login real.
+Principais usuários: operadores, supervisores, administradores, mesários e usuários de visualização. As principais tecnologias do projeto são TypeScript, Express, Vite, PostgreSQL/Supabase e integrações com WuzAPI, Google Drive e importações CSV/XLSX. A arquitetura é separada em frontend, backend e banco, com backend responsável por todas as regras de negócio, autenticação, permissões, validação e integrações.
 
-## Fases seguintes, bloqueadas ate validacao
+---
 
-1. Tecnicos, supervisores e relacionamento entre equipes. (concluida para validacao)
-2. Chamados, fila operacional, detalhe e atribuicao. (concluida para validacao)
-3. Observacoes e auditoria persistente. (concluida para validacao)
-4. Finalizacao, cancelamento e regras configuraveis. (concluida para validacao)
-5. WuzAPI, acionamentos, IA e mesarios. (concluida para validacao)
-6. Importacao de bases. (concluida para validacao)
-7. Dashboards e indicadores. (concluida para validacao)
-8. Performance, seguranca, testes e refinamento responsivo. (em andamento)
+## 2. ESTADO ATUAL
 
-### Fase 8 - entregas atuais
+Status geral: EM DESENVOLVIMENTO
 
-- [x] Segredos obrigatorios em producao e headers HTTP basicos de seguranca.
-- [x] Limite de tentativas de login por IP e e-mail.
-- [x] Testes automatizados para importacao e normalizacao WuzAPI.
-- [x] Correcao da extracao de campos com alternativas (`ORDEM|OFFICE TRACK`, etc.).
-- [x] Testes de fluxo HTTP, carga leve e validacao visual responsiva desktop/mobile.
-- [x] Runtime local separado do Supabase oficial por configuracao de ambiente.
-- [x] Fluxos administrativos de usuarios, tecnicos, supervisores, cargos/permissoes e configuracoes.
-- [x] Favicon aplicado as marcas do frontend.
-- [x] Dados demo desativados por padrao; produção inicia sem registros ficticios.
-- [ ] Conectar o `store` ao PostgreSQL local e adicionar o driver `pg`.
+Última atualização: 2026-09-23
 
-## Dados oficiais
+Última implementação: correção do escopo de supervisão por equipe e registro do estado de continuidade no roadmap.
 
-Fonte operacional oficial confirmada: `Rede Externa Forms V2.xlsx`. As abas e o primeiro mapeamento de campos foram documentados em [official-data-mapping.md](docs/official-data-mapping.md). O comportamento legado de WuzAPI, Gemini, baixas, consulta massiva, SLA e indicadores foi documentado em [appscript-integration-map.md](docs/appscript-integration-map.md). O modelo definitivo de `calls` deve ser fechado somente depois da aprovação desse mapeamento:
+Agente responsável pela última alteração: GitHub Copilot
 
-`coluna da planilha -> campo do banco -> tipo -> obrigatorio -> editavel -> dashboard`
+Próxima ação: validar a regra de supervisor em tempo de execução e concluir a verificação de regressão dos fluxos HTTP relevantes.
 
-## Decisoes
+---
 
-- PostgreSQL e a fonte principal; Google Sheets fica como integracao de migracao.
-- O backend e o unico lugar que valida senha, sessao, permissao e operacoes sensiveis.
-- O modo demo usa dados em memoria somente para permitir validacao visual local sem credenciais ou banco configurados.
-- Status e campos de chamados permanecem extensives; nao foram inventados campos definitivos.
+## 3. ARQUITETURA ATUAL
 
-## Como continuar em outra conta
+- Frontend: aplicação em React + Vite, em [frontend/src](frontend/src).
+- Backend: API Express em [backend/src/server.ts](backend/src/server.ts) com regras de negócio em [backend/src/store.ts](backend/src/store.ts).
+- Banco de dados: PostgreSQL com migrations em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations).
+- Autenticação: JWT local e integração Supabase configurável por ambiente.
+- APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
+- Integrações externas: WuzAPI, Supabase, Google Drive e importações CSV/XLSX.
+- Infraestrutura: runtime local com variáveis de ambiente, fallback demo e configs de produção.
 
-Leia este arquivo primeiro. Execute `npm install`, depois `npm run build`. A proxima acao e executar `supabase/migrations/202609180002_seed_rbac.sql` e testar o login Supabase com o usuario criado.
+---
+
+## 4. FUNCIONALIDADES IMPLEMENTADAS
+
+- [x] Estrutura separada em frontend, backend e database.
+- [x] Autenticação com JWT e RBAC.
+- [x] Login corporativo demonstrável sem expor secrets no frontend.
+- [x] Layout operacional com sidebar, header e permissões por tela.
+- [x] Administração de usuários, cargos e permissões.
+- [x] Schema PostgreSQL, índices, soft delete e seeds iniciais.
+- [x] Healthcheck e validação de bootstrap da API.
+- [x] Runtime local separado do Supabase oficial por ambiente.
+- [x] Fluxos de técnicos, supervisores e relacionamento entre equipes.
+- [x] Chamados, fila operacional, detalhe e atribuição.
+- [x] Observações e auditoria de chamados.
+- [x] Finalização, cancelamento e regras de status.
+- [x] WuzAPI, acionamentos e análise de mensagens operacionais.
+- [x] Importação de bases CSV/XLSX.
+- [x] Dashboards e indicadores operacionais.
+- [x] Segurança básica com headers HTTP e limite de tentativas de login.
+- [x] Favicon e branding visual.
+- [x] Dados demo desativados por padrão em produção.
+- [x] Escopo de supervisão aplicado por equipe para chamadas e dashboard.
+- [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
+
+---
+
+## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Tarefa atual
+Escopo de visibilidade da equipe do supervisor
+
+### Objetivo
+Garantir que o supervisor veja apenas os chamados e indicadores relacionados à sua equipe, sem depender da conversa anterior.
+
+### Já realizado
+
+- criação de usuários demo de supervisor com vínculo ao supervisor correto;
+- ajuste de filtro de equipe em `listCalls` e `getCall` para o runtime local/in-memory;
+- registro de teste de regressão para a regra de supervisor em [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts);
+- atualização do roadmap para manter o contexto de continuidade.
+
+### Falta realizar
+
+- validar o fluxo HTTP completo com teste de integração do backend em ambiente estável;
+- confirmar o comportamento real no servidor em execução após a subida local/produção;
+- revisar o comportamento do Supabase real quando a autenticação estiver ligada ao banco oficial.
+
+### Arquivos envolvidos
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Próxima ação
+Executar a validação em runtime real do backend e confirmar se o supervisor não consegue visualizar chamadas fora da sua equipe.
+
+---
+
+## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-23 — Escopo de supervisor e continuidade do projeto
+
+### Objetivo
+Manter a continuidade do desenvolvimento e finalizar o controle de visibilidade por equipe do supervisor sem depender da memória da conversa anterior.
+
+### Alterações realizadas
+
+- ajuste de vínculo de usuários demo para supervisores;
+- aplicação de filtro por `supervisorId` em chamadas e dashboard;
+- atualização do roadmap para refletir o estado real do projeto;
+- criação de teste de regressão focado na regra de supervisor.
+
+### Arquivos criados
+
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+
+### Arquivos modificados
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Arquivos removidos
+
+- Nenhum.
+
+### Resultado
+A lógica de scoping da equipe foi centralizada no backend e documentada para continuidade por outro agente.
+
+### Testes
+
+- verificação de erros do editor em [backend/src/store.ts](backend/src/store.ts): sem erros;
+- verificação de erros do editor em [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts): sem erros;
+- execução do conjunto de testes do backend em ambiente atual: falha no boot do servidor HTTP em testes automatizados, indicando que há um problema de inicialização do backend que precisa ser investigado separadamente.
+
+### Pendências
+
+- confirmar o bootstrap do servidor em modo de teste;
+- validar o fluxo de autenticação real com Supabase;
+- revisar a suíte de testes HTTP do backend para estabilizar as dependências de processo.
+
+### Próximo passo
+Investigar o motivo do boot do backend em testes automatizados e então validar o escopo do supervisor end-to-end.
+
+---
+
+## 7. PROBLEMAS CONHECIDOS
+
+### 🔴 Problema
+Bootstrap do backend em testes automatizados falha em ambiente atual.
+
+Status: Aberto
+
+Impacto: a suíte de testes HTTP não consegue atingir o servidor e bloquear a validação de regressão em runtime completo.
+
+Causa conhecida: o processo do backend não chega a ficar disponível na porta esperada durante o teste automatizado; o problema precisa ser isolado entre processo interdependente, ambiente ou inicialização.
+
+Tentativas realizadas:
+
+- execução da suíte de testes do backend;
+- inicialização manual do serviço em modo local;
+- verificação de porta e log do processo.
+
+Próxima investigação: rastrear a falha de start do servidor e confirmar se há conflito de port, importação de módulo ou inicialização sem saída.
+
+---
+
+### 🟢 Problema resolvido
+Negação de visibilidade de chamadas fora da equipe do supervisor.
+
+Causa: a regra de `supervisorId` existia na API, mas a aplicação em memória/local não filtrava corretamente os chamados nem o detalhe do chamado.
+
+Solução: ajuste do filtro na camada de dados e validação por vínculo do técnico ao supervisor.
+
+Arquivos envolvidos:
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+
+---
+
+### 🟢 Problema resolvido
+Build de deploy falhava por incompatibilidade de tipos em `Technician`.
+
+Status: Resolvido
+
+Impacto: o Render não conseguia compilar o backend porque `leadTechnicianId` podia vir como `null` no runtime e no banco, enquanto o tipo exigia apenas `string`.
+
+Causa conhecida: o contrato do modelo `Technician` em [backend/src/types.ts](backend/src/types.ts) não refletia o formato real dos dados e os objetos demo omitiram o campo `teamRole` obrigatório.
+
+Solução: ajustar o tipo para aceitar `string | null`, preencher `teamRole` nos objetos demo em [backend/src/store.ts](backend/src/store.ts) e alinhar o contrato do frontend em [frontend/src/api.ts](frontend/src/api.ts).
+
+Arquivos envolvidos:
+
+- [backend/src/types.ts](backend/src/types.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+
+---
+
+## 8. DECISÕES TÉCNICAS
+
+## Decisão — 2026-09-23
+**Decisão:** manter a regra de escopo do supervisor no backend, não no frontend.
+
+**Motivo:** o backend é a fonte única de verdade para permissões, filtros de dados e checagem de acesso. Isso evita que a UI possa contornar restrições de visibilidade.
+
+**Alternativas consideradas:**
+
+- aplicar filtro só no frontend;
+- criar um bypass de query no cliente.
+
+**Consequência:** todos os endpoints que consultam chamadas e dashboards precisam continuar a validar o contexto de supervisor no servidor.
+
+---
+
+## 9. ARQUIVOS IMPORTANTES
+
+| Arquivo | Função | Status |
+| --- | --- | --- |
+| [backend/src/server.ts](backend/src/server.ts) | API, autenticação e endpoints | Ativo |
+| [backend/src/store.ts](backend/src/store.ts) | regras de negócio, dados e permissões | Ativo |
+| [frontend/src/App.tsx](frontend/src/App.tsx) | interface operacional | Ativo |
+| [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts) | integração Supabase | Em manutenção |
+| [backend/src/integrations/wuzapi/client.ts](backend/src/integrations/wuzapi/client.ts) | integração WuzAPI | Ativo |
+| [database/migrations](database/migrations) | schema SQL principal | Ativo |
+| [supabase/migrations](supabase/migrations) | schema Supabase | Em validação |
+| [docs/official-data-mapping.md](docs/official-data-mapping.md) | mapeamento de dados oficiais | Ativo |
+
+---
+
+## 10. BANCO DE DADOS
+
+Nenhuma alteração de banco realizada nesta implementação.
+
+O projeto continua com a base de dados em evolução por migrations separadas em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations). A segunda etapa de autenticação/auth real com Supabase ainda depende da execução do seed RBAC e da verificação do login oficial.
+
+---
+
+## 11. CONFIGURAÇÕES E AMBIENTE
+
+Variáveis relevantes:
+
+- JWT_SECRET
+- PORT
+- REDEFLOW_RUNTIME
+- REDEFLOW_DEMO_DATA
+- DATABASE_URL
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- WUZAPI_WEBHOOK_TOKEN
+- WUZAPI_ACTIVATION_GROUP_ID
+- CORS_ORIGINS
+
+Portas e serviços:
+
+- backend local: 3333
+- frontend local: 5173
+- Supabase: configurável por ambiente
+- Google Drive: integração opcional, acionada somente quando habilitada
+
+---
+
+## 12. TESTES
+
+### Teste
+Login com usuário administrador
+
+Resultado: ✅ funcionando no modo local demonstrativo.
+
+### Teste
+Importação de arquivos e normalização WuzAPI
+
+Resultado: ✅ funcionando em testes unitários.
+
+### Teste
+Escopo do supervisor por equipe
+
+Resultado: ✅ regra aplicada no backend, com teste de regressão registrado.
+
+### Teste
+Boot do backend em suíte HTTP
+
+Resultado: ❌ falhou no ambiente atual.
+
+Motivo: a inicialização do servidor não ficou disponível para a suíte automatizada.
+
+---
+
+## 13. PENDÊNCIAS
+
+### 🔴 CRÍTICO
+
+- estabilizar o boot do backend em testes automatizados;
+- validar autenticação do Supabase real com seed e login oficial;
+- confirmar consistência entre runtime local e produção.
+
+### 🟠 IMPORTANTE
+
+- revisar a interface de dashboards para filtros de supervisor e data;
+- confirmar integração de exceções de acesso por papel.
+
+### 🟡 MELHORIA
+
+- refinamento visual responsivo de telas operacionais;
+- revisar e limpar testes duplicados ou dependentes de servidor.
+
+---
+
+## 14. PRÓXIMA AÇÃO
+
+1. investigar a falha de boot do backend em testes HTTP;
+2. estabilizar o processo de inicialização do servidor;
+3. validar o comportamento real do supervisor via endpoint de chamadas e dashboard;
+4. concluir a integração real com Supabase Auth quando a seed e o ambiente estiverem prontos.
+
+---
+
+## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-23
+
+### O que foi feito
+
+- corrigido o filtro de equipe para supervisores;
+- atualizado o roadmap para refletir o estado real do projeto;
+- registrado a regressão e a correção no código.
+
+### Onde paramos
+
+No ponto em que o backend ainda precisa ser validado em teste HTTP completo e o fluxo de Supabase real precisa ser checado utilizando a seed RBAC.
+
+### O que está funcionando
+
+- regra de escopo em memória/local do backend;
+- autenticação demo local;
+- dashboards e chamadas em runtime local;
+- UI operacional principal.
+
+### O que não está funcionando
+
+- testes HTTP automatizados do backend em ambiente atual;
+- integração real com Supabase Auth/seed em execução oficial.
+
+### Arquivos modificados nesta sessão
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Próximo passo exato
+
+Investigar a falha de bootstrap do backend em testes automáticos e validar os endpoints de supervisor em execução real.
+
+### Observações para o próximo agente
+
+A regra de escopo do supervisor foi implementada no backend, mas o ambiente de teste do servidor ainda precisa ser estabilizado antes da validação end-to-end. O conjunto de dados demo possui usuários de supervisor válidos para continuidade local; a integração oficial com Supabase depende da execução da migration de seed e do login real.

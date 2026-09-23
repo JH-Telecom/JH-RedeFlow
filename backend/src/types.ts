@@ -74,7 +74,7 @@ export type Technician = {
   active: boolean;
   activeOverride?: boolean;
   teamRole: 'Tecnico' | 'Auxiliar';
-  leadTechnicianId?: string;
+  leadTechnicianId?: string | null;
   leadTechnicianName?: string;
 };
 
