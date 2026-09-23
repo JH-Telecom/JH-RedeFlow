@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS public.manual_daily_bases (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.technicians ADD COLUMN IF NOT EXISTS team_role varchar(20) NOT NULL DEFAULT 'Tecnico';
+ALTER TABLE public.technicians ADD COLUMN IF NOT EXISTS lead_technician_id uuid REFERENCES public.technicians(id) ON DELETE SET NULL;
+
 ALTER TABLE public.manual_daily_bases ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS manual_daily_bases_authenticated_select ON public.manual_daily_bases;

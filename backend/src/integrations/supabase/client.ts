@@ -95,31 +95,35 @@ export async function createSupabaseSupervisor(input: { userId?: string; name: s
 }
 
 export async function listSupabaseTechnicians() {
-  const { data, error } = await getSupabaseAdmin().from('technicians').select('id, supervisor_id, name, registration, region, shift, current_status, active, active_override, supervisors(name)').is('deleted_at', null).order('name');
+  const { data, error } = await getSupabaseAdmin().from('technicians').select('id, supervisor_id, lead_technician_id, name, registration, region, shift, current_status, active, active_override, team_role, supervisors(name), lead_technician:lead_technician_id(name)').is('deleted_at', null).order('name');
   if (error) throw new Error(error.message);
   return (data || []).map((row) => {
     const supervisor = Array.isArray(row.supervisors) ? row.supervisors[0] : row.supervisors;
-    return { id: row.id, supervisorId: row.supervisor_id || undefined, name: row.name, registration: row.registration, supervisorName: supervisor?.name || undefined, region: row.region || '', shift: row.shift || '', currentStatus: row.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: row.active, activeOverride: row.active_override ?? false };
+    const lead = Array.isArray((row as any).lead_technician) ? (row as any).lead_technician[0] : (row as any).lead_technician;
+    return { id: row.id, supervisorId: row.supervisor_id || undefined, leadTechnicianId: row.lead_technician_id || undefined, leadTechnicianName: lead?.name || undefined, name: row.name, registration: row.registration, supervisorName: supervisor?.name || undefined, region: row.region || '', shift: row.shift || '', currentStatus: row.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: row.active, activeOverride: row.active_override ?? false, teamRole: row.team_role as 'Tecnico' | 'Auxiliar' };
   });
 }
 
-export async function createSupabaseTechnician(input: { supervisorId?: string; name: string; registration: string; region: string; shift: string; currentStatus: string; active: boolean }) {
-  const { data, error } = await getSupabaseAdmin().from('technicians').insert({ supervisor_id: input.supervisorId || null, name: input.name, registration: input.registration, region: input.region, shift: input.shift, current_status: input.currentStatus, active: input.active, active_override: false }).select('id, supervisor_id, name, registration, region, shift, current_status, active, active_override, supervisors(name)').single();
+export async function createSupabaseTechnician(input: { supervisorId?: string; leadTechnicianId?: string; teamRole: string; name: string; registration: string; region: string; shift: string; currentStatus: string; active: boolean }) {
+  const { data, error } = await getSupabaseAdmin().from('technicians').insert({ supervisor_id: input.supervisorId || null, lead_technician_id: input.leadTechnicianId || null, team_role: input.teamRole, name: input.name, registration: input.registration, region: input.region, shift: input.shift, current_status: input.currentStatus, active: input.active, active_override: false }).select('id, supervisor_id, lead_technician_id, name, registration, region, shift, current_status, active, active_override, team_role, supervisors(name)').single();
   if (error || !data) throw new Error(error?.message || 'Nao foi possivel cadastrar o tecnico.');
   const supervisor = Array.isArray(data.supervisors) ? data.supervisors[0] : data.supervisors;
-  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false };
+  return { id: data.id, supervisorId: data.supervisor_id || undefined, leadTechnicianId: data.lead_technician_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false, teamRole: data.team_role as 'Tecnico' | 'Auxiliar' };
 }
 
-export async function updateSupabaseTechnician(id: string, input: { supervisorId?: string; currentStatus?: string; active?: boolean }) {
+export async function updateSupabaseTechnician(id: string, input: { supervisorId?: string; currentStatus?: string; active?: boolean; teamRole?: string; leadTechnicianId?: string | null }) {
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.supervisorId !== undefined) changes.supervisor_id = input.supervisorId || null;
   if (input.currentStatus !== undefined) changes.current_status = input.currentStatus;
   if (input.active !== undefined) { changes.active = input.active; changes.active_override = true; }
-  const { data, error } = await getSupabaseAdmin().from('technicians').update(changes).eq('id', id).is('deleted_at', null).select('id, supervisor_id, name, registration, region, shift, current_status, active, active_override, supervisors(name)').maybeSingle();
+  if (input.teamRole !== undefined) changes.team_role = input.teamRole;
+  if (input.leadTechnicianId !== undefined) changes.lead_technician_id = input.leadTechnicianId || null;
+  const { data, error } = await getSupabaseAdmin().from('technicians').update(changes).eq('id', id).is('deleted_at', null).select('id, supervisor_id, lead_technician_id, name, registration, region, shift, current_status, active, active_override, team_role, supervisors(name), lead_technician:lead_technician_id(name)').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const supervisor = Array.isArray(data.supervisors) ? data.supervisors[0] : data.supervisors;
-  return { id: data.id, supervisorId: data.supervisor_id || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false };
+  const lead = Array.isArray((data as any).lead_technician) ? (data as any).lead_technician[0] : (data as any).lead_technician;
+  return { id: data.id, supervisorId: data.supervisor_id || undefined, leadTechnicianId: data.lead_technician_id || undefined, leadTechnicianName: lead?.name || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false, teamRole: data.team_role as 'Tecnico' | 'Auxiliar' };
 }
 
 export async function listSupabaseCalls(status?: CallStatus): Promise<Call[]> {

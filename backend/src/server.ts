@@ -239,12 +239,12 @@ app.patch('/api/configuracoes', auth, requirePermission('settings.manage'), asyn
 });
 app.get('/api/tecnicos', auth, requirePermission('technicians.view'), async (_request, response) => response.json({ technicians: await listTechnicians() }));
 app.post('/api/tecnicos', auth, requirePermission('technicians.create'), async (request, response) => {
-  const parsed = z.object({ name: z.string().min(2), registration: z.string().min(2), supervisorId: z.string().optional(), region: z.string().min(2), shift: z.string().min(2), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).default('Disponivel'), active: z.boolean().default(true) }).safeParse(request.body);
+  const parsed = z.object({ name: z.string().min(2), registration: z.string().min(2), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).default('Tecnico'), leadTechnicianId: z.string().optional(), region: z.string().min(2), shift: z.string().min(2), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).default('Disponivel'), active: z.boolean().default(true) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
   return response.status(201).json({ technician: await addTechnician(parsed.data) });
 });
 app.patch('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), async (request, response) => {
-  const parsed = z.object({ supervisorId: z.string().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
+  const parsed = z.object({ supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).optional(), leadTechnicianId: z.string().nullable().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
   const technician = await updateTechnician(String(request.params.id), parsed.data);
   if (!technician) return response.status(404).json({ message: 'Tecnico nao encontrado.' });

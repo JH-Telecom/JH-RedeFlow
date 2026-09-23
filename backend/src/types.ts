@@ -73,6 +73,9 @@ export type Technician = {
   currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel';
   active: boolean;
   activeOverride?: boolean;
+  teamRole: 'Tecnico' | 'Auxiliar';
+  leadTechnicianId?: string;
+  leadTechnicianName?: string;
 };
 
 export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado';

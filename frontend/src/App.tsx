@@ -1865,8 +1865,9 @@ function TechniciansPage() {
   const [regionFilter, setRegionFilter] = useState("Todas");
   const [showFilters, setShowFilters] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
-  const [form, setForm] = useState({ name: "", registration: "", supervisorId: "", region: "", shift: "", currentStatus: "Disponivel" as Technician["currentStatus"], active: true });
+  const [form, setForm] = useState({ name: "", registration: "", supervisorId: "", teamRole: "Tecnico" as Technician["teamRole"], leadTechnicianId: "", region: "", shift: "", currentStatus: "Disponivel" as Technician["currentStatus"], active: true });
   async function load() {
     try {
       const [technicianData, supervisorData] = await Promise.all([api.technicians(), api.supervisors()]);
@@ -1880,7 +1881,7 @@ function TechniciansPage() {
   }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    try { await api.createTechnician({ ...form, supervisorId: form.supervisorId || undefined }); setShowForm(false); setForm({ name: "", registration: "", supervisorId: "", region: "", shift: "", currentStatus: "Disponivel", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar tecnico."); }
+    try { await api.createTechnician({ ...form, supervisorId: form.supervisorId || undefined, leadTechnicianId: form.teamRole === "Auxiliar" ? form.leadTechnicianId || undefined : undefined }); setShowForm(false); setForm({ name: "", registration: "", supervisorId: "", teamRole: "Tecnico", leadTechnicianId: "", region: "", shift: "", currentStatus: "Disponivel", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar tecnico."); }
   }
   const regions = [...new Set(technicians.map((technician) => technician.region))];
   const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
@@ -1889,6 +1890,9 @@ function TechniciansPage() {
   }
   async function changeActive(technician: Technician, active: boolean) {
     try { const result = await api.updateTechnician(technician.id, { active }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar a ativacao."); }
+  }
+  async function assignAssistant(technician: Technician, leadTechnicianId: string) {
+    try { const result = await api.updateTechnician(technician.id, { leadTechnicianId: leadTechnicianId || null }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); setSelectedTechnician(result.technician); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel vincular o auxiliar."); }
   }
   return (
     <>
@@ -1956,6 +1960,7 @@ function TechniciansPage() {
             <thead>
               <tr>
                 <th>Tecnico</th>
+                <th>Tipo</th>
                 <th>Matricula</th>
                 <th>Supervisor</th>
                 <th>Regiao</th>
@@ -1966,7 +1971,7 @@ function TechniciansPage() {
             </thead>
             <tbody>
               {visibleTechnicians.map((technician) => (
-                <tr key={technician.id}>
+                <tr key={technician.id} onClick={() => setSelectedTechnician(technician)}>
                   <td>
                     <div className="user-cell">
                       <div className="avatar">
@@ -1979,17 +1984,18 @@ function TechniciansPage() {
                       <strong>{technician.name}</strong>
                     </div>
                   </td>
+                  <td><span className="role-pill">{technician.teamRole}</span></td>
                   <td>{technician.registration}</td>
                   <td>{technician.supervisorName || "Sem supervisor"}</td>
                   <td>{technician.region}</td>
                   <td>{technician.shift}</td>
                   <td>
-                    <select className="status-select" value={technician.currentStatus} onChange={(event) => changeStatus(technician, event.target.value as Technician["currentStatus"])} aria-label={`Status de ${technician.name}`}>
+                    <select className="status-select" value={technician.currentStatus} onClick={(event) => event.stopPropagation()} onChange={(event) => changeStatus(technician, event.target.value as Technician["currentStatus"])} aria-label={`Status de ${technician.name}`}>
                       <option>Disponivel</option><option>Em campo</option><option>Indisponivel</option>
                     </select>
                   </td>
                   <td>
-                    <select className="status-select" value={technician.active ? "true" : "false"} onChange={(event) => void changeActive(technician, event.target.value === "true")} aria-label={`Ativacao de ${technician.name}`}>
+                    <select className="status-select" value={technician.active ? "true" : "false"} onClick={(event) => event.stopPropagation()} onChange={(event) => void changeActive(technician, event.target.value === "true")} aria-label={`Ativacao de ${technician.name}`}>
                       <option value="true">Ativo</option>
                       <option value="false">Inativo</option>
                     </select>
@@ -2003,12 +2009,20 @@ function TechniciansPage() {
       {showForm && <AdminModal title="Novo tecnico" onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>
         <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
         <label>Matricula<input value={form.registration} onChange={(event) => setForm({ ...form, registration: event.target.value })} required /></label>
+        <label>Tipo<select value={form.teamRole} onChange={(event) => setForm({ ...form, teamRole: event.target.value as Technician["teamRole"], leadTechnicianId: "" })}><option value="Tecnico">Técnico</option><option value="Auxiliar">Auxiliar</option></select></label>
+        {form.teamRole === "Auxiliar" && <label>Técnico responsável<select value={form.leadTechnicianId} onChange={(event) => setForm({ ...form, leadTechnicianId: event.target.value })} required><option value="">Selecione o técnico</option>{technicians.filter((technician) => technician.teamRole === "Tecnico").map((technician) => <option key={technician.id} value={technician.id}>{technician.name}</option>)}</select></label>}
         <label>Supervisor<select value={form.supervisorId} onChange={(event) => setForm({ ...form, supervisorId: event.target.value })}><option value="">Sem supervisor</option>{supervisors.map((supervisor) => <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>)}</select></label>
         <label>Regiao<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} required /></label>
         <label>Turno<input value={form.shift} onChange={(event) => setForm({ ...form, shift: event.target.value })} placeholder="07:00 - 16:00" required /></label>
         <label>Status<select value={form.currentStatus} onChange={(event) => setForm({ ...form, currentStatus: event.target.value as Technician["currentStatus"] })}><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select></label>
         <button className="primary-button" type="submit">Cadastrar tecnico <ChevronRight size={16} /></button>
       </form></AdminModal>}
+      {selectedTechnician && <AdminModal title={selectedTechnician.name} onClose={() => setSelectedTechnician(null)}>
+        <div className="detail-grid">
+          <DetailItem label="Tipo" value={selectedTechnician.teamRole} /><DetailItem label="Matrícula" value={selectedTechnician.registration} /><DetailItem label="Região" value={selectedTechnician.region} /><DetailItem label="Turno" value={selectedTechnician.shift} /><DetailItem label="Supervisor" value={selectedTechnician.supervisorName || "Sem supervisor"} /><DetailItem label="Status" value={selectedTechnician.currentStatus} />
+        </div>
+        {selectedTechnician.teamRole === "Tecnico" ? <div className="team-member-list"><strong>Auxiliares vinculados</strong>{technicians.filter((technician) => technician.leadTechnicianId === selectedTechnician.id).map((assistant) => <span key={assistant.id}>{assistant.name} · {assistant.registration}</span>)}{!technicians.some((technician) => technician.leadTechnicianId === selectedTechnician.id) && <small>Nenhum auxiliar vinculado.</small>}</div> : <label className="detail-label">Técnico responsável<select value={selectedTechnician.leadTechnicianId || ""} onChange={(event) => void assignAssistant(selectedTechnician, event.target.value)}><option value="">Sem vínculo</option>{technicians.filter((technician) => technician.teamRole === "Tecnico" && technician.id !== selectedTechnician.id).map((technician) => <option key={technician.id} value={technician.id}>{technician.name}</option>)}</select></label>}
+      </AdminModal>}
     </>
   );
 }
