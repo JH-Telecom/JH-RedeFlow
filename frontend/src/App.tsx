@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import faviconUrl from "../image/favicon.ico";
+import * as XLSX from "xlsx";
 import {
   api,
   type Call,
@@ -733,11 +734,48 @@ Orders	Técnico	Início	Tempo
 6022000000000000	Francinildo lima de Freitas	14:41	21:46:40
 602258395440102	Weverton José Domingos jacquet	16:56	19:31:40`);
   const [data, setData] = useState<ManualProductionData | null>(parseManualProductionData(raw));
+  const [uploadError, setUploadError] = useState("");
+
+  function clearBase() {
+    setRaw("");
+    setData(null);
+    setUploadError("");
+  }
 
   const process = () => {
     const parsed = parseManualProductionData(raw);
     setData(parsed);
   };
+
+  async function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileName = file.name.toLowerCase();
+      let nextRaw = "";
+
+      if (fileName.endsWith(".csv") || fileName.endsWith(".txt") || fileName.endsWith(".tsv")) {
+        nextRaw = await file.text();
+      } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const firstSheetName = workbook.SheetNames[0];
+        const firstSheet = workbook.Sheets[firstSheetName];
+        nextRaw = XLSX.utils.sheet_to_csv(firstSheet);
+      } else {
+        throw new Error("Formato de arquivo não suportado. Use CSV, TSV, TXT, XLS ou XLSX.");
+      }
+
+      setRaw(nextRaw);
+      setData(parseManualProductionData(nextRaw));
+      setUploadError("");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Nao foi possivel carregar o arquivo.";
+      setUploadError(message);
+    } finally {
+      event.target.value = "";
+    }
+  }
 
   return (
     <>
@@ -745,14 +783,26 @@ Orders	Técnico	Início	Tempo
         <div>
           <span className="section-kicker">OPERACAO DE REDE</span>
           <h1>Painel diario</h1>
-          <p>Cole a base da planilha do dia para atualizar rapidamente as ordens e a produção.</p>
+          <p>Selecione a base do dia ou cole o conteúdo para atualizar rapidamente as ordens e a produção.</p>
         </div>
-        <button className="secondary-button" onClick={process} type="button">
-          <BarChart3 size={16} /> Atualizar base
-        </button>
+        <div className="page-actions compact-actions">
+          <button className="secondary-button compact" onClick={process} type="button">
+            <BarChart3 size={16} /> Atualizar base
+          </button>
+          <button className="secondary-button compact danger-button" onClick={clearBase} type="button">
+            Limpar base
+          </button>
+        </div>
       </div>
 
       <div className="manual-dashboard-tools">
+        <div className="manual-file-actions">
+          <label className="manual-file-picker">
+            <input type="file" accept=".csv,.tsv,.txt,.xls,.xlsx" onChange={handleFileSelection} />
+            <span>Selecionar arquivo</span>
+          </label>
+        </div>
+
         <label className="manual-editor">
           <span>Base da planilha</span>
           <textarea
@@ -761,6 +811,7 @@ Orders	Técnico	Início	Tempo
             placeholder="Cole aqui as linhas da planilha em CSV, TSV ou texto com tabulação..."
           />
         </label>
+        {uploadError && <div className="form-error import-error">{uploadError}</div>}
       </div>
 
       {data && (
