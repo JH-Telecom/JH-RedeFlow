@@ -619,7 +619,7 @@ type ManualProductionData = {
   updatedAt: string;
 };
 
-function parseCsvLine(line: string): string[] {
+function parseDelimitedLine(line: string, delimiter: string): string[] {
   const cells: string[] = [];
   let current = "";
   let inQuotes = false;
@@ -637,7 +637,7 @@ function parseCsvLine(line: string): string[] {
       continue;
     }
 
-    if (character === ',' && !inQuotes) {
+    if (character === delimiter && !inQuotes) {
       cells.push(current.trim());
       current = "";
       continue;
@@ -648,6 +648,27 @@ function parseCsvLine(line: string): string[] {
 
   cells.push(current.trim());
   return cells;
+}
+
+function splitCsvLikeLine(line: string): string[] {
+  const delimiters = [";", ",", "\t"];
+  const counts = delimiters.map((delimiter) => {
+    const parsed = parseDelimitedLine(line, delimiter);
+    return { delimiter, count: parsed.length > 1 ? parsed.length : 0 };
+  });
+
+  const bestDelimiter = counts.sort((left, right) => right.count - left.count)[0]?.delimiter ?? ",";
+  return parseDelimitedLine(line, bestDelimiter);
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parseManualProductionData(raw: string): ManualProductionData {
@@ -667,18 +688,18 @@ function parseManualProductionData(raw: string): ManualProductionData {
   let section: "activity" | "technician" | "orders" | null = null;
 
   for (const row of rows) {
-    const cells = parseCsvLine(row)
+    const cells = splitCsvLikeLine(row)
       .map((cell) => cell.trim())
       .filter((cell) => cell.length > 0);
 
     if (!cells.length) continue;
 
-    const label = cells.join(" ").toLowerCase();
-    if (label.includes("produção por atividades") || label.includes("tipo da atividade")) {
+    const label = normalizeText(cells.join(" "));
+    if (label.includes("producao por atividades") || label.includes("tipo da atividade") || label.includes("atividade")) {
       section = "activity";
       continue;
     }
-    if (label.includes("produção por técnico") || label.includes("técnicos")) {
+    if (label.includes("producao por tecnico") || label.includes("tecnicos") || label.includes("prod por tecnico")) {
       section = "technician";
       continue;
     }
@@ -773,7 +794,11 @@ function ManualProductionDashboard() {
       const parsed = parseManualProductionData(nextRaw);
       setSelectedFileName(file.name);
       setData(parsed);
-      setUploadError("");
+      setUploadError(
+        parsed.activities.length || parsed.technicians.length || parsed.orders.length
+          ? ""
+          : "Arquivo carregado, mas não foi possível identificar as tabelas de produção. Verifique se o arquivo é o base do painel diário."
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Nao foi possivel carregar o arquivo.";
       setUploadError(message);
