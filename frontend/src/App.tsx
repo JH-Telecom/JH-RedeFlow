@@ -694,16 +694,24 @@ function parseManualProductionData(raw: string): ManualProductionData {
 
     if (!cells.length) continue;
 
-    const label = normalizeText(cells.join(" "));
-    if (label.includes("producao por atividades") || label.includes("tipo da atividade") || label.includes("atividade")) {
+    const normalizedCells = cells.map(normalizeText);
+    const label = normalizedCells.join(" ");
+    const hasNumericColumns = ["pendente", "em rota", "iniciado", "concluido", "cancelado", "suspenso", "total"]
+      .filter((column) => normalizedCells.includes(column)).length >= 3;
+    const isActivityHeader = normalizedCells.some((cell) => cell.includes("tipo da atividade"));
+    const isTechnicianHeader = normalizedCells.some((cell) => cell === "tecnico" || cell === "tecnicos") && hasNumericColumns;
+    const isOrdersHeader = normalizedCells.some((cell) => cell === "order" || cell === "orders" || cell === "ordem" || cell === "ordens")
+      && normalizedCells.some((cell) => cell.includes("inicio") || cell.includes("tempo"));
+
+    if (isActivityHeader || label.includes("producao por atividades")) {
       section = "activity";
       continue;
     }
-    if (label.includes("producao por tecnico") || label.includes("tecnicos") || label.includes("prod por tecnico")) {
+    if (isTechnicianHeader || label.includes("producao por tecnico") || label.includes("prod por tecnico")) {
       section = "technician";
       continue;
     }
-    if (label.includes("ordens indicadas") || label.includes("orders") || label.includes("ordens")) {
+    if (isOrdersHeader || label.includes("ordens indicadas") || label.includes("dados da planilha") || label === "orders" || label === "ordens") {
       section = "orders";
       continue;
     }
