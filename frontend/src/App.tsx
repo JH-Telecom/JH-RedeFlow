@@ -730,7 +730,7 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
       technicians.set(technicianName, technician);
     }
 
-    if (order) {
+    if (order && normalizeText(status) === "iniciado") {
       orders.push({
         order,
         technician: technicianName,
