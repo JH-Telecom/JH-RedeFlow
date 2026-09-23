@@ -856,6 +856,18 @@ function parseManualProductionData(raw: string): ManualProductionData {
   };
 }
 
+function sumProductionRows(rows: Array<ManualProductionActivity | ManualProductionTechnician>) {
+  return rows.reduce((total, item) => ({
+    pending: total.pending + item.pending,
+    enRoute: total.enRoute + item.enRoute,
+    started: total.started + item.started,
+    concluded: total.concluded + item.concluded,
+    cancelled: total.cancelled + item.cancelled,
+    suspended: total.suspended + item.suspended,
+    total: total.total + item.total,
+  }), { pending: 0, enRoute: 0, started: 0, concluded: 0, cancelled: 0, suspended: 0, total: 0 });
+}
+
 function ManualProductionDashboard() {
   const [data, setData] = useState<ManualProductionData | null>(null);
   const [uploadError, setUploadError] = useState("");
@@ -952,6 +964,11 @@ function ManualProductionDashboard() {
 
       {data && (
         <>
+          {(() => {
+            const activityTotals = sumProductionRows(data.activities);
+            const technicianTotals = sumProductionRows(data.technicians);
+            return (
+              <>
           <div className="manual-summary-row">
             <div className="summary-badge">
               <span>Última atualização</span>
@@ -994,6 +1011,16 @@ function ManualProductionDashboard() {
                         <td>{item.total}</td>
                       </tr>
                     ))}
+                    <tr className="manual-total-row">
+                      <td>Total</td>
+                      <td>{activityTotals.pending}</td>
+                      <td>{activityTotals.enRoute}</td>
+                      <td>{activityTotals.started}</td>
+                      <td>{activityTotals.concluded}</td>
+                      <td>{activityTotals.cancelled}</td>
+                      <td>{activityTotals.suspended}</td>
+                      <td>{activityTotals.total}</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -1033,6 +1060,16 @@ function ManualProductionDashboard() {
                         <td>{item.total}</td>
                       </tr>
                     ))}
+                    <tr className="manual-total-row">
+                      <td>Total</td>
+                      <td>{technicianTotals.pending}</td>
+                      <td>{technicianTotals.enRoute}</td>
+                      <td>{technicianTotals.started}</td>
+                      <td>{technicianTotals.concluded}</td>
+                      <td>{technicianTotals.cancelled}</td>
+                      <td>{technicianTotals.suspended}</td>
+                      <td>{technicianTotals.total}</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -1069,6 +1106,9 @@ function ManualProductionDashboard() {
               </div>
             </section>
           </div>
+              </>
+            );
+          })()}
         </>
       )}
     </>
