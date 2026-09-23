@@ -671,6 +671,12 @@ function normalizeText(value: string): string {
     .trim();
 }
 
+const allowedActivityTypes = new Set([
+  "manutencao preventiva de rede",
+  "manutencao corretiva de rede",
+  "manutencao de rede field",
+]);
+
 function incrementProductionStatus(item: ManualProductionActivity | ManualProductionTechnician, status: string) {
   const normalizedStatus = normalizeText(status);
   if (normalizedStatus === "pendente") item.pending += 1;
@@ -694,7 +700,7 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
     const status = cells[2]?.trim() ?? "";
     const activityType = cells[23]?.trim();
     const order = cells[24]?.trim();
-    if (!activityType) continue;
+    if (!activityType || !allowedActivityTypes.has(normalizeText(activityType))) continue;
 
     const activity = activities.get(activityType) ?? {
       type: activityType,
@@ -735,7 +741,7 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
   }
 
   return {
-    activities: [...activities.values()],
+    activities: [...activities.values()].filter((item) => allowedActivityTypes.has(normalizeText(item.type))),
     technicians: [...technicians.values()],
     orders,
     updatedAt: new Date().toLocaleString("pt-BR"),
@@ -843,7 +849,7 @@ function parseManualProductionData(raw: string): ManualProductionData {
   }
 
   return {
-    activities: activities.filter((item) => item.type && item.type !== ""),
+    activities: activities.filter((item) => item.type && allowedActivityTypes.has(normalizeText(item.type))),
     technicians: technicians.filter((item) => item.name && item.name !== ""),
     orders: orders.filter((item) => item.order && item.order !== ""),
     updatedAt: new Date().toLocaleString("pt-BR"),
