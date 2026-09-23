@@ -1894,6 +1894,10 @@ function TechniciansPage() {
   async function assignAssistant(technician: Technician, leadTechnicianId: string) {
     try { const result = await api.updateTechnician(technician.id, { leadTechnicianId: leadTechnicianId || null }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); setSelectedTechnician(result.technician); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel vincular o auxiliar."); }
   }
+  async function removeTechnician(technician: Technician) {
+    if (!window.confirm(`Deseja excluir ${technician.name}? O técnico ficará inativo e seus chamados históricos serão preservados.`)) return;
+    try { await api.deleteTechnician(technician.id); setSelectedTechnician(null); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel excluir o tecnico."); }
+  }
   return (
     <>
       <div className="page-heading">
@@ -2022,6 +2026,7 @@ function TechniciansPage() {
           <DetailItem label="Tipo" value={selectedTechnician.teamRole} /><DetailItem label="Matrícula" value={selectedTechnician.registration} /><DetailItem label="Região" value={selectedTechnician.region} /><DetailItem label="Turno" value={selectedTechnician.shift} /><DetailItem label="Supervisor" value={selectedTechnician.supervisorName || "Sem supervisor"} /><DetailItem label="Status" value={selectedTechnician.currentStatus} />
         </div>
         {selectedTechnician.teamRole === "Tecnico" ? <div className="team-member-list"><strong>Auxiliares vinculados</strong>{technicians.filter((technician) => technician.leadTechnicianId === selectedTechnician.id).map((assistant) => <span key={assistant.id}>{assistant.name} · {assistant.registration}</span>)}{!technicians.some((technician) => technician.leadTechnicianId === selectedTechnician.id) && <small>Nenhum auxiliar vinculado.</small>}</div> : <label className="detail-label">Técnico responsável<select value={selectedTechnician.leadTechnicianId || ""} onChange={(event) => void assignAssistant(selectedTechnician, event.target.value)}><option value="">Sem vínculo</option>{technicians.filter((technician) => technician.teamRole === "Tecnico" && technician.id !== selectedTechnician.id).map((technician) => <option key={technician.id} value={technician.id}>{technician.name}</option>)}</select></label>}
+        <button className="delete-button" type="button" onClick={() => void removeTechnician(selectedTechnician)}>Excluir técnico</button>
       </AdminModal>}
     </>
   );

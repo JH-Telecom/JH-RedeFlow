@@ -57,6 +57,7 @@ export const api = {
   technicians: () => request<{ technicians: Technician[] }>('/api/tecnicos'),
   createTechnician: (data: Omit<Technician, 'id' | 'supervisorName' | 'leadTechnicianName'>) => request<{ technician: Technician }>('/api/tecnicos', { method: 'POST', body: JSON.stringify(data) }),
   updateTechnician: (id: string, data: { supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null }) => request<{ technician: Technician }>(`/api/tecnicos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteTechnician: (id: string) => request<{ deleted: boolean }>(`/api/tecnicos/${id}`, { method: 'DELETE' }),
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
   calls: (status?: CallStatus) => request<{ calls: Call[] }>(`/api/chamados${status ? `?status=${encodeURIComponent(status)}` : ''}`),

@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseTechnician } from './integrations/supabase/client.js';
+import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseTechnician } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -469,6 +469,23 @@ export async function updateTechnician(id: string, input: { supervisorId?: strin
   const updated = { ...current, ...input, activeOverride: input.active !== undefined ? true : current.activeOverride };
   technicians.set(id, updated);
   return { ...updated, active: resolveTechnicianActive(updated), supervisorName: updated.supervisorId ? supervisors.get(updated.supervisorId)?.name : undefined };
+}
+export async function deleteTechnician(id: string): Promise<boolean> {
+  if (isSupabaseConfigured()) return await deleteSupabaseTechnician(id);
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query('BEGIN');
+    try {
+      await client.query('UPDATE technicians SET lead_technician_id = NULL, updated_at = now() WHERE lead_technician_id = $1 AND deleted_at IS NULL', [id]);
+      const result = await client.query<{ id: string }>('UPDATE technicians SET deleted_at = now(), active = false, updated_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id', [id]);
+      await client.query('COMMIT');
+      return Boolean(result.rowCount);
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+  }
+  if (!technicians.has(id)) return false;
+  for (const technician of technicians.values()) if (technician.leadTechnicianId === id) technician.leadTechnicianId = undefined;
+  technicians.delete(id);
+  return true;
 }
 export async function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCount'>): Promise<Supervisor> {
   if (isSupabaseConfigured()) return await createSupabaseSupervisor(input);

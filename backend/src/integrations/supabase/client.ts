@@ -126,6 +126,15 @@ export async function updateSupabaseTechnician(id: string, input: { supervisorId
   return { id: data.id, supervisorId: data.supervisor_id || undefined, leadTechnicianId: data.lead_technician_id || undefined, leadTechnicianName: lead?.name || undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false, teamRole: data.team_role as 'Tecnico' | 'Auxiliar' };
 }
 
+export async function deleteSupabaseTechnician(id: string) {
+  const admin = getSupabaseAdmin();
+  const { error } = await admin.from('technicians').update({ active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null);
+  if (error) throw new Error(error.message || 'Nao foi possivel remover o tecnico.');
+  const { error: detachError } = await admin.from('technicians').update({ lead_technician_id: null, updated_at: new Date().toISOString() }).eq('lead_technician_id', id).is('deleted_at', null);
+  if (detachError) throw new Error(detachError.message || 'Nao foi possivel desvincular os auxiliares.');
+  return true;
+}
+
 export async function listSupabaseCalls(status?: CallStatus): Promise<Call[]> {
   let query = getSupabaseAdmin().from('calls').select('id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, technicians(name, supervisors(name))').order('opened_at', { ascending: false });
   if (status) query = query.eq('status', status);

@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteCall, deleteManualDailyBase, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getManualDailyBase, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getManualDailyBase, getRoleById, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
@@ -249,6 +249,11 @@ app.patch('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), asyn
   const technician = await updateTechnician(String(request.params.id), parsed.data);
   if (!technician) return response.status(404).json({ message: 'Tecnico nao encontrado.' });
   return response.json({ technician });
+});
+app.delete('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), async (request, response) => {
+  const deleted = await deleteTechnician(String(request.params.id));
+  if (!deleted) return response.status(404).json({ message: 'Tecnico nao encontrado.' });
+  return response.json({ deleted: true });
 });
 app.get('/api/supervisores', auth, requirePermission('supervisors.view'), async (_request, response) => response.json({ supervisors: await listSupervisors(), technicians: await listTechnicians() }));
 app.post('/api/supervisores', auth, requirePermission('supervisors.create'), async (request, response) => {
