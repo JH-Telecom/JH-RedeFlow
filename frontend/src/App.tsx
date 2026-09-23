@@ -671,6 +671,77 @@ function normalizeText(value: string): string {
     .trim();
 }
 
+function incrementProductionStatus(item: ManualProductionActivity | ManualProductionTechnician, status: string) {
+  const normalizedStatus = normalizeText(status);
+  if (normalizedStatus === "pendente") item.pending += 1;
+  if (normalizedStatus === "em rota") item.enRoute += 1;
+  if (normalizedStatus === "iniciado") item.started += 1;
+  if (normalizedStatus === "concluido") item.concluded += 1;
+  if (normalizedStatus === "cancelado") item.cancelled += 1;
+  if (normalizedStatus === "suspenso") item.suspended += 1;
+  item.total += 1;
+}
+
+function parseFlatActivityExport(rows: string[][]): ManualProductionData {
+  const activities = new Map<string, ManualProductionActivity>();
+  const technicians = new Map<string, ManualProductionTechnician>();
+  const orders: ManualProductionOrder[] = [];
+
+  for (const cells of rows.slice(1)) {
+    if (cells.length < 25) continue;
+
+    const technicianName = cells[0]?.trim();
+    const status = cells[2]?.trim() ?? "";
+    const activityType = cells[23]?.trim();
+    const order = cells[24]?.trim();
+    if (!activityType) continue;
+
+    const activity = activities.get(activityType) ?? {
+      type: activityType,
+      pending: 0,
+      enRoute: 0,
+      started: 0,
+      concluded: 0,
+      cancelled: 0,
+      suspended: 0,
+      total: 0,
+    };
+    incrementProductionStatus(activity, status);
+    activities.set(activityType, activity);
+
+    if (technicianName) {
+      const technician = technicians.get(technicianName) ?? {
+        name: technicianName,
+        pending: 0,
+        enRoute: 0,
+        started: 0,
+        concluded: 0,
+        cancelled: 0,
+        suspended: 0,
+        total: 0,
+      };
+      incrementProductionStatus(technician, status);
+      technicians.set(technicianName, technician);
+    }
+
+    if (order) {
+      orders.push({
+        order,
+        technician: technicianName,
+        inicio: cells[15]?.trim() ?? "",
+        tempo: cells[20]?.trim() ?? "",
+      });
+    }
+  }
+
+  return {
+    activities: [...activities.values()],
+    technicians: [...technicians.values()],
+    orders,
+    updatedAt: new Date().toLocaleString("pt-BR"),
+  };
+}
+
 function parseManualProductionData(raw: string): ManualProductionData {
   const rows = raw
     .split(/\r?\n/)
@@ -679,6 +750,16 @@ function parseManualProductionData(raw: string): ManualProductionData {
 
   if (!rows.length) {
     return { activities: [], technicians: [], orders: [], updatedAt: new Date().toLocaleString("pt-BR") };
+  }
+
+  const firstRow = splitCsvLikeLine(rows[0]);
+  const flatHeader = firstRow.map(normalizeText);
+  const isFlatActivityExport = flatHeader.includes("recurso")
+    && flatHeader.includes("status da atividade")
+    && flatHeader.filter((cell) => cell === "tipo de atividade").length >= 2
+    && flatHeader.includes("ordem de servico");
+  if (isFlatActivityExport) {
+    return parseFlatActivityExport(rows.map(splitCsvLikeLine));
   }
 
   const activities: ManualProductionActivity[] = [];
