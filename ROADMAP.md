@@ -62,6 +62,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Tabela de atendimento ampliada com protocolo, SLA, tipo, OLT, cidade, observação e timer.
 - [x] Timer de atendimento calculado desde a última observação registrada.
 - [x] Coluna SLA exibindo o tempo desde a data de acionamento.
+- [x] Regiões operacionais disponíveis em seletor no detalhe do chamado.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -317,6 +318,24 @@ O timer exibe o tempo decorrido desde a abertura no formato `HH:MM:SS`.
 
 ### Coluna SLA
 A tabela também exibe o tempo desde `openedAt`, que representa a data de acionamento. A coluna `Prazo` permanece responsável apenas pela classificação em no prazo, fora do prazo ou outlier.
+
+## 2026-09-24 — Seletor de regiões no detalhe do chamado
+
+### Alteração
+O campo livre de região no detalhe do chamado foi substituído por um seletor com as áreas operacionais informadas: Columbia, Sertãozinho, Turquesa, Giulia, Mauá, Ribeirão Pires, Santa Luzia, Câmbio, Caçula, Cidade Tiradentes e variações, Ferraz de Vasconcelos e variações, Guaianases e variações, Guarulhos e variações, Mogi, além das demais regiões fornecidas.
+
+Regiões antigas que não estejam na lista continuam visíveis para não apagar dados existentes acidentalmente.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/main.tsx](frontend/src/main.tsx)
+- [frontend/src/region-select.css](frontend/src/region-select.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
 
 ### Correção posterior
 O timer da tabela não usa mais `openedAt`: ele usa o `created_at` da observação mais recente. Chamados sem observação exibem `Sem observacao`. O SLA continua sendo calculado desde a abertura.

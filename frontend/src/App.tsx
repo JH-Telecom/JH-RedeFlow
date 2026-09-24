@@ -45,6 +45,15 @@ import {
   type ImportRecord,
 } from "./api";
 
+const operationalRegions = [
+  "COLUMBIA", "SERTÃOZINHO", "TURQUESA", "GIULIA", "MAUÁ", "RIBEIRÃO PIRES", "SANTA LUZIA", "CÂMBIO", "CAÇULA",
+  "CIDADE TIRADENTES", "CIDADE TIRADENTES 1", "CIDADE TIRADENTES 2", "CIDADE TIRADENTES 3", "FERRAZ DE VASCONCELOS", "FERRAZ DE VASCONCELOS 1", "FERRAZ DE VASCONCELOS 2",
+  "GUAIANASES", "GUAIANASES 1", "GUAIANASES 2", "GUARULHOS", "GUARULHOS 1", "GUARULHOS 2", "GUARULHOS 3", "GUARULHOS 4", "GUARULHOS 5",
+  "MOGI DAS CRUZES", "MOGI 1", "MOGI 2", "ARICANDUVA", "CAÇAPAVA", "CONQUISTA", "IGUATEMI", "ITAIM PAULISTA", "JACAREÍ", "PALMEIRAS", "PENHA",
+  "RIO GRANDE DA SERRA", "SÃO MATEUS", "SÃO MIGUEL PAULISTA", "SÃO RAFAEL", "SUZANO", "PIRAPORINHA", "CAEMA", "SERRARIA", "VITORIA", "DIADEMA",
+  "SÃO BERNARDO DOS CAMPOS", "SÃO PAULO",
+];
+
 const navItems = [
   {
     label: "Visao geral",
@@ -1581,7 +1590,7 @@ function CallDetailBase() {
             <EditableDetailItem label={`Tecnico B2C${["NOC TX", "NOC ACESSO"].includes(type.trim().toUpperCase()) ? " (opcional)" : ""}`} value={client} onChange={setClient} />
             <EditableDetailItem label="Tipo" value={type} onChange={setType} />
             <EditableDetailItem label="Motivo" value={reason} onChange={setReason} />
-            <EditableDetailItem label="Regiao" value={region} onChange={setRegion} />
+            <label className="detail-item editable-detail-item"><span>Regiao</span><select className="region-detail-select" value={region} onChange={(event) => setRegion(event.target.value)}><option value="">Selecione uma região</option>{region && !operationalRegions.includes(region) && <option value={region}>{region}</option>}{operationalRegions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
             <EditableDetailItem label="Cidade" value={city} onChange={setCity} />
             <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
