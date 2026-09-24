@@ -12,13 +12,13 @@ Principais usuários: operadores, supervisores, administradores, mesários e usu
 
 Status geral: EM DESENVOLVIMENTO
 
-Última atualização: 2026-09-23
+Última atualização: 2026-09-24
 
-Última implementação: correção do escopo de supervisão por equipe e registro do estado de continuidade no roadmap.
+Última implementação: visão de ordens da equipe do supervisor com filtro de período e filtro de data no dashboard geral e nas telas de ordens.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: validar a regra de supervisor em tempo de execução e concluir a verificação de regressão dos fluxos HTTP relevantes.
+Próxima ação: validar o fluxo completo com login de supervisor e confirmar o comportamento visual em ambiente publicado.
 
 ---
 
@@ -29,14 +29,12 @@ Próxima ação: validar a regra de supervisor em tempo de execução e concluir
 - Banco de dados: PostgreSQL com migrations em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations).
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
 - APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
-- Integrações externas: WuzAPI, Supabase, Google Drive e importações CSV/XLSX.
 - Infraestrutura: runtime local com variáveis de ambiente, fallback demo e configs de produção.
 
 ---
 
 ## 4. FUNCIONALIDADES IMPLEMENTADAS
 
-- [x] Estrutura separada em frontend, backend e database.
 - [x] Autenticação com JWT e RBAC.
 - [x] Login corporativo demonstrável sem expor secrets no frontend.
 - [x] Layout operacional com sidebar, header e permissões por tela.
@@ -51,10 +49,9 @@ Próxima ação: validar a regra de supervisor em tempo de execução e concluir
 - [x] WuzAPI, acionamentos e análise de mensagens operacionais.
 - [x] Importação de bases CSV/XLSX.
 - [x] Dashboards e indicadores operacionais.
-- [x] Segurança básica com headers HTTP e limite de tentativas de login.
-- [x] Favicon e branding visual.
-- [x] Dados demo desativados por padrão em produção.
 - [x] Escopo de supervisão aplicado por equipe para chamadas e dashboard.
+- [x] Tela de ordens da equipe do supervisor com filtro de período.
+- [x] Filtro de data na visão geral e nas listagens de ordens.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -208,6 +205,35 @@ Arquivos envolvidos:
 **Consequência:** todos os endpoints que consultam chamadas e dashboards precisam continuar a validar o contexto de supervisor no servidor.
 
 ---
+
+## 2026-09-24 — Visão de ordens do supervisor e filtros de período
+
+### Objetivo
+Dar ao usuário com cargo Supervisor uma função dedicada para consultar todas as ordens dos técnicos vinculados à sua equipe, com filtro de data também disponível na visão geral e nas listagens de ordens.
+
+### Alterações realizadas
+
+- criação da rota e item de menu `Ordens da equipe`, visíveis apenas para o cargo Supervisor;
+- criação da tela de ordens dos técnicos do supervisor reutilizando o endpoint protegido `/api/chamados`;
+- aplicação dos campos `from` e `to` na consulta server-side de ordens;
+- adição do filtro de período na visão geral e nas telas de ordens;
+- registro da mudança no roadmap.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/filters.css](frontend/src/filters.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Segurança e escopo
+
+A tela do supervisor não recebe um identificador de equipe pelo frontend. O backend identifica o supervisor pelo usuário autenticado e aplica `supervisorId` na consulta, mantendo a regra de visibilidade no servidor.
+
+### Validação
+
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`;
+- build do backend já validado anteriormente com sucesso;
+- permanece pendente a validação manual do login de supervisor em ambiente publicado.
 
 ## 9. ARQUIVOS IMPORTANTES
 

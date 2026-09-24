@@ -65,6 +65,13 @@ const navItems = [
     permission: "calls.view",
   },
   {
+    label: "Ordens da equipe",
+    to: "/supervisor/ordens",
+    icon: Users,
+    permission: "calls.view",
+    roles: ["Supervisor"],
+  },
+  {
     label: "Acionamentos",
     to: "/acionamentos",
     icon: ClipboardList,
@@ -240,6 +247,8 @@ function Shell({
         ? "Chamados abertos"
           : location.pathname.includes("/chamados/atendimento")
             ? "Em atendimento"
+          : location.pathname === "/supervisor/ordens"
+            ? "Ordens da equipe"
           : location.pathname === "/acionamentos"
             ? "Acionamentos"
           : location.pathname === "/painel-diario"
@@ -280,7 +289,7 @@ function Shell({
         </div>
         <nav>
           {navItems
-            .filter((item) => user.role.permissions.includes(item.permission))
+            .filter((item) => user.role.permissions.includes(item.permission) && (!item.roles || item.roles.includes(user.role.name)))
             .map((item) => (
               <NavLink
                 key={item.to}
@@ -352,7 +361,7 @@ function Shell({
         </header>
         <div className="content">
           <Routes>
-            <Route path="/" element={<OperationalDashboard user={user} />} />
+            <Route path="/" element={<DashboardWithDateFilter user={user} />} />
             <Route
               path="/chamados/abertos"
               element={<CallsPage status="Aberto" title="Chamados abertos" />}
@@ -361,6 +370,7 @@ function Shell({
               path="/chamados/atendimento"
               element={<CallsPage title="Chamados em atendimento" assignedOnly />}
             />
+            <Route path="/supervisor/ordens" element={<SupervisorOrdersPage user={user} />} />
             <Route path="/acionamentos" element={<ActivationsPage />} />
             <Route path="/painel-diario" element={<ManualProductionDashboard />} />
             <Route path="/importacoes" element={<ImportsPage />} />
@@ -378,13 +388,18 @@ function Shell({
   );
 }
 
-function OperationalDashboard({ user }: { user: User }) {
+function DashboardWithDateFilter({ user }: { user: User & { role: Role } }) {
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  return <><DateRangeFilter value={dateRange} onChange={setDateRange} /><OperationalDashboard user={user} dateRange={dateRange} /></>;
+}
+
+function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { from: string; to: string } }) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [error, setError] = useState("");
-  useEffect(() => { api.dashboard().then((data) => setMetrics(data.metrics)).catch((err) => setError(err.message)); }, []);
-  if (error) return <div className="empty-state">{error}</div>;
-  if (!metrics) return <div className="empty-state">Carregando indicadores...</div>;
-  return <><div className="page-heading"><div><span className="section-kicker">OPERACAO DE REDE</span><h1>Visao geral</h1><p>Indicadores calculados no backend a partir dos dados operacionais atuais.</p></div><button className="secondary-button" onClick={() => api.dashboard().then((data) => setMetrics(data.metrics))}><Activity size={16}/> Atualizar</button></div><div className="metric-grid"><Metric label="Recebidos hoje" value={String(metrics.receivedToday)} note="Chamados abertos hoje" positive/><Metric label="Chamados abertos" value={String(metrics.open)} note={`${metrics.unassigned} sem tecnico`}/><Metric label="Em atendimento" value={String(metrics.inProgress)} note="Atribuidos ou em campo"/><Metric label="Pendentes de aceite" value={String(metrics.pendingActivations)} note={`${metrics.finished} finalizados`} positive/></div><div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-heading"><div><span className="section-kicker">STATUS</span><h2>Distribuicao dos chamados</h2></div></div><div className="bar-chart">{metrics.byStatus.map((item) => <div className="bar-item" key={item.label}><div className="bar-track"><i style={{ height: `${Math.max(8, item.value * 28)}px` }}/></div><strong>{item.value}</strong><span>{item.label}</span></div>)}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">REGIOES</span><h2>Volume por regiao</h2></div></div><div className="rank-list">{metrics.byRegion.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div><div className="dashboard-grid"><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TECNICOS</span><h2>Chamados atribuidos</h2></div></div><div className="rank-list">{metrics.byTechnician.length ? metrics.byTechnician.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>) : <div className="empty-state">Nenhum chamado atribuido.</div>}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TIPOS</span><h2>Chamados por tipo</h2></div></div><div className="rank-list">{metrics.byType.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div></>;
+  useEffect(() => { api.dashboard(dateRange).then((data) => { setMetrics(data.metrics); setError(""); }).catch((err) => setError(err instanceof Error ? err.message : "Nao foi possivel carregar os indicadores.")); }, [dateRange.from, dateRange.to]);
+    if (error) return <div className="empty-state">{error}</div>;
+    if (!metrics) return <div className="empty-state">Carregando indicadores...</div>;
+    return <><div className="page-heading"><div><span className="section-kicker">OPERACAO DE REDE</span><h1>Visao geral</h1><p>Indicadores calculados no backend a partir dos dados operacionais atuais.</p></div><button className="secondary-button" onClick={() => api.dashboard(dateRange).then((data) => setMetrics(data.metrics))}><Activity size={16}/> Atualizar</button></div><div className="metric-grid"><Metric label="Recebidos hoje" value={String(metrics.receivedToday)} note="Chamados abertos hoje" positive/><Metric label="Chamados abertos" value={String(metrics.open)} note={`${metrics.unassigned} sem tecnico`}/><Metric label="Em atendimento" value={String(metrics.inProgress)} note="Atribuidos ou em campo"/><Metric label="Pendentes de aceite" value={String(metrics.pendingActivations)} note={`${metrics.finished} finalizados`} positive/></div><div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-heading"><div><span className="section-kicker">STATUS</span><h2>Distribuicao dos chamados</h2></div></div><div className="bar-chart">{metrics.byStatus.map((item) => <div className="bar-item" key={item.label}><div className="bar-track"><i style={{ height: `${Math.max(8, item.value * 28)}px` }}/></div><strong>{item.value}</strong><span>{item.label}</span></div>)}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">REGIOES</span><h2>Volume por regiao</h2></div></div><div className="rank-list">{metrics.byRegion.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div><div className="dashboard-grid"><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TECNICOS</span><h2>Chamados atribuidos</h2></div></div><div className="rank-list">{metrics.byTechnician.length ? metrics.byTechnician.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>) : <div className="empty-state">Nenhum chamado atribuido.</div>}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TIPOS</span><h2>Chamados por tipo</h2></div></div><div className="rank-list">{metrics.byType.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div></>;
 }
 function Dashboard({ user }: { user: User }) {
   return (
@@ -1350,24 +1365,34 @@ function UsersPage() {
     </>
   );
 }
+function DateRangeFilter({ value, onChange }: { value: { from: string; to: string }; onChange: (value: { from: string; to: string }) => void }) {
+  return <div className="date-range-filter"><label>De<input type="date" value={value.from} onChange={(event) => onChange({ ...value, from: event.target.value })} /></label><label>Ate<input type="date" value={value.to} onChange={(event) => onChange({ ...value, to: event.target.value })} /></label>{(value.from || value.to) && <button className="text-button" type="button" onClick={() => onChange({ from: "", to: "" })}>Limpar periodo</button>}</div>;
+}
+
+function SupervisorOrdersPage({ user }: { user: User & { role: Role } }) {
+  if (user.role.name !== "Supervisor") return <Navigate to="/" replace />;
+  return <CallsPage title="Ordens dos meus tecnicos" />;
+}
+
 function CallsPage({ status, title, assignedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean }) {
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [regionFilter, setRegionFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">("Todos");
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   useEffect(() => {
     api
-      .calls(status)
+      .calls(status, dateRange)
       .then((data) => setCalls(data.calls))
       .catch((err) => setError(err.message));
-  }, [status]);
+  }, [status, dateRange.from, dateRange.to]);
   async function refreshCalls() {
     setLoading(true);
-    try { setCalls((await api.calls(status)).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
+    try { setCalls((await api.calls(status, dateRange)).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
   }
   const visibleCalls = calls.filter((call) =>
     (!assignedOnly || Boolean(call.technicianId || call.technicianName)) &&
@@ -1411,7 +1436,7 @@ function CallsPage({ status, title, assignedOnly = false }: { status?: CallStatu
           <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
-          {showFilters && <><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select></>}
+          {showFilters && <><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></>}
           <span className="result-count">{visibleCalls.length} resultados</span>
         </div>
         {error ? (
