@@ -102,6 +102,7 @@ export type Call = {
   result?: string;
   cancellationReason?: string;
   notes: string;
+  lastObservationAt?: string;
 };
 
 export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null };

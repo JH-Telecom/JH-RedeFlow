@@ -60,6 +60,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Escopo de equipe limitado à aba "Ordens da equipe" para supervisores.
 - [x] Atribuição de chamados limitada a técnicos ativos, excluindo auxiliares.
 - [x] Tabela de atendimento ampliada com protocolo, SLA, tipo, OLT, cidade, observação e timer.
+- [x] Timer de atendimento calculado desde a última observação registrada.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -312,6 +313,18 @@ A aba `Em atendimento` passou a usar uma tabela operacional inspirada na referê
 - acima de 10 horas: `Outlier`, vermelho.
 
 O timer exibe o tempo decorrido desde a abertura no formato `HH:MM:SS`.
+
+### Correção posterior
+O timer da tabela não usa mais `openedAt`: ele usa o `created_at` da observação mais recente. Chamados sem observação exibem `Sem observacao`. O SLA continua sendo calculado desde a abertura.
+
+### Arquivos adicionais modificados
+
+- [backend/src/types.ts](backend/src/types.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/attendance.css](frontend/src/attendance.css)
 
 ### Arquivos modificados
 
