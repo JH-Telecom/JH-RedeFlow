@@ -5,6 +5,7 @@ import App from './App';
 import './styles.css';
 import './team.css';
 import './supervisor-overrides.css';
+import './attendance.css';
 import './outcome.css';
 import './activation.css';
 import './activation-overrides.css';

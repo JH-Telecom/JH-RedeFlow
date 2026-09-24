@@ -59,6 +59,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Cards de supervisores reorganizados com alinhamento, hierarquia e estado vazio responsivo.
 - [x] Escopo de equipe limitado à aba "Ordens da equipe" para supervisores.
 - [x] Atribuição de chamados limitada a técnicos ativos, excluindo auxiliares.
+- [x] Tabela de atendimento ampliada com protocolo, SLA, tipo, OLT, cidade, observação e timer.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -293,6 +294,30 @@ Os cards de supervisores foram reorganizados para manter cabeçalho, lista de t�
 - [frontend/src/App.tsx](frontend/src/App.tsx)
 - [frontend/src/main.tsx](frontend/src/main.tsx)
 - [frontend/src/supervisor-overrides.css](frontend/src/supervisor-overrides.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
+
+## 2026-09-24 — Tabela operacional de atendimento e SLA
+
+### Alteração
+A aba `Em atendimento` passou a usar uma tabela operacional inspirada na referência recebida, com as colunas Protocolo, Técnico, Prazo, Afet., Tipo de evento, OLT, Cidade, Observação e Timer. A coluna `Afet.` permanece com `-` até existir uma origem oficial para esse dado no modelo de chamados.
+
+### Regra de prazo
+
+- até 8 horas desde `openedAt`: `No prazo`, verde;
+- acima de 8 horas e até 10 horas: `Fora do prazo`, amarelo;
+- acima de 10 horas: `Outlier`, vermelho.
+
+O timer exibe o tempo decorrido desde a abertura no formato `HH:MM:SS`.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/main.tsx](frontend/src/main.tsx)
+- [frontend/src/attendance.css](frontend/src/attendance.css)
 - [ROADMAP.md](ROADMAP.md)
 
 ### Validação
