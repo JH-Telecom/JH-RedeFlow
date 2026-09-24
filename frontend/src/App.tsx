@@ -1371,10 +1371,10 @@ function DateRangeFilter({ value, onChange }: { value: { from: string; to: strin
 
 function SupervisorOrdersPage({ user }: { user: User & { role: Role } }) {
   if (user.role.name !== "Supervisor") return <Navigate to="/" replace />;
-  return <CallsPage title="Ordens dos meus tecnicos" />;
+  return <CallsPage title="Ordens dos meus tecnicos" teamScoped />;
 }
 
-function CallsPage({ status, title, assignedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean }) {
+function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; teamScoped?: boolean }) {
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1386,13 +1386,13 @@ function CallsPage({ status, title, assignedOnly = false }: { status?: CallStatu
   const navigate = useNavigate();
   useEffect(() => {
     api
-      .calls(status, dateRange)
+      .calls(status, { ...dateRange, teamScope: teamScoped })
       .then((data) => setCalls(data.calls))
       .catch((err) => setError(err.message));
   }, [status, dateRange.from, dateRange.to]);
   async function refreshCalls() {
     setLoading(true);
-    try { setCalls((await api.calls(status, dateRange)).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
+    try { setCalls((await api.calls(status, { ...dateRange, teamScope: teamScoped })).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
   }
   const visibleCalls = calls.filter((call) =>
     (!assignedOnly || Boolean(call.technicianId || call.technicianName)) &&
@@ -1459,7 +1459,7 @@ function CallsPage({ status, title, assignedOnly = false }: { status?: CallStatu
               {visibleCalls.map((call) => (
                 <tr
                   key={call.id}
-                  onClick={() => navigate(`/chamados/${call.id}`)}
+                  onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)}
                 >
                   <td>
                     <strong>{call.orderNumber}</strong>
@@ -1512,8 +1512,9 @@ function formatWaiting(openedAt: string) {
     : `${minutes}min`;
 }
 function CallDetailBase() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const id = pathname.split("/").pop()!;
+  const teamScoped = new URLSearchParams(search).get("teamScope") === "true";
   const [call, setCall] = useState<Call | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [status, setStatus] = useState<CallStatus>("Aberto");
@@ -1534,7 +1535,7 @@ function CallDetailBase() {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {
-    Promise.all([api.call(id), api.technicians()]).then(
+    Promise.all([api.call(id, { teamScope: teamScoped }), api.technicians()]).then(
       ([callData, technicianData]) => {
         setCall(callData.call);
         setStatus(callData.call.status);

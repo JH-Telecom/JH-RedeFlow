@@ -125,11 +125,11 @@ function requirePermission(permission: PermissionCode) {
     next();
   };
 }
-async function getScopedCallQuery(request: AuthRequest) {
+async function getScopedCallQuery(request: AuthRequest, scopeToSupervisor = false) {
   const from = typeof request.query.from === 'string' ? request.query.from : undefined;
   const to = typeof request.query.to === 'string' ? request.query.to : undefined;
   if ((from && !/^\d{4}-\d{2}-\d{2}$/.test(from)) || (to && !/^\d{4}-\d{2}-\d{2}$/.test(to))) throw new Error('Periodo invalido.');
-  if (request.authUser?.role.name === 'Supervisor') {
+  if (scopeToSupervisor && request.authUser?.role.name === 'Supervisor') {
     const supervisorId = await getSupervisorIdForUser(request.authUser.id);
     if (!supervisorId) throw new Error('Supervisor sem equipe vinculada.');
     return { from, to, supervisorId };
@@ -283,11 +283,11 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
   const status = request.query.status;
   const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado'];
   if (status && !validStatuses.includes(String(status) as CallStatus)) return response.status(400).json({ message: 'Status de chamado invalido.' });
-  try { return response.json({ calls: await listCalls(status as CallStatus | undefined, await getScopedCallQuery(request)) }); }
+  try { return response.json({ calls: await listCalls(status as CallStatus | undefined, await getScopedCallQuery(request, request.query.teamScope === 'true')) }); }
   catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
 });
 app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (request, response) => {
-  const call = await getCall(String(request.params.id), await getScopedCallQuery(request as AuthRequest));
+  const call = await getCall(String(request.params.id), await getScopedCallQuery(request as AuthRequest, request.query.teamScope === 'true'));
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });

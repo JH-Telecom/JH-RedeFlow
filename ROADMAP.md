@@ -57,6 +57,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Edição de usuário com troca de cargo persistida no Supabase.
 - [x] Vínculo de login e equipe do supervisor pela tela de supervisores.
 - [x] Cards de supervisores reorganizados com alinhamento, hierarquia e estado vazio responsivo.
+- [x] Escopo de equipe limitado à aba "Ordens da equipe" para supervisores.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -295,6 +296,29 @@ Os cards de supervisores foram reorganizados para manter cabeçalho, lista de t�
 
 ### Validação
 
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
+
+## 2026-09-24 — Escopo do supervisor limitado à aba da equipe
+
+### Regra definida
+O usuário Supervisor pode consultar todos os chamados na Visão geral, Chamados abertos e Em atendimento. Apenas a aba `Ordens da equipe` envia `teamScope=true` e recebe ordens filtradas pelos técnicos vinculados ao supervisor autenticado.
+
+### Alterações
+
+- remoção do escopo automático de supervisor no dashboard e nas listagens gerais;
+- filtro server-side explícito na aba de ordens da equipe;
+- detalhe de ordem preserva o escopo quando aberto a partir da aba da equipe.
+
+### Arquivos modificados
+
+- [backend/src/server.ts](backend/src/server.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do backend concluído com sucesso usando `npm run build --workspace backend`;
 - build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
 
 ## 2026-09-24 — Vínculo de login e equipe do supervisor
