@@ -344,6 +344,26 @@ export async function createSupabaseUser(input: { name: string; email: string; r
   return { id: profile.id, name: profile.name, email: profile.email, roleId: profile.role_id, active: profile.active, createdAt: profile.created_at, role: role || undefined };
 }
 
+export async function updateSupabaseUser(id: string, input: { name?: string; email?: string; roleId?: string; active?: boolean; password?: string }) {
+  const admin = getSupabaseAdmin();
+  const authChanges: { email?: string; password?: string } = {};
+  if (input.email !== undefined) authChanges.email = input.email;
+  if (input.password !== undefined) authChanges.password = input.password;
+  if (Object.keys(authChanges).length) {
+    const { error: authError } = await admin.auth.admin.updateUserById(id, authChanges);
+    if (authError) throw new Error(authError.message);
+  }
+  const profileChanges: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.name !== undefined) profileChanges.name = input.name;
+  if (input.email !== undefined) profileChanges.email = input.email;
+  if (input.roleId !== undefined) profileChanges.role_id = input.roleId;
+  if (input.active !== undefined) profileChanges.active = input.active;
+  const { data, error } = await admin.from('profiles').update(profileChanges).eq('id', id).is('deleted_at', null).select('id, name, email, role_id, active, created_at').maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
+  return { id: data.id, name: data.name, email: data.email, roleId: data.role_id, active: data.active, createdAt: data.created_at, role: (await getSupabaseRole(data.role_id)) || undefined };
+}
+
 export async function checkSupabaseConnection() {
   if (!isSupabaseConfigured()) return { configured: false, connected: false };
   const { error } = await getSupabaseAdmin().from('roles').select('id').limit(1);

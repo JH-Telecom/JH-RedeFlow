@@ -54,6 +54,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Filtro de data na visão geral e nas listagens de ordens.
 - [x] Matriz de permissões corrigida para Administrador, Operador, Supervisor, Mesário e Visualização.
 - [x] Catálogo de permissões compactado em duas colunas no desktop e responsivo no mobile.
+- [x] Edição de usuário com troca de cargo persistida no Supabase.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -259,6 +260,24 @@ Criadas migrations idempotentes para PostgreSQL local e Supabase, com a matriz a
 - [supabase/migrations/202609240006_assign_rbac_permissions.sql](supabase/migrations/202609240006_assign_rbac_permissions.sql)
 
 As migrations precisam ser executadas no banco correspondente para atualizar os vínculos já existentes.
+
+## 2026-09-24 — Correção da edição de usuários no Supabase
+
+### Problema
+Ao trocar o cargo de um perfil pela tela de usuários, a API validava o novo cargo, mas o store não tinha um caminho de atualização para o runtime Supabase. A operação caía no mapa local em memória e o usuário real não era encontrado.
+
+### Solução
+Adicionado `updateSupabaseUser`, que atualiza `profiles.role_id` e demais campos do perfil. Alterações de e-mail e senha também são sincronizadas no Supabase Auth quando informadas.
+
+### Arquivos modificados
+
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do backend concluído com sucesso usando `npm run build --workspace backend`.
 
 ## 2026-09-24 — Compactação do catálogo de permissões
 
