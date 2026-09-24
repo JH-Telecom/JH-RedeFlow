@@ -52,6 +52,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Escopo de supervisão aplicado por equipe para chamadas e dashboard.
 - [x] Tela de ordens da equipe do supervisor com filtro de período.
 - [x] Filtro de data na visão geral e nas listagens de ordens.
+- [x] Matriz de permissões corrigida para Administrador, Operador, Supervisor, Mesário e Visualização.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -234,6 +235,29 @@ A tela do supervisor não recebe um identificador de equipe pelo frontend. O bac
 - build do frontend concluído com sucesso usando `npm run build --workspace frontend`;
 - build do backend já validado anteriormente com sucesso;
 - permanece pendente a validação manual do login de supervisor em ambiente publicado.
+
+## 2026-09-24 — Correção da matriz de permissões
+
+### Problema
+Os cargos Supervisor e Visualização apareciam sem permissões, enquanto Operador e Mesário tinham vínculos incorretos no banco oficial.
+
+### Solução
+Criadas migrations idempotentes para PostgreSQL local e Supabase, com a matriz abaixo:
+
+| Cargo | Permissões principais |
+| --- | --- |
+| Administrador | Todas as permissões disponíveis |
+| Operador | Dashboard, chamados operacionais, acionamentos, importações e consulta de técnicos/supervisores |
+| Supervisor | Dashboard, consulta de chamados, técnicos e supervisores |
+| Mesário | Visualização e decisão de acionamentos |
+| Visualização | Dashboard e consultas de chamados, técnicos e supervisores |
+
+### Arquivos criados
+
+- [database/migrations/006_assign_rbac_permissions.sql](database/migrations/006_assign_rbac_permissions.sql)
+- [supabase/migrations/202609240006_assign_rbac_permissions.sql](supabase/migrations/202609240006_assign_rbac_permissions.sql)
+
+As migrations precisam ser executadas no banco correspondente para atualizar os vínculos já existentes.
 
 ## 9. ARQUIVOS IMPORTANTES
 
