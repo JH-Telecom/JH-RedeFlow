@@ -840,7 +840,7 @@ function parseManualProductionData(raw: string): ManualProductionData {
       section = "technician";
       continue;
     }
-    if (isOrdersHeader || label.includes("ordens indicadas") || label.includes("dados da planilha") || label === "orders" || label === "ordens") {
+    if (isOrdersHeader || label.includes("ordens iniciadas") || label.includes("dados da planilha") || label === "orders" || label === "ordens") {
       section = "orders";
       continue;
     }
@@ -1121,7 +1121,7 @@ function ManualProductionDashboard() {
               <div className="panel-heading">
                 <div>
                   <span className="section-kicker">ORDENS</span>
-                  <h2>Ordens indicadas</h2>
+                  <h2>Ordens iniciadas</h2>
                 </div>
               </div>
               <div className="manual-table-wrap compact">
