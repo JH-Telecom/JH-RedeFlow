@@ -376,7 +376,7 @@ function Shell({
             <Route path="/importacoes" element={<ImportsPage />} />
             <Route path="/chamados/:id" element={<CallDetailRoute />} />
             <Route path="/tecnicos" element={<TechniciansPage />} />
-            <Route path="/supervisores" element={<SupervisorsPage />} />
+            <Route path="/supervisores" element={<SupervisorsPage user={user} />} />
             <Route path="/usuarios" element={<UsersPage />} />
             <Route path="/cargos" element={<RolesPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
@@ -2056,10 +2056,11 @@ function TechniciansPage() {
     </>
   );
 }
-function SupervisorsPage() {
+function SupervisorsPage({ user }: { user: User & { role: Role } }) {
   const [data, setData] = useState<{
     supervisors: {
       id: string;
+      userId?: string;
       name: string;
       region: string;
       active: boolean;
@@ -2067,8 +2068,9 @@ function SupervisorsPage() {
     }[];
     technicians: Technician[];
   }>({ supervisors: [], technicians: [] });
+  const [users, setUsers] = useState<User[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", region: "", active: true });
+  const [form, setForm] = useState({ name: "", region: "", userId: "", active: true });
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [regionFilter, setRegionFilter] = useState("Todas");
@@ -2076,14 +2078,18 @@ function SupervisorsPage() {
   const [selectedSupervisor, setSelectedSupervisor] = useState<typeof data.supervisors[number] | null>(null);
   const [assigning, setAssigning] = useState(false);
   async function load() {
-    try { setData(await api.supervisors()); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar supervisores."); }
+    try {
+      const supervisorData = await api.supervisors();
+      setData(supervisorData);
+      if (user.role.permissions.includes("users.view")) setUsers((await api.users()).users);
+    } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar supervisores."); }
   }
   useEffect(() => {
     load();
   }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    try { await api.createSupervisor({ ...form }); setShowForm(false); setForm({ name: "", region: "", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar supervisor."); }
+    try { await api.createSupervisor({ ...form, userId: form.userId || undefined }); setShowForm(false); setForm({ name: "", region: "", userId: "", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar supervisor."); }
   }
   function openTeam(supervisor: typeof data.supervisors[number]) { setSelectedSupervisor(supervisor); }
   async function assignTechnician(event: React.ChangeEvent<HTMLSelectElement>) {
@@ -2099,6 +2105,14 @@ function SupervisorsPage() {
     } finally {
       setAssigning(false);
     }
+  }
+  async function linkUser(userId: string) {
+    if (!selectedSupervisor) return;
+    try {
+      const result = await api.updateSupervisor(selectedSupervisor.id, { userId: userId || null });
+      setSelectedSupervisor(result.supervisor);
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel vincular o login."); }
   }
   const regions = [...new Set(data.supervisors.map((supervisor) => supervisor.region))];
   const visibleSupervisors = data.supervisors.filter((supervisor) => `${supervisor.name} ${supervisor.region}`.toLowerCase().includes(query.toLowerCase()) && (regionFilter === "Todas" || supervisor.region === regionFilter));
@@ -2170,9 +2184,11 @@ function SupervisorsPage() {
       {showForm && <AdminModal title="Novo supervisor" onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>
         <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
         <label>Regiao<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} required /></label>
+        {user.role.permissions.includes("users.view") && <label>Login do supervisor<select value={form.userId} onChange={(event) => setForm({ ...form, userId: event.target.value })}><option value="">Selecionar depois</option>{users.filter((account) => account.role?.name === "Supervisor" || account.roleId === "role-supervisor").map((account) => <option key={account.id} value={account.id}>{account.name} · {account.email}</option>)}</select></label>}
         <button className="primary-button" type="submit">Cadastrar supervisor <ChevronRight size={16} /></button>
       </form></AdminModal>}
       {selectedSupervisor && <AdminModal title={`Equipe de ${selectedSupervisor.name}`} onClose={() => setSelectedSupervisor(null)}>
+        {user.role.permissions.includes("users.view") && <label className="detail-label">Login vinculado<select value={selectedSupervisor.userId || ""} onChange={(event) => void linkUser(event.target.value)}><option value="">Sem login vinculado</option>{users.filter((account) => account.role?.name === "Supervisor" || account.roleId === "role-supervisor").map((account) => <option key={account.id} value={account.id}>{account.name} · {account.email}</option>)}</select></label>}
         <div className="team-detail-list">
           <div className="panel-heading"><div><span className="section-kicker">EQUIPE ATUAL</span><h2>{data.technicians.filter((technician) => technician.supervisorId === selectedSupervisor.id).length} tecnicos</h2></div></div>
           {data.technicians.filter((technician) => technician.supervisorId === selectedSupervisor.id).map((technician) => <div className="team-member" key={technician.id}><div className="avatar">{technician.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</div><div><strong>{technician.name}</strong><span>{technician.registration} · {technician.shift}</span></div><i className={`member-dot ${technician.currentStatus === "Em campo" ? "field" : technician.active ? "ready" : "off"}`} /></div>)}

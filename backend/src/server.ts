@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getManualDailyBase, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getManualDailyBase, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
@@ -271,6 +271,13 @@ app.post('/api/supervisores', auth, requirePermission('supervisors.create'), asy
   const parsed = z.object({ name: z.string().min(2), userId: z.string().optional(), region: z.string().min(2), active: z.boolean().default(true) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de supervisor invalidos.' });
   return response.status(201).json({ supervisor: await addSupervisor(parsed.data) });
+});
+app.patch('/api/supervisores/:id', auth, requirePermission('supervisors.edit'), async (request, response) => {
+  const parsed = z.object({ name: z.string().min(2).optional(), userId: z.string().nullable().optional(), region: z.string().min(2).optional(), active: z.boolean().optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Dados de supervisor invalidos.' });
+  const supervisor = await updateSupervisor(String(request.params.id), parsed.data);
+  if (!supervisor) return response.status(404).json({ message: 'Supervisor nao encontrado.' });
+  return response.json({ supervisor });
 });
 app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const status = request.query.status;

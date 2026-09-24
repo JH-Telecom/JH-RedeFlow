@@ -60,6 +60,7 @@ export const api = {
   deleteTechnician: (id: string) => request<{ deleted: boolean }>(`/api/tecnicos/${id}`, { method: 'DELETE' }),
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
+  updateSupervisor: (id: string, data: { userId?: string | null; name?: string; region?: string; active?: boolean }) => request<{ supervisor: Supervisor }>(`/api/supervisores/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   calls: (status?: CallStatus, filters?: { from?: string; to?: string }) => { const params = new URLSearchParams(); if (status) params.set('status', status); if (filters?.from) params.set('from', filters.from); if (filters?.to) params.set('to', filters.to); return request<{ calls: Call[] }>(`/api/chamados${params.toString() ? `?${params}` : ''}`); },
   call: (id: string) => request<{ call: Call }>(`/api/chamados/${id}`),
   updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'olt' | 'slotPon' | 'status' | 'notes'>> & { technicianId?: string | null }) => request<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

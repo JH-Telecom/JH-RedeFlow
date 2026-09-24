@@ -55,6 +55,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Matriz de permissões corrigida para Administrador, Operador, Supervisor, Mesário e Visualização.
 - [x] Catálogo de permissões compactado em duas colunas no desktop e responsivo no mobile.
 - [x] Edição de usuário com troca de cargo persistida no Supabase.
+- [x] Vínculo de login e equipe do supervisor pela tela de supervisores.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -277,6 +278,28 @@ Adicionado `updateSupabaseUser`, que atualiza `profiles.role_id` e demais campos
 
 ### Validação
 
+- build do backend concluído com sucesso usando `npm run build --workspace backend`.
+
+## 2026-09-24 — Vínculo de login e equipe do supervisor
+
+### Problema
+O cadastro de supervisor permitia informar apenas nome e região. O login criado separadamente não era associado ao registro em `supervisors`, e por isso o supervisor autenticado aparecia sem equipe.
+
+### Solução
+O cadastro agora permite escolher um usuário com cargo Supervisor. Supervisores existentes também podem ser abertos e vinculados ou desvinculados de um login pelo campo `Login vinculado`. A atualização persiste `profile_id` no Supabase ou `user_id` no PostgreSQL local.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`;
 - build do backend concluído com sucesso usando `npm run build --workspace backend`.
 
 ## 2026-09-24 — Compactação do catálogo de permissões

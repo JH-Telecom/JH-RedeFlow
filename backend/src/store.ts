@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
+import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -506,6 +506,32 @@ export async function addSupervisor(input: Omit<Supervisor, 'id' | 'technicianCo
   const supervisor = { ...input, id: `supervisor-${crypto.randomUUID()}`, technicianCount: 0 };
   supervisors.set(supervisor.id, supervisor);
   return supervisor;
+}
+export async function updateSupervisor(id: string, input: { userId?: string | null; name?: string; region?: string; active?: boolean }): Promise<Supervisor | undefined> {
+  if (isSupabaseConfigured()) return await updateSupabaseSupervisor(id, input);
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    let index = 1;
+    if (input.userId !== undefined) { sets.push(`user_id = $${index++}`); values.push(input.userId || null); }
+    if (input.name !== undefined) { sets.push(`name = $${index++}`); values.push(input.name); }
+    if (input.region !== undefined) { sets.push(`region = $${index++}`); values.push(input.region); }
+    if (input.active !== undefined) { sets.push(`active = $${index++}`); values.push(input.active); }
+    if (!sets.length) return (await listSupervisors()).find((item) => item.id === id);
+    sets.push(`updated_at = now()`);
+    values.push(id);
+    const result = await client.query<{ id: string; user_id: string | null; name: string; region: string | null; active: boolean }>(`UPDATE supervisors SET ${sets.join(', ')} WHERE id = $${index} AND deleted_at IS NULL RETURNING id, user_id, name, region, active`, values);
+    const row = result.rows[0];
+    if (!row) return undefined;
+    const technicianCount = (await listTechnicians()).filter((technician) => technician.supervisorId === row.id).length;
+    return { id: row.id, userId: row.user_id ?? undefined, name: row.name, region: row.region ?? '', active: row.active, technicianCount };
+  }
+  const current = supervisors.get(id);
+  if (!current) return undefined;
+  const updated = { ...current, ...input, userId: input.userId === null ? undefined : input.userId ?? current.userId };
+  supervisors.set(id, updated);
+  return updated;
 }
 export type CallQuery = { from?: string; to?: string; supervisorId?: string };
 export async function getSupervisorIdForUser(userId: string): Promise<string | undefined> {

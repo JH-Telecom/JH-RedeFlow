@@ -94,6 +94,18 @@ export async function createSupabaseSupervisor(input: { userId?: string; name: s
   return { id: data.id, userId: data.profile_id || undefined, name: data.name, region: data.region || '', active: data.active, technicianCount: 0 };
 }
 
+export async function updateSupabaseSupervisor(id: string, input: { userId?: string | null; name?: string; region?: string; active?: boolean }) {
+  const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.userId !== undefined) changes.profile_id = input.userId || null;
+  if (input.name !== undefined) changes.name = input.name;
+  if (input.region !== undefined) changes.region = input.region;
+  if (input.active !== undefined) changes.active = input.active;
+  const { data, error } = await getSupabaseAdmin().from('supervisors').update(changes).eq('id', id).is('deleted_at', null).select('id, profile_id, name, region, active').maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return undefined;
+  return { id: data.id, userId: data.profile_id || undefined, name: data.name, region: data.region || '', active: data.active, technicianCount: 0 };
+}
+
 export async function listSupabaseTechnicians() {
   const { data, error } = await getSupabaseAdmin().from('technicians').select('id, supervisor_id, lead_technician_id, name, registration, region, shift, current_status, active, active_override, team_role, supervisors(name), lead_technician:lead_technician_id(name)').is('deleted_at', null).order('name');
   if (error) throw new Error(error.message);
