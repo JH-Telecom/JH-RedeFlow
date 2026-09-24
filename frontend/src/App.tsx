@@ -1636,7 +1636,7 @@ function CallDetailBase() {
             >
               <option value="">Sem tecnico</option>
               {technicians
-                .filter((technician) => technician.active)
+                .filter((technician) => technician.teamRole === "Tecnico" && technician.active)
                 .map((technician) => (
                   <option key={technician.id} value={technician.id}>
                     {technician.name} · {technician.region}

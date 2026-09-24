@@ -58,6 +58,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Vínculo de login e equipe do supervisor pela tela de supervisores.
 - [x] Cards de supervisores reorganizados com alinhamento, hierarquia e estado vazio responsivo.
 - [x] Escopo de equipe limitado à aba "Ordens da equipe" para supervisores.
+- [x] Atribuição de chamados limitada a técnicos ativos, excluindo auxiliares.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -296,6 +297,27 @@ Os cards de supervisores foram reorganizados para manter cabeçalho, lista de t�
 
 ### Validação
 
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
+
+## 2026-09-24 — Restrição de técnicos na atribuição de chamados
+
+### Regra definida
+Dentro do detalhe do chamado, o campo de atribuição deve listar somente profissionais com tipo `Tecnico` e status ativo. Auxiliares e técnicos inativos não podem ser selecionados.
+
+### Alterações
+
+- filtro de auxiliares e inativos no seletor do frontend;
+- validação server-side para rejeitar atribuições inválidas enviadas diretamente à API.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [backend/src/server.ts](backend/src/server.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do backend concluído com sucesso usando `npm run build --workspace backend`;
 - build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
 
 ## 2026-09-24 — Escopo do supervisor limitado à aba da equipe
