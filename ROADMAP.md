@@ -63,6 +63,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Timer de atendimento calculado desde a última observação registrada.
 - [x] Coluna SLA exibindo o tempo desde a data de acionamento.
 - [x] Regiões operacionais disponíveis em seletor no detalhe do chamado.
+- [x] Notificações de acionamentos com toast superior, sino persistente e contador no menu.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -335,6 +336,32 @@ Regiões antigas que não estejam na lista continuam visíveis para não apagar 
 
 ### Validação
 
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
+
+## 2026-09-24 — Notificações e contador de acionamentos
+
+### Alterações
+
+- removido o botão de pesquisa do topo;
+- adicionada detecção de novos acionamentos por ID;
+- novo acionamento exibe toast centralizado no topo por alguns segundos;
+- após o toast desaparecer, o acionamento continua acessível pelo sino;
+- contador de acionamentos pendentes adicionado ao item `Acionamentos` do menu;
+- endpoint de notificações liberado para usuários com `activations.view`, mesmo sem `dashboard.view`;
+- runtime Supabase passou a consultar acionamentos reais em vez do mapa demo.
+
+### Arquivos modificados
+
+- [backend/src/server.ts](backend/src/server.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/main.tsx](frontend/src/main.tsx)
+- [frontend/src/notifications-overrides.css](frontend/src/notifications-overrides.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do backend concluído com sucesso usando `npm run build --workspace backend`;
 - build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
 
 ### Correção posterior

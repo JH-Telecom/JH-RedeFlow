@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Navigate,
   NavLink,
@@ -233,13 +233,32 @@ function Shell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => localStorage.getItem("jh-redeflow-sidebar-collapsed") === "true");
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [activationCount, setActivationCount] = useState(0);
+  const [activationToast, setActivationToast] = useState<AppNotification | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const knownActivationIds = useRef<Set<string> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
         async function loadNotifications() {
     setNotificationsLoading(true);
-    try { setNotifications((await api.notifications()).notifications); } catch { setNotifications([]); } finally { setNotificationsLoading(false); }
+          try {
+            const notificationData = await api.notifications();
+            setNotifications(notificationData.notifications);
+            if (user.role.permissions.includes("activations.view")) {
+              const pending = (await api.activations("Pendente")).activations;
+              const pendingIds = new Set(pending.map((activation) => activation.id));
+              setActivationCount(pending.length);
+              if (knownActivationIds.current) {
+                const newActivation = pending.find((activation) => !knownActivationIds.current?.has(activation.id));
+                if (newActivation) {
+                  setActivationToast({ id: newActivation.id, type: "info", title: "Novo acionamento recebido", detail: newActivation.extractedData.orderNumber ? `Ordem ${newActivation.extractedData.orderNumber} aguardando análise.` : "Existe um acionamento aguardando análise.", href: "/acionamentos" });
+                  window.setTimeout(() => setActivationToast(null), 8000);
+                }
+              }
+              knownActivationIds.current = pendingIds;
+            }
+          } catch { setNotifications([]); } finally { setNotificationsLoading(false); }
   }
   useEffect(() => { void loadNotifications(); const interval = window.setInterval(() => void loadNotifications(), 15000); return () => window.clearInterval(interval); }, [location.pathname]);
   function toggleSidebar() {
@@ -311,6 +330,7 @@ function Shell({
               >
                 <item.icon size={18} />
                 <span>{item.label}</span>
+                {item.to === "/acionamentos" && activationCount > 0 && <b className="nav-count">{activationCount > 99 ? "99+" : activationCount}</b>}
               </NavLink>
             ))}
         </nav>
@@ -355,9 +375,6 @@ function Shell({
             <strong>{title}</strong>
           </div>
           <div className="topbar-actions">
-            <button className="icon-button">
-              <Search size={18} />
-            </button>
             <div className="notification-wrap">
               <button className={`icon-button notification ${notificationsLoading ? "is-refreshing" : ""}`} onClick={() => { setNotificationsOpen((current) => !current); void loadNotifications(); }} title="Notificacoes">
                 <Bell size={18} />
@@ -368,6 +385,7 @@ function Shell({
             <div className="topbar-avatar">{user.name.slice(0, 1)}</div>
           </div>
         </header>
+        {activationToast && <button className="activation-toast" type="button" onClick={() => { setActivationToast(null); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
         <div className="content">
           <Routes>
             <Route path="/" element={<DashboardWithDateFilter user={user} />} />

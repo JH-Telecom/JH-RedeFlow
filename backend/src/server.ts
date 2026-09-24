@@ -202,7 +202,10 @@ app.put('/api/dashboards/painel-diario/base', auth, requirePermission('imports.c
 app.delete('/api/dashboards/painel-diario/base', auth, requirePermission('imports.create'), async (request, response) => {
   return response.json({ deleted: await deleteManualDailyBase(typeof request.query.date === 'string' ? request.query.date : undefined) });
 });
-app.get('/api/notificacoes', auth, requirePermission('dashboard.view'), async (_request, response) => response.json({ notifications: await listNotifications() }));
+app.get('/api/notificacoes', auth, async (request: AuthRequest, response) => {
+  const includeOperational = Boolean(request.authUser?.role.permissions.includes('dashboard.view'));
+  return response.json({ notifications: await listNotifications(includeOperational) });
+});
 app.get('/api/users', auth, requirePermission('users.view'), async (_request, response) => response.json({ users: await listUsers() }));
 app.post('/api/users', auth, requirePermission('users.create'), async (request, response) => {
   const parsed = z.object({ name: z.string().min(2), email: z.string().email(), roleId: z.string(), password: z.string().min(8) }).safeParse(request.body);

@@ -654,12 +654,14 @@ export async function deleteCall(id: string): Promise<boolean> {
   }
   return true;
 }
-export async function listNotifications() {
+export async function listNotifications(includeOperational = true) {
   const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string }[];
-  const currentCalls = shouldUseLocalDatabase() ? await listCalls() : [...calls.values()];
-  const unassigned = currentCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status));
-  if (unassigned.length) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned.length} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos' });
-  const currentActivations = shouldUseLocalDatabase() ? await listActivations() : [...activations.values()];
+  if (includeOperational) {
+    const currentCalls = isSupabaseConfigured() || shouldUseLocalDatabase() ? await listCalls() : [...calls.values()];
+    const unassigned = currentCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status));
+    if (unassigned.length) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned.length} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos' });
+  }
+  const currentActivations = isSupabaseConfigured() || shouldUseLocalDatabase() ? await listActivations() : [...activations.values()];
   const pending = currentActivations.filter((activation) => activation.status === 'Pendente');
   if (pending.length) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending.length} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos' });
   return notifications;
