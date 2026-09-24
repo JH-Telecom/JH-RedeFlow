@@ -12,6 +12,7 @@ import './imports.css';
 import './dashboard.css';
 import './sidebar.css';
 import './admin.css';
+import './permissions.css';
 import './filters.css';
 import './refresh.css';
 

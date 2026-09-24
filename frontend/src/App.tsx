@@ -2250,12 +2250,14 @@ function RolesPage() {
               <h2>Permissoes disponiveis</h2>
             </div>
           </div>
-          {permissions.map((permission) => (
-            <div className="permission-row" key={permission.code}>
-              <span>{permission.code}</span>
-              <small>{permission.description}</small>
-            </div>
-          ))}
+          <div className="permissions-catalog">
+            {permissions.map((permission) => (
+              <div className="permission-row" key={permission.code}>
+                <span>{permission.code}</span>
+                <small>{permission.description}</small>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
       {showForm && <AdminModal title={editing ? "Editar cargo" : "Novo cargo"} onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>

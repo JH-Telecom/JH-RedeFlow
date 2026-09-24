@@ -53,6 +53,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Tela de ordens da equipe do supervisor com filtro de período.
 - [x] Filtro de data na visão geral e nas listagens de ordens.
 - [x] Matriz de permissões corrigida para Administrador, Operador, Supervisor, Mesário e Visualização.
+- [x] Catálogo de permissões compactado em duas colunas no desktop e responsivo no mobile.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -258,6 +259,21 @@ Criadas migrations idempotentes para PostgreSQL local e Supabase, com a matriz a
 - [supabase/migrations/202609240006_assign_rbac_permissions.sql](supabase/migrations/202609240006_assign_rbac_permissions.sql)
 
 As migrations precisam ser executadas no banco correspondente para atualizar os vínculos já existentes.
+
+## 2026-09-24 — Compactação do catálogo de permissões
+
+### Alteração
+O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permissão usava uma linha inteira. As permissões agora são exibidas em duas colunas no desktop, mantendo código e descrição, e retornam para uma coluna em telas menores.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/main.tsx](frontend/src/main.tsx)
+- [frontend/src/permissions.css](frontend/src/permissions.css)
+
+### Validação
+
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
 
 ## 9. ARQUIVOS IMPORTANTES
 
