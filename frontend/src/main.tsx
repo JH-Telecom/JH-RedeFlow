@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './styles.css';
 import './team.css';
+import './supervisor-overrides.css';
 import './outcome.css';
 import './activation.css';
 import './activation-overrides.css';

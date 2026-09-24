@@ -56,6 +56,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Catálogo de permissões compactado em duas colunas no desktop e responsivo no mobile.
 - [x] Edição de usuário com troca de cargo persistida no Supabase.
 - [x] Vínculo de login e equipe do supervisor pela tela de supervisores.
+- [x] Cards de supervisores reorganizados com alinhamento, hierarquia e estado vazio responsivo.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -279,6 +280,22 @@ Adicionado `updateSupabaseUser`, que atualiza `profiles.role_id` e demais campos
 ### Validação
 
 - build do backend concluído com sucesso usando `npm run build --workspace backend`.
+
+## 2026-09-24 — Melhoria visual dos cards de supervisores
+
+### Alteração
+Os cards de supervisores foram reorganizados para manter cabeçalho, lista de técnicos e ação de equipe alinhados entre si. A contagem da equipe ganhou destaque, os membros passaram a ter altura consistente e equipes sem técnicos agora exibem uma mensagem orientativa.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/main.tsx](frontend/src/main.tsx)
+- [frontend/src/supervisor-overrides.css](frontend/src/supervisor-overrides.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
 
 ## 2026-09-24 — Vínculo de login e equipe do supervisor
 

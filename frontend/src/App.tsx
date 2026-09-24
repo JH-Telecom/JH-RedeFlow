@@ -2141,9 +2141,7 @@ function SupervisorsPage({ user }: { user: User & { role: Role } }) {
               </div>
               <div>
                 <h2>{supervisor.name}</h2>
-                <span>
-                  {supervisor.region} · {supervisor.technicianCount} tecnicos
-                </span>
+                <div className="supervisor-meta"><span>{supervisor.region}</span><strong>{supervisor.technicianCount} tecnicos</strong></div>
               </div>
               <button className="icon-button" type="button" onClick={() => openTeam(supervisor)} title="Abrir equipe">
                 <ChevronRight size={17} />
@@ -2174,6 +2172,7 @@ function SupervisorsPage({ user }: { user: User & { role: Role } }) {
                     />
                   </div>
                 ))}
+              {!data.technicians.some((technician) => technician.supervisorId === supervisor.id) && <div className="team-empty"><Users size={18} /><span>Nenhum tecnico vinculado</span><small>Abra a equipe para adicionar profissionais.</small></div>}
             </div>
             <button className="link-button team-link" type="button" onClick={() => openTeam(supervisor)}>
               Ver chamados da equipe <ChevronRight size={14} />
