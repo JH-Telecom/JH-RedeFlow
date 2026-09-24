@@ -1383,7 +1383,9 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState("");
+  const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
+  useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
   useEffect(() => {
     api
       .calls(status, { ...dateRange, teamScope: teamScoped })
