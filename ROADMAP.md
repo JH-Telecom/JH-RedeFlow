@@ -64,6 +64,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Coluna SLA exibindo o tempo desde a data de acionamento.
 - [x] Regiões operacionais disponíveis em seletor no detalhe do chamado.
 - [x] Notificações de acionamentos com toast superior, sino persistente e contador no menu.
+- [x] Aceite de acionamentos com campos longos corrigido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -363,6 +364,29 @@ Regiões antigas que não estejam na lista continuam visíveis para não apagar 
 
 - build do backend concluído com sucesso usando `npm run build --workspace backend`;
 - build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
+
+## 2026-09-24 — Correção de acionamento com texto longo
+
+### Problema
+Um dos 27 acionamentos falhava ao ser aceito com `value too long for type character varying(255)`. O texto extraído podia exceder o limite dos campos `reason` ou `slot_pon` da tabela `calls`.
+
+### Solução
+Os campos `reason` e `slot_pon` foram alterados para `text` nas migrations local e Supabase, preservando o conteúdo completo. A rota de aceite também passou a retornar erro JSON com contexto quando ocorrer uma falha de persistência.
+
+### Arquivos criados
+
+- [database/migrations/007_expand_activation_call_fields.sql](database/migrations/007_expand_activation_call_fields.sql)
+- [supabase/migrations/202609240007_expand_activation_call_fields.sql](supabase/migrations/202609240007_expand_activation_call_fields.sql)
+
+### Arquivos modificados
+
+- [backend/src/server.ts](backend/src/server.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- build do backend concluído com sucesso usando `npm run build --workspace backend`;
+- as migrations precisam ser executadas no banco oficial antes de aceitar novamente o acionamento afetado.
 
 ### Correção posterior
 O timer da tabela não usa mais `openedAt`: ele usa o `created_at` da observação mais recente. Chamados sem observação exibem `Sem observacao`. O SLA continua sendo calculado desde a abertura.

@@ -388,9 +388,11 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
 });
 app.get('/api/acionamentos', auth, requirePermission('activations.view'), async (request, response) => response.json({ activations: await listActivations(request.query.status as 'Pendente' | 'Aceito' | 'Recusado' | undefined) }));
 app.post('/api/acionamentos/:id/aceitar', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
-  const result = await decideActivation(String(request.params.id), 'Aceito', request.authUser!);
-  if (!result.activation) return response.status(404).json({ message: 'Acionamento nao encontrado ou ja processado.' });
-  return response.json(result);
+  try {
+    const result = await decideActivation(String(request.params.id), 'Aceito', request.authUser!);
+    if (!result.activation) return response.status(404).json({ message: 'Acionamento nao encontrado ou ja processado.' });
+    return response.json(result);
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? `Nao foi possivel aceitar o acionamento. ${error.message}` : 'Nao foi possivel aceitar o acionamento.' }); }
 });
 app.post('/api/acionamentos/:id/recusar', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
   const parsed = z.object({ reason: z.string().trim().min(3) }).safeParse(request.body);
