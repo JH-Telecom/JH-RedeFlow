@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
 import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
+import { identifyAtreladas } from './integrations/wuzapi/noc-consolidation.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -827,6 +828,8 @@ export async function receiveActivation(input: { source: string; originalMessage
   if (existing) return existing;
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
+    const existingActivations = await listActivations();
+    const enrichedAnalysis = input.analysis ? { ...input.analysis, atreladas: identifyAtreladas(input.analysis, existingActivations.map((activation) => ({ id: activation.id, analysis: activation.analysis }))) } : input.analysis;
     try {
       await client.query('BEGIN');
       const result = await client.query<{ id: string; source: string; original_message: string; received_at: string; status: string }>(
@@ -835,15 +838,16 @@ export async function receiveActivation(input: { source: string; originalMessage
          RETURNING id, source, original_message, received_at, status`, [input.source, input.originalMessage],
       );
       const row = result.rows[0];
-      await client.query(`INSERT INTO activation_processing (activation_id, extracted_data, processor) VALUES ($1, $2, 'gemini-semantic')`, [row.id, JSON.stringify({ ...input.extractedData, _analysis: input.analysis })]);
+      await client.query(`INSERT INTO activation_processing (activation_id, extracted_data, processor) VALUES ($1, $2, 'gemini-semantic')`, [row.id, JSON.stringify({ ...input.extractedData, _analysis: enrichedAnalysis })]);
       await client.query('COMMIT');
-      return { id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, extractedData: input.extractedData, analysis: input.analysis };
+      return { id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, extractedData: input.extractedData, analysis: enrichedAnalysis };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     }
   }
-  const activation: Activation = { id: `activation-${crypto.randomUUID()}`, source: input.source, originalMessage: input.originalMessage, receivedAt: new Date().toISOString(), status: 'Pendente', extractedData: input.extractedData, analysis: input.analysis }; activations.set(activation.id, activation); return activation;
+  const enrichedAnalysis = input.analysis ? { ...input.analysis, atreladas: identifyAtreladas(input.analysis, [...activations.values()].map((activation) => ({ id: activation.id, analysis: activation.analysis }))) } : input.analysis;
+  const activation: Activation = { id: `activation-${crypto.randomUUID()}`, source: input.source, originalMessage: input.originalMessage, receivedAt: new Date().toISOString(), status: 'Pendente', extractedData: input.extractedData, analysis: enrichedAnalysis }; activations.set(activation.id, activation); return activation;
 }
 export async function decideActivation(id: string, decision: 'Aceito' | 'Recusado', actor: User, rejectionReason?: string): Promise<{ activation?: Activation; call?: Call }> {
   if (isSupabaseConfigured()) return await decideSupabaseActivation(id, decision, actor.id, rejectionReason);

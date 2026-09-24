@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
+import { identifyAtreladas } from '../wuzapi/noc-consolidation.js';
 
 let adminClient: SupabaseClient | null = null;
 let authClient: SupabaseClient | null = null;
@@ -264,20 +265,24 @@ export async function createSupabaseActivation(input: { source: string; original
   const incomingKeys = [input.originalMessage, input.extractedData.bdesk, input.extractedData.officeTrack, input.extractedData.orderNumber].map(normalize).filter(Boolean);
   const { data: pendingRows, error: pendingError } = await admin.from('activations').select('id, source, original_message, received_at, status').eq('source', input.source).in('status', ['Pendente', 'Aceito']).order('received_at', { ascending: false });
   if (pendingError) throw new Error(pendingError.message);
+  const existingAnalyses: Array<{ id: string; analysis?: ActivationAnalysis }> = [];
   for (const pending of pendingRows || []) {
     const { data: processing } = await admin.from('activation_processing').select('extracted_data').eq('activation_id', pending.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
     const stored = (processing?.extracted_data || {}) as Record<string, unknown>;
+    const { _analysis: storedAnalysis } = stored;
+    existingAnalyses.push({ id: pending.id, analysis: storedAnalysis as ActivationAnalysis | undefined });
     const storedKeys = [pending.original_message, stored.bdesk, stored.officeTrack, stored.orderNumber].map(normalize).filter(Boolean);
     if (!incomingKeys.some((key) => storedKeys.includes(key))) continue;
     const { _analysis: analysis, ...extractedData } = stored;
     return { id: pending.id, source: pending.source, originalMessage: pending.original_message, receivedAt: pending.received_at, status: pending.status as ActivationStatus, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
   }
+  const enrichedAnalysis = input.analysis ? { ...input.analysis, atreladas: identifyAtreladas(input.analysis, existingAnalyses) } : input.analysis;
   const { data: activation, error } = await admin.from('activations').insert({ source: input.source, original_message: input.originalMessage, status: 'Pendente' }).select('id, source, original_message, received_at, status').single();
   if (error || !activation) throw new Error(error?.message || 'Nao foi possivel registrar o acionamento.');
-  const extractedData = { ...input.extractedData, _analysis: input.analysis };
+  const extractedData = { ...input.extractedData, _analysis: enrichedAnalysis };
   const { error: processingError } = await admin.from('activation_processing').insert({ activation_id: activation.id, extracted_data: extractedData, processor: input.analysis ? 'gemini-semantic' : 'local-semantic' });
   if (processingError) throw new Error(processingError.message);
-  return { id: activation.id, source: activation.source, originalMessage: activation.original_message, receivedAt: activation.received_at, status: activation.status as ActivationStatus, extractedData: input.extractedData, analysis: input.analysis };
+  return { id: activation.id, source: activation.source, originalMessage: activation.original_message, receivedAt: activation.received_at, status: activation.status as ActivationStatus, extractedData: input.extractedData, analysis: enrichedAnalysis };
 }
 
 export async function listSupabaseActivations(status?: ActivationStatus): Promise<Activation[]> {

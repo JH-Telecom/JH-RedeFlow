@@ -144,7 +144,13 @@ export type ActivationAnalysis = {
   cope_rede: string | null;
   observacoes: string | null;
   raw_text: string;
+  clientes_afetados?: NocAddressRecord[];
+  endereco_principal?: string | null;
+  bairro_principal?: string | null;
+  cep_principal?: string | null;
+  atreladas?: string[];
 };
+export type NocAddressRecord = { raw: string; nome: string | null; contrato: string | null; cep: string | null; endereco: string | null; complemento: string | null; bairro: string | null; endereco_base: string | null; endereco_normalizado: string | null; bairro_normalizado: string | null; cep_normalizado: string | null };
 export type Activation = {
   id: string;
   source: string;

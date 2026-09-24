@@ -1,5 +1,6 @@
 import { extractOperationalData, type WuzApiMessage } from './client.js';
 import type { ActivationAnalysis } from '../../types.js';
+import { consolidateNocAddresses } from './noc-consolidation.js';
 
 const nullValue = (value: string | undefined) => {
   const normalized = value?.replace(/[ *_-]/g, '').trim();
@@ -67,6 +68,7 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
   const contract = labelValue(text, ['CONTRATO(?:S)?(?: EXEMPLO(?:S)?)?']) || nullValue(legacy.contract);
   const technician = labelValue(text, ['TÉCNICO REDE', 'TECNICO REDE', 'TÉCNICO', 'TECNICO']) || nullValue(legacy.technician);
   const addresses = parseAddresses(text) || (legacy.addresses ? [legacy.addresses] : null);
+  const consolidated = consolidateNocAddresses(addresses);
   const analysis: ActivationAnalysis = {
     eh_acionamento: isActivation,
     tipo_registro: classification.type,
@@ -100,6 +102,10 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
     cope_rede: labelValue(text, ['COPE REDE']) || nullValue(legacy.cope),
     observacoes: labelValue(text, ['OBSERVAÇÕES', 'OBSERVACOES']) || nullValue(legacy.observations),
     raw_text: text,
+    clientes_afetados: consolidated.clientes,
+    endereco_principal: consolidated.enderecoPrincipal,
+    bairro_principal: consolidated.bairroPrincipal,
+    cep_principal: consolidated.cepPrincipal,
   };
   return analysis;
 }

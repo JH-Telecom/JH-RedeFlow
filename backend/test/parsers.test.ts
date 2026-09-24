@@ -4,6 +4,7 @@ import XLSX from 'xlsx';
 import { parseImport } from '../src/imports/parser.js';
 import { extractOperationalData, parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
+import { consolidateNocAddresses, identifyAtreladas } from '../src/integrations/wuzapi/noc-consolidation.js';
 
 test('normalizes a nested WuzAPI message', () => {
   const result = parseIncomingMessage({
@@ -136,6 +137,38 @@ RUA EXPEDITO, 30 CASA 2, SUZANO - SP
   assert.equal(result.afetados, 132);
   assert.equal(result.localizacao?.length, 2);
   assert.equal(result.cope_rede, 'NICOLLI');
+});
+
+test('consolidates the supplied NOC addresses by recurring base, neighborhood and CEP', () => {
+  const result = consolidateNocAddresses([
+    'Nome: TERESINHA PEREIRA RAMOS | Contrato: 6910911.1\nCEP: 08452-540\nEndereço: RUA RUA CABO DAS TORMENTAS, 254 APARTAMENTO:53 / BLOCO:07 JARDIM LOURDES, SAO PAULO - SP\nComp/Ref: .',
+    'Nome: JOSEANE SILVA BARRETO RODRIGUES | Contrato: 4463650.4\nCEP: 08452-540\nEndereço: RUA RUA CABO DAS TORMENTAS, 254 APARTAMENTO:31 / BLOCO:BL B JARDIM LOURDES, SAO PAULO - SP\nComp/Ref: NO CASO O CLIENTE INFORMA QUE LÁ É O NUMERO 70.',
+    'Nome: RYAN CORREA SANTOS | Contrato: 6862472.1\nCEP: 08452-540\nEndereço: RUA CABO DAS TORMENTAS, 254 APARTAMENTO:41 BLOCO 2 / BLOCO:BL B JARDIM LOURDES, SAO PAULO - SP\nComp/Ref: NÃO INFORMADA',
+    'Nome: BIANCA ALVES DOS SANTOS | Contrato: 4565221.3\nCEP: 08452-540\nEndereço: RUA DAS TORMENTAS, 254 FTTA - 0419 - COND. RESERVA DOM JOAO NERY I Nº-254 CD, BL_I-TERREO-GU2-FH01-P32-L5.2-R01-C09 BL, 33 JARDIM LOURDES, SAO PAULO - SP\nComp/Ref: N/A',
+  ]);
+  assert.equal(result.clientes.length, 4);
+  assert.equal(result.enderecoPrincipal, 'RUA CABO DAS TORMENTAS, 254');
+  assert.equal(result.bairroPrincipal, 'JARDIM LOURDES');
+  assert.equal(result.cepPrincipal, '08452-540');
+  assert.equal(result.clientes[1].contrato, '4463650.4');
+  assert.match(result.clientes[1].complemento || '', /NUMERO 70/);
+});
+
+test('consolidates equal streets with different units and deterministic neighborhood rules', () => {
+  const sameAddress = consolidateNocAddresses(['CEP: 01000-000\nEndereço: Rua X, 100 Apt 1, Bairro A, Sao Paulo - SP', 'CEP: 01000-000\nEndereço: Rua X, 100 Apt 2, Bairro A, Sao Paulo - SP', 'CEP: 01000-000\nEndereço: Rua X, 100 Apt 3, Bairro A, Sao Paulo - SP']);
+  assert.equal(sameAddress.enderecoPrincipal, 'RUA X, 100');
+  const neighborhoods = consolidateNocAddresses(['CEP: 01000-000\nEndereço: Rua X, 100, Bairro A, Sao Paulo - SP', 'CEP: 01000-000\nEndereço: Rua X, 100, Bairro A, Sao Paulo - SP', 'CEP: 01000-000\nEndereço: Rua X, 100, Bairro B, Sao Paulo - SP']);
+  assert.equal(neighborhoods.bairroPrincipal, 'BAIRRO A');
+  const tie = consolidateNocAddresses(['CEP: 01000-000\nEndereço: Rua X, 100, Bairro A, Sao Paulo - SP', 'CEP: 01000-000\nEndereço: Rua Y, 200, Bairro B, Sao Paulo - SP']);
+  assert.equal(tie.bairroPrincipal, 'BAIRRO A');
+  const incomplete = consolidateNocAddresses(['CEP: 01000-000\nEndereço: Rua X, 100, Bairro A, Sao Paulo - SP', 'Nome: Sem endereco']);
+  assert.equal(incomplete.enderecoPrincipal, 'RUA X, 100');
+});
+
+test('identifies atreladas through technical identifiers and matching consolidated location', () => {
+  const current = { olt: 'OLT-01', placa_pon: '06', slot_pon: ['00'], bdesk: null, office_track: 'OS-10', contrato: null, endereco_principal: 'RUA X, 100', bairro_principal: 'BAIRRO A' } as const;
+  const ids = identifyAtreladas(current, [{ id: 'activation-1', analysis: { ...current, raw_text: '', eh_acionamento: true, tipo_registro: null, tipo_card: null, categoria: null, origem: null, prioridade: null, tecnico: null, auxiliar: null, telefone: null, bdesk: null, ticket: null, office_track: 'OS-10', os_ot: null, os_casa_cliente: null, contrato: null, sn: null, olt: 'OLT-01', slot_pon: ['00'], placa_pon: '06', tipo_falha: null, motivo: null, afetados: null, data_hora_evento: null, tratativa_realizada: null, localizacao: null, id_cto: null, loc_cto: null, materiais_utilizados: null, tecnico_rede: null, cope_rede: null, observacoes: null } }]);
+  assert.deepEqual(ids, ['activation-1']);
 });
 
 test('does not classify ordinary group conversation as an activation', () => {

@@ -66,6 +66,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Notificações de acionamentos com toast superior, sino persistente e contador no menu.
 - [x] Gráfico de status do dashboard contido para não ultrapassar o painel.
 - [x] Aceite de acionamentos com campos longos corrigido.
+- [x] Consolidação determinística de endereços NOC, bairros, clientes afetados e atreladas.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -406,6 +407,43 @@ Os campos `reason` e `slot_pon` foram alterados para `text` nas migrations local
 
 - build do backend concluído com sucesso usando `npm run build --workspace backend`;
 - as migrations precisam ser executadas no banco oficial antes de aceitar novamente o acionamento afetado.
+
+## 2026-09-24 — Atreladas e consolidação de endereços NOC
+
+### Funções reutilizadas e alteradas
+
+- `analyzeOperationalMessage` em [backend/src/integrations/wuzapi/semantic.ts](backend/src/integrations/wuzapi/semantic.ts) continua extraindo `localizacao` e agora adiciona o resultado consolidado;
+- `receiveActivation` em [backend/src/store.ts](backend/src/store.ts) e `createSupabaseActivation` em [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts) persistem a relação de atreladas no bloco de análise;
+- a mensagem original, contratos, OS, BDESK, OfficeTrack, OLT e demais dados recebidos permanecem inalterados.
+
+### Funções novas
+
+- `parseNocAddress`: estrutura nome, contrato, CEP, endereço, complemento, bairro e endereço-base sem descartar o texto original;
+- `consolidateNocAddresses`: normaliza, agrupa e escolhe endereço-base, bairro e CEP por recorrência determinística;
+- `identifyAtreladas`: relaciona acionamentos por identificadores técnicos compartilhados e, como reforço, endereço-base e bairro iguais.
+
+### Regras implementadas
+
+- diferenças de apartamento, bloco e complemento não quebram o agrupamento do endereço-base;
+- bairro é escolhido por recorrência; em empate, prioriza o bairro do endereço-base mais recorrente e depois a primeira ocorrência;
+- clientes e contratos permanecem individualizados em `clientes_afetados`;
+- endereço original e campos normalizados coexistem para auditoria;
+- endereço sozinho não é identificador absoluto de atrelada.
+
+### Arquivos modificados/criados
+
+- [backend/src/types.ts](backend/src/types.ts)
+- [backend/src/integrations/wuzapi/semantic.ts](backend/src/integrations/wuzapi/semantic.ts)
+- [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/test/parsers.test.ts](backend/test/parsers.test.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
+- testes isolados de parser NOC: 17 aprovados;
+- build do backend concluído com sucesso usando `npm run build` dentro de `backend`.
 
 ### Correção posterior
 O timer da tabela não usa mais `openedAt`: ele usa o `created_at` da observação mais recente. Chamados sem observação exibem `Sem observacao`. O SLA continua sendo calculado desde a abertura.
