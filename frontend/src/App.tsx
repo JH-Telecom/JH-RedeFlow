@@ -1447,7 +1447,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           <table>
             <thead>
               <tr>
-                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Abertura</th><th>Tempo aguardando</th><th>Status</th><th>Tecnico</th></>}
+                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Abertura</th><th>Tempo aguardando</th><th>Status</th><th>Tecnico</th></>}
               </tr>
             </thead>
             <tbody>
@@ -1456,7 +1456,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
                   key={call.id}
                   onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)}
                 >
-                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.client}<small className="table-subtext">{call.city}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td></>}
+                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaDurationCell openedAt={call.openedAt} /></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.client}<small className="table-subtext">{call.city}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td></>}
                 </tr>
               ))}
             </tbody>
@@ -1481,6 +1481,11 @@ function SlaCell({ openedAt }: { openedAt: string }) {
   const state = elapsedMinutes > 600 ? "outlier" : elapsedMinutes > 480 ? "late" : "on-time";
   const label = state === "outlier" ? "Outlier" : state === "late" ? "Fora do prazo" : "No prazo";
   return <span className={`sla-cell ${state}`}><strong>{label}</strong><small>Limite 08:00</small></span>;
+}
+function SlaDurationCell({ openedAt }: { openedAt: string }) {
+  const elapsedMinutes = getElapsedMinutes(openedAt);
+  const state = elapsedMinutes > 600 ? "outlier" : elapsedMinutes > 480 ? "late" : "on-time";
+  return <span className={`sla-duration ${state}`}>{formatElapsed(openedAt)}</span>;
 }
 function TimerCell({ lastObservationAt }: { lastObservationAt?: string }) {
   if (!lastObservationAt) return <span className="timer-cell empty">Sem observacao</span>;

@@ -61,6 +61,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Atribuição de chamados limitada a técnicos ativos, excluindo auxiliares.
 - [x] Tabela de atendimento ampliada com protocolo, SLA, tipo, OLT, cidade, observação e timer.
 - [x] Timer de atendimento calculado desde a última observação registrada.
+- [x] Coluna SLA exibindo o tempo desde a data de acionamento.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---
@@ -314,6 +315,9 @@ A aba `Em atendimento` passou a usar uma tabela operacional inspirada na referê
 
 O timer exibe o tempo decorrido desde a abertura no formato `HH:MM:SS`.
 
+### Coluna SLA
+A tabela também exibe o tempo desde `openedAt`, que representa a data de acionamento. A coluna `Prazo` permanece responsável apenas pela classificação em no prazo, fora do prazo ou outlier.
+
 ### Correção posterior
 O timer da tabela não usa mais `openedAt`: ele usa o `created_at` da observação mais recente. Chamados sem observação exibem `Sem observacao`. O SLA continua sendo calculado desde a abertura.
 
@@ -325,6 +329,7 @@ O timer da tabela não usa mais `openedAt`: ele usa o `created_at` da observaç�
 - [frontend/src/api.ts](frontend/src/api.ts)
 - [frontend/src/App.tsx](frontend/src/App.tsx)
 - [frontend/src/attendance.css](frontend/src/attendance.css)
+- [frontend/src/attendance-sla.css](frontend/src/attendance-sla.css)
 
 ### Arquivos modificados
 

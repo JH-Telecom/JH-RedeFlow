@@ -6,6 +6,7 @@ import './styles.css';
 import './team.css';
 import './supervisor-overrides.css';
 import './attendance.css';
+import './attendance-sla.css';
 import './outcome.css';
 import './activation.css';
 import './activation-overrides.css';
