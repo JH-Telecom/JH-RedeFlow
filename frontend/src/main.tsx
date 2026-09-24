@@ -9,6 +9,7 @@ import './attendance.css';
 import './attendance-sla.css';
 import './region-select.css';
 import './notifications-overrides.css';
+import './dashboard-overrides.css';
 import './outcome.css';
 import './activation.css';
 import './activation-overrides.css';

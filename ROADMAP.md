@@ -64,6 +64,7 @@ Próxima ação: validar o fluxo completo com login de supervisor e confirmar o 
 - [x] Coluna SLA exibindo o tempo desde a data de acionamento.
 - [x] Regiões operacionais disponíveis em seletor no detalhe do chamado.
 - [x] Notificações de acionamentos com toast superior, sino persistente e contador no menu.
+- [x] Gráfico de status do dashboard contido para não ultrapassar o painel.
 - [x] Aceite de acionamentos com campos longos corrigido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
@@ -363,6 +364,24 @@ Regiões antigas que não estejam na lista continuam visíveis para não apagar 
 ### Validação
 
 - build do backend concluído com sucesso usando `npm run build --workspace backend`;
+- build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
+
+## 2026-09-24 — Correção de overflow no gráfico do dashboard
+
+### Problema
+O gráfico de distribuição multiplicava o valor bruto de chamados por 28px. Com 27 chamados, a barra chegava a 756px e atravessava verticalmente a tela.
+
+### Solução
+Adicionado limite visual de 170px para as barras do gráfico, mantendo o painel estável mesmo com volumes maiores.
+
+### Arquivos modificados
+
+- [frontend/src/main.tsx](frontend/src/main.tsx)
+- [frontend/src/dashboard-overrides.css](frontend/src/dashboard-overrides.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Validação
+
 - build do frontend concluído com sucesso usando `npm run build --workspace frontend`.
 
 ## 2026-09-24 — Correção de acionamento com texto longo
