@@ -1491,6 +1491,7 @@ function UsersPage() {
               ))}
             </tbody>
           </table>
+            </div>
         )}
       </section>
       {message && <div className="save-message">{message}</div>}
@@ -1688,6 +1689,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
               ))}
             </tbody>
           </table>
+            </div>
         )}
       </section>
     </>
