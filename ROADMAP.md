@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-25
 
-Última implementação: estabilização da suíte de testes HTTP do backend, com correção de estado compartilhado entre execuções e isolamento do servidor de testes por porta dinâmica.
+Última implementação: correção do scroll e da captura integral da tabela de atendimento, mantendo o toolbar fixo e copiando todas as colunas como imagem.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -67,6 +67,8 @@ Próxima ação: validar o comportamento real do backend em produção local com
 - [x] Gráfico de status do dashboard contido para não ultrapassar o painel.
 - [x] Aceite de acionamentos com campos longos corrigido.
 - [x] Consolidação determinística de endereços NOC, bairros, clientes afetados e atreladas.
+- [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
+- [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---

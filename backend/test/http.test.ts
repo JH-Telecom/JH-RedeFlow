@@ -179,6 +179,10 @@ test('only active technicians can receive calls and their status can change', as
   const assignmentResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, { method: 'PATCH', headers, body: JSON.stringify({ technicianId: 'tech-bruno' }) });
   assert.equal(statusResponse.status, 200);
   assert.equal(assignmentResponse.status, 422);
+
+  const longSlotPon = Array.from({ length: 80 }, (_, index) => `01/${String(index + 1).padStart(2, '0')}`).join(', ');
+  const saveResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, { method: 'PATCH', headers, body: JSON.stringify({ slotPon: longSlotPon }) });
+  assert.equal(saveResponse.status, 200);
 });
 
 test('shares, replaces and clears the daily dashboard base', async () => {

@@ -1564,8 +1564,8 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState("");
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
-  const tablePanelRef = useRef<HTMLDivElement | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
+  const tableRef = useRef<HTMLTableElement | null>(null);
   const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
@@ -1577,24 +1577,36 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   }, [status, dateRange.from, dateRange.to]);
 
   async function copyTableAsImage() {
-    if (!tablePanelRef.current) return;
+    const table = tableRef.current;
+    if (!table) return;
 
     try {
-      const canvas = await html2canvas(tablePanelRef.current, {
+      const canvas = await html2canvas(table, {
         backgroundColor: "#ffffff",
         scale: 2,
+        width: table.scrollWidth,
+        height: table.scrollHeight,
+        windowWidth: table.scrollWidth,
+        windowHeight: table.scrollHeight,
         useCORS: true,
         logging: false,
       });
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Imagem indisponivel");
-      if (!navigator.clipboard || !window.ClipboardItem) {
-        throw new Error("Copia direta nao suportada neste navegador.");
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ [blob.type]: blob }),
+        ]);
+        setCopyState("copied");
+      } else {
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = "redeflow-tabela.png";
+        link.click();
+        URL.revokeObjectURL(downloadUrl);
+        setCopyState("downloaded");
       }
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob }),
-      ]);
-      setCopyState("copied");
     } catch {
       setCopyState("error");
     }
@@ -1635,7 +1647,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           <Activity size={15} /> Atualizar
         </button>
       </div>
-      <section className={`panel table-panel calls-table${assignedOnly ? " attendance-table" : ""}`} ref={tablePanelRef}>
+      <section className={`panel table-panel calls-table${assignedOnly ? " attendance-table" : ""}`}>
         <div className="table-toolbar">
           <div className="search-field">
             <Search size={16} />
@@ -1650,7 +1662,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           </button>
           <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button">
             <Copy size={15} />
-            {copyState === "copied" ? "Tabela copiada" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
+            {copyState === "copied" ? "Tabela copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
           </button>
           {showFilters && <><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></>}
           <span className="result-count">{visibleCalls.length} resultados</span>
@@ -1769,7 +1781,8 @@ function CallDetailBase() {
       <div className="call-detail-heading">
         <div>
           <span className="section-kicker">ORDEM {call.orderNumber}</span>
-          <h1>{call.client}</h1>
+          <div className="table-scroll-container">
+          <table ref={tableRef}>
           <p>
             {call.bdesk} · {call.officeTrack} · {call.city}, {call.region}
           </p>
@@ -2239,6 +2252,7 @@ function TechniciansPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
       {showForm && <AdminModal title="Novo tecnico" onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>
