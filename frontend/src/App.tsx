@@ -422,10 +422,29 @@ function DashboardWithDateFilter({ user }: { user: User & { role: Role } }) {
   return <><DateRangeFilter value={dateRange} onChange={setDateRange} /><OperationalDashboard user={user} dateRange={dateRange} /></>;
 }
 
+function getDailyCallBars(calls: Call[], dateRange: { from: string; to: string }) {
+  const today = new Date();
+  const end = dateRange.to ? new Date(`${dateRange.to}T12:00:00`) : today;
+  const start = dateRange.from ? new Date(`${dateRange.from}T12:00:00`) : new Date(end.getTime() - 6 * 86400000);
+  const counts = new Map(calls.map((call) => [call.openedAt.slice(0, 10), 0]));
+  calls.forEach((call) => {
+    const key = new Date(call.openedAt).toISOString().slice(0, 10);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  const bars: { key: string; label: string; value: number }[] = [];
+  for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    const key = cursor.toISOString().slice(0, 10);
+    bars.push({ key, label: cursor.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }), value: counts.get(key) || 0 });
+  }
+  return bars.slice(-14);
+}
+
 function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { from: string; to: string } }) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [callsInRange, setCallsInRange] = useState<Call[]>([]);
   const [error, setError] = useState("");
+  const dailyCallBars = getDailyCallBars(callsInRange, dateRange);
+  const dailyMax = Math.max(1, ...dailyCallBars.map((item) => item.value));
         useEffect(() => {
           api.dashboard(dateRange)
             .then((data) => {
@@ -501,6 +520,24 @@ function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { fr
                 </div>
               </section>
             </div>
+
+            <section className="panel chart-panel daily-calls-panel">
+              <div className="panel-heading">
+                <div>
+                  <span className="section-kicker">ABERTURAS</span>
+                  <h2>Chamados abertos por dia</h2>
+                </div>
+              </div>
+              <div className="bar-chart daily-bar-chart">
+                {dailyCallBars.map((item) => (
+                  <div className="bar-item" key={item.key}>
+                    <div className="bar-track"><i style={{ height: `${Math.max(8, (item.value / dailyMax) * 170)}px` }} /></div>
+                    <strong>{item.value}</strong>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             <div className="dashboard-grid">
               <section className="panel status-panel">

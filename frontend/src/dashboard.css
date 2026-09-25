@@ -1,3 +1,4 @@
+.daily-bar-chart{gap:12px}.daily-bar-chart .bar-track i{width:24px}
 /* responsive manual dashboard */
 .manual-production-grid{grid-template-columns:1fr!important;align-items:start}
 .manual-table{table-layout:fixed}
