@@ -1660,7 +1660,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
-          <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button">
+          <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button" aria-label="Copiar tabela completa como imagem">
             <Copy size={15} />
             {copyState === "copied" ? "Tabela copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
           </button>
