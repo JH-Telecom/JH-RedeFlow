@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
 
-const port = 3433;
-const baseUrl = `http://127.0.0.1:${port}`;
-let server: ChildProcess;
+let port = 3433;
+let baseUrl = `http://127.0.0.1:${port}`;
+let server: ChildProcess | undefined;
 
 async function waitForServer() {
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -19,9 +20,25 @@ async function waitForServer() {
   throw new Error('Backend nao iniciou a tempo.');
 }
 
-test.before(async () => {
+async function stopServer() {
+  if (!server) return;
+
+  server.kill('SIGTERM');
+  await Promise.race([
+    new Promise((resolve) => server!.once('exit', resolve)),
+    new Promise((resolve) => setTimeout(resolve, 500)),
+  ]);
+  server = undefined;
+}
+
+async function startServer() {
+  await stopServer();
+
+  port = 3433 + (Math.floor(Math.random() * 1000) % 1000);
+  baseUrl = `http://127.0.0.1:${port}`;
+
   server = spawn(process.execPath, ['--import', 'tsx/esm', 'src/server.ts'], {
-    cwd: process.cwd(),
+    cwd: fileURLToPath(new URL('..', import.meta.url)),
     env: {
       ...process.env,
       NODE_ENV: 'test',
@@ -38,11 +55,16 @@ test.before(async () => {
     },
     stdio: 'ignore',
   });
+
   await waitForServer();
+}
+
+test.beforeEach(async () => {
+  await startServer();
 });
 
-test.after(() => {
-  server.kill();
+test.after(async () => {
+  await stopServer();
 });
 
 test('healthcheck exposes security headers', async () => {

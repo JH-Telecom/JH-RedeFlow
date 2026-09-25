@@ -12,13 +12,13 @@ Principais usuários: operadores, supervisores, administradores, mesários e usu
 
 Status geral: EM DESENVOLVIMENTO
 
-Última atualização: 2026-09-24
+Última atualização: 2026-09-25
 
-Última implementação: visão de ordens da equipe do supervisor com filtro de período e filtro de data no dashboard geral e nas telas de ordens.
+Última implementação: estabilização da suíte de testes HTTP do backend, com correção de estado compartilhado entre execuções e isolamento do servidor de testes por porta dinâmica.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: validar o fluxo completo com login de supervisor e confirmar o comportamento visual em ambiente publicado.
+Próxima ação: validar o comportamento real do backend em produção local com integração de Supabase e confirmar a operação em ambiente publicado.
 
 ---
 
@@ -86,11 +86,12 @@ Garantir que o supervisor veja apenas os chamados e indicadores relacionados à 
 - registro de teste de regressão para a regra de supervisor em [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts);
 - atualização do roadmap para manter o contexto de continuidade.
 
-### Falta realizar
+### Resultado concluído
 
-- validar o fluxo HTTP completo com teste de integração do backend em ambiente estável;
-- confirmar o comportamento real no servidor em execução após a subida local/produção;
-- revisar o comportamento do Supabase real quando a autenticação estiver ligada ao banco oficial.
+- validação do fluxo HTTP completo do backend em ambiente estável;
+- isolamento de estado de testes e reinicialização limpa do servidor em cada caso;
+- confirmação do comportamento real no servidor em execução em ambiente local de teste;
+- revisão do comportamento do Supabase real permanece pendente quando a autenticação estiver ligada ao banco oficial.
 
 ### Arquivos envolvidos
 
@@ -153,22 +154,25 @@ Investigar o motivo do boot do backend em testes automatizados e então validar 
 
 ## 7. PROBLEMAS CONHECIDOS
 
-### 🔴 Problema
-Bootstrap do backend em testes automatizados falha em ambiente atual.
+### � Problema resolvido
+Bootstrap do backend em testes automatizados falha por estado compartilhado e porta fixa reutilizada.
 
-Status: Aberto
+Status: Resolvido
 
-Impacto: a suíte de testes HTTP não consegue atingir o servidor e bloquear a validação de regressão em runtime completo.
+Impacto: a suíte de testes HTTP ficava instável quando o processo anterior não encerrava completamente ou quando o ambiente global era alterado por testes concorrentes.
 
-Causa conhecida: o processo do backend não chega a ficar disponível na porta esperada durante o teste automatizado; o problema precisa ser isolado entre processo interdependente, ambiente ou inicialização.
+Causa conhecida: o servidor de teste reutilizava a mesma porta em execuções seguidas e não restaurava o ambiente global antes de iniciar o próximo caso.
 
-Tentativas realizadas:
+Solução aplicada:
 
-- execução da suíte de testes do backend;
-- inicialização manual do serviço em modo local;
-- verificação de porta e log do processo.
+- uso de porta dinâmica por execução do teste;
+- encerramento explícito e aguardado do processo anterior antes de iniciar um novo servidor;
+- restauração das variáveis de ambiente em testes que alteram runtime e Supabase.
 
-Próxima investigação: rastrear a falha de start do servidor e confirmar se há conflito de port, importação de módulo ou inicialização sem saída.
+Arquivos envolvidos:
+
+- [backend/test/http.test.ts](backend/test/http.test.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
 
 ---
 
