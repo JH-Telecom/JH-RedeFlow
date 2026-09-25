@@ -539,6 +539,7 @@ function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { fr
                 </div>
               </section>
             </div>
+            <RangeCallTable calls={callsInRange} />
           </>
         );
 }
@@ -1806,7 +1807,6 @@ function CallDetailBase() {
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={5}
-            <RangeCallTable calls={callsInRange} />
             />
           </label>
         </section>
