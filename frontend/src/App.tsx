@@ -13,6 +13,7 @@ import {
   Bell,
   Building2,
   ChevronRight,
+  CheckCircle2,
   CircleHelp,
   ClipboardList,
   Copy,
@@ -1378,6 +1379,7 @@ function ActivationsPage() {
       await Promise.all(ids.map((id) => api.acceptActivation(id)));
       setSelectedIds([]);
       setMessage(ids.length === 1 ? "Tudo certo: o acionamento foi aceito e o chamado já está na fila operacional." : `Tudo certo: ${ids.length} acionamentos foram aceitos e os chamados já estão na fila operacional.`);
+      window.setTimeout(() => setMessage(""), 3200);
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel aceitar os acionamentos."); }
     finally { setProcessing(false); }
@@ -1389,6 +1391,7 @@ function ActivationsPage() {
       await Promise.all(ids.map((id) => api.rejectActivation(id, rejectionReason)));
       setSelectedIds([]); setReason(""); setRejecting(null);
       setMessage(ids.length === 1 ? "Acionamento recusado com sucesso." : `${ids.length} acionamentos recusados com sucesso.`);
+      window.setTimeout(() => setMessage(""), 3200);
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel recusar os acionamentos."); }
     finally { setProcessing(false); }
