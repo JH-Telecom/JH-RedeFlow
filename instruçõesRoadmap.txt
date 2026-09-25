@@ -1,0 +1,637 @@
+# 🧭 REGRA MESTRA DO PROJETO — ROADMAP OBRIGATÓRIO
+
+Você está trabalhando em um projeto de software que será desenvolvido de forma contínua por diferentes agentes de IA.
+
+Existe um arquivo central chamado:
+
+`ROADMAP.md`
+
+Esse arquivo é a **fonte oficial de continuidade do projeto**.
+
+Seu objetivo NÃO é apenas executar a tarefa solicitada. Você deve também garantir que o estado atual do projeto fique documentado de forma suficiente para que **outro agente consiga assumir o trabalho sem precisar conversar com o agente anterior**.
+
+---
+
+# 🚨 REGRA ABSOLUTA
+
+**TODA alteração realizada no projeto DEVE ser registrada no `ROADMAP.md`.**
+
+Isso inclui, obrigatoriamente:
+
+* novas funcionalidades;
+* implementações;
+* correções;
+* refatorações;
+* migrações;
+* alterações de arquitetura;
+* alterações de banco de dados;
+* alterações de APIs;
+* alterações de autenticação;
+* alterações de permissões;
+* alterações de frontend;
+* alterações de backend;
+* alterações de infraestrutura;
+* alterações de configuração;
+* alterações de variáveis de ambiente;
+* instalação ou remoção de dependências;
+* criação de arquivos;
+* exclusão de arquivos;
+* alterações em arquivos existentes;
+* criação ou alteração de endpoints;
+* criação ou alteração de serviços;
+* criação ou alteração de componentes;
+* alterações em integrações externas;
+* correções de bugs;
+* problemas encontrados;
+* problemas resolvidos;
+* decisões técnicas;
+* decisões de arquitetura;
+* testes realizados;
+* testes que falharam;
+* limitações descobertas;
+* tarefas parcialmente concluídas;
+* tarefas que ficaram pendentes;
+* qualquer descoberta importante sobre o funcionamento do sistema.
+
+**Se você alterou o projeto, atualize o roadmap.**
+
+Não importa se a alteração foi pequena.
+
+---
+
+# 🎯 OBJETIVO DO ROADMAP
+
+O `ROADMAP.md` deve permitir que um novo agente responda às seguintes perguntas sem depender da conversa anterior:
+
+1. O que é este projeto?
+2. Qual é o estado atual do projeto?
+3. O que já foi implementado?
+4. O que está funcionando?
+5. O que não está funcionando?
+6. O que está sendo desenvolvido atualmente?
+7. Qual foi a última alteração realizada?
+8. Qual foi o motivo da alteração?
+9. Quais arquivos foram modificados?
+10. Quais decisões técnicas foram tomadas?
+11. Quais problemas já foram encontrados?
+12. Quais problemas já foram resolvidos?
+13. Quais problemas continuam pendentes?
+14. Qual é a próxima tarefa?
+15. Existe alguma dependência ou bloqueio?
+16. Há alguma coisa que o próximo agente NÃO deve alterar?
+17. Como continuar exatamente de onde o agente anterior parou?
+
+---
+
+# 🔄 FLUXO OBRIGATÓRIO DE TRABALHO
+
+## 1. ANTES DE ALTERAR QUALQUER COISA
+
+Primeiro:
+
+1. Leia o `ROADMAP.md`.
+2. Entenda o estado atual do projeto.
+3. Identifique a tarefa atual.
+4. Verifique se existe alguma implementação anterior relacionada à tarefa.
+5. Analise os arquivos envolvidos antes de criar novos arquivos.
+6. Não repita uma implementação que já existe.
+7. Respeite as decisões arquiteturais já documentadas.
+
+Se o roadmap estiver desatualizado em relação ao código, **corrija o roadmap antes de continuar**.
+
+---
+
+# 2. DURANTE A IMPLEMENTAÇÃO
+
+Enquanto trabalha:
+
+* mantenha o contexto da implementação;
+* registre decisões importantes;
+* identifique problemas encontrados;
+* registre mudanças arquiteturais;
+* registre arquivos criados;
+* registre arquivos modificados;
+* registre arquivos removidos;
+* registre testes realizados;
+* registre limitações;
+* registre pendências.
+
+Não espere o final do projeto para documentar tudo.
+
+---
+
+# 3. APÓS CADA IMPLEMENTAÇÃO
+
+Quando uma alteração for concluída:
+
+1. Verifique o que realmente foi alterado.
+2. Teste a implementação quando possível.
+3. Identifique se algo ficou pendente.
+4. Atualize o `ROADMAP.md`.
+5. Marque claramente o que foi concluído.
+6. Registre o que ainda precisa ser feito.
+7. Registre a próxima ação recomendada.
+
+---
+
+# 📝 PADRÃO OBRIGATÓRIO DO ROADMAP
+
+Mantenha o `ROADMAP.md` organizado seguindo esta estrutura:
+
+# ROADMAP DO PROJETO
+
+## 1. VISÃO GERAL
+
+Descreva:
+
+* objetivo do sistema;
+* problema que ele resolve;
+* principais usuários;
+* principais tecnologias;
+* arquitetura geral;
+* integrações externas importantes.
+
+---
+
+## 2. ESTADO ATUAL
+
+Informe claramente:
+
+**Status geral:** `EM DESENVOLVIMENTO`
+
+**Última atualização:**
+`DATA/HORA`
+
+**Última implementação:**
+`Descrição`
+
+**Agente responsável pela última alteração:**
+`Agente atual`
+
+**Próxima ação:**
+`Descrição objetiva`
+
+---
+
+## 3. ARQUITETURA ATUAL
+
+Documente:
+
+* frontend;
+* backend;
+* banco de dados;
+* autenticação;
+* APIs;
+* serviços;
+* integrações;
+* infraestrutura;
+* armazenamento;
+* filas;
+* automações;
+* componentes importantes.
+
+Sempre que a arquitetura mudar, atualize esta seção.
+
+---
+
+## 4. FUNCIONALIDADES IMPLEMENTADAS
+
+Mantenha uma lista:
+
+* [x] Funcionalidade A
+* [x] Funcionalidade B
+* [x] Funcionalidade C
+
+Para funcionalidades parcialmente implementadas:
+
+* [~] Funcionalidade D — parcialmente implementada
+
+Para funcionalidades ainda não implementadas:
+
+* [ ] Funcionalidade E
+
+Quando necessário, explique abaixo de cada item o estado atual.
+
+---
+
+## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+Esta seção é extremamente importante.
+
+Sempre deve existir uma indicação clara do que está sendo desenvolvido neste momento.
+
+Exemplo:
+
+### Tarefa atual
+
+`Migração do módulo de Folha`
+
+### Objetivo
+
+Migrar a lógica do módulo para o novo serviço.
+
+### Já realizado
+
+* serviço criado;
+* regras principais migradas;
+* consultas migradas.
+
+### Falta realizar
+
+* integração com runtime;
+* testes;
+* validação final.
+
+### Arquivos envolvidos
+
+* `src/services/folha.service.ts`
+* `src/runtime.ts`
+* `src/main.ts`
+
+### Próxima ação
+
+Finalizar o adapter do runtime e testar o fluxo completo.
+
+---
+
+# 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+Toda alteração significativa deve ser adicionada aqui.
+
+Use este formato:
+
+## [DATA] — Nome da implementação
+
+### Objetivo
+
+Explique o motivo da alteração.
+
+### Alterações realizadas
+
+* alteração 1;
+* alteração 2;
+* alteração 3.
+
+### Arquivos criados
+
+* `arquivo.ts`
+
+### Arquivos modificados
+
+* `outro-arquivo.ts`
+
+### Arquivos removidos
+
+* `arquivo-antigo.ts`
+
+### Resultado
+
+Explique o que passou a funcionar.
+
+### Testes
+
+* teste realizado;
+* resultado;
+* eventuais limitações.
+
+### Pendências
+
+* item pendente;
+* item que precisa ser revisado.
+
+### Próximo passo
+
+Descreva exatamente o que o próximo agente deve fazer.
+
+---
+
+# 7. PROBLEMAS CONHECIDOS
+
+Mantenha uma lista permanente dos problemas encontrados.
+
+Exemplo:
+
+### 🔴 Problema
+
+`Descrição`
+
+**Status:** Aberto
+
+**Impacto:**
+`Descrição`
+
+**Causa conhecida:**
+`Descrição`
+
+**Tentativas realizadas:**
+
+* tentativa 1;
+* tentativa 2.
+
+**Próxima investigação:**
+`Descrição`
+
+---
+
+Quando resolvido:
+
+### 🟢 Problema resolvido
+
+`Descrição`
+
+**Causa:**
+`Descrição`
+
+**Solução:**
+`Descrição`
+
+**Arquivos envolvidos:**
+`...`
+
+---
+
+# 8. DECISÕES TÉCNICAS
+
+Toda decisão arquitetural importante deve ser registrada.
+
+Formato:
+
+## Decisão — [DATA]
+
+**Decisão:**
+
+`Descrição`
+
+**Motivo:**
+
+`Por que essa decisão foi tomada.`
+
+**Alternativas consideradas:**
+
+* alternativa A;
+* alternativa B.
+
+**Consequência:**
+
+`O que essa decisão muda no projeto.`
+
+---
+
+# 9. ARQUIVOS IMPORTANTES
+
+Mantenha um mapa dos arquivos importantes do projeto.
+
+Exemplo:
+
+| Arquivo           | Função        | Status        |
+| ----------------- | ------------- | ------------- |
+| `auth.service.ts` | Autenticação  | Ativo         |
+| `permissions.ts`  | Permissões    | Ativo         |
+| `runtime.js`      | Runtime       | Em manutenção |
+| `main.ts`         | Inicialização | Ativo         |
+
+Sempre atualize essa tabela quando a arquitetura mudar.
+
+---
+
+# 10. BANCO DE DADOS
+
+Documente:
+
+* tabelas;
+* relacionamentos;
+* autenticação;
+* RLS;
+* policies;
+* migrations;
+* serviços que acessam o banco;
+* alterações realizadas.
+
+**Nunca invente alterações de banco que não foram realmente realizadas.**
+
+Se o banco NÃO foi alterado, registre explicitamente:
+
+`Nenhuma alteração de banco realizada nesta implementação.`
+
+---
+
+# 11. CONFIGURAÇÕES E AMBIENTE
+
+Documente:
+
+* variáveis de ambiente necessárias;
+* serviços externos;
+* portas;
+* URLs;
+* configurações relevantes;
+* dependências;
+* comandos importantes para executar o projeto.
+
+**Nunca registre secrets, senhas, tokens privados ou chaves privadas no roadmap.**
+
+Quando existir um segredo necessário, registre apenas:
+
+`Variável necessária: NOME_DA_VARIAVEL`
+
+---
+
+# 12. TESTES
+
+Registre testes importantes.
+
+Exemplo:
+
+### Teste
+
+`Login com usuário administrador`
+
+**Resultado:** ✅ Funcionando
+
+### Teste
+
+`Usuário sem permissão acessar rota protegida`
+
+**Resultado:** ❌ Falhou
+
+**Motivo:**
+`...`
+
+---
+
+# 13. PENDÊNCIAS
+
+Lista objetiva de tudo que ainda precisa ser feito.
+
+Priorize:
+
+### 🔴 CRÍTICO
+
+Problemas que impedem o sistema de funcionar.
+
+### 🟠 IMPORTANTE
+
+Funcionalidades ou correções necessárias.
+
+### 🟡 MELHORIA
+
+Melhorias que não bloqueiam o sistema.
+
+### 🟢 FUTURO
+
+Ideias ou melhorias futuras.
+
+---
+
+# 14. PRÓXIMA AÇÃO
+
+Sempre mantenha uma seção extremamente objetiva:
+
+## 🚀 PRÓXIMA AÇÃO
+
+O próximo agente deve:
+
+1. `...`
+2. `...`
+3. `...`
+
+Se houver uma tarefa específica em andamento, ela deve estar aqui.
+
+---
+
+# 15. CHECKPOINT DE CONTINUIDADE
+
+Ao terminar uma sessão de trabalho, obrigatoriamente crie/atualize um checkpoint.
+
+Formato:
+
+## 🔖 CHECKPOINT — [DATA/HORA]
+
+### O que foi feito
+
+`Descrição`
+
+### Onde paramos
+
+`Descrição exata do ponto atual.`
+
+### O que está funcionando
+
+* item;
+* item;
+* item.
+
+### O que não está funcionando
+
+* item;
+* item.
+
+### Arquivos modificados nesta sessão
+
+* arquivo;
+* arquivo.
+
+### Próximo passo exato
+
+`Descrição da próxima ação.`
+
+### Observações para o próximo agente
+
+`Informações que não podem ser perdidas.`
+
+---
+
+# 🤖 REGRA PARA TROCA DE AGENTE
+
+Se o usuário disser algo como:
+
+* "acabaram meus tokens";
+* "vou continuar com outro agente";
+* "continue de onde paramos";
+* "leia o roadmap";
+* "outro agente vai continuar";
+
+você deve tratar o `ROADMAP.md` como o principal documento de transferência de contexto.
+
+O procedimento será:
+
+1. Ler `ROADMAP.md`.
+2. Identificar o último checkpoint.
+3. Identificar a última tarefa.
+4. Verificar o estado real do código.
+5. Comparar o código com o roadmap.
+6. Corrigir eventuais divergências no roadmap.
+7. Continuar a implementação.
+8. Não reiniciar o trabalho do zero.
+9. Não pedir ao usuário para explicar novamente o projeto se essas informações estiverem documentadas.
+10. Antes de terminar, atualizar novamente o roadmap.
+
+---
+
+# ⚠️ REGRA CONTRA PERDA DE CONTEXTO
+
+Nunca faça uma alteração importante sem documentá-la.
+
+Nunca deixe uma tarefa parcialmente implementada sem registrar:
+
+* o que já foi feito;
+* o que falta;
+* onde o código parou;
+* qual arquivo deve ser alterado;
+* qual problema está sendo investigado;
+* qual deve ser o próximo passo.
+
+O roadmap deve permitir que um agente completamente novo continue o trabalho sem depender da memória do agente anterior.
+
+---
+
+# 🔍 REGRA DE CONSISTÊNCIA
+
+O `ROADMAP.md` deve refletir o **estado real do código**, e não o que deveria existir.
+
+Se o roadmap disser que algo está implementado, mas o código não possuir essa implementação:
+
+1. investigue;
+2. corrija o roadmap;
+3. só então continue.
+
+Se o código possuir uma funcionalidade que não está no roadmap:
+
+1. documente-a;
+2. identifique quando possível como ela foi implementada;
+3. registre seus arquivos;
+4. registre seu estado.
+
+---
+
+# 🚫 NÃO FAÇA
+
+Não:
+
+* apagar histórico útil;
+* substituir informações importantes por frases genéricas;
+* registrar "feito" sem explicar o que foi feito;
+* registrar "corrigido" sem explicar a causa e a solução;
+* assumir que outro agente conhecerá o contexto;
+* depender apenas do histórico da conversa;
+* deixar informações críticas somente na conversa;
+* criar documentação falsa;
+* inventar testes;
+* inventar funcionalidades;
+* inventar decisões técnicas;
+* colocar secrets no roadmap.
+
+---
+
+# ✅ REGRA FINAL
+
+Antes de encerrar qualquer tarefa, pergunte internamente:
+
+> "Se outro agente abrir este projeto daqui a uma semana e tiver apenas o código + ROADMAP.md, ele conseguirá continuar exatamente de onde eu parei?"
+
+Se a resposta for **não**, atualize o `ROADMAP.md` até que a resposta seja **sim**.
+
+O `ROADMAP.md` é o mecanismo oficial de transferência de contexto entre agentes.
+
+**Código + ROADMAP = estado oficial do projeto.**
+
+A conversa é apenas um meio de interação e NÃO deve ser considerada a única fonte de contexto.
