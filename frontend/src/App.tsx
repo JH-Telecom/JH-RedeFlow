@@ -237,6 +237,7 @@ function Shell({
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activationCount, setActivationCount] = useState(0);
   const [activationToast, setActivationToast] = useState<AppNotification | null>(null);
+  const [activationToastClosing, setActivationToastClosing] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const knownActivationIds = useRef<Set<string> | null>(null);
@@ -254,8 +255,10 @@ function Shell({
               if (knownActivationIds.current) {
                 const newActivation = pending.find((activation) => !knownActivationIds.current?.has(activation.id));
                 if (newActivation) {
+                  setActivationToastClosing(false);
                   setActivationToast({ id: newActivation.id, type: "info", title: "Novo acionamento recebido", detail: newActivation.extractedData.orderNumber ? `Ordem ${newActivation.extractedData.orderNumber} aguardando análise.` : "Existe um acionamento aguardando análise.", href: "/acionamentos" });
-                  window.setTimeout(() => setActivationToast(null), 8000);
+                  window.setTimeout(() => setActivationToastClosing(true), 7000);
+                  window.setTimeout(() => { setActivationToast(null); setActivationToastClosing(false); }, 8000);
                 }
               }
               knownActivationIds.current = pendingIds;
@@ -387,7 +390,7 @@ function Shell({
             <div className="topbar-avatar">{user.name.slice(0, 1)}</div>
           </div>
         </header>
-        {activationToast && <button className="activation-toast" type="button" onClick={() => { setActivationToast(null); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
+        {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
         <div className="content">
           <Routes>
             <Route path="/" element={<DashboardWithDateFilter user={user} />} />
