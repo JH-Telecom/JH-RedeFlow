@@ -2252,7 +2252,6 @@ function TechniciansPage() {
               ))}
             </tbody>
           </table>
-          </div>
         )}
       </section>
       {showForm && <AdminModal title="Novo tecnico" onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>
