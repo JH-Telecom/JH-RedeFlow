@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-25
 
-Última implementação: correção do scroll e da captura integral da tabela de atendimento, mantendo o toolbar fixo e copiando todas as colunas como imagem.
+Última implementação: correção do salvamento de chamados com normalização de campos e validação compatível com dados do Supabase.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -69,6 +69,7 @@ Próxima ação: validar o comportamento real do backend em produção local com
 - [x] Consolidação determinística de endereços NOC, bairros, clientes afetados e atreladas.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
 - [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
+- [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
 ---

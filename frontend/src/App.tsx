@@ -1491,6 +1491,7 @@ function UsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
       {message && <div className="save-message">{message}</div>}
@@ -1670,7 +1671,8 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
-          <table>
+          <div className="table-scroll-container">
+          <table ref={tableRef}>
             <thead>
               <tr>
                 {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Abertura</th><th>Tempo aguardando</th><th>Status</th><th>Tecnico</th></>}
@@ -1687,6 +1689,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </>
@@ -1781,8 +1784,7 @@ function CallDetailBase() {
       <div className="call-detail-heading">
         <div>
           <span className="section-kicker">ORDEM {call.orderNumber}</span>
-          <div className="table-scroll-container">
-          <table ref={tableRef}>
+          <h1>{call.client}</h1>
           <p>
             {call.bdesk} · {call.officeTrack} · {call.city}, {call.region}
           </p>
