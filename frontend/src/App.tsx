@@ -13,7 +13,6 @@ import {
   Bell,
   Building2,
   ChevronRight,
-  CheckCircle2,
   CircleHelp,
   ClipboardList,
   Copy,
