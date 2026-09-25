@@ -1688,6 +1688,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </>
