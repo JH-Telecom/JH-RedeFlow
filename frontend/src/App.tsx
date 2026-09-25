@@ -1673,14 +1673,28 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
     const table = tableRef.current;
     if (!table) return;
 
+    const captureHost = document.createElement("div");
+    captureHost.className = "calls-table attendance-table";
+    captureHost.style.cssText = "position:fixed;left:-100000px;top:0;width:max-content;max-width:none;background:#fff;";
+    const tableClone = table.cloneNode(true) as HTMLTableElement;
+    tableClone.style.width = `${table.scrollWidth}px`;
+    tableClone.style.minWidth = `${table.scrollWidth}px`;
+    tableClone.querySelectorAll<HTMLElement>(".sla-cell").forEach((cell) => {
+      const color = cell.classList.contains("on-time") ? "#138a5e" : cell.classList.contains("late") ? "#a86b00" : "#bd3f45";
+      cell.style.color = color;
+      cell.querySelectorAll<HTMLElement>("strong, small").forEach((text) => { text.style.color = color; text.style.display = "block"; });
+    });
+    captureHost.appendChild(tableClone);
+    document.body.appendChild(captureHost);
+
     try {
-      const canvas = await html2canvas(table, {
+      const canvas = await html2canvas(captureHost, {
         backgroundColor: "#ffffff",
         scale: 2,
-        width: table.scrollWidth,
-        height: table.scrollHeight,
-        windowWidth: table.scrollWidth,
-        windowHeight: table.scrollHeight,
+        width: captureHost.scrollWidth,
+        height: captureHost.scrollHeight,
+        windowWidth: captureHost.scrollWidth,
+        windowHeight: captureHost.scrollHeight,
         useCORS: true,
         logging: false,
       });
@@ -1702,6 +1716,8 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
       }
     } catch {
       setCopyState("error");
+    } finally {
+      captureHost.remove();
     }
 
     window.setTimeout(() => setCopyState("idle"), 1800);
