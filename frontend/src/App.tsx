@@ -1069,6 +1069,8 @@ function ManualProductionDashboard() {
   const [data, setData] = useState<ManualProductionData | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
+  const manualDashboardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loadBase = () => api.dailyBase().then((result) => {
@@ -1093,6 +1095,40 @@ function ManualProductionDashboard() {
       setSelectedFileName("");
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Nao foi possivel limpar a base.");
+    }
+  }
+
+  async function copyManualDashboard() {
+    const source = manualDashboardRef.current;
+    if (!source) return;
+    const clone = source.cloneNode(true) as HTMLDivElement;
+    clone.style.cssText = "position:fixed;left:-100000px;top:0;width:max-content;max-width:none;background:#f7f9fc;padding:20px;";
+    clone.querySelectorAll<HTMLElement>(".manual-table-wrap").forEach((element) => {
+      element.style.maxHeight = "none";
+      element.style.overflow = "visible";
+    });
+    document.body.appendChild(clone);
+    try {
+      const canvas = await html2canvas(clone, { backgroundColor: "#f7f9fc", scale: 2, width: clone.scrollWidth, height: clone.scrollHeight, windowWidth: clone.scrollWidth, windowHeight: clone.scrollHeight, logging: false });
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("Imagem indisponivel");
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+        setCopyState("copied");
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "painel-diario.png";
+        link.click();
+        URL.revokeObjectURL(url);
+        setCopyState("downloaded");
+      }
+    } catch {
+      setCopyState("error");
+    } finally {
+      clone.remove();
+      window.setTimeout(() => setCopyState("idle"), 2200);
     }
   }
 
@@ -1141,6 +1177,9 @@ function ManualProductionDashboard() {
           <p>Selecione a base do dia para atualizar as ordens e a produção.</p>
         </div>
         <div className="page-actions compact-actions">
+          <button className="secondary-button compact" onClick={() => void copyManualDashboard()} type="button">
+            <Copy size={15} /> {copyState === "copied" ? "Painel copiado" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar painel"}
+          </button>
           <button className="secondary-button compact danger-button" onClick={clearBase} type="button">
             Limpar base
           </button>
@@ -1160,6 +1199,7 @@ function ManualProductionDashboard() {
       </div>
 
       {data && (
+        <div ref={manualDashboardRef} className="manual-dashboard-capture">
         <>
           {(() => {
             const activityTotals = sumProductionRows(data.activities);
@@ -1307,6 +1347,7 @@ function ManualProductionDashboard() {
             );
           })()}
         </>
+        </div>
       )}
     </>
   );
