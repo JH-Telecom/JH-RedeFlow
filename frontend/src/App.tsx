@@ -1819,7 +1819,8 @@ function SlaCell({ openedAt }: { openedAt: string }) {
   const elapsedMinutes = getElapsedMinutes(openedAt);
   const state = elapsedMinutes > 600 ? "outlier" : elapsedMinutes > 480 ? "late" : "on-time";
   const label = state === "outlier" ? "Outlier" : state === "late" ? "Fora do prazo" : "No prazo";
-  return <span className={`sla-cell ${state}`}><strong>{label}</strong><small>Limite 08:00</small></span>;
+  const color = state === "outlier" ? "#bd3f45" : state === "late" ? "#a86b00" : "#138a5e";
+  return <span className={`sla-cell ${state}`} style={{ color }}><strong style={{ color }}>{label}</strong><small style={{ color }}>Limite 08:00</small></span>;
 }
 function SlaDurationCell({ openedAt }: { openedAt: string }) {
   const elapsedMinutes = getElapsedMinutes(openedAt);
