@@ -1102,7 +1102,7 @@ function ManualProductionDashboard() {
     const source = manualDashboardRef.current;
     if (!source) return;
     const clone = source.cloneNode(true) as HTMLDivElement;
-    clone.style.cssText = "position:fixed;left:-100000px;top:0;width:max-content;max-width:none;background:#f7f9fc;padding:20px;";
+    clone.style.cssText = `position:fixed;left:-100000px;top:0;width:${Math.max(source.scrollWidth, source.clientWidth)}px;max-width:none;background:#f7f9fc;padding:20px;`;
     clone.querySelectorAll<HTMLElement>(".manual-table-wrap").forEach((element) => {
       element.style.maxHeight = "none";
       element.style.overflow = "visible";
@@ -1112,16 +1112,26 @@ function ManualProductionDashboard() {
       const canvas = await html2canvas(clone, { backgroundColor: "#f7f9fc", scale: 2, width: clone.scrollWidth, height: clone.scrollHeight, windowWidth: clone.scrollWidth, windowHeight: clone.scrollHeight, logging: false });
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Imagem indisponivel");
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-        setCopyState("copied");
-      } else {
+      const downloadImage = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
         link.download = "painel-diario.png";
+        document.body.appendChild(link);
         link.click();
+        link.remove();
         URL.revokeObjectURL(url);
+      };
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+          setCopyState("copied");
+        } catch {
+          downloadImage();
+          setCopyState("downloaded");
+        }
+      } else {
+        downloadImage();
         setCopyState("downloaded");
       }
     } catch {
