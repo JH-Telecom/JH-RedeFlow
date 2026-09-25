@@ -74,19 +74,53 @@ const activations = new Map<string, Activation>([
 const imports = new Map<string, ImportRecord>();
 const manualDailyBases = new Map<string, ManualDailyBase>();
 const settings: SystemSettings = { autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: 'Todas' };
-const demoDataEnabled = process.env.REDEFLOW_DEMO_DATA === 'true';
 
-if (!demoDataEnabled) {
-  users.clear();
-  supervisors.clear();
-  technicians.clear();
-  calls.clear();
-  observations.clear();
-  auditLogs.clear();
-  activations.clear();
-  imports.clear();
-  manualDailyBases.clear();
+function isDemoDataEnabled() {
+  return process.env.REDEFLOW_DEMO_DATA === 'true';
 }
+
+function ensureDemoData() {
+  if (!isDemoDataEnabled()) {
+    users.clear();
+    supervisors.clear();
+    technicians.clear();
+    calls.clear();
+    observations.clear();
+    auditLogs.clear();
+    activations.clear();
+    imports.clear();
+    manualDailyBases.clear();
+    return;
+  }
+
+  if (users.size > 0 || supervisors.size > 0 || technicians.size > 0 || calls.size > 0 || observations.size > 0 || auditLogs.size > 0 || activations.size > 0 || imports.size > 0 || manualDailyBases.size > 0) {
+    return;
+  }
+
+  const currentTime = new Date().toISOString();
+  users.set('user-admin', { id: 'user-admin', name: 'Administrador JH', email: 'admin@jhtelecom.com', roleId: adminRole.id, active: true, createdAt: currentTime, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) });
+  users.set('user-matheus', { id: 'user-matheus', name: 'Matheus Terra', email: 'matheus@jhtelecom.com', roleId: operatorRole.id, active: true, createdAt: currentTime, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) });
+  users.set('user-joao', { id: 'user-joao', name: 'Joao da Silva', email: 'joao@jhtelecom.com', roleId: supervisorRole.id, active: true, createdAt: currentTime, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) });
+  users.set('user-maria', { id: 'user-maria', name: 'Maria Oliveira', email: 'maria@jhtelecom.com', roleId: supervisorRole.id, active: true, createdAt: currentTime, passwordHash: bcrypt.hashSync('RedeFlow@2026', 10) });
+
+  supervisors.set('supervisor-joao', { id: 'supervisor-joao', userId: 'user-joao', name: 'Joao da Silva', region: 'Sul', active: true, technicianCount: 3 });
+  supervisors.set('supervisor-maria', { id: 'supervisor-maria', userId: 'user-maria', name: 'Maria Oliveira', region: 'Leste', active: true, technicianCount: 2 });
+
+  technicians.set('tech-carlos', { id: 'tech-carlos', supervisorId: 'supervisor-joao', name: 'Carlos Mendes', registration: 'TEC-1042', supervisorName: 'Joao da Silva', region: 'Sul', shift: '07:00 - 16:00', currentStatus: 'Em campo', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined });
+  technicians.set('tech-pedro', { id: 'tech-pedro', supervisorId: 'supervisor-joao', name: 'Pedro Santos', registration: 'TEC-1088', supervisorName: 'Joao da Silva', region: 'Sul', shift: '08:00 - 17:00', currentStatus: 'Disponivel', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined });
+  technicians.set('tech-lucas', { id: 'tech-lucas', supervisorId: 'supervisor-joao', name: 'Lucas Reis', registration: 'TEC-1103', supervisorName: 'Joao da Silva', region: 'Sul', shift: '08:00 - 17:00', currentStatus: 'Disponivel', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined });
+  technicians.set('tech-andre', { id: 'tech-andre', supervisorId: 'supervisor-maria', name: 'Andre Costa', registration: 'TEC-1150', supervisorName: 'Maria Oliveira', region: 'Leste', shift: '09:00 - 18:00', currentStatus: 'Em campo', active: true, teamRole: 'Tecnico', leadTechnicianId: undefined });
+  technicians.set('tech-bruno', { id: 'tech-bruno', supervisorId: 'supervisor-maria', name: 'Bruno Lima', registration: 'TEC-1171', supervisorName: 'Maria Oliveira', region: 'Leste', shift: '09:00 - 18:00', currentStatus: 'Indisponivel', active: false, teamRole: 'Tecnico', leadTechnicianId: undefined });
+
+  calls.set('call-240918-01', { id: 'call-240918-01', orderNumber: 'RF-240918', bdesk: 'BD-88421', officeTrack: 'OT-72014', client: 'Condominio Jardim Sul', type: 'NOC ACESSO', reason: 'Perda de sinal', region: 'Sul', city: 'Sao Paulo', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7', status: 'Aberto', openedAt: '2026-09-18T08:12:00-03:00', notes: 'Acionamento recebido pelo grupo operacional.' });
+  calls.set('call-240918-02', { id: 'call-240918-02', orderNumber: 'RF-240917', bdesk: 'BD-88408', officeTrack: 'OT-71998', client: 'Rede Residencial Vila Nova', type: 'ACIONAMENTO FIELD', reason: 'Rompimento de cabo', region: 'Leste', city: 'Guarulhos', olt: 'VIP-GZ1-SPO-OHW-02', slotPon: '1/12', status: 'Aberto', openedAt: '2026-09-18T07:45:00-03:00', notes: 'Necessario validar acesso ao local.' });
+  calls.set('call-240917-01', { id: 'call-240917-01', orderNumber: 'RF-240917', bdesk: 'BD-88376', officeTrack: 'OT-71942', client: 'JH Telecom B2C', type: 'NOC TX', reason: 'Afetacao massiva', region: 'Sul', city: 'Diadema', olt: 'VIP-CT2-SPO-OHW-02', slotPon: '8/2', status: 'Atribuido', technicianId: 'tech-carlos', technicianName: 'Carlos Mendes', supervisorName: 'Joao da Silva', openedAt: '2026-09-17T16:20:00-03:00', assignedAt: '2026-09-17T16:55:00-03:00', notes: 'Equipe acionada para diagnostico.' });
+  calls.set('call-240916-01', { id: 'call-240916-01', orderNumber: 'RF-240916', bdesk: 'BD-88291', officeTrack: 'OT-71882', client: 'Edificio Central', type: 'BAIXA TECNICA', reason: 'Cliente sem conexao', region: 'Leste', city: 'Suzano', olt: 'VIP-SMP-SPO-ONK-01', slotPon: '4/9', status: 'Em campo', technicianId: 'tech-andre', technicianName: 'Andre Costa', supervisorName: 'Maria Oliveira', openedAt: '2026-09-16T10:05:00-03:00', assignedAt: '2026-09-16T10:42:00-03:00', notes: 'Tecnico em deslocamento para a CTO.' });
+
+  activations.set('activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } });
+}
+
+ensureDemoData();
 
 export function shouldUseLocalDatabase() {
   return process.env.REDEFLOW_RUNTIME === 'local' && isDatabaseConfigured();
@@ -177,6 +211,7 @@ export async function listRoles(): Promise<Role[]> {
 }
 export function listPermissions() { return allPermissions.map((code) => ({ code, description: permissionDescriptions[code] })); }
 export async function listUsers(): Promise<User[]> {
+  ensureDemoData();
   if (isSupabaseConfigured()) return await listSupabaseUsers() as User[];
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -188,7 +223,10 @@ export async function listUsers(): Promise<User[]> {
   }
   return [...users.values()].map(({ passwordHash: _passwordHash, ...user }) => ({ ...user, role: getRole(user.roleId) }));
 }
-export function getUserByEmail(email: string) { return [...users.values()].find((user) => user.email.toLowerCase() === email.toLowerCase()); }
+export function getUserByEmail(email: string) {
+  ensureDemoData();
+  return [...users.values()].find((user) => user.email.toLowerCase() === email.toLowerCase());
+}
 export function getAuthUser(user: User): AuthUser {
   const { passwordHash: _passwordHash, ...safeUser } = user as User & { passwordHash?: string };
   const role = user.role ?? getRole(user.roleId) ?? { id: user.roleId, name: 'Sem cargo', description: '', permissions: [] as PermissionCode[] };
@@ -388,6 +426,7 @@ export async function updateRole(id: string, input: { name?: string; description
 export function getSettings(): SystemSettings { return { ...settings }; }
 export function updateSettings(input: Partial<SystemSettings>): SystemSettings { Object.assign(settings, input); return getSettings(); }
 export async function listSupervisors(): Promise<Supervisor[]> {
+  ensureDemoData();
   if (isSupabaseConfigured()) {
     const supervisors = await listSupabaseSupervisors();
     const technicians = await listSupabaseTechnicians();
@@ -412,9 +451,11 @@ function isWithinTechnicianShift(shift: string) {
 }
 function resolveTechnicianActive(technician: Technician) {
   if (technician.activeOverride) return technician.active;
-  return isWithinTechnicianShift(technician.shift) ?? technician.active;
+  if (!technician.active) return false;
+  return isWithinTechnicianShift(technician.shift) ?? true;
 }
 export async function listTechnicians(): Promise<Technician[]> {
+  ensureDemoData();
   if (isSupabaseConfigured()) return (await listSupabaseTechnicians()).map((technician) => ({ ...technician, active: resolveTechnicianActive(technician) }));
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -445,6 +486,7 @@ export async function addTechnician(input: Omit<Technician, 'id' | 'supervisorNa
   return { ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined };
 }
 export async function updateTechnician(id: string, input: { supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null }): Promise<Technician | undefined> {
+  ensureDemoData();
   if (isSupabaseConfigured()) return await updateSupabaseTechnician(id, input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -454,6 +496,10 @@ export async function updateTechnician(id: string, input: { supervisorId?: strin
     if (input.supervisorId !== undefined) { sets.push(`supervisor_id = $${index++}`); values.push(input.supervisorId || null); }
     if (input.currentStatus) { sets.push(`current_status = $${index++}`); values.push(input.currentStatus); }
     if (input.active !== undefined) { sets.push(`active = $${index++}`); values.push(input.active); sets.push(`active_override = true`); }
+    else if (input.currentStatus !== undefined) {
+      sets.push(`active = $${index++}`); values.push(input.currentStatus !== 'Indisponivel');
+      sets.push(`active_override = true`);
+    }
     if (input.teamRole !== undefined) { sets.push(`team_role = $${index++}`); values.push(input.teamRole); }
     if (input.leadTechnicianId !== undefined) { sets.push(`lead_technician_id = $${index++}`); values.push(input.leadTechnicianId || null); }
     if (!sets.length) return (await listTechnicians()).find((tech) => tech.id === id);
@@ -470,7 +516,8 @@ export async function updateTechnician(id: string, input: { supervisorId?: strin
   }
   const current = technicians.get(id);
   if (!current) return undefined;
-  const updated = { ...current, ...input, activeOverride: input.active !== undefined ? true : current.activeOverride };
+  const nextActive = input.active !== undefined ? input.active : input.currentStatus === 'Indisponivel' ? false : current.active;
+  const updated = { ...current, ...input, active: nextActive, activeOverride: input.active !== undefined || input.currentStatus !== undefined ? true : current.activeOverride };
   technicians.set(id, updated);
   return { ...updated, active: resolveTechnicianActive(updated), supervisorName: updated.supervisorId ? supervisors.get(updated.supervisorId)?.name : undefined };
 }
@@ -536,6 +583,7 @@ export async function updateSupervisor(id: string, input: { userId?: string | nu
 }
 export type CallQuery = { from?: string; to?: string; supervisorId?: string };
 export async function getSupervisorIdForUser(userId: string): Promise<string | undefined> {
+  ensureDemoData();
   if (isSupabaseConfigured()) return (await listSupabaseSupervisors()).find((item) => item.userId === userId)?.id;
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -545,6 +593,7 @@ export async function getSupervisorIdForUser(userId: string): Promise<string | u
   return [...supervisors.values()].find((item) => item.userId === userId)?.id;
 }
 export async function listCalls(status?: CallStatus, query: CallQuery = {}): Promise<Call[]> {
+  ensureDemoData();
   if (isSupabaseConfigured()) return await listSupabaseCalls(status, query);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -577,6 +626,7 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
   });
 }
 export async function getCall(id: string, query: CallQuery = {}): Promise<Call | undefined> {
+  ensureDemoData();
   if (isSupabaseConfigured()) return (await listSupabaseCalls(undefined, query)).find((call) => call.id === id);
   if (shouldUseLocalDatabase()) {
     const callsList = await listCalls(undefined, query);
@@ -600,6 +650,7 @@ export async function getCall(id: string, query: CallQuery = {}): Promise<Call |
   return call;
 }
 export async function deleteCall(id: string): Promise<boolean> {
+  ensureDemoData();
   if (isSupabaseConfigured()) {
     try {
       const admin = getSupabaseAdmin();
@@ -673,6 +724,7 @@ function normalizeTechnicianId(id?: string | null) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(candidate) ? candidate : id;
 }
 export async function updateCall(id: string, input: Partial<EditableCallFields>, actor: User): Promise<Call | undefined> {
+  ensureDemoData();
   if (isSupabaseConfigured()) return await updateSupabaseCall(id, input, actor);
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);

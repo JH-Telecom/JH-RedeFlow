@@ -15,6 +15,7 @@ import {
   ChevronRight,
   CircleHelp,
   ClipboardList,
+  Copy,
   LayoutDashboard,
   LockKeyhole,
   LogOut,
@@ -27,6 +28,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import html2canvas from "html2canvas";
 import faviconUrl from "../image/favicon.ico";
 import * as XLSX from "xlsx";
 import {
@@ -422,11 +424,123 @@ function DashboardWithDateFilter({ user }: { user: User & { role: Role } }) {
 
 function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { from: string; to: string } }) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [callsInRange, setCallsInRange] = useState<Call[]>([]);
   const [error, setError] = useState("");
-  useEffect(() => { api.dashboard(dateRange).then((data) => { setMetrics(data.metrics); setError(""); }).catch((err) => setError(err instanceof Error ? err.message : "Nao foi possivel carregar os indicadores.")); }, [dateRange.from, dateRange.to]);
-    if (error) return <div className="empty-state">{error}</div>;
-    if (!metrics) return <div className="empty-state">Carregando indicadores...</div>;
-    return <><div className="page-heading"><div><span className="section-kicker">OPERACAO DE REDE</span><h1>Visao geral</h1><p>Indicadores calculados no backend a partir dos dados operacionais atuais.</p></div><button className="secondary-button" onClick={() => api.dashboard(dateRange).then((data) => setMetrics(data.metrics))}><Activity size={16}/> Atualizar</button></div><div className="metric-grid"><Metric label="Recebidos hoje" value={String(metrics.receivedToday)} note="Chamados abertos hoje" positive/><Metric label="Chamados abertos" value={String(metrics.open)} note={`${metrics.unassigned} sem tecnico`}/><Metric label="Em atendimento" value={String(metrics.inProgress)} note="Atribuidos ou em campo"/><Metric label="Pendentes de aceite" value={String(metrics.pendingActivations)} note={`${metrics.finished} finalizados`} positive/></div><div className="dashboard-grid"><section className="panel chart-panel"><div className="panel-heading"><div><span className="section-kicker">STATUS</span><h2>Distribuicao dos chamados</h2></div></div><div className="bar-chart">{metrics.byStatus.map((item) => <div className="bar-item" key={item.label}><div className="bar-track"><i style={{ height: `${Math.max(8, item.value * 28)}px` }}/></div><strong>{item.value}</strong><span>{item.label}</span></div>)}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">REGIOES</span><h2>Volume por regiao</h2></div></div><div className="rank-list">{metrics.byRegion.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div><div className="dashboard-grid"><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TECNICOS</span><h2>Chamados atribuidos</h2></div></div><div className="rank-list">{metrics.byTechnician.length ? metrics.byTechnician.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>) : <div className="empty-state">Nenhum chamado atribuido.</div>}</div></section><section className="panel status-panel"><div className="panel-heading"><div><span className="section-kicker">TIPOS</span><h2>Chamados por tipo</h2></div></div><div className="rank-list">{metrics.byType.map((item) => <div className="rank-row" key={item.label}><span>{item.label}</span><div><i style={{ width: `${Math.max(8, item.value * 30)}%` }}/></div><b>{item.value}</b></div>)}</div></section></div></>;
+        useEffect(() => {
+          api.dashboard(dateRange)
+            .then((data) => {
+              setMetrics(data.metrics);
+              setError("");
+            })
+            .catch((err) => setError(err instanceof Error ? err.message : "Nao foi possivel carregar os indicadores."));
+        }, [dateRange.from, dateRange.to]);
+
+        useEffect(() => {
+          api.calls(undefined, { from: dateRange.from, to: dateRange.to })
+            .then((data) => setCallsInRange(data.calls))
+            .catch(() => setCallsInRange([]));
+        }, [dateRange.from, dateRange.to]);
+
+        if (error) return <div className="empty-state">{error}</div>;
+        if (!metrics) return <div className="empty-state">Carregando indicadores...</div>;
+
+        return (
+          <>
+            <div className="page-heading">
+              <div>
+                <span className="section-kicker">OPERACAO DE REDE</span>
+                <h1>Visao geral</h1>
+                <p>Indicadores calculados no backend a partir dos dados operacionais atuais.</p>
+              </div>
+              <button className="secondary-button" onClick={() => api.dashboard(dateRange).then((data) => setMetrics(data.metrics))}>
+                <Activity size={16}/> Atualizar
+              </button>
+            </div>
+
+            <div className="metric-grid">
+              <Metric label="Recebidos hoje" value={String(metrics.receivedToday)} note="Chamados abertos hoje" positive />
+              <Metric label="Chamados abertos" value={String(metrics.open)} note={`${metrics.unassigned} sem tecnico`} />
+              <Metric label="Em atendimento" value={String(metrics.inProgress)} note="Atribuidos ou em campo" />
+              <Metric label="Pendentes de aceite" value={String(metrics.pendingActivations)} note={`${metrics.finished} finalizados`} positive />
+            </div>
+
+            <div className="dashboard-grid">
+              <section className="panel chart-panel">
+                <div className="panel-heading">
+                  <div>
+                    <span className="section-kicker">STATUS</span>
+                    <h2>Distribuicao dos chamados</h2>
+                  </div>
+                </div>
+                <div className="bar-chart">
+                  {metrics.byStatus.map((item) => (
+                    <div className="bar-item" key={item.label}>
+                      <div className="bar-track"><i style={{ height: `${Math.max(8, item.value * 28)}px` }} /></div>
+                      <strong>{item.value}</strong>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="panel status-panel">
+                <div className="panel-heading">
+                  <div>
+                    <span className="section-kicker">REGIOES</span>
+                    <h2>Volume por regiao</h2>
+                  </div>
+                </div>
+                <div className="rank-list">
+                  {metrics.byRegion.map((item) => (
+                    <div className="rank-row" key={item.label}>
+                      <span>{item.label}</span>
+                      <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
+                      <b>{item.value}</b>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="dashboard-grid">
+              <section className="panel status-panel">
+                <div className="panel-heading">
+                  <div>
+                    <span className="section-kicker">TECNICOS</span>
+                    <h2>Chamados atribuidos</h2>
+                  </div>
+                </div>
+                <div className="rank-list">
+                  {metrics.byTechnician.length ? metrics.byTechnician.map((item) => (
+                    <div className="rank-row" key={item.label}>
+                      <span>{item.label}</span>
+                      <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
+                      <b>{item.value}</b>
+                    </div>
+                  )) : <div className="empty-state">Nenhum chamado atribuido.</div>}
+                </div>
+              </section>
+
+              <section className="panel status-panel">
+                <div className="panel-heading">
+                  <div>
+                    <span className="section-kicker">TIPOS</span>
+                    <h2>Chamados por tipo</h2>
+                  </div>
+                </div>
+                <div className="rank-list">
+                  {metrics.byType.map((item) => (
+                    <div className="rank-row" key={item.label}>
+                      <span>{item.label}</span>
+                      <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
+                      <b>{item.value}</b>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </>
+        );
 }
 function Dashboard({ user }: { user: User }) {
   return (
@@ -1396,6 +1510,45 @@ function DateRangeFilter({ value, onChange }: { value: { from: string; to: strin
   return <div className="date-range-filter"><label>De<input type="date" value={value.from} onChange={(event) => onChange({ ...value, from: event.target.value })} /></label><label>Ate<input type="date" value={value.to} onChange={(event) => onChange({ ...value, to: event.target.value })} /></label>{(value.from || value.to) && <button className="text-button" type="button" onClick={() => onChange({ from: "", to: "" })}>Limpar periodo</button>}</div>;
 }
 
+function RangeCallTable({ calls }: { calls: Call[] }) {
+  return (
+    <section className="panel compact-range-panel">
+      <div className="panel-heading">
+        <div>
+          <span className="section-kicker">PERIODO</span>
+          <h2>Chamados no intervalo</h2>
+        </div>
+      </div>
+      <div className="range-call-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Ordem</th>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Regiao</th>
+              <th>Status</th>
+              <th>Tecnico</th>
+            </tr>
+          </thead>
+          <tbody>
+            {calls.length ? calls.slice(0, 8).map((call) => (
+              <tr key={call.id}>
+                <td><strong>{call.orderNumber}</strong><small>{call.bdesk}</small></td>
+                <td><strong>{call.client}</strong><small>{call.city}</small></td>
+                <td>{call.type}<small>{call.reason}</small></td>
+                <td>{call.region}</td>
+                <td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td>
+                <td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td>
+              </tr>
+            )) : <tr><td colSpan={6} className="empty-state-cell">Sem chamados neste periodo.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function SupervisorOrdersPage({ user }: { user: User & { role: Role } }) {
   if (user.role.name !== "Supervisor") return <Navigate to="/" replace />;
   return <CallsPage title="Ordens dos meus tecnicos" teamScoped />;
@@ -1410,6 +1563,8 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState("");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const tablePanelRef = useRef<HTMLDivElement | null>(null);
   const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
@@ -1419,6 +1574,33 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
       .then((data) => setCalls(data.calls))
       .catch((err) => setError(err.message));
   }, [status, dateRange.from, dateRange.to]);
+
+  async function copyTableAsImage() {
+    if (!tablePanelRef.current) return;
+
+    try {
+      const canvas = await html2canvas(tablePanelRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("Imagem indisponivel");
+      if (!navigator.clipboard || !window.ClipboardItem) {
+        throw new Error("Copia direta nao suportada neste navegador.");
+      }
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type]: blob }),
+      ]);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+
+    window.setTimeout(() => setCopyState("idle"), 1800);
+  }
+
   async function refreshCalls() {
     setLoading(true);
     try { setCalls((await api.calls(status, { ...dateRange, teamScope: teamScoped })).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
@@ -1452,7 +1634,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           <Activity size={15} /> Atualizar
         </button>
       </div>
-      <section className={`panel table-panel calls-table${assignedOnly ? " attendance-table" : ""}`}>
+      <section className={`panel table-panel calls-table${assignedOnly ? " attendance-table" : ""}`} ref={tablePanelRef}>
         <div className="table-toolbar">
           <div className="search-field">
             <Search size={16} />
@@ -1464,6 +1646,10 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           </div>
           <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
+          </button>
+          <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button">
+            <Copy size={15} />
+            {copyState === "copied" ? "Tabela copiada" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
           </button>
           {showFilters && <><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></>}
           <span className="result-count">{visibleCalls.length} resultados</span>
@@ -1620,6 +1806,7 @@ function CallDetailBase() {
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={5}
+            <RangeCallTable calls={callsInRange} />
             />
           </label>
         </section>

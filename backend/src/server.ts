@@ -137,17 +137,23 @@ async function getScopedCallQuery(request: AuthRequest, scopeToSupervisor = fals
   return { from, to };
 }
 function getLoginAttemptKey(request: Request, email: string) {
-  return `${request.ip}:${email.toLowerCase()}`;
+  const normalizedEmail = email.trim().toLowerCase();
+  const remoteAddress = request.ip || request.socket?.remoteAddress || 'unknown';
+  return `${remoteAddress}:${normalizedEmail}`;
 }
 function isLoginRateLimited(request: Request, email: string) {
   const key = getLoginAttemptKey(request, email);
+  const now = Date.now();
   const current = loginAttempts.get(key);
-  if (!current || current.resetAt <= Date.now()) {
-    loginAttempts.set(key, { count: 1, resetAt: Date.now() + loginAttemptWindowMs });
+
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + loginAttemptWindowMs });
     return false;
   }
-  current.count += 1;
-  return current.count > maxLoginAttempts;
+
+  const nextCount = current.count + 1;
+  loginAttempts.set(key, { count: nextCount, resetAt: current.resetAt });
+  return nextCount > maxLoginAttempts;
 }
 function clearLoginAttempts(request: Request, email: string) {
   loginAttempts.delete(getLoginAttemptKey(request, email));

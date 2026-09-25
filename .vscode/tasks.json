@@ -16,6 +16,211 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "backend-http-tests",
+			"type": "shell",
+			"command": "npx tsx --test test/http.test.ts",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-http-tests",
+			"type": "shell",
+			"command": "cd \"backend\" && npx tsx --test test/http.test.ts",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-http-tests",
+			"type": "shell",
+			"command": "node debug_run_backend_tests.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-http-tests-verify",
+			"type": "shell",
+			"command": "node debug_run_backend_tests.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "diagnose-login-rate-limit",
+			"type": "shell",
+			"command": "node debug-login-check.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "diagnose-login-rate-limit-2",
+			"type": "shell",
+			"command": "node backend/debug-login-check.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "login-debug-check",
+			"type": "shell",
+			"command": "node backend/debug-login-check.mjs",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "inspect-state-probe",
+			"type": "shell",
+			"command": "node --import tsx/esm backend/inspect-state.mjs",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-http-tests-verify-2",
+			"type": "shell",
+			"command": "node debug_run_backend_tests.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "probe-login-status",
+			"type": "shell",
+			"command": "node probe-login.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "probe-login-status",
+			"type": "shell",
+			"command": "node probe-login.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-login-test",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow\\backend && npm test -- --test-name-pattern \\\"login rejects repeated attempts\\\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "tech-status-probe",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow\\backend && npx tsx -e \\\"import { listTechnicians, updateTechnician } from './src/store.ts'; const before = await listTechnicians(); console.log('before', before.find((t) => t.id === 'tech-bruno')); const after = await updateTechnician('tech-bruno', { currentStatus: 'Indisponivel' }); console.log('afterUpdate', after); console.log('afterList', (await listTechnicians()).find((t) => t.id === 'tech-bruno'));\\\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "tech-status-probe",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow\\backend && node --import tsx/esm probe-tech.js\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "probe-backend-http",
+			"type": "shell",
+			"command": "node probe-http.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "probe-backend-http",
+			"type": "shell",
+			"command": "node probe-http.js",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cleanup-probes",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow && del /Q probe-login.js probe-http.js backend\\probe-tech.js\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-suite-green",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow\\backend && npm test\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-status",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow && git status --short\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "cleanup-debug-files",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow && del /Q backend\\debug-login-check.js backend\\debug-login-check.mjs backend\\inspect-state.mjs debug_run_backend_tests.js t.id\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-status",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow && git status --short\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-commit-backend-fix",
+			"type": "shell",
+			"command": "cmd /c \"cd /d c:\\Users\\mathe\\OneDrive\\Área de Trabalho\\Projetos\\JH-RedeFlow && git add ROADMAP.md backend/test/http.test.ts backend/test/supervisor-scoping.test.ts && git commit -m \\\"fix: stabilize backend HTTP test environment\\\"\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-commit-backend-fix",
+			"type": "shell",
+			"command": "cd /d c:/Users/mathe/OneDrive/Área de Trabalho/Projetos/JH-RedeFlow && git add ROADMAP.md backend/test/http.test.ts backend/test/supervisor-scoping.test.ts && git commit -m \"fix: stabilize backend HTTP test environment\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-commit-backend-fix",
+			"type": "shell",
+			"command": "cd /d c:/Users/mathe/OneDrive/Área de Trabalho/Projetos/JH-RedeFlow && git add ROADMAP.md backend/test/http.test.ts backend/test/supervisor-scoping.test.ts && git commit -m 'fix: stabilize backend HTTP test environment'",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }
