@@ -1657,16 +1657,18 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
               placeholder="Buscar ordem, tecnico B2C, BDESK ou regiao"
             />
           </div>
-          <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
-            <SlidersHorizontal size={15} /> Filtros
-          </button>
-          <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button" aria-label="Copiar tabela completa como imagem">
-            <Copy size={15} />
-            {copyState === "copied" ? "Tabela copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
-          </button>
-          {showFilters && <><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></>}
-          <span className="result-count">{visibleCalls.length} resultados</span>
+          <div className="table-toolbar-actions">
+            <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
+              <SlidersHorizontal size={15} /> Filtros
+            </button>
+            <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button" aria-label="Copiar tabela completa como imagem">
+              <Copy size={15} />
+              {copyState === "copied" ? "Tabela copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
+            </button>
+            <span className="result-count">{visibleCalls.length} resultados</span>
+          </div>
         </div>
+        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
