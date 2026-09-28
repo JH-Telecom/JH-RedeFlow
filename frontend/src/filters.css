@@ -1,13 +1,13 @@
 /* ==========================================================================
-   BARRA DE FERRAMENTAS & BUSCA (CENTRALIZADO VERTICALMENTE)
+   1. BARRA PRINCIPAL (BUSCA, BOTÕES E RESULTADOS)
    ========================================================================== */
 
 .calls-table .table-toolbar,
 .table-toolbar {
   display: flex;
-  align-items: center; /* Centraliza tudo na vertical */
+  align-items: center; /* Centraliza todos os elementos na vertical */
   gap: 12px;
-  padding: 12px 16px; /* Espaçamento para afastar do topo/base */
+  padding: 12px 16px; /* Espaçamento interno equilibrado */
   min-width: 0;
 }
 
@@ -58,14 +58,28 @@
 }
 
 /* ==========================================================================
-   SELETORES & FILTROS DE DATA
+   2. LINHA DE FILTROS (ORGANIZADA E CENTRALIZADA)
    ========================================================================== */
 
+.table-filter-row {
+  display: flex;
+  align-items: center; /* Centraliza inputs e labels na mesma linha */
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-top: 1px solid #f0f3f7;
+  border-bottom: 1px solid #f0f3f7; /* Separação em relação ao cabeçalho da tabela */
+  background: #fafbfc; /* Fundo suave para destacar a barra de filtros */
+}
+
+/* Selects universais e da linha de filtros */
 .toolbar-select,
-.status-select {
+.table-filter-row select,
+.table-filter-row .toolbar-select {
+  height: 36px;
   border: 1px solid #dce4ef;
   border-radius: 7px;
-  padding: 8px 10px;
+  padding: 0 10px;
   background: #fff;
   color: var(--ink);
   font: inherit;
@@ -73,59 +87,57 @@
 }
 
 .status-select {
+  border: 1px solid #dce4ef;
   border-radius: 6px;
   padding: 5px 7px;
-}
-
-.table-filter-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 0 16px 14px;
-  border-top: 1px solid #f0f3f7;
-}
-
-.date-range-filter {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 0 0 18px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
   background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
 }
 
+/* Container dos seletores de data "DE" / "ATE" */
+.date-range-filter,
 .table-filter-row .date-range-filter {
-  margin: 10px 0 0;
+  display: flex;
+  align-items: center; /* Mantém o texto DE/ATE ao lado do campo */
+  gap: 10px;
+  margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
-.date-range-filter label {
-  display: grid;
-  gap: 4px;
+/* Estilo dos rótulos (DE / ATE) */
+.date-range-filter label,
+.table-filter-row .date-range-filter label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
   color: var(--muted);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.date-range-filter input {
+/* Campo de entrada de data */
+.date-range-filter input,
+.table-filter-row .date-range-filter input {
+  height: 36px;
   border: 1px solid #dce4ef;
   border-radius: 7px;
-  padding: 8px 10px;
+  padding: 0 10px;
   background: #fff;
   color: var(--ink);
   font: inherit;
   font-size: 11px;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
-   PAINEL DE NOTIFICAÇÕES & OUTROS COMPONENTES
+   3. OUTROS COMPONENTES (NOTIFICAÇÕES E BARRA DE EQUIPE)
    ========================================================================== */
 
 .team-toolbar {
@@ -223,7 +235,7 @@
 }
 
 /* ==========================================================================
-   RESPONSIVIDADE (MOBILE)
+   4. RESPONSIVIDADE (MOBILE / DISPOSITIVOS MENORES)
    ========================================================================== */
 
 @media (max-width: 760px) {
