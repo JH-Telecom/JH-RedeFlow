@@ -98,6 +98,15 @@ function valueBetween(text: string, start: RegExp, end: RegExp) {
   return match?.[1]?.trim() || null;
 }
 
+function cleanAddressText(value: string | null) {
+  if (!value) return null;
+  const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const cityLineIndex = lines.findIndex((line) => /,\s*[^,]+?\s*-\s*[A-Z]{2}\s*$/i.test(line));
+  if (cityLineIndex >= 0) return lines.slice(0, cityLineIndex + 1).join(' ').trim();
+  while (lines.length && /^(?:N\s*\/\s*A|NA|NÃO INFORMADA|NAO INFORMADA|NÃO INFORMADO|NAO INFORMADO)$/i.test(lines[lines.length - 1])) lines.pop();
+  return lines.join(' ').trim() || null;
+}
+
 function normalizeCep(value: string | null) {
   const digits = (value || '').replace(/\D/g, '');
   return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : value?.trim() || null;
@@ -135,7 +144,7 @@ function inferNeighborhood(address: string | null) {
   const beforeCity = cityMatch ? normalized.slice(0, cityMatch.index) : normalized;
   const base = normalizeAddressBase(address);
   let remainder = base ? beforeCity.slice(base.length) : beforeCity;
-  remainder = remainder.replace(/\b(APARTAMENTO|APTO|APT)\s*[:#]?\s*[A-Z0-9-]+/g, '').replace(/(?:\bBLOCO|\bBL\.?)\s*[:#]?\s*[A-Z0-9_-]+(?:\s+[A-Z0-9])?/g, '').replace(/\bFTTA\s*-?\s*[A-Z0-9-]*/g, '').replace(/\bCOND(?:OMINIO)?\.?\s*[^,]*/g, '');
+  remainder = remainder.replace(/\b(APARTAMENTO|APTO|APT)\s*[:#]?\s*[A-Z0-9-]+/g, '').replace(/(?:\bBLOCO|\bBL\.?)\s*[:#]?\s*(?:BL\s*)?[A-Z0-9_-]+/g, '').replace(/\bFTTA\s*-?\s*[A-Z0-9-]*/g, '').replace(/\bCOND(?:OMINIO)?\.?\s*[^,]*?(?=\bAP\b|,|$)/g, '').replace(/\bAP(?=\s+[A-Z])/g, '');
   const parts = remainder.split(/[,-]/).map((part) => cleanNeighborhoodCandidate(part)).filter((part): part is string => Boolean(part));
   if (parts.length) return parts[parts.length - 1] || null;
   const fallback = normalized.split(/[,-]/).map((part) => cleanNeighborhoodCandidate(part)).filter((part): part is string => Boolean(part));
@@ -147,7 +156,9 @@ export function parseNocAddress(raw: string): NocAddressRecord {
   const nome = header?.[1]?.trim() || valueBetween(raw, /(?:^|\n)\s*NOME\s*:\s*/i, /\n\s*CONTRATO\s*:/i);
   const contrato = header?.[2]?.trim() || valueBetween(raw, /(?:^|\n)\s*CONTRATO\s*:\s*/i, /\n\s*CEP\s*:/i);
   const cep = raw.match(/\bCEP\s*:\s*([0-9]{5}[-.]?[0-9]{3})/i)?.[1] || null;
-  const endereco = valueBetween(raw, /(?:^|\n)\s*ENDERE[CÇ]O\s*:\s*/i, /\n\s*(?:COMP\.?\s*\/\s*REF|COMPLEMENTO|REFER[EÊ]NCIA)\s*:/i) || raw.replace(/^.*?\bCEP\s*:\s*[0-9]{5}[-.]?[0-9]{3}\s*/is, '').trim() || null;
+  const labeledAddress = valueBetween(raw, /(?:^|\n)\s*ENDERE[CÇ]O\s*:\s*/i, /\n\s*(?:COMP\.?\s*\/\s*REF|COMPLEMENTO|REFER[EÊ]NCIA)\s*:/i);
+  const fallbackAddress = raw.replace(/^.*?\bCEP\s*:\s*[0-9]{5}[-.]?[0-9]{3}\s*/is, '').trim();
+  const endereco = cleanAddressText(labeledAddress || fallbackAddress);
   const complemento = valueBetween(raw, /(?:^|\n)\s*(?:COMP\.?\s*\/\s*REF|COMPLEMENTO|REFER[EÊ]NCIA)\s*:\s*/i, /\n\s*[-=]{3,}|$/i);
   const enderecoBase = normalizeAddressBase(endereco);
   const bairro = inferNeighborhood(endereco);

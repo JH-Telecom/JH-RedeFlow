@@ -181,6 +181,43 @@ test('removes placeholder neighborhood text and keeps the most recurrent valid n
   assert.equal(result.bairroPrincipal, 'COLOMBIA');
 });
 
+test('ignores NOC address placeholders after the city and keeps the most recurring neighborhood', () => {
+  const analysis = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️
+- OLT: * VIP-GRU-1-SPO-ONK-03
+- SLOT/PON: * 08/09
+- Tipo de Falha: * Total
+- Data/Hora do Evento: * 29/09/2026 09:35
+- Contrato(s) Exemplo(s): * CONTRATO 4547751 | CONTRATO 6669285 | CONTRATO 4659404 | CONTRATO 5539889 | CONTRATO 6736602
+- Afetados: * 23
+- BDESK: * 653021
+- Tarefa Office Track: 602051221710102
+- Endereços:
+CEP: 07252-312
+RUA DO CAMINHO VELHO, 525 , BLOCOS 2, APARTAMENTO 202 JARDIM NOVA CIDADE, GUARULHOS - SP
+N/A
+
+CEP: 07252-312
+ESTRADA DO CAMINHO VELHO, 525 APARTAMENTO:106 / BLOCO:BL 2A JARDIM NOVA CIDADE, GUARULHOS - SP
+NÃO INFORMADA
+
+CEP: 07252-312
+RUA DO CAMINHO VELHO, 525 FTTA - 0009 - COND. SANTA MONICA PARQUE CD 1 BL 407 AP JARDIM NOVA CIDADE, GUARULHOS - SP
+N/A
+
+CEP: 07252-312
+ESTRADA DO CAMINHO VELHO, 525 APARTAMENTO:303 / BLOCO:BL 3B JARDIM NOVA CIDADE, GUARULHOS - SP
+NÃO INFORMADA
+
+CEP: 07252-312
+ESTRADA DO CAMINHO VELHO, 525 APARTAMENTO:507 / BLOCO:BL 2B JARDIM NOVA CIDADE, GUARULHOS - SP
+EM FRENTE A GARAGEM DO TERMINAL PIMENTASA
+- COPE REDE: NICOLLI`);
+
+  assert.equal(analysis.endereco_principal, 'ESTRADA DO CAMINHO VELHO, 525');
+  assert.equal(analysis.bairro_principal, 'JARDIM NOVA CIDADE');
+  assert.deepEqual(analysis.clientes_afetados?.map((client) => client.bairro), Array(5).fill('JARDIM NOVA CIDADE'));
+});
+
 test('resolves the OLT region from the default table with manual override priority', () => {
   const defaultResolution = resolveOltRegion('VIP-ITA-SPO-OHW-01');
   assert.equal(defaultResolution.region, 'ITAIM PAULISTA');

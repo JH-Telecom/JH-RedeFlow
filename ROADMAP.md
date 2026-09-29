@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: Bairro/Endereço unificados no chamado, com região automática pelo mapeamento OLT existente.
+Última implementação: correção do bairro NOC quando linhas `N/A`/`NÃO INFORMADA` vêm após endereço e cidade/UF.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -77,6 +77,23 @@ Próxima ação: aplicar a migration de localização nos bancos locais/Supabase
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
 ### Correção — Bairro unificado + Região automática por OLT
+
+#### Correção adicional — Placeholder após endereço NOC
+
+Plano registrado em 2026-09-29 antes da alteração do parser.
+
+- problema: registros NOC sem rótulo `Endereço:` incluem linhas finais `N/A`/`NÃO INFORMADA` no fallback, podendo fazer o bairro ser inferido como `SP INFORMADA`;
+- hipótese: limitar o endereço fallback à linha/localização que termina em cidade/UF preserva a consolidação existente e exclui complementos soltos;
+- teste discriminante: processar a amostra NOC com os cinco endereços e validar endereço principal `ESTRADA DO CAMINHO VELHO, 525` e bairro mais recorrente `JARDIM NOVA CIDADE`;
+- escopo: ajustar apenas a extração fallback em `parseNocAddress`; não alterar classificação nem a lógica de consolidação NOC.
+
+Resultado:
+
+- o endereço fallback agora termina na linha com cidade/UF, sem incorporar linhas `N/A` ou `NÃO INFORMADA` posteriores;
+- a limpeza de complementos reconhece códigos de bloco completos (`BL 2A`, `BL 3B`) e preserva o bairro após `FTTA`/condomínio;
+- classificação e consolidação por recorrência do NOC foram reutilizadas, sem reimplementação;
+- arquivos alterados: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/test/parsers.test.ts](backend/test/parsers.test.ts), [ROADMAP.md](ROADMAP.md);
+- validação: typecheck backend passou; parser NOC 20/20 passou, incluindo a amostra real.
 
 Plano registrado antes da implementação em 2026-09-29.
 
