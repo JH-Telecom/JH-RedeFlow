@@ -166,6 +166,20 @@ test('consolidates equal streets with different units and deterministic neighbor
   assert.equal(incomplete.enderecoPrincipal, 'RUA X, 100');
 });
 
+test('consolidates NOC addresses with numbered street names and underscore placeholders', () => {
+  const result = consolidateNocAddresses([
+    'Nome: PAULINA CARVALHO NASCIMENTO | Contrato: 4476867.3\nCEP: 08473-690\nEndereço: RUA 3 IRMAOS, 47 . FU VILA IOLANDA II, SAO PAULO - SP\nComp/Ref: N/A',
+    'Nome: MARIA EDUARDA FREITAS PENA | Contrato: 4742329.3\nCEP: 08473-690\nEndereço: RUA TRÊS IRMÃOS, 34 CASA:34 VILA IOLANDA II, SAO PAULO - SP\nComp/Ref: EM CIMA DA PIZZARIA',
+    'Nome: LUZILENE SILVA CAROLINO | Contrato: 4497056.2\nCEP: 08473-690\nEndereço: RUA 3 IRMAOS, 9 NAO_INFORMADO VILA IOLANDA II, SAO PAULO - SP\nComp/Ref: N/A',
+    'Nome: ADAIR DOS SANTOS LENZ | Contrato: 4457992.3\nCEP: 08473-690\nEndereço: RUA 3 IRMAOS, 12 NAO_INFORMADO VILA IOLANDA II, SAO PAULO - SP\nComp/Ref: N/A',
+    'Nome: CARINA APARECIDA ALVES BATISTA | Contrato: 4495682.2\nCEP: 08473-690\nEndereço: RUA 3 IRMAOS, 14 TRAVESSA DA INACIO MONTEIRO VILA IOLANDA II, SAO PAULO - SP\nComp/Ref: N/A',
+  ]);
+
+  assert.equal(result.enderecoPrincipal, 'RUA 3 IRMAOS, 47');
+  assert.equal(result.bairroPrincipal, 'VILA IOLANDA II');
+  assert.deepEqual(result.clientes.map((client) => client.bairro), Array(5).fill('VILA IOLANDA II'));
+});
+
 test('identifies atreladas through technical identifiers and matching consolidated location', () => {
   const current = { olt: 'OLT-01', placa_pon: '06', slot_pon: ['00'], bdesk: null, office_track: 'OS-10', contrato: null, endereco_principal: 'RUA X, 100', bairro_principal: 'BAIRRO A' } as const;
   const ids = identifyAtreladas(current, [{ id: 'activation-1', analysis: { ...current, raw_text: '', eh_acionamento: true, tipo_registro: null, tipo_card: null, categoria: null, origem: null, prioridade: null, tecnico: null, auxiliar: null, telefone: null, bdesk: null, ticket: null, office_track: 'OS-10', os_ot: null, os_casa_cliente: null, contrato: null, sn: null, olt: 'OLT-01', slot_pon: ['00'], placa_pon: '06', tipo_falha: null, motivo: null, afetados: null, data_hora_evento: null, tratativa_realizada: null, localizacao: null, id_cto: null, loc_cto: null, materiais_utilizados: null, tecnico_rede: null, cope_rede: null, observacoes: null } }]);

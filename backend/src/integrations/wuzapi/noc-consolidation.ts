@@ -130,13 +130,13 @@ function normalizeAddressBase(value: string | null) {
   let normalized = normalizeText(value).replace(/^RUA\s+RUA\b/, 'RUA');
   const unitMarker = normalized.search(/\b(APARTAMENTO|APTO|APT|BLOCO|BL\.?\b|FTTA|COND(?:OMINIO)?\b|CASA\b|COMPLEMENTO|REFERENCIA|REF\.?\b)/i);
   if (unitMarker > 0) normalized = normalized.slice(0, unitMarker).trim();
-  const numberedStreet = normalized.match(/^(.*?\b\d+[A-Z]?)(?:\s|,|$)/i);
+  const numberedStreet = normalized.match(/^(.*?,\s*\d+[A-Z]?)(?:\s|,|$)/i) || normalized.match(/^(.*?\b\d+[A-Z]?)(?:\s|,|$)/i);
   return (numberedStreet?.[1] || normalized).replace(/\s*,\s*$/, '').trim();
 }
 
 function cleanNeighborhoodCandidate(value: string | null) {
   if (!value) return null;
-  let candidate = normalizeText(value)
+  let candidate = normalizeText(value).replace(/[_-]+/g, ' ')
     .replace(/\b(?:NAO|NÃO)\s+INFORMADO\b/g, ' ')
     .replace(/\b(?:NAO|NÃO)\b/g, ' ')
     .replace(/\b(?:REGIAO|REGIÃO)\b/g, ' ')
@@ -157,7 +157,7 @@ function inferNeighborhood(address: string | null) {
   const beforeCity = cityMatch ? normalized.slice(0, cityMatch.index) : normalized;
   const base = normalizeAddressBase(address);
   let remainder = base ? beforeCity.slice(base.length) : beforeCity;
-  remainder = remainder.replace(/\b(APARTAMENTO|APTO|APT)\s*[:#]?\s*[A-Z0-9-]+/g, '').replace(/(?:\bBLOCO|\bBL\.?)\s*[:#]?\s*(?:BL\s*)?[A-Z0-9_-]+/g, '').replace(/\bFTTA\s*-?\s*[A-Z0-9-]*/g, '').replace(/\bCOND(?:OMINIO)?\.?\s*[^,]*?(?=\bAP\b|,|$)/g, '').replace(/\bAP(?=\s+[A-Z])/g, '');
+  remainder = remainder.replace(/\b(APARTAMENTO|APTO|APT|CASA)\s*[:#]?\s*[A-Z0-9-]+/g, '').replace(/(?:\bBLOCO|\bBL\.?)\s*[:#]?\s*(?:BL\s*)?[A-Z0-9_-]+/g, '').replace(/\bFTTA\s*-?\s*[A-Z0-9-]*/g, '').replace(/\bFU\b/g, '').replace(/\bCOND(?:OMINIO)?\.?\s*[^,]*?(?=\bAP\b|,|$)/g, '').replace(/\bAP(?=\s+[A-Z])/g, '');
   const parts = remainder.split(/[,-]/).map((part) => cleanNeighborhoodCandidate(part)).filter((part): part is string => Boolean(part));
   if (parts.length) return parts[parts.length - 1] || null;
   const fallback = normalized.split(/[,-]/).map((part) => cleanNeighborhoodCandidate(part)).filter((part): part is string => Boolean(part));
@@ -195,7 +195,13 @@ export function consolidateNocAddresses(rawAddresses: string[] | null | undefine
   const preferredNeighborhoods = new Set(clientes.filter((client) => client.endereco_base === mainBase && client.bairro_normalizado).map((client) => client.bairro_normalizado as string));
   const bairroPrincipal = mostFrequent(clientes.map((client, index) => ({ value: client.bairro_normalizado, index })), preferredNeighborhoods);
   const cepPrincipal = mostFrequent(clientes.map((client, index) => ({ value: client.cep_normalizado, index })));
-  return { clientes, enderecoPrincipal: clientes.find((client) => client.endereco_base === mainBase)?.endereco_base || mainBase, bairroPrincipal, cepPrincipal, enderecoBaseCounts: Object.fromEntries(baseCounts) };
+  const normalizedClients = clientes.map((client) => {
+    if (client.cep_normalizado === cepPrincipal && client.bairro_normalizado && bairroPrincipal && client.bairro_normalizado.endsWith(` ${bairroPrincipal}`)) {
+      return { ...client, bairro: bairroPrincipal, bairro_normalizado: bairroPrincipal };
+    }
+    return client;
+  });
+  return { clientes: normalizedClients, enderecoPrincipal: normalizedClients.find((client) => client.endereco_base === mainBase)?.endereco_base || mainBase, bairroPrincipal, cepPrincipal, enderecoBaseCounts: Object.fromEntries(baseCounts) };
 }
 
 function compact(value: string | null | undefined) { return normalizeText(value).replace(/[^A-Z0-9]/g, ''); }

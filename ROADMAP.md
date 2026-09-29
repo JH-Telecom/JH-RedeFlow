@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: editor persistente de mapeamentos OLT→Região na aba Configurações.
+Última implementação: correção da consolidação NOC para endereços com números na rua, placeholders e bairros repetidos.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar a migration local `011_olt_region_overrides.sql` ou Supabase `202609290013_olt_region_overrides.sql`; depois confirmar a alteração de região em um chamado/sincronização real.
+Próxima ação: validar a próxima mensagem NOC real com rua numerada e conferir Endereço/Bairro no chamado aceito; registros antigos precisam ser reprocessados para receber a correção.
 
 ---
 
@@ -71,6 +71,7 @@ Próxima ação: aplicar a migration local `011_olt_region_overrides.sql` ou Sup
 - [x] Gráfico de status do dashboard contido para não ultrapassar o painel.
 - [x] Aceite de acionamentos com campos longos corrigido.
 - [x] Consolidação determinística de endereços NOC, bairros, clientes afetados e atreladas.
+- [x] Normalização NOC de ruas com números no nome, placeholders com underscore e bairro consensual por CEP.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
 - [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
@@ -79,6 +80,17 @@ Próxima ação: aplicar a migration local `011_olt_region_overrides.sql` ou Sup
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Correção de endereço e bairro NOC — implementada em 2026-09-29
+
+- `normalizeAddressBase` agora prioriza o número do imóvel após a vírgula, preservando o número que faz parte do nome da rua (ex.: `RUA 3 IRMAOS, 47`);
+- placeholders com underscore são normalizados antes da limpeza; `CASA:34` e o token complementar `FU` deixam de contaminar o bairro;
+- quando o bairro individual termina com o bairro mais recorrente e compartilha o CEP principal, a consolidação remove o prefixo de complemento e normaliza os registros de clientes;
+- a mensagem de exemplo agora resulta em endereço principal `RUA 3 IRMAOS, 47` e bairro `VILA IOLANDA II` nos cinco registros;
+- nenhum schema ou dado de banco foi alterado; registros já existentes não são recalculados automaticamente e precisam ser reprocessados/atualizados;
+- validação: suíte `backend/test/parsers.test.ts` passou 22/22 e typecheck backend passou.
+
+Arquivos alterados: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/test/parsers.test.ts](backend/test/parsers.test.ts) e [ROADMAP.md](ROADMAP.md).
 
 ### Editor de OLT por Região — implementado em 2026-09-29
 
@@ -232,6 +244,12 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Correção de endereço e bairro NOC
+
+Amostras com `RUA 3 IRMAOS` estavam sendo truncadas para `RUA 3` porque o primeiro dígito era confundido com número do imóvel; `NAO_INFORMADO` com underscore e dados complementares também poluíam o bairro. O parser agora prioriza o número após a vírgula, limpa placeholders/complementos e usa o bairro recorrente do mesmo CEP para remover prefixos contaminantes. Regressão confirma endereço `RUA 3 IRMAOS, 47` e bairro `VILA IOLANDA II` em todos os cinco clientes.
+
+Arquivos: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/test/parsers.test.ts](backend/test/parsers.test.ts). Validação: 22 testes de parser passaram; typecheck backend passou. Nenhuma migration.
 
 ## 2026-09-29 — Editor de mapeamento OLT→Região
 
@@ -909,6 +927,11 @@ Editor de mapeamento OLT→Região
 
 Resultado: ✅ 21 testes de parser/resolução e 1 teste HTTP de salvar/permissão passaram; typecheck backend e build frontend passaram.
 
+### Teste
+Consolidação de endereço/bairro NOC
+
+Resultado: ✅ 22 testes de parser passaram, incluindo a amostra com rua numerada, placeholder underscore e CEP compartilhado; typecheck backend passou.
+
 ---
 
 ## 13. PENDÊNCIAS
@@ -922,6 +945,7 @@ Resultado: ✅ 21 testes de parser/resolução e 1 teste HTTP de salvar/permiss�
 
 ### 🟠 IMPORTANTE
 
+- confirmar em acionamento real que novos chamados e registros reprocessados recebem o bairro corrigido;
 - validar cabeçalhos, correspondência e fuso horário com a planilha D-0 oficial;
 - revisar a interface de dashboards para filtros de supervisor e data;
 - confirmar integração de exceções de acesso por papel.
@@ -935,13 +959,17 @@ Resultado: ✅ 21 testes de parser/resolução e 1 teste HTTP de salvar/permiss�
 
 ## 14. PRÓXIMA AÇÃO
 
-1. aplicar `database/migrations/011_olt_region_overrides.sql` no PostgreSQL local ou `supabase/migrations/202609290013_olt_region_overrides.sql` no Supabase;
-2. editar uma OLT na aba Configurações e confirmar que a Região calculada muda para novos chamados e sincronizações;
-3. validar a alteração de Região com a migration aplicada no banco Supabase publicado.
+1. validar uma nova mensagem NOC com Endereço/Bairro no chamado aceito;
+2. reprocessar manualmente os chamados antigos que tenham sido salvos com rua ou bairro incorretos;
+3. continuar a validação pendente do editor OLT→Região no banco publicado após aplicar migration 011/013.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Consolidação NOC
+
+A correção de endereço/bairro está no parser compartilhado de mensagens NOC. Suíte de parsers passou 22/22 e typecheck backend passou. Não houve alteração de banco. Novas aceitações usam a regra corrigida; registros já persistidos não são recalculados e devem ser reprocessados ou atualizados manualmente. Para a amostra reportada, esperado: `RUA 3 IRMAOS, 47` e `VILA IOLANDA II`.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Configuração OLT→Região
 
