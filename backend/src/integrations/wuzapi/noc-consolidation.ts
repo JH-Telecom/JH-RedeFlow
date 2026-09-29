@@ -127,7 +127,7 @@ function normalizeCep(value: string | null) {
 
 function normalizeAddressBase(value: string | null) {
   if (!value) return null;
-  let normalized = normalizeText(value).replace(/^RUA\s+RUA\b/, 'RUA');
+  let normalized = normalizeText(value).replace(/^CLT[_\s-]*/, '').replace(/^((?:RUA|AVENIDA|AV\.?|ALAMEDA|TRAVESSA|ESTRADA|RODOVIA|VIA))\s+\1\b/, '$1');
   const unitMarker = normalized.search(/\b(APARTAMENTO|APTO|APT|BLOCO|BL\.?\b|FTTA|COND(?:OMINIO)?\b|CASA\b|COMPLEMENTO|REFERENCIA|REF\.?\b)/i);
   if (unitMarker > 0) normalized = normalized.slice(0, unitMarker).trim();
   const numberedStreet = normalized.match(/^(.*?,\s*\d+[A-Z]?)(?:\s|,|$)/i) || normalized.match(/^(.*?\b\d+[A-Z]?)(?:\s|,|$)/i);

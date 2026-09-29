@@ -220,6 +220,31 @@ TRAVESSA LA VIOLETEIRA, 96 JARDIM DA CONQUISTA ZONA LESTE, SAO PAULO - SP
   assert.equal(analysis.clientes_afetados?.length, 5);
 });
 
+test('normalizes FIELD addresses with CLT prefix and duplicated street type', () => {
+  const analysis = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️
+- OLT: * VIP-GRU-3-SPO-ONK-02
+- SLOT/PON: * SLOT:5|PON:7
+- Tipo de Falha: * Caixa atenuada
+- BDESK: * 12515882
+- Endereço: CLT_RUA RUA LISBOA, 76 PARQUE CONTINENTAL II, GUARULHOS - SP`);
+
+  assert.equal(analysis.endereco_principal, 'RUA LISBOA, 76');
+  assert.equal(analysis.bairro_principal, 'PARQUE CONTINENTAL II');
+});
+
+test('deduplicates repeated street types in NOC addresses', () => {
+  const cases = [
+    ['RUA RUA LISBOA, 76 PARQUE CONTINENTAL II, GUARULHOS - SP', 'RUA LISBOA, 76'],
+    ['AVENIDA AVENIDA CENTRAL, 10 CENTRO, GUARULHOS - SP', 'AVENIDA CENTRAL, 10'],
+    ['TRAVESSA TRAVESSA DAS FLORES, 20 VILA NOVA, GUARULHOS - SP', 'TRAVESSA DAS FLORES, 20'],
+  ];
+
+  for (const [rawAddress, expectedAddress] of cases) {
+    const analysis = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️\n- OLT: * VIP-TESTE-01\n- Endereços:\n${rawAddress}`);
+    assert.equal(analysis.endereco_principal, expectedAddress);
+  }
+});
+
 test('identifies atreladas through technical identifiers and matching consolidated location', () => {
   const current = { olt: 'OLT-01', placa_pon: '06', slot_pon: ['00'], bdesk: null, office_track: 'OS-10', contrato: null, endereco_principal: 'RUA X, 100', bairro_principal: 'BAIRRO A' } as const;
   const ids = identifyAtreladas(current, [{ id: 'activation-1', analysis: { ...current, raw_text: '', eh_acionamento: true, tipo_registro: null, tipo_card: null, categoria: null, origem: null, prioridade: null, tecnico: null, auxiliar: null, telefone: null, bdesk: null, ticket: null, office_track: 'OS-10', os_ot: null, os_casa_cliente: null, contrato: null, sn: null, olt: 'OLT-01', slot_pon: ['00'], placa_pon: '06', tipo_falha: null, motivo: null, afetados: null, data_hora_evento: null, tratativa_realizada: null, localizacao: null, id_cto: null, loc_cto: null, materiais_utilizados: null, tecnico_rede: null, cope_rede: null, observacoes: null } }]);

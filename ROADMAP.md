@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: correção do parser NOC para listas com contrato/nome antes de CEP pontuado.
+Última implementação: normalização de endereço FIELD/NOC com prefixo CLT_ e tipos de via duplicados.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: reprocessar/editar chamados criados com Endereço igual ao contrato e validar uma nova mensagem no fluxo de aceite.
+Próxima ação: reprocessar/editar chamados antigos cujo Endereço foi salvo com prefixo CLT_ ou rua duplicada e validar novos acionamentos FIELD.
 
 ---
 
@@ -72,6 +72,7 @@ Próxima ação: reprocessar/editar chamados criados com Endereço igual ao cont
 - [x] Aceite de acionamentos com campos longos corrigido.
 - [x] Consolidação determinística de endereços NOC, bairros, clientes afetados e atreladas.
 - [x] Normalização NOC de ruas com números no nome, placeholders com underscore e bairro consensual por CEP.
+- [x] Remoção de prefixo CLT_ e duplicação de tipos de via, com inferência do Bairro em endereços FIELD.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
 - [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
@@ -81,6 +82,16 @@ Próxima ação: reprocessar/editar chamados criados com Endereço igual ao cont
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Endereços FIELD com CLT_ e tipos de via duplicados — implementado em 2026-09-29
+
+- Endereços iniciados por `CLT_` agora removem esse prefixo antes da normalização; tipos de via repetidos no início (`RUA RUA`, `AVENIDA AVENIDA`, `TRAVESSA TRAVESSA`) são reduzidos a um;
+- a inferência do bairro usa a base limpa, recuperando `PARQUE CONTINENTAL II` para `CLT_RUA RUA LISBOA, 76 ... GUARULHOS - SP`;
+- teste confirma Endereço `RUA LISBOA, 76`, Bairro `PARQUE CONTINENTAL II`, e variantes de três tipos de via;
+- nenhuma alteração de schema; chamados já aceitos não são atualizados automaticamente e precisam de edição/reprocessamento;
+- validação: parser NOC/WuzAPI 25/25 e typecheck backend passaram.
+
+Arquivos alterados: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/test/parsers.test.ts](backend/test/parsers.test.ts) e [ROADMAP.md](ROADMAP.md).
 
 ### Correção de registros NOC iniciados por contrato/nome — implementada em 2026-09-29
 
@@ -256,6 +267,12 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Normalização de Endereço/Bairro FIELD
+
+Prefixo `CLT_` e tipo de via repetido no início do Endereço contaminavam o endereço-base e impediam o Bairro de ser encontrado no detalhe do chamado. O normalizador agora remove `CLT_`, colapsa repetições de `RUA`, `AVENIDA`, `TRAVESSA` e demais tipos suportados, e infere o bairro da base limpa. Caso validado: `CLT_RUA RUA LISBOA, 76 PARQUE CONTINENTAL II, GUARULHOS - SP` resulta em Endereço `RUA LISBOA, 76` e Bairro `PARQUE CONTINENTAL II`.
+
+Arquivos: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/test/parsers.test.ts](backend/test/parsers.test.ts). Validação: 25 testes passaram e typecheck backend passou. Nenhuma migration.
 
 ## 2026-09-29 — Contrato antes do CEP na lista de endereços NOC
 
@@ -948,7 +965,7 @@ Resultado: ✅ 21 testes de parser/resolução e 1 teste HTTP de salvar/permiss�
 ### Teste
 Consolidação de endereço/bairro NOC
 
-Resultado: ✅ 23 testes de parser passaram, incluindo rua numerada, placeholder underscore, contrato antes do CEP e CEP pontuado; typecheck backend passou.
+Resultado: ✅ 25 testes de parser passaram, incluindo rua numerada, placeholder underscore, contrato antes do CEP, CEP pontuado e endereço FIELD com tipos duplicados; typecheck backend passou.
 
 ---
 
@@ -963,6 +980,7 @@ Resultado: ✅ 23 testes de parser passaram, incluindo rua numerada, placeholder
 
 ### 🟠 IMPORTANTE
 
+- corrigir/reprocessar chamados antigos com Endereço contendo `CLT_` ou tipo de via duplicado;
 - reprocessar/editar chamados antigos que tenham Endereço igual ao contrato;
 - confirmar em acionamento real que novos chamados e registros reprocessados recebem o bairro corrigido;
 - validar cabeçalhos, correspondência e fuso horário com a planilha D-0 oficial;
@@ -978,13 +996,17 @@ Resultado: ✅ 23 testes de parser passaram, incluindo rua numerada, placeholder
 
 ## 14. PRÓXIMA AÇÃO
 
-1. reprocessar/editar o chamado recente com Endereço igual ao contrato;
-2. validar uma nova mensagem NOC com CEP pontuado no fluxo de aceite;
+1. corrigir/reprocessar chamados recentes com Endereço contendo `CLT_` ou tipo de via duplicado;
+2. reprocessar/editar o chamado antigo com Endereço igual ao contrato e validar nova mensagem NOC com CEP pontuado;
 3. continuar a validação pendente do editor OLT→Região no banco publicado após aplicar migration 011/013.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Normalização Endereço/Bairro FIELD
+
+`normalizeAddressBase` remove `CLT_` e repetições de tipo de via antes de inferir o Bairro. Validação: caso `CLT_RUA RUA LISBOA, 76 PARQUE CONTINENTAL II, GUARULHOS - SP` retorna Endereço `RUA LISBOA, 76` e Bairro `PARQUE CONTINENTAL II`; 25 testes de parser e typecheck backend passaram. Chamados já salvos não são reprocessados automaticamente.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Parsing de endereço NOC antes do CEP
 
