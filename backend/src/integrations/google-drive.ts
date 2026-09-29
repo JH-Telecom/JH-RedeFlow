@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
-import { listCalls, updateCall } from '../store.js';
+import { createHash, randomUUID } from 'node:crypto';
+import { createDriveCall, listCalls, recordDriveCallSnapshot, recordDriveSyncRun, updateCall, type DriveCallSource } from '../store.js';
 import type { Call, EditableCallFields, User } from '../types.js';
 import { parseImport } from '../imports/parser.js';
 
@@ -24,18 +25,9 @@ function value(row: DriveRow, ...headers: string[]) {
   return '';
 }
 
-function rowSignature(row: DriveRow) {
-  const identity = [
-    value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS'),
-    value(row, 'BDESK', 'BDesk'),
-    value(row, 'Office Track', 'OS OT', 'OT'),
-    value(row, 'Status da Atividade', 'Status'),
-    value(row, 'Tipo de Atividade', 'Tipo'),
-    value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo'),
-    value(row, 'Data'),
-    value(row, 'Fim'),
-  ].join('|');
-  return normalizeOrder(identity) || identity.trim();
+function rowFingerprint(row: DriveRow) {
+  const canonical = Object.fromEntries(Object.entries(row).sort(([left], [right]) => left.localeCompare(right)).map(([key, entry]) => [key.trim(), String(entry).trim()]));
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }
 
 function parseFinishedAt(dateValue: string, timeValue: string) {
@@ -64,20 +56,36 @@ function getDriveClient() {
 
 function buildRowIdentifiers(row: DriveRow) {
   return [
-    value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS'),
-    value(row, 'BDESK', 'BDesk'),
-    value(row, 'Office Track', 'OS OT', 'OT'),
-    value(row, 'OS Casa Cliente', 'OS Casa Cliente'),
-    value(row, 'Contrato', 'Numero do Contrato'),
-    value(row, 'Número do Cliente', 'Numero do Cliente', 'Cliente'),
-  ].map((entry) => normalizeOrder(entry)).filter(Boolean);
+    ['os', value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS')],
+    ['bdesk', value(row, 'BDESK', 'BDesk')],
+    ['office-track', value(row, 'Office Track', 'OS OT', 'OT')],
+    ['os-casa-cliente', value(row, 'OS Casa Cliente')],
+    ['contrato', value(row, 'Contrato', 'Numero do Contrato')],
+    ['cliente', value(row, 'Número do Cliente', 'Numero do Cliente', 'Cliente')],
+  ].map(([kind, raw]) => ({ kind, raw, normalized: normalizeOrder(raw) })).filter((entry) => entry.normalized);
+}
+
+function buildRowIdentity(row: DriveRow) {
+  const identifiers = buildRowIdentifiers(row);
+  const primary = identifiers[0];
+  return primary ? `${primary.kind}:${primary.normalized}` : '';
 }
 
 function matchesCall(call: Call, row: DriveRow) {
-  const keys = buildRowIdentifiers(row);
+  const keys = buildRowIdentifiers(row).map((entry) => entry.normalized);
   if (!keys.length) return false;
-  const callKeys = [call.orderNumber, call.bdesk, call.officeTrack].map((candidate) => normalizeOrder(candidate)).filter(Boolean);
+  const callKeys = [call.orderNumber, call.bdesk, call.officeTrack, ...(call.sourceIdentifiers || [])].map((candidate) => normalizeOrder(candidate)).filter(Boolean);
   return keys.some((key) => callKeys.includes(key));
+}
+
+function parseReferenceDate(dateValue: string) {
+  const match = dateValue.trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+  if (!match) return undefined;
+  const year = Number(match[3].length === 2 ? `20${match[3]}` : match[3]);
+  const month = Number(match[2]);
+  const day = Number(match[1]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return undefined;
+  return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 }
 
 function normalizeDriveStatus(valueText: string) {
@@ -87,6 +95,49 @@ function normalizeDriveStatus(valueText: string) {
   if (['cancelado', 'cancelada', 'canceled'].includes(status)) return 'cancelado';
   if (['pendente', 'aberto', 'ativo', 'em andamento', 'em progresso'].includes(status)) return 'aberto';
   return status;
+}
+
+export function buildDriveCall(row: DriveRow): Call | undefined {
+  const identifiers = buildRowIdentifiers(row);
+  const primary = identifiers[0];
+  if (!primary) return undefined;
+  const statusText = normalizeDriveStatus(value(row, 'Status da Atividade', 'Status'));
+  const status: Call['status'] | undefined = statusText === 'finalizado' ? 'Finalizado' : statusText === 'cancelado' ? 'Cancelado' : statusText === 'aberto' ? 'Aberto' : undefined;
+  if (!status) return undefined;
+
+  const order = value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS');
+  const bdesk = value(row, 'BDESK', 'BDesk');
+  const officeTrack = value(row, 'Office Track', 'OS OT', 'OT');
+  const orderNumber = order || (bdesk ? `BDESK-${bdesk}` : '') || officeTrack || primary.raw;
+  const referenceDate = parseReferenceDate(value(row, 'Data'));
+  const result = value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo');
+  const executedAt = parseFinishedAt(value(row, 'Data'), value(row, 'Fim'));
+
+  return {
+    id: randomUUID(), orderNumber, bdesk, officeTrack,
+    client: value(row, 'Nome do Cliente', 'Cliente', 'Assinante'),
+    type: value(row, 'Tipo de Atividade', 'Tipo'),
+    reason: value(row, 'Motivo', 'Motivo de Encerramento das atividades', 'Motivo de Encerramento'),
+    region: value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual'),
+    city: value(row, 'Cidade', 'Municipio', 'Município'),
+    olt: value(row, 'OLT'), slotPon: value(row, 'Slot/PON', 'Slot PON', 'PON'),
+    status, openedAt: referenceDate ? `${referenceDate}T00:00:00-03:00` : new Date().toISOString(),
+    executedAt, result: result || undefined, cancellationReason: status === 'Cancelado' ? result || undefined : undefined,
+    notes: result || 'Importado da base historica do Google Drive.',
+    source: 'google-drive', sourceIdentity: buildRowIdentity(row), sourceIdentifiers: identifiers.map((entry) => entry.normalized),
+  };
+}
+
+function buildDriveSource(row: DriveRow, fileId: string, fileName: string): DriveCallSource {
+  return {
+    identity: buildRowIdentity(row),
+    identifiers: buildRowIdentifiers(row).map((entry) => entry.normalized),
+    fileId,
+    fileName,
+    referenceDate: parseReferenceDate(value(row, 'Data')),
+    fingerprint: rowFingerprint(row),
+    payload: row,
+  };
 }
 
 function buildDriveUpdate(row: DriveRow, existing: Call) {
@@ -117,18 +168,21 @@ function buildDriveUpdate(row: DriveRow, existing: Call) {
   if (nextStatus) changes.status = nextStatus;
   if (executedAt) changes.executedAt = executedAt;
   if (resultValue) changes.result = resultValue;
+  if (nextStatus === 'Cancelado') changes.cancellationReason = resultValue || value(row, 'Motivo de Cancelamento', 'Motivo Cancelamento');
+  else if (nextStatus) changes.cancellationReason = null;
 
   const order = value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS');
-  if (order) {
-    const candidate = /^bdesk[-\s]/i.test(order) ? { bdesk: order } : { orderNumber: order };
-    Object.assign(changes, candidate);
-  }
+  const bdesk = value(row, 'BDESK', 'BDesk');
+  const officeTrack = value(row, 'Office Track', 'OS OT', 'OT');
+  if (order) changes.orderNumber = order;
+  if (bdesk) changes.bdesk = bdesk;
+  if (officeTrack) changes.officeTrack = officeTrack;
 
   return changes;
 }
 
 function hasMeaningfulCallChange(existing: Call, candidate: Partial<EditableCallFields>) {
-  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'type', 'reason', 'region', 'city', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'notes'] as const;
+  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'type', 'reason', 'region', 'city', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
   for (const field of fieldsToCompare) {
     const current = String(existing[field] ?? '');
     const next = String(candidate[field] ?? '');
@@ -146,20 +200,26 @@ export type DriveSyncResult = {
   finalised: number;
   cancelled: number;
   unchanged: number;
+  unmatched: number;
   skipped: number;
   errors: string[];
 };
 
 export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
+  const startedAt = new Date().toISOString();
   const drive = getDriveClient();
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || defaultFolderId;
-  const response = await drive.files.list({ q: `'${folderId}' in parents and trashed = false and mimeType = 'text/csv'`, fields: 'files(id,name,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 1000 });
-  const files = response.data.files || [];
-  const calls = await listCalls();
-  const seenRows = new Set<string>();
-  const result: DriveSyncResult = { files: files.length, rows: 0, processed: 0, newRecords: 0, updated: 0, finalised: 0, cancelled: 0, unchanged: 0, skipped: 0, errors: [] };
+  const files: Array<{ id?: string | null; name?: string | null; modifiedTime?: string | null }> = [];
+  let pageToken: string | undefined;
+  do {
+    const response = await drive.files.list({ q: `'${folderId}' in parents and trashed = false and mimeType = 'text/csv'`, fields: 'nextPageToken,files(id,name,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 1000, pageToken });
+    files.push(...(response.data.files || []));
+    pageToken = response.data.nextPageToken || undefined;
+  } while (pageToken);
+  const result: DriveSyncResult = { files: files.length, rows: 0, processed: 0, newRecords: 0, updated: 0, finalised: 0, cancelled: 0, unchanged: 0, unmatched: 0, skipped: 0, errors: [] };
+  const stagedRows = new Map<string, { row: DriveRow; fileId: string; fileName: string }>();
 
-  for (const file of files) {
+  for (const file of [...files].reverse()) {
     if (!file.id || !file.name) continue;
     try {
       const media = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'arraybuffer' });
@@ -168,51 +228,78 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
 
       for (const row of parsed.rows as DriveRow[]) {
         result.rows += 1;
-        const signature = rowSignature(row);
-        if (!signature || seenRows.has(signature)) {
+        const identity = buildRowIdentity(row);
+        if (!identity) {
+          result.unmatched += 1;
+          continue;
+        }
+        if (stagedRows.has(identity)) {
           result.unchanged += 1;
-          continue;
         }
-        seenRows.add(signature);
-
-        const statusText = normalize(value(row, 'Status da Atividade', 'Status'));
-        const activityType = normalize(value(row, 'Tipo de Atividade', 'Tipo'));
-        const reason = normalize(value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo'));
-        if (!validActivityTypes.has(activityType) || statusText === 'pendente' || reason.includes('nao cumprimento')) {
-          result.skipped += 1;
-          continue;
-        }
-
-        const matchingCall = calls.find((candidate) => matchesCall(candidate, row));
-        if (!matchingCall) {
-          result.skipped += 1;
-          continue;
-        }
-
-        const update = buildDriveUpdate(row, matchingCall);
-        if (!hasMeaningfulCallChange(matchingCall, update)) {
-          result.unchanged += 1;
-          continue;
-        }
-
-        const finalisedStatus = update.status === 'Finalizado';
-        const cancelledStatus = update.status === 'Cancelado';
-        const updatedCall = await updateCall(matchingCall.id, update, systemActor);
-        if (!updatedCall) {
-          result.skipped += 1;
-          continue;
-        }
-
-        result.processed += 1;
-        result.updated += 1;
-        if (finalisedStatus) result.finalised += 1;
-        if (cancelledStatus) result.cancelled += 1;
+        stagedRows.set(identity, { row, fileId: file.id, fileName: file.name });
       }
     } catch (error) {
       result.errors.push(`${file.name}: ${error instanceof Error ? error.message : 'erro desconhecido'}`);
     }
   }
 
-  result.newRecords = 0;
+  const calls = await listCalls();
+  for (const { row, fileId, fileName } of stagedRows.values()) {
+    const statusText = normalize(value(row, 'Status da Atividade', 'Status'));
+    const activityType = normalize(value(row, 'Tipo de Atividade', 'Tipo'));
+    const reason = normalize(value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo'));
+    if (!validActivityTypes.has(activityType) || statusText === 'pendente' || reason.includes('nao cumprimento')) {
+      result.skipped += 1;
+      continue;
+    }
+
+    const sourceData = buildDriveSource(row, fileId, fileName);
+    let matchingCall = calls.find((candidate) => matchesCall(candidate, row));
+    if (!matchingCall) {
+      const importedCall = buildDriveCall(row);
+      if (!importedCall) {
+        result.unmatched += 1;
+        continue;
+      }
+      const created = await createDriveCall(importedCall, sourceData);
+      matchingCall = created.call;
+      if (created.created) {
+        calls.push(matchingCall);
+        result.processed += 1;
+        result.newRecords += 1;
+        if (matchingCall.status === 'Finalizado') result.finalised += 1;
+        if (matchingCall.status === 'Cancelado') result.cancelled += 1;
+        continue;
+      }
+    }
+
+    if (matchingCall.source === 'google-drive' && matchingCall.sourceFingerprint === sourceData.fingerprint) {
+      result.unchanged += 1;
+      continue;
+    }
+
+    const update = buildDriveUpdate(row, matchingCall);
+    const previousStatus = matchingCall.status;
+    let updatedCall = matchingCall;
+    if (hasMeaningfulCallChange(matchingCall, update)) {
+      const persistedCall = await updateCall(matchingCall.id, update, systemActor);
+      if (!persistedCall) {
+        result.skipped += 1;
+        continue;
+      }
+      updatedCall = persistedCall;
+    }
+    await recordDriveCallSnapshot(matchingCall.id, sourceData);
+    const sourcedCall: Call = { ...updatedCall, source: 'google-drive', sourceIdentity: sourceData.identity, sourceIdentifiers: sourceData.identifiers, sourceFileId: sourceData.fileId, sourceFileName: sourceData.fileName, sourceReferenceDate: sourceData.referenceDate, sourceFingerprint: sourceData.fingerprint, sourceProcessedAt: new Date().toISOString() };
+    const callIndex = calls.findIndex((candidate) => candidate.id === matchingCall!.id);
+    if (callIndex >= 0) calls[callIndex] = sourcedCall;
+
+    result.processed += 1;
+    result.updated += 1;
+    if (previousStatus !== 'Finalizado' && sourcedCall.status === 'Finalizado') result.finalised += 1;
+    if (previousStatus !== 'Cancelado' && sourcedCall.status === 'Cancelado') result.cancelled += 1;
+  }
+
+  await recordDriveSyncRun(startedAt, result);
   return result;
 }

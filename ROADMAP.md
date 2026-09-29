@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: filtros de chamados e indicadores históricos passam a usar a data de execução para registros encerrados.
+Última implementação: sincronização histórica do Google Drive com criação incremental de chamados, snapshots auditáveis e indicadores por data operacional.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: persistir linhas históricas do Drive sem chamado correspondente e disponibilizá-las para consulta sem criar duplicidade com chamados operacionais.
+Próxima ação: aplicar as migrations de histórico Drive no banco de produção e validar uma sincronização real com a pasta operacional.
 
 ---
 
@@ -109,6 +109,33 @@ Executar a validação em runtime real do backend e confirmar se o supervisor n�
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Sincronização histórica incremental do Google Drive
+
+### Objetivo
+Tratar os CSVs do Drive como uma base histórica cumulativa e disponibilizar registros novos/alterados em consultas, telas e indicadores sem apagar dados por ausência.
+
+### Alterações realizadas
+
+- leitura paginada de todos os CSVs; versões mais recentes prevalecem quando a identidade operacional se repete;
+- identidade por OS, BDESK, Office Track, OS Casa Cliente, contrato ou número de cliente;
+- criação de chamados para registros elegíveis sem correspondência e atualização incremental dos existentes;
+- reconciliação de status Finalizado/Cancelado, data de execução e motivo de cancelamento;
+- armazenamento de origem, arquivo, payload atual, fingerprint e snapshots de alterações;
+- contadores por execução persistidos em `google_drive_sync_runs`;
+- filtro de período usa execução para chamados encerrados e abertura para ativos;
+- ausência em arquivos posteriores não remove nem reabre registros.
+
+### Migrations
+
+- [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql)
+- [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql)
+
+### Resultado e validação
+
+- regressão local cobre identidade, idempotência, reconciliação de cancelamento e contagem no dashboard;
+- typecheck do backend sem erros;
+- execução em banco Supabase/produção ainda depende de aplicar a migration e validar credenciais/pasta reais.
 
 ## 2026-09-29 — Referência de data nos indicadores históricos
 
@@ -634,9 +661,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 ## 10. BANCO DE DADOS
 
-Nenhuma alteração de banco realizada nesta implementação.
-
-O projeto continua com a base de dados em evolução por migrations separadas em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations). A segunda etapa de autenticação/auth real com Supabase ainda depende da execução do seed RBAC e da verificação do login oficial.
+O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql), conforme o runtime. Elas adicionam metadados de origem aos chamados, snapshots de importação e contadores de execução. Devem ser aplicadas antes de habilitar a sincronização no ambiente correspondente.
 
 ---
 
@@ -713,10 +738,9 @@ Motivo: a inicialização do servidor não ficou disponível para a suíte autom
 
 ## 14. PRÓXIMA AÇÃO
 
-1. investigar a falha de boot do backend em testes HTTP;
-2. estabilizar o processo de inicialização do servidor;
-3. validar o comportamento real do supervisor via endpoint de chamadas e dashboard;
-4. concluir a integração real com Supabase Auth quando a seed e o ambiente estiverem prontos.
+1. aplicar a migration de histórico Drive no runtime utilizado;
+2. validar uma execução real contra a pasta operacional e conferir os contadores/snapshots;
+3. validar a integração real com Supabase Auth quando a seed e o ambiente estiverem prontos.
 
 ---
 

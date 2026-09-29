@@ -21,16 +21,21 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 ## Regras aplicadas
 
 - A pasta do Drive e tratada como base historica operacional, nao como base D-1 isolada.
-- Apenas arquivos CSV da pasta configurada sao lidos.
-- Registros repetidos em varios arquivos nao geram duplicidade: a sincronizacao compara o identificador operacional e o payload relevante antes de atualizar.
+- Todos os arquivos CSV da pasta configurada sao lidos com paginação da API do Drive.
+- Registros repetidos em varios arquivos nao geram duplicidade: a sincronizacao usa identidade operacional e fingerprint do payload; a versao do arquivo mais recentemente modificado prevalece.
+- Uma linha elegivel sem chamado correspondente cria um chamado com origem Google Drive e passa a aparecer na listagem e nos indicadores.
 - Sao processados os tipos `Manutencao Corretiva de Rede`, `Manutencao de Rede Field` e `Reparo Corretivo`.
 - Linhas com status `pendente` e motivo contendo `nao cumprimento` sao ignoradas.
-- Identificadores operacionais sao avaliados em ordem de preferencia: ordem de servico, BDESK, Office Track, OS Casa Cliente, contrato e demais chaves existentes.
+- Identificadores operacionais sao avaliados em ordem de preferencia: ordem de servico, BDESK, Office Track, OS Casa Cliente, contrato e numero do cliente.
 - `Data` e `Fim` formam `executed_at`, preservando a data real da conclusao.
-- Nos filtros historicos de chamados e indicadores, registros finalizados/cancelados usam `executed_at`; chamados ainda ativos usam `opened_at`. Quando o encerramento nao tem data de execucao, o sistema usa a abertura como fallback.
+- Nos filtros historicos de chamados e indicadores, registros finalizados/cancelados usam `executed_at`; chamados ativos usam `opened_at`.
 - O motivo de encerramento vira o resultado e tambem fica registrado nas observacoes quando houver valor.
-- Cada alteracao efetiva gera auditoria no chamado e nenhuma exclusao automatica e feita por ausencia temporaria do registro na base.
+- Cada alteracao efetiva gera log e snapshot com arquivo, identificador, payload e horario; cada execucao grava contadores em `google_drive_sync_runs`.
+- Status e motivo de cancelamento da base podem reconciliar chamados ja encerrados; alteracoes humanas continuam sujeitas ao bloqueio normal.
+- Nenhuma exclusao automatica e feita por ausencia temporaria do registro na base.
 
-## Limite atual
+## Banco de dados
 
-A sincronizacao ainda atualiza somente linhas que encontram um chamado existente por identificador operacional. Linhas sem correspondencia sao contabilizadas como ignoradas; `newRecords` permanece zero. Portanto, o armazenamento e a exibicao de novos registros historicos do Drive ainda precisam de uma etapa própria antes de a base do Drive se tornar fonte completa para consultas.
+Antes de sincronizar, aplique `database/migrations/008_google_drive_history.sql` no PostgreSQL local ou `supabase/migrations/202609290008_google_drive_history.sql` no Supabase.
+
+Linhas sem identificador operacional ou com tipo/status fora das regras sao contabilizadas como `unmatched` ou `skipped` e nao criam chamados.

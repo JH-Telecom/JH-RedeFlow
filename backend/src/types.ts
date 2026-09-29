@@ -103,9 +103,17 @@ export type Call = {
   cancellationReason?: string;
   notes: string;
   lastObservationAt?: string;
+  source?: string;
+  sourceIdentity?: string;
+  sourceIdentifiers?: string[];
+  sourceFileId?: string;
+  sourceFileName?: string;
+  sourceReferenceDate?: string;
+  sourceFingerprint?: string;
+  sourceProcessedAt?: string;
 };
 
-export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null };
+export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
 
 export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };

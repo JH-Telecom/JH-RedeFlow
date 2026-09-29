@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getDashboardMetrics, getSupervisorIdForUser, listCalls, updateCall } from '../src/store.js';
+import { getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
+import { buildDriveCall } from '../src/integrations/google-drive.js';
 
 test('supervisor users resolve to their own team and can only see their calls', async () => {
   const previousRuntime = process.env.REDEFLOW_RUNTIME;
@@ -56,6 +57,28 @@ test('historical date filters use execution date for finished calls and dashboar
     assert.ok(filteredCalls.some((item) => item.id === call.id));
     const metrics = await getDashboardMetrics({ from: '2026-09-28', to: '2026-09-28' });
     assert.equal(metrics.finished, 1);
+
+    const imported = buildDriveCall({ BDESK: 'BD-99501', 'Tipo de Atividade': 'Manutencao Corretiva de Rede', 'Status da Atividade': 'Concluido', Data: '27/09/2026', Fim: '12:15', Motivo: 'Falha de rede' });
+    assert.ok(imported);
+    assert.equal(imported.status, 'Finalizado');
+    assert.equal(imported.sourceIdentity, 'bdesk:bd99501');
+    assert.equal(imported.openedAt.slice(0, 10), '2026-09-27');
+
+    const sourceData = { identity: imported.sourceIdentity!, identifiers: imported.sourceIdentifiers!, fileId: 'drive-file-test', fileName: 'base.csv', referenceDate: '2026-09-27', fingerprint: 'test-fingerprint', payload: { BDESK: 'BD-99501' } };
+    const created = await createDriveCall({ ...imported, id: 'call-drive-history-test' }, sourceData);
+    const repeated = await createDriveCall({ ...imported, id: 'call-drive-history-duplicate' }, sourceData);
+    assert.equal(created.created, true);
+    assert.equal(repeated.created, false);
+    assert.equal((await getDashboardMetrics({ from: '2026-09-27', to: '2026-09-27' })).finished, 1);
+
+    const reconciled = await updateCall(created.call.id, { status: 'Cancelado', cancellationReason: 'Cancelamento confirmado' }, { id: 'system-google-drive', name: 'Google Drive', email: 'system@example.com', roleId: 'system', active: true, createdAt: executedAt });
+    assert.equal(reconciled?.status, 'Cancelado');
+    assert.equal(reconciled?.cancellationReason, 'Cancelamento confirmado');
+    assert.equal((await getDashboardMetrics({ from: '2026-09-27', to: '2026-09-27' })).cancelled, 1);
+    await recordDriveCallSnapshot(created.call.id, { ...sourceData, fingerprint: 'updated-fingerprint' });
+    assert.equal((await listCalls()).find((item) => item.id === created.call.id)?.sourceFingerprint, 'updated-fingerprint');
+    await recordDriveSyncRun(executedAt, { files: 1, rows: 1, processed: 1, newRecords: 1, updated: 0, finalised: 1, cancelled: 0, unchanged: 0, unmatched: 0, skipped: 0, errors: [] });
+    assert.ok((await listAuditLogs(created.call.id)).some((entry) => entry.userName === 'Google Drive'));
   } finally {
     if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
     if (previousDemoData === undefined) delete process.env.REDEFLOW_DEMO_DATA; else process.env.REDEFLOW_DEMO_DATA = previousDemoData;

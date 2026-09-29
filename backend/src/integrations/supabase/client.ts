@@ -150,7 +150,7 @@ export async function deleteSupabaseTechnician(id: string) {
 
 export async function listSupabaseCalls(status?: CallStatus, filters: { from?: string; to?: string; supervisorId?: string } = {}): Promise<Call[]> {
   const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
-  let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false });
+  let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false });
   if (status) query = query.eq('status', status);
   if (filters.from || filters.to) {
     const from = filters.from ? `${filters.from}T00:00:00.000Z` : undefined;
@@ -169,7 +169,7 @@ export async function listSupabaseCalls(status?: CallStatus, filters: { from?: s
     const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
     const observationRows = Array.isArray((row as any).call_observations) ? (row as any).call_observations : [];
     const lastObservationAt = observationRows.map((observation: { created_at?: string }) => observation.created_at).filter(Boolean).sort().pop();
-    return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt };
+    return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
   });
 }
 
@@ -209,11 +209,11 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 
-export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; executedAt?: string; result?: string; notes?: string }, actor: { id: string; name: string }) {
+export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; executedAt?: string; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
   if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', notes: 'notes' };
+  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
   for (const field of Object.keys(databaseFields)) {
     const value = input[field as keyof typeof input];
     if (value !== undefined) changes[databaseFields[field]] = value;
@@ -223,11 +223,11 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
   const { data, error } = await getSupabaseAdmin().from('calls').update(changes).eq('id', id).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
   for (const field of Object.keys(input)) {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(input[field as keyof typeof input] ?? '');
-    if (previousValue !== newValue) { const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${labels[field] || field} alterado`, field, previous_value: previousValue, new_value: newValue }); if (logError) throw new Error(logError.message); }
+    if (previousValue !== newValue) { const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.roleId === 'system' ? null : actor.id, action: `${labels[field] || field} alterado`, field, previous_value: previousValue, new_value: newValue }); if (logError) throw new Error(logError.message); }
   }
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }

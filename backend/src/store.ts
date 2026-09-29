@@ -604,14 +604,14 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
   if (isSupabaseConfigured()) return await listSupabaseCalls(status, query);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    const result = await client.query<{ id: string; order_number: string; bdesk: string; office_track: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slot_pon: string; status: string; technician_id: string | null; technician_name: string | null; supervisor_name: string | null; opened_at: string; assigned_at: string | null; executed_at: string | null; result: string | null; cancellation_reason: string | null; notes: string; last_observation_at: string | null }>(
-      `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, latest_observation.created_at AS last_observation_at
+    const result = await client.query<{ id: string; order_number: string; bdesk: string; office_track: string; client: string; type: string; reason: string; region: string; city: string; olt: string; slot_pon: string; status: string; technician_id: string | null; technician_name: string | null; supervisor_name: string | null; opened_at: string; assigned_at: string | null; executed_at: string | null; result: string | null; cancellation_reason: string | null; notes: string; source: string | null; source_identity: string | null; source_identifiers: string[] | null; source_file_id: string | null; source_file_name: string | null; source_reference_date: string | null; source_fingerprint: string | null; source_processed_at: string | null; last_observation_at: string | null }>(
+      `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, c.source, c.source_identity, c.source_identifiers, c.source_file_id, c.source_file_name, c.source_reference_date, c.source_fingerprint, c.source_processed_at, latest_observation.created_at AS last_observation_at
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
        LEFT JOIN LATERAL (SELECT created_at FROM call_observations WHERE call_id = c.id ORDER BY created_at DESC LIMIT 1) latest_observation ON true
       WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
       [status ?? null, query.from ?? null, query.to ?? null, query.supervisorId ?? null],
     );
-    return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined }));
+    return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
   }
   return [...calls.values()].map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
@@ -630,6 +630,87 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
     }
     return false;
   });
+}
+export type DriveCallSource = { identity: string; identifiers: string[]; fileId: string; fileName: string; referenceDate?: string; fingerprint: string; payload: Record<string, string> };
+const driveSyncRuns: Array<{ startedAt: string; result: Record<string, unknown> }> = [];
+export async function createDriveCall(call: Call, sourceData: DriveCallSource): Promise<{ call: Call; created: boolean }> {
+  const processedAt = new Date().toISOString();
+  const sourcedCall: Call = { ...call, source: 'google-drive', sourceIdentity: sourceData.identity, sourceIdentifiers: sourceData.identifiers, sourceFileId: sourceData.fileId, sourceFileName: sourceData.fileName, sourceReferenceDate: sourceData.referenceDate, sourceFingerprint: sourceData.fingerprint, sourceProcessedAt: processedAt };
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('calls').insert({ id: sourcedCall.id, order_number: sourcedCall.orderNumber, bdesk: sourcedCall.bdesk || null, office_track: sourcedCall.officeTrack || null, client: sourcedCall.client || null, type: sourcedCall.type || null, reason: sourcedCall.reason || null, region: sourcedCall.region || null, city: sourcedCall.city || null, olt: sourcedCall.olt || null, slot_pon: sourcedCall.slotPon || null, status: sourcedCall.status, opened_at: sourcedCall.openedAt, executed_at: sourcedCall.executedAt || null, result: sourcedCall.result || null, notes: sourcedCall.notes, cancellation_reason: sourcedCall.cancellationReason || null, source: 'google-drive', source_identity: sourceData.identity, source_identifiers: sourceData.identifiers, source_file_id: sourceData.fileId, source_file_name: sourceData.fileName, source_reference_date: sourceData.referenceDate || null, source_payload: sourceData.payload, source_fingerprint: sourceData.fingerprint, source_processed_at: processedAt }).select('id').maybeSingle();
+    if (error) {
+      if (error.code === '23505') {
+        const existing = (await listCalls()).find((item) => item.source === 'google-drive' && item.sourceIdentity === sourceData.identity);
+        if (existing) return { call: existing, created: false };
+      }
+      throw new Error(error.message || 'Nao foi possivel persistir o chamado historico do Drive.');
+    }
+    if (!data) throw new Error('Nao foi possivel confirmar o chamado historico do Drive.');
+    const { error: snapshotError } = await getSupabaseAdmin().from('google_drive_call_snapshots').insert({ call_id: sourcedCall.id, source_identity: sourceData.identity, file_id: sourceData.fileId, file_name: sourceData.fileName, reference_date: sourceData.referenceDate || null, fingerprint: sourceData.fingerprint, payload: sourceData.payload, processed_at: processedAt });
+    if (snapshotError) throw new Error(snapshotError.message);
+    return { call: sourcedCall, created: true };
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    try {
+      await client.query('BEGIN');
+      const inserted = await client.query<{ id: string }>(`INSERT INTO calls (id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, opened_at, executed_at, result, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_payload, source_fingerprint, source_processed_at, cancellation_reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'google-drive', $17, $18::jsonb, $19, $20, $21, $22::jsonb, $23, $24, $25) ON CONFLICT (source, source_identity) WHERE source IS NOT NULL AND source_identity IS NOT NULL DO NOTHING RETURNING id`, [sourcedCall.id, sourcedCall.orderNumber, sourcedCall.bdesk || null, sourcedCall.officeTrack || null, sourcedCall.client || null, sourcedCall.type || null, sourcedCall.reason || null, sourcedCall.region || null, sourcedCall.city || null, sourcedCall.olt || null, sourcedCall.slotPon || null, sourcedCall.status, sourcedCall.openedAt, sourcedCall.executedAt || null, sourcedCall.result || null, sourcedCall.notes, sourceData.identity, JSON.stringify(sourceData.identifiers), sourceData.fileId, sourceData.fileName, sourceData.referenceDate || null, JSON.stringify(sourceData.payload), sourceData.fingerprint, processedAt, sourcedCall.cancellationReason || null]);
+      if (!inserted.rows[0]) {
+        await client.query('ROLLBACK');
+        const existing = (await listCalls()).find((item) => item.source === 'google-drive' && item.sourceIdentity === sourceData.identity);
+        if (!existing) throw new Error('Chave historica duplicada sem chamado recuperavel.');
+        return { call: existing, created: false };
+      }
+      await client.query(`INSERT INTO google_drive_call_snapshots (call_id, source_identity, file_id, file_name, reference_date, fingerprint, payload, processed_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`, [sourcedCall.id, sourceData.identity, sourceData.fileId, sourceData.fileName, sourceData.referenceDate || null, sourceData.fingerprint, JSON.stringify(sourceData.payload), processedAt]);
+      await client.query('COMMIT');
+      return { call: sourcedCall, created: true };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  }
+  const existing = [...calls.values()].find((item) => item.source === 'google-drive' && item.sourceIdentity === sourceData.identity);
+  if (existing) return { call: existing, created: false };
+  calls.set(sourcedCall.id, sourcedCall);
+  return { call: sourcedCall, created: true };
+}
+export async function recordDriveCallSnapshot(callId: string, sourceData: DriveCallSource) {
+  const processedAt = new Date().toISOString();
+  if (isSupabaseConfigured()) {
+    const { error: updateError } = await getSupabaseAdmin().from('calls').update({ source: 'google-drive', source_identity: sourceData.identity, source_identifiers: sourceData.identifiers, source_file_id: sourceData.fileId, source_file_name: sourceData.fileName, source_reference_date: sourceData.referenceDate || null, source_payload: sourceData.payload, source_fingerprint: sourceData.fingerprint, source_processed_at: processedAt }).eq('id', callId);
+    if (updateError) throw new Error(updateError.message);
+    const { error } = await getSupabaseAdmin().from('google_drive_call_snapshots').insert({ call_id: callId, source_identity: sourceData.identity, file_id: sourceData.fileId, file_name: sourceData.fileName, reference_date: sourceData.referenceDate || null, fingerprint: sourceData.fingerprint, payload: sourceData.payload, processed_at: processedAt });
+    if (error) throw new Error(error.message);
+    return;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query('BEGIN');
+    try {
+      await client.query(`UPDATE calls SET source = 'google-drive', source_identity = $1, source_identifiers = $2::jsonb, source_file_id = $3, source_file_name = $4, source_reference_date = $5, source_payload = $6::jsonb, source_fingerprint = $7, source_processed_at = $8, updated_at = now() WHERE id = $9`, [sourceData.identity, JSON.stringify(sourceData.identifiers), sourceData.fileId, sourceData.fileName, sourceData.referenceDate || null, JSON.stringify(sourceData.payload), sourceData.fingerprint, processedAt, callId]);
+      await client.query(`INSERT INTO google_drive_call_snapshots (call_id, source_identity, file_id, file_name, reference_date, fingerprint, payload, processed_at) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)`, [callId, sourceData.identity, sourceData.fileId, sourceData.fileName, sourceData.referenceDate || null, sourceData.fingerprint, JSON.stringify(sourceData.payload), processedAt]);
+      await client.query('COMMIT');
+      return;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  }
+  const existing = calls.get(callId);
+  if (existing) calls.set(callId, { ...existing, source: 'google-drive', sourceIdentity: sourceData.identity, sourceIdentifiers: sourceData.identifiers, sourceFileId: sourceData.fileId, sourceFileName: sourceData.fileName, sourceReferenceDate: sourceData.referenceDate, sourceFingerprint: sourceData.fingerprint, sourceProcessedAt: processedAt });
+}
+export async function recordDriveSyncRun(startedAt: string, result: { files: number; rows: number; processed: number; newRecords: number; updated: number; finalised: number; cancelled: number; unchanged: number; unmatched: number; skipped: number; errors: string[] }) {
+  if (isSupabaseConfigured()) {
+    const { error } = await getSupabaseAdmin().from('google_drive_sync_runs').insert({ started_at: startedAt, finished_at: new Date().toISOString(), files: result.files, rows: result.rows, processed: result.processed, new_records: result.newRecords, updated: result.updated, finalised: result.finalised, cancelled: result.cancelled, unchanged: result.unchanged, unmatched: result.unmatched, skipped: result.skipped, errors: result.errors });
+    if (error) throw new Error(error.message);
+    return;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query(`INSERT INTO google_drive_sync_runs (started_at, finished_at, files, rows, processed, new_records, updated, finalised, cancelled, unchanged, unmatched, skipped, errors) VALUES ($1, now(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)`, [startedAt, result.files, result.rows, result.processed, result.newRecords, result.updated, result.finalised, result.cancelled, result.unchanged, result.unmatched, result.skipped, JSON.stringify(result.errors)]);
+    return;
+  }
+  driveSyncRuns.push({ startedAt, result: { ...result } });
 }
 export async function getCall(id: string, query: CallQuery = {}): Promise<Call | undefined> {
   ensureDemoData();
@@ -735,12 +816,12 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
     if (!current) return undefined;
-    if (['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+    if (['Finalizado', 'Cancelado'].includes(current.status) && actor.roleId !== 'system') return undefined;
     const client = await getDatabaseClient();
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
-    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', notes: 'notes' };
+    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
     for (const field of Object.keys(databaseFields)) {
       const value = input[field as keyof typeof input];
       if (value !== undefined) { sets.push(`${databaseFields[field]} = $${index++}`); values.push(value); }
@@ -761,11 +842,11 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
       if (!result.rows[0]) { await client.query('ROLLBACK'); return undefined; }
       const updated = await getCall(id);
       if (!updated) { await client.query('ROLLBACK'); return undefined; }
-        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', notes: 'Observacoes' };
+        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
       for (const field of Object.keys(input)) {
         const previousValue = String(current[field as keyof Call] ?? '');
         const newValue = String(updated[field as keyof Call] ?? '');
-        if (previousValue !== newValue) await client.query(`INSERT INTO call_logs (call_id, user_id, action, field, previous_value, new_value) VALUES ($1, $2, $3, $4, $5, $6)`, [id, actor.id, `${labels[field] || field} alterado`, field, previousValue, newValue]);
+        if (previousValue !== newValue) await client.query(`INSERT INTO call_logs (call_id, user_id, action, field, previous_value, new_value) VALUES ($1, $2, $3, $4, $5, $6)`, [id, actor.roleId === 'system' ? null : actor.id, `${labels[field] || field} alterado`, field, previousValue, newValue]);
       }
       await client.query('COMMIT');
       return updated;
@@ -777,9 +858,9 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   const current = calls.get(id);
   if (!current) return undefined;
   const technician = input.technicianId ? technicians.get(input.technicianId) : undefined;
-  const updated = { ...current, ...input, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
+  const updated = { ...current, ...input, cancellationReason: input.cancellationReason === null ? undefined : input.cancellationReason ?? current.cancellationReason, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
   calls.set(id, updated);
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
   Object.keys(input).forEach((field) => {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(updated[field as keyof Call] ?? '');
@@ -846,16 +927,16 @@ export async function listAuditLogs(callId: string): Promise<CallAuditLog[]> {
   if (isSupabaseConfigured()) {
     const { data, error } = await getSupabaseAdmin().from('call_logs').select('id, call_id, user_id, action, field, previous_value, new_value, created_at, profiles(name)').eq('call_id', callId).order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return (data || []).map((row: any) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Usuario' : row.profiles?.name || 'Usuario', action: row.action, field: row.field, previousValue: row.previous_value || '', newValue: row.new_value || '', createdAt: row.created_at }));
+    return (data || []).map((row: any) => ({ id: row.id, callId: row.call_id, userId: row.user_id || '', userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Google Drive - Base historica operacional' : row.profiles?.name || 'Google Drive - Base historica operacional', action: row.action, field: row.field, previousValue: row.previous_value || '', newValue: row.new_value || '', createdAt: row.created_at }));
   }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    const result = await client.query<{ id: string; call_id: string; user_id: string; user_name: string; action: string; field: string; previous_value: string | null; new_value: string | null; created_at: string }>(
+     const result = await client.query<{ id: string; call_id: string; user_id: string | null; user_name: string | null; action: string; field: string; previous_value: string | null; new_value: string | null; created_at: string }>(
       `SELECT l.id, l.call_id, l.user_id, u.name AS user_name, l.action, l.field, l.previous_value, l.new_value, l.created_at
-       FROM call_logs l JOIN users u ON u.id = l.user_id
+       FROM call_logs l LEFT JOIN users u ON u.id = l.user_id
        WHERE l.call_id = $1 ORDER BY l.created_at DESC`, [callId],
     );
-    return result.rows.map((row) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: row.user_name, action: row.action, field: row.field, previousValue: row.previous_value ?? '', newValue: row.new_value ?? '', createdAt: row.created_at }));
+     return result.rows.map((row) => ({ id: row.id, callId: row.call_id, userId: row.user_id ?? '', userName: row.user_name ?? 'Google Drive - Base historica operacional', action: row.action, field: row.field, previousValue: row.previous_value ?? '', newValue: row.new_value ?? '', createdAt: row.created_at }));
   }
   return [...auditLogs.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -1027,7 +1108,7 @@ export async function cancelCall(id: string, reason: string, actor: User): Promi
   }
   const current = calls.get(id);
   if (!current) return undefined;
-  if (['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+  if (['Finalizado', 'Cancelado'].includes(current.status) && actor.roleId !== 'system') return undefined;
   const updated = { ...current, status: 'Cancelado' as const, cancellationReason: reason };
   calls.set(id, updated);
   const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado cancelado', field: 'cancellationReason', previousValue: '', newValue: reason, createdAt: new Date().toISOString() };
