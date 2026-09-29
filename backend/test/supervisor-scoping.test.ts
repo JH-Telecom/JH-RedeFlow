@@ -109,6 +109,33 @@ test('D-1 maps Nome to the client field only for FIELD activities', () => {
   const existingNonFieldCall = { ...nonFieldCall, client: 'Cliente existente' };
   const nonFieldUpdate = buildDriveUpdate(nonFieldRow, existingNonFieldCall);
   assert.equal(nonFieldUpdate.client, undefined);
+
+  const locationRow = { ...fieldRow, Cidade: 'GUARULHOS', Endereco: 'CLT_RUA RUA LEVI RIOS DE OLIVEIRA, 172 PARQUE FLAMENGO, GUARULHOS - SP' };
+  const existingLocationCall = { ...fieldCall, city: 'GUARULHOS', address: 'RUA LEVI RIOS DE OLIVEIRA, 172 PARQUE FLAMENGO, GUARULHOS - SP', bairro: '' };
+  const locationUpdate = buildDriveUpdate(locationRow, existingLocationCall);
+  assert.equal(locationUpdate.bairro, 'PARQUE FLAMENGO');
+  const otherwiseUnchangedCall = { ...existingLocationCall, ...locationUpdate, bairro: '' };
+  const changedFields = Object.entries(locationUpdate).filter(([field, value]) => String(otherwiseUnchangedCall[field as keyof typeof otherwiseUnchangedCall] ?? '') !== String(value ?? '')).map(([field]) => field);
+  assert.deepEqual(changedFields, ['bairro']);
+  assert.equal(hasMeaningfulCallChange(otherwiseUnchangedCall, locationUpdate), true);
+
+  const callBeforeNeighborhood = { ...fieldCall, bairro: '' };
+  const callAfterNeighborhood = { ...callBeforeNeighborhood, bairro: 'PARQUE FLAMENGO' };
+  assert.equal(hasMeaningfulCallChange(callBeforeNeighborhood, callAfterNeighborhood), true);
+});
+
+test('D-1 infers FIELD city and neighborhood from address when the city column is unavailable', () => {
+  const fieldCall = buildDriveCall({
+    BDESK: 'BD-FIELD-LOCATION-01',
+    'Tipo de Atividade': 'Manutencao de Rede Field',
+    'Status da Atividade': 'Concluido',
+    Cidade: 'Nao informada',
+    Endereco: 'CLT_RUA RUA LEVI RIOS DE OLIVEIRA, 172 PARQUE FLAMENGO, GUARULHOS - SP',
+  });
+
+  assert.equal(fieldCall?.city, 'GUARULHOS');
+  assert.equal(fieldCall?.address, 'RUA LEVI RIOS DE OLIVEIRA, 172 PARQUE FLAMENGO, GUARULHOS - SP');
+  assert.equal(fieldCall?.bairro, 'PARQUE FLAMENGO');
 });
 
 test('accepted NOC and Drive FIELD calls persist the official neighborhood and address', async () => {

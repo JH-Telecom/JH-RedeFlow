@@ -150,9 +150,9 @@ function cleanNeighborhoodCandidate(value: string | null) {
   return candidate || null;
 }
 
-function inferNeighborhood(address: string | null) {
+export function inferNeighborhood(address: string | null) {
   if (!address) return null;
-  const normalized = normalizeText(address);
+  const normalized = normalizeText(address).replace(/^CLT[_\s-]*/, '').replace(/^((?:RUA|AVENIDA|AV\.?|ALAMEDA|TRAVESSA|ESTRADA|RODOVIA|VIA))\s+\1\b/, '$1');
   const cityMatch = normalized.match(/,\s*[^,]+\s*-\s*[A-Z]{2}\s*$/);
   const beforeCity = cityMatch ? normalized.slice(0, cityMatch.index) : normalized;
   const base = normalizeAddressBase(address);

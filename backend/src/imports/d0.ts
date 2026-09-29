@@ -1,4 +1,5 @@
 import type { Call, EditableCallFields } from '../types.js';
+import { inferNeighborhood } from '../integrations/wuzapi/noc-consolidation.js';
 
 export type D0Row = Record<string, string>;
 export type D0CallFields = Partial<Pick<EditableCallFields, 'client' | 'address' | 'bairro' | 'city' | 'region' | 'olt' | 'ofsStatus' | 'executedAt'>>;
@@ -59,7 +60,7 @@ function callIdentifiers(call: Call) {
 function mapFields(row: D0Row, call: Call): D0CallFields {
   const fields: D0CallFields = {};
   const address = value(row, 'Endereço', 'Endereco', 'Endereço do Cliente', 'Endereco do Cliente', 'Endereço de Instalação', 'Endereco de Instalacao');
-  const bairro = value(row, 'Bairro', 'Neighborhood');
+  const bairro = value(row, 'Bairro', 'Neighborhood') || (address ? inferNeighborhood(address) || '' : '');
   const city = value(row, 'Cidade', 'Município', 'Municipio', 'City');
   const region = value(row, 'Região', 'Regiao', 'Região Operacional', 'Regiao Operacional');
   const olt = value(row, 'OLT', 'OLT de atendimento');

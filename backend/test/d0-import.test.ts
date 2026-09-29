@@ -73,6 +73,17 @@ test('D-0 imports Nome only into FIELD calls', () => {
   assert.equal(nonFieldResult.matches[0]?.fields.client, undefined);
 });
 
+test('D-0 infers FIELD neighborhood from the full address when Bairro is absent', () => {
+  const row: D0Row = {
+    'Número OS': call.orderNumber,
+    Cidade: 'Nao informada',
+    Endereco: 'CLT_RUA RUA LEVI RIOS DE OLIVEIRA, 172 PARQUE FLAMENGO, GUARULHOS - SP',
+  };
+  const result = matchD0Rows([row], [{ ...call, type: 'ACIONAMENTO FIELD' }]);
+
+  assert.equal(result.matches[0]?.fields.bairro, 'PARQUE FLAMENGO');
+});
+
 test('D-0 rejects ambiguous matches and invalid completion timestamps', () => {
   const duplicateCall = { ...call, id: 'call-duplicate' };
   const result = matchD0Rows([{ BDESK: '88421', Data: '29/09/2026', Fim: '16:45' }], [call, duplicateCall]);

@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createDriveCall, listCalls, recordDriveCallSnapshot, recordDriveSyncRun, updateCall, type DriveCallSource } from '../store.js';
 import type { Call, EditableCallFields, User } from '../types.js';
 import { parseImport } from '../imports/parser.js';
-import { resolveOltRegion } from './wuzapi/noc-consolidation.js';
+import { inferNeighborhood, resolveOltRegion } from './wuzapi/noc-consolidation.js';
 
 const defaultFolderId = '1m9m2atkUrxwb2v9xzTLgqebOQ4GQJue-';
 const validActivityTypes = new Set(['manutencao corretiva de rede', 'manutencao de rede field', 'reparo corretivo']);
@@ -99,31 +99,32 @@ function normalizeNeighborhood(valueText: string, city: string) {
 
 function parseDriveLocation(row: DriveRow) {
   const rawAddress = value(row, 'Endereço', 'Endereco', 'Endereço do Cliente', 'Endereco do Cliente', 'Endereço de Instalação', 'Endereco de Instalacao');
-  let address = rawAddress.replace(/\s+/g, ' ').trim();
+  let address = rawAddress.replace(/^CLT[_\s-]*/i, '').replace(/\s+/g, ' ').trim();
   const duplicateStreetPrefix = /^(RUA|AVENIDA|AV\.?|ALAMEDA|TRAVESSA|ESTRADA|RODOVIA)\s+\1\b/i;
   while (duplicateStreetPrefix.test(address)) address = address.replace(duplicateStreetPrefix, '$1').trim();
 
   let city = value(row, 'Cidade', 'Municipio', 'Município');
   const state = value(row, 'Estado', 'UF');
   const suffix = address.match(/,\s*([^,]+?)\s*-\s*([A-Z]{2})\s*$/i);
-  if (!city && suffix) city = suffix[1].trim();
+  const normalizedCity = normalize(city);
+  if ((!city || ['nao informada', 'nao informado', 'n/a', 'na'].includes(normalizedCity)) && suffix) city = suffix[1].trim();
   if (!address || !city) return { address, bairro: '', city };
 
   const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
-  const normalizedCity = normalizeOrder(city);
+  const normalizedCityName = normalizeOrder(city);
   const normalizedState = normalizeOrder(state || suffix?.[2] || '');
   let cityIndex = -1;
   for (let index = parts.length - 1; index >= 0; index -= 1) {
     const part = parts[index];
     const normalizedPart = normalizeOrder(part);
-    if (normalizedPart === normalizedCity || (normalizedPart.startsWith(normalizedCity) && (!normalizedState || normalizedPart.endsWith(normalizedState)))) {
+    if (normalizedPart === normalizedCityName || (normalizedPart.startsWith(normalizedCityName) && (!normalizedState || normalizedPart.endsWith(normalizedState)))) {
       cityIndex = index;
       break;
     }
   }
   if (cityIndex < 1) return { address, bairro: '', city };
 
-  const neighborhood = normalizeNeighborhood(parts[cityIndex - 1], city);
+  const neighborhood = normalizeNeighborhood(parts[cityIndex - 1], city) || inferNeighborhood(address) || '';
   return { address, bairro: neighborhood, city };
 }
 
@@ -237,7 +238,7 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
 }
 
 export function hasMeaningfulCallChange(existing: Call, candidate: Partial<EditableCallFields>) {
-  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'client', 'type', 'reason', 'region', 'city', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
+  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
   for (const field of fieldsToCompare) {
     const current = String(existing[field] ?? '');
     const next = String(candidate[field] ?? '');

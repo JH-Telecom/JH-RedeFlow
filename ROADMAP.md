@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: remoção de letra de bloco do bairro na consolidação de endereços NOC.
+Última implementação: persistência de Bairro inferido pela base D-1 mesmo quando Bairro é a única alteração no chamado.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: reprocessar/editar o chamado já salvo com bairro `A PARQUE SAO RAFAEL` e validar novos acionamentos com bloco no endereço.
+Próxima ação: sincronizar D-0/D-1 e verificar Bairro/Cidade nos chamados FIELD que estavam sem geolocalização.
 
 ---
 
@@ -75,6 +75,7 @@ Próxima ação: reprocessar/editar o chamado já salvo com bairro `A PARQUE SAO
 - [x] Remoção de prefixo CLT_ e duplicação de tipos de via, com inferência do Bairro em endereços FIELD.
 - [x] Enriquecimento do nome do cliente em chamados FIELD pela coluna `Nome` nas bases D-0/D-1, sem alterar chamados não FIELD.
 - [x] Remoção de letra isolada de bloco entre número do imóvel e bairro na extração NOC.
+- [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
 - [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
@@ -84,6 +85,18 @@ Próxima ação: reprocessar/editar o chamado já salvo com bairro `A PARQUE SAO
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Inferência de Bairro FIELD a partir do endereço completo — implementada em 2026-09-29
+
+- D-0 agora deriva o Bairro do endereço quando a planilha não tem coluna Bairro;
+- D-1 também usa o extrator compartilhado quando o Bairro não é encontrado na parte anterior à Cidade;
+- Cidade vazia ou placeholder (`Não informada`, `N/A`) passa a ser inferida do sufixo `CIDADE - UF` do endereço;
+- a reconciliação D-1 considera `address` e `bairro` ao detectar alterações, garantindo que o Bairro seja salvo mesmo quando for o único campo ausente;
+- Endereço permanece completo para exibição; prefixo `CLT_` e tipo de via repetido são normalizados; os campos Bairro e Cidade são preenchidos separadamente;
+- nenhuma alteração de schema; sincronizar D-0/D-1 novamente atualiza os chamados existentes com valores ausentes;
+- validação: 39 testes de parser, D-0, D-1 e escopo passaram; typecheck backend passou.
+
+Arquivos alterados: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/src/imports/d0.ts](backend/src/imports/d0.ts), [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts), [backend/test/d0-import.test.ts](backend/test/d0-import.test.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts) e [ROADMAP.md](ROADMAP.md).
 
 ### Letra de bloco contaminando o Bairro NOC — implementado em 2026-09-29
 
@@ -289,6 +302,16 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Persistência de Bairro FIELD na sincronização D-1
+
+Além de inferir Bairro e Cidade a partir do endereço completo, o comparador de alterações D-1 agora inclui `address` e `bairro`. Assim, uma geolocalização calculada é persistida mesmo quando nenhum outro campo do chamado mudou. 39 testes D-0/D-1/parser/supervisor passaram; typecheck backend passou. Nenhuma migration.
+
+## 2026-09-29 — Inferência de Bairro FIELD a partir do endereço completo
+
+As bases D-0/D-1 frequentemente não têm coluna Bairro e podem trazer Cidade como placeholder. O processamento agora usa o endereço completo para inferir Bairro e usa o sufixo `CIDADE - UF` quando a coluna Cidade não é utilizável. O endereço original continua disponível no chamado; os dados geográficos são gravados separadamente.
+
+Validação: 39 testes D-0/D-1/parser/supervisor passaram; typecheck backend passou. Nenhuma migration. Chamados já existentes precisam receber nova sincronização para preencher dados ausentes.
 
 ## 2026-09-29 — Remoção de letra de bloco do Bairro NOC
 
@@ -1009,6 +1032,11 @@ Bairro NOC com letra de bloco
 
 Resultado: ✅ 26 testes de parser passaram, incluindo o caso `A PARQUE SAO RAFAEL`; typecheck backend passou.
 
+### Teste
+Inferência de Bairro FIELD por endereço
+
+Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, incluindo persistência quando somente o Bairro muda; typecheck backend passou.
+
 ---
 
 ## 13. PENDÊNCIAS
@@ -1022,6 +1050,7 @@ Resultado: ✅ 26 testes de parser passaram, incluindo o caso `A PARQUE SAO RAFA
 
 ### 🟠 IMPORTANTE
 
+- sincronizar D-0/D-1 para preencher bairros/cidades ausentes em chamados FIELD existentes;
 - editar/reprocessar chamado existente cujo bairro ainda contém letra de bloco;
 - sincronizar D-0/D-1 para preencher o nome em chamados FIELD existentes;
 - corrigir/reprocessar chamados antigos com Endereço contendo `CLT_` ou tipo de via duplicado;
@@ -1040,13 +1069,21 @@ Resultado: ✅ 26 testes de parser passaram, incluindo o caso `A PARQUE SAO RAFA
 
 ## 14. PRÓXIMA AÇÃO
 
-1. corrigir/reprocessar o chamado existente cujo bairro contém `A` antes de `PARQUE SAO RAFAEL`;
-2. sincronizar D-0/D-1 e verificar nomes em chamados FIELD, além de revisar endereços importados;
+1. sincronizar D-0/D-1 e conferir Bairro/Cidade em chamados FIELD que estavam sem esses valores;
+2. corrigir/reprocessar chamados antigos com bairro contaminado por bloco e revisar nomes de clientes Field;
 3. continuar a validação pendente do editor OLT→Região no banco publicado após aplicar migration 011/013.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Persistência de Bairro FIELD
+
+D-0 e D-1 inferem Bairro de endereço completo sem depender de coluna Bairro; D-1 também considera `address`/`bairro` na detecção de alterações para gravar o novo valor mesmo isolado. Cidade usa sufixo `CIDADE - UF` quando a coluna estiver vazia ou placeholder. 39 testes passaram e typecheck backend passou. Sincronizar as bases para preencher chamados existentes; nenhuma migration.
+
+## 🔖 CHECKPOINT — 2026-09-29 — Inferência de Bairro FIELD por endereço
+
+D-0/D-1 agora inferem Bairro do endereço completo quando não há coluna Bairro; Cidade pode ser obtida do sufixo `CIDADE - UF` se a coluna estiver vazia/placeholder. 39 testes relacionados e typecheck backend passaram. Endereço completo é preservado no chamado; sincronizar D-0/D-1 novamente para preencher valores ausentes em registros já existentes. Nenhuma migration.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Letra de bloco no Bairro NOC
 
