@@ -422,7 +422,7 @@ function Shell({
 
 function DashboardWithDateFilter({ user }: { user: User & { role: Role } }) {
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
-  return <><DateRangeFilter value={dateRange} onChange={setDateRange} /><OperationalDashboard user={user} dateRange={dateRange} /></>;
+  return <OperationalDashboard user={user} dateRange={dateRange} onDateRangeChange={setDateRange} />;
 }
 
 function getDailyCallBars(calls: Call[], dateRange: { from: string; to: string }) {
@@ -442,7 +442,7 @@ function getDailyCallBars(calls: Call[], dateRange: { from: string; to: string }
   return bars.slice(-14);
 }
 
-function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { from: string; to: string } }) {
+function OperationalDashboard({ user, dateRange, onDateRangeChange }: { user: User; dateRange: { from: string; to: string }; onDateRangeChange: (value: { from: string; to: string }) => void }) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [callsInRange, setCallsInRange] = useState<Call[]>([]);
   const [error, setError] = useState("");
@@ -468,15 +468,18 @@ function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { fr
 
         return (
           <>
-            <div className="page-heading">
+            <div className="page-heading dashboard-page-heading">
               <div>
                 <span className="section-kicker">OPERACAO DE REDE</span>
                 <h1>Visao geral</h1>
                 <p>Indicadores calculados no backend a partir dos dados operacionais atuais.</p>
               </div>
-              <button className="secondary-button" onClick={() => api.dashboard(dateRange).then((data) => setMetrics(data.metrics))}>
-                <Activity size={16}/> Atualizar
-              </button>
+              <div className="dashboard-toolbar">
+                <DateRangeFilter value={dateRange} onChange={onDateRangeChange} />
+                <button className="secondary-button dashboard-refresh-button" onClick={() => api.dashboard(dateRange).then((data) => setMetrics(data.metrics))}>
+                  <Activity size={16}/> Atualizar
+                </button>
+              </div>
             </div>
 
             <div className="metric-grid">
