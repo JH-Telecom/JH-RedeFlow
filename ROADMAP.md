@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: importação da base operacional D-0 com enriquecimento de chamados e Status OFS separado do status interno.
+Última implementação: Data Fim da base D-0 restrita a chamados fechados, com limpeza de valores antigos em chamados ativos.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -82,14 +82,21 @@ Próxima ação: aplicar a migration local `010_d0_base_and_ofs_status.sql` ou S
 
 - a aba Importações permite enviar/substituir a planilha D-0 e limpar somente o snapshot armazenado; a limpeza não remove dados já sincronizados nos chamados;
 - o backend cruza OS, BDESK, Office Track, OS Casa Cliente e Contrato com chamados existentes; correspondências ambíguas são ignoradas e contabilizadas como não correspondentes;
-- Endereço, Bairro, Cidade, Região e OLT são atualizados somente quando a planilha traz valor; `Data` + `Fim` são convertidos para timestamp com fuso `-03:00` e persistidos em `executedAt`;
+- Endereço, Bairro, Cidade, Região e OLT são atualizados somente quando a planilha traz valor; `Data` + `Fim` são convertidos para timestamp com fuso `-03:00` somente para chamados `Finalizado` ou `Cancelado`;
+- em estados ativos, a próxima sincronização limpa `executedAt` antigo e a interface oculta Data Fim mesmo antes de uma nova sincronização;
 - Status OFS é persistido em `calls.ofs_status` e exibido separado de Status interno nas tabelas e no detalhe; a sincronização não altera `calls.status`;
 - a leitura XLSX preserva datas seriais e horas como fração do dia para evitar deslocamento de data pelo fuso do processo;
 - migrations incrementais: PostgreSQL local [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) e Supabase [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql);
-- validação focada: 28 testes D-0/parser/supervisor passaram, incluindo matching ambíguo, XLSX, limpeza e regressões próximas; typecheck backend e build frontend passaram. A suíte completa não retornou resumo conclusivo nesta implementação;
+- validação focada: 29 testes D-0/parser/supervisor passaram, incluindo matching ambíguo, XLSX, limpeza e regra de Data Fim por status; typecheck backend e build frontend passaram. A suíte completa não retornou resumo conclusivo na implementação inicial;
 - pendente: aplicar a migration no runtime utilizado e confirmar cabeçalhos/semântica de horário com uma planilha D-0 oficial.
 
 Arquivos alterados: `backend/src/imports/d0.ts`, `backend/src/imports/parser.ts`, `backend/src/store.ts`, `backend/src/server.ts`, `backend/src/integrations/supabase/client.ts`, `backend/src/types.ts`, `backend/test/d0-import.test.ts`, `frontend/src/api.ts`, `frontend/src/App.tsx`, `database/migrations/010_d0_base_and_ofs_status.sql`, `supabase/migrations/202609290012_d0_base_and_ofs_status.sql` e `ROADMAP.md`.
+
+### Correção — Data Fim somente para chamados fechados
+
+- `Finalizado` e `Cancelado` continuam recebendo `Data` + `Fim`;
+- `Aberto`, `Atribuído`, `Deslocamento` e `Em campo` não recebem Data Fim; a sincronização limpa valor anterior armazenado e as listas/detalhe não exibem valores antigos;
+- validação atualizada: 29 testes focados passaram, typecheck backend e build frontend passaram.
 
 ### Exclusão em lote de chamados — plano pré-implementação
 
@@ -874,7 +881,7 @@ Observação: repetir `npm test --workspace backend` e confirmar o resumo integr
 ### Teste
 Importação D-0, Status OFS e limpeza do snapshot
 
-Resultado: ✅ 28 testes focados passaram; typecheck do backend e build do frontend passaram.
+Resultado: ✅ 29 testes focados passaram; typecheck do backend e build do frontend passaram.
 
 ---
 
@@ -922,7 +929,7 @@ A implementação está concluída no código. Falta aplicar a migration corresp
 
 ### O que está funcionando
 
-- 28 testes focados D-0/parser/supervisor;
+- 29 testes focados D-0/parser/supervisor;
 - typecheck backend;
 - build frontend;
 - limpeza do snapshot preserva os campos já sincronizados nos chamados.

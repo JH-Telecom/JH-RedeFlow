@@ -101,7 +101,7 @@ export type Call = {
   supervisorName?: string;
   openedAt: string;
   assignedAt?: string;
-  executedAt?: string;
+  executedAt?: string | null;
   result?: string;
   cancellationReason?: string;
   notes: string;

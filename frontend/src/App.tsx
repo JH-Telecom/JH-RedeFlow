@@ -1840,7 +1840,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
     (statusFilter === "Todos" || call.status === statusFilter) &&
     (regionFilter === "Todas" || call.region === regionFilter) &&
     (neighborhoodFilter === "Todos" || call.bairro === neighborhoodFilter),
-  );
+  ).map((call) => ["Finalizado", "Cancelado"].includes(call.status) ? call : { ...call, executedAt: null });
   const regions = [...new Set(calls.map((call) => call.region))];
   const neighborhoods = [...new Set(calls.map((call) => call.bairro).filter((item): item is string => Boolean(item)))];
   return (
@@ -1920,7 +1920,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
 function getElapsedMinutes(openedAt: string) {
   return Math.max(0, Math.floor((Date.now() - new Date(openedAt).getTime()) / 60000));
 }
-function formatCallTimestamp(value?: string) {
+function formatCallTimestamp(value?: string | null) {
   if (!value) return <span className="muted-cell">-</span>;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -2049,7 +2049,7 @@ function CallDetailBase() {
             <DetailItem label="Abertura" value={new Date(call.openedAt).toLocaleString("pt-BR")} />
             <DetailItem label="Status interno" value={status} />
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
-            <DetailItem label="Data Fim" value={call.executedAt ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
+            <DetailItem label="Data Fim" value={(["Finalizado", "Cancelado"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
           </div>
           <label className="detail-label">
             Observacoes

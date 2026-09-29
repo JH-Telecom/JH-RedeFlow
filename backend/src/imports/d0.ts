@@ -56,7 +56,7 @@ function callIdentifiers(call: Call) {
   return [call.orderNumber, call.bdesk, call.officeTrack, ...(call.sourceIdentifiers || [])].map(normalizeIdentifier).filter(Boolean);
 }
 
-function mapFields(row: D0Row): D0CallFields {
+function mapFields(row: D0Row, callStatus: Call['status']): D0CallFields {
   const fields: D0CallFields = {};
   const address = value(row, 'Endereço', 'Endereco', 'Endereço do Cliente', 'Endereco do Cliente', 'Endereço de Instalação', 'Endereco de Instalacao');
   const bairro = value(row, 'Bairro', 'Neighborhood');
@@ -64,14 +64,16 @@ function mapFields(row: D0Row): D0CallFields {
   const region = value(row, 'Região', 'Regiao', 'Região Operacional', 'Regiao Operacional');
   const olt = value(row, 'OLT', 'OLT de atendimento');
   const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
-  const executedAt = parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim'));
+  const isClosed = callStatus === 'Finalizado' || callStatus === 'Cancelado';
+  const executedAt = isClosed ? parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) : null;
   if (address) fields.address = address;
   if (bairro) fields.bairro = bairro;
   if (city) fields.city = city;
   if (region) fields.region = region;
   if (olt) fields.olt = olt;
   if (ofsStatus) fields.ofsStatus = ofsStatus;
-  if (executedAt) fields.executedAt = executedAt;
+  if (isClosed && executedAt) fields.executedAt = executedAt;
+  else if (!isClosed) fields.executedAt = null;
   return fields;
 }
 
@@ -88,7 +90,7 @@ export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
       continue;
     }
     const candidate = candidates[0];
-    const fields = mapFields(row);
+    const fields = mapFields(row, candidate.call.status);
     if (Object.keys(fields).length) updates.set(candidate.call.id, { ...updates.get(candidate.call.id), ...fields });
   }
 
