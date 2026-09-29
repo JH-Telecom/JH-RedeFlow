@@ -3,10 +3,11 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getDashboardMetrics, getManualDailyBase, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
+import { hasD0Identifiers } from './imports/d0.js';
 import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallStatus, PermissionCode } from './types.js';
@@ -413,6 +414,24 @@ app.post('/api/acionamentos/:id/recusar', auth, requirePermission('activations.d
   return response.json(result);
 });
 app.get('/api/importacoes', auth, requirePermission('imports.view'), async (_request, response) => response.json({ imports: await listImports() }));
+app.get('/api/importacoes/d0', auth, requirePermission('imports.view'), async (_request, response) => response.json({ base: await getD0BaseSummary() }));
+app.post('/api/importacoes/d0', auth, requirePermission('imports.create'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ fileName: z.string().min(1), content: z.string().min(1) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Arquivo D-0 invalido.' });
+  try {
+    const parsedFile = parseImport(parsed.data.fileName, parsed.data.content);
+    if (parsedFile.errors.length) return response.status(400).json({ message: parsedFile.errors.join(' ') });
+    if (!hasD0Identifiers(parsedFile.rows)) return response.status(400).json({ message: 'A planilha precisa conter OS, BDESK, Office Track, OS Casa Cliente ou Contrato para cruzar os chamados.' });
+    const sync = await replaceD0Base(parsed.data.fileName, request.authUser!.name, parsedFile.rows);
+    return response.json({ sync, base: await getD0BaseSummary() });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel sincronizar a base D-0.' });
+  }
+});
+app.delete('/api/importacoes/d0', auth, requirePermission('imports.create'), async (_request, response) => {
+  try { return response.json({ deleted: await clearD0Base(), base: await getD0BaseSummary() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel limpar a base D-0.' }); }
+});
 app.post('/api/importacoes/preview', auth, requirePermission('imports.create'), async (request: AuthRequest, response) => {
   const parsed = z.object({ fileName: z.string().min(1), content: z.string().min(1) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Arquivo de importacao invalido.' });

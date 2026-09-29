@@ -46,6 +46,7 @@ import {
   type AppNotification,
   type DashboardMetrics,
   type ImportRecord,
+  type D0BaseSummary,
 } from "./api";
 
 const operationalRegions = [
@@ -406,7 +407,7 @@ function Shell({
             <Route path="/supervisor/ordens" element={<SupervisorOrdersPage user={user} />} />
             <Route path="/acionamentos" element={<ActivationsPage />} />
             <Route path="/painel-diario" element={<ManualProductionDashboard />} />
-            <Route path="/importacoes" element={<ImportsPage />} />
+            <Route path="/importacoes" element={<><D0ImportPanel /><ImportsPage /></>} />
             <Route path="/chamados/:id" element={<CallDetailRoute />} />
             <Route path="/tecnicos" element={<TechniciansPage />} />
             <Route path="/supervisores" element={<SupervisorsPage user={user} />} />
@@ -1418,6 +1419,56 @@ function ImportsPage() {
   }
   return <><div className="page-heading"><div><span className="section-kicker">DADOS</span><h1>Importacoes</h1><p>Leia bases externas, valide os dados e confirme somente depois da conferência.</p></div><div className="page-actions"><button className="secondary-button compact" type="button" onClick={() => void syncGoogleDrive()} disabled={syncing}><RefreshCcw size={15} /> {syncing ? "Sincronizando..." : "Sincronizar Drive"}</button><label className="primary-button compact file-button"><ClipboardList size={16}/> Selecionar arquivo<input type="file" accept=".csv,.xlsx,.xls" onChange={selectFile}/></label></div></div>{error && <div className="form-error import-error">{error}</div>}{message && <div className="save-message import-message">{message}</div>}{preview && <section className="panel import-preview"><div className="panel-heading"><div><span className="section-kicker">PRÉ-VISUALIZACAO</span><h2>{preview.fileName}</h2></div><span className={`call-badge ${preview.status.toLowerCase()}`}>{preview.status}</span></div><div className="import-stats"><span><b>{preview.totalRows}</b> linhas</span><span><b>{preview.validRows}</b> validas</span><span><b>{preview.columns.length}</b> colunas</span><span>{preview.sheetName}</span></div><div className="import-table-wrap"><table><thead><tr>{preview.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{preview.preview.map((row, index) => <tr key={index}>{preview.columns.map((column) => <td key={column}>{row[column]}</td>)}</tr>)}</tbody></table></div>{preview.status === "Previsualizada" && <button className="primary-button compact confirm-import" onClick={confirm}>Confirmar importacao <ChevronRight size={16}/></button>}</section>}<section className="panel import-history"><div className="panel-heading"><div><span className="section-kicker">HISTORICO</span><h2>Importacoes recentes</h2></div></div>{records.map((record) => <div className="import-history-row" key={record.id}><div><strong>{record.fileName}</strong><span>{record.fileType.toUpperCase()} · {record.totalRows} linhas · {record.importedBy}</span></div><span className={`call-badge ${record.status.toLowerCase()}`}>{record.status}</span><small>{new Date(record.createdAt).toLocaleString("pt-BR")}</small></div>)}{!records.length && <div className="empty-state">Nenhuma importacao registrada.</div>}</section></>;
 }
+function D0ImportPanel() {
+  const [base, setBase] = useState<D0BaseSummary>({ rowCount: 0 });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { api.d0Base().then((result) => setBase(result.base)).catch((err) => setError(err.message)); }, []);
+
+  async function upload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (base.rowCount && !window.confirm(`A base atual (${base.fileName}) será substituída. Os dados já sincronizados nos chamados serão mantidos. Continuar?`)) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const content = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+        reader.onerror = () => reject(new Error("Nao foi possivel ler o arquivo."));
+        reader.readAsDataURL(file);
+      });
+      const result = await api.importD0(file.name, content);
+      setBase(result.base);
+      setMessage(`Base atualizada: ${result.sync.rows} linha(s), ${result.sync.matchedCalls} chamado(s) cruzado(s), ${result.sync.updatedCalls} atualizado(s), ${result.sync.unmatchedRows} sem correspondência.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel sincronizar a base D-0.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clear() {
+    if (!window.confirm("Limpar a base D-0 armazenada? Os dados já sincronizados nos chamados não serão removidos.")) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await api.clearD0Base();
+      setBase(result.base);
+      setMessage(`${result.deleted} linha(s) removida(s) da base D-0.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel limpar a base D-0.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="panel d0-import-panel"><div className="panel-heading"><div><span className="section-kicker">BASE OPERACIONAL DO DIA</span><h2>Importar base D-0</h2><p>{base.rowCount ? `${base.fileName} · ${base.rowCount} linhas · enviada por ${base.uploadedBy || "Sistema"}${base.uploadedAt ? ` · ${new Date(base.uploadedAt).toLocaleString("pt-BR")}` : ""}` : "Nenhuma base D-0 armazenada."}</p></div><div className="page-actions"><label className="primary-button compact file-button"><ClipboardList size={16}/>{busy ? "Processando..." : "Enviar D-0"}<input type="file" accept=".csv,.xlsx,.xls" onChange={(event) => void upload(event)} disabled={busy}/></label><button className="secondary-button compact" type="button" onClick={() => void clear()} disabled={busy || !base.rowCount}><Trash2 size={15}/> Limpar base</button></div></div>{error && <div className="form-error import-error">{error}</div>}{message && <div className="save-message import-message">{message}</div>}</section>;
+}
 function ActivationsPage() {
   const [activations, setActivations] = useState<Activation[]>([]);
   const [error, setError] = useState("");
@@ -1846,7 +1897,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           <table ref={tableRef}>
             <thead>
               <tr>
-                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Bairro / Endereço</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Bairro / Endereço</th><th>Abertura</th><th>Tempo aguardando</th><th>Status</th><th>Tecnico</th></>}
+                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Bairro / Endereço</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Bairro / Endereço</th><th>Abertura</th><th>Tempo aguardando</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Tecnico</th></>}
               </tr>
             </thead>
             <tbody>
@@ -1855,7 +1906,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
                   key={call.id}
                   onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)}
                 >
-                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaDurationCell openedAt={call.openedAt} /></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.client}<small className="table-subtext">{call.city}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td></>}
+                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaDurationCell openedAt={call.openedAt} /></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.ofsStatus || <span className="muted-cell">-</span>}</td><td>{formatCallTimestamp(call.executedAt)}</td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.client}<small className="table-subtext">{call.city}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.ofsStatus || <span className="muted-cell">-</span>}</td><td>{formatCallTimestamp(call.executedAt)}</td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td></>}
                 </tr>
               ))}
             </tbody>
@@ -1868,6 +1919,11 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
 }
 function getElapsedMinutes(openedAt: string) {
   return Math.max(0, Math.floor((Date.now() - new Date(openedAt).getTime()) / 60000));
+}
+function formatCallTimestamp(value?: string) {
+  if (!value) return <span className="muted-cell">-</span>;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 function formatElapsed(openedAt: string) {
   const totalSeconds = Math.max(0, Math.floor((Date.now() - new Date(openedAt).getTime()) / 1000));
@@ -1991,6 +2047,9 @@ function CallDetailBase() {
             <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
             <DetailItem label="Abertura" value={new Date(call.openedAt).toLocaleString("pt-BR")} />
+            <DetailItem label="Status interno" value={status} />
+            <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
+            <DetailItem label="Data Fim" value={call.executedAt ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
           </div>
           <label className="detail-label">
             Observacoes

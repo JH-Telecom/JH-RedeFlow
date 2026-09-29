@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
 import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
 import { identifyAtreladas, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
+import { matchD0Rows, type D0Row } from './imports/d0.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -72,6 +73,7 @@ const activations = new Map<string, Activation>([
   ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
 ]);
 const imports = new Map<string, ImportRecord>();
+const d0BaseRows: Array<{ fileName: string; rowNumber: number; payload: D0Row; uploadedBy: string; importedAt: string }> = [];
 const manualDailyBases = new Map<string, ManualDailyBase>();
 const settings: SystemSettings = { autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: 'Todas' };
 
@@ -89,6 +91,7 @@ function ensureDemoData() {
     auditLogs.clear();
     activations.clear();
     imports.clear();
+    d0BaseRows.length = 0;
     manualDailyBases.clear();
     return;
   }
@@ -604,14 +607,14 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
   if (isSupabaseConfigured()) return await listSupabaseCalls(status, query);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    const result = await client.query<{ id: string; order_number: string; bdesk: string; office_track: string; client: string; type: string; reason: string; region: string; city: string; address: string | null; bairro: string | null; olt: string; slot_pon: string; status: string; technician_id: string | null; technician_name: string | null; supervisor_name: string | null; opened_at: string; assigned_at: string | null; executed_at: string | null; result: string | null; cancellation_reason: string | null; notes: string; source: string | null; source_identity: string | null; source_identifiers: string[] | null; source_file_id: string | null; source_file_name: string | null; source_reference_date: string | null; source_fingerprint: string | null; source_processed_at: string | null; last_observation_at: string | null }>(
-      `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.address, c.bairro, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, c.source, c.source_identity, c.source_identifiers, c.source_file_id, c.source_file_name, c.source_reference_date, c.source_fingerprint, c.source_processed_at, latest_observation.created_at AS last_observation_at
+    const result = await client.query<{ id: string; order_number: string; bdesk: string; office_track: string; client: string; type: string; reason: string; region: string; city: string; address: string | null; bairro: string | null; ofs_status: string | null; olt: string; slot_pon: string; status: string; technician_id: string | null; technician_name: string | null; supervisor_name: string | null; opened_at: string; assigned_at: string | null; executed_at: string | null; result: string | null; cancellation_reason: string | null; notes: string; source: string | null; source_identity: string | null; source_identifiers: string[] | null; source_file_id: string | null; source_file_name: string | null; source_reference_date: string | null; source_fingerprint: string | null; source_processed_at: string | null; last_observation_at: string | null }>(
+      `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.address, c.bairro, c.ofs_status, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, c.source, c.source_identity, c.source_identifiers, c.source_file_id, c.source_file_name, c.source_reference_date, c.source_fingerprint, c.source_processed_at, latest_observation.created_at AS last_observation_at
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
        LEFT JOIN LATERAL (SELECT created_at FROM call_observations WHERE call_id = c.id ORDER BY created_at DESC LIMIT 1) latest_observation ON true
       WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
       [status ?? null, query.from ?? null, query.to ?? null, query.supervisorId ?? null],
     );
-    return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
+    return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', ofsStatus: row.ofs_status ?? undefined, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
   }
   return [...calls.values()].map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
@@ -863,7 +866,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
-    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
+    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
     for (const field of Object.keys(databaseFields)) {
       const value = input[field as keyof typeof input];
       if (value !== undefined) { sets.push(`${databaseFields[field]} = $${index++}`); values.push(value); }
@@ -884,7 +887,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
       if (!result.rows[0]) { await client.query('ROLLBACK'); return undefined; }
       const updated = await getCall(id);
       if (!updated) { await client.query('ROLLBACK'); return undefined; }
-        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
+        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
       for (const field of Object.keys(input)) {
         const previousValue = String(current[field as keyof Call] ?? '');
         const newValue = String(updated[field as keyof Call] ?? '');
@@ -903,7 +906,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   const technician = input.technicianId ? technicians.get(input.technicianId) : undefined;
   const updated = { ...current, ...input, cancellationReason: input.cancellationReason === null ? undefined : input.cancellationReason ?? current.cancellationReason, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
   calls.set(id, updated);
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
   Object.keys(input).forEach((field) => {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(updated[field as keyof Call] ?? '');
@@ -1198,6 +1201,99 @@ export async function saveImport(record: ImportRecord): Promise<ImportRecord> {
   }
   imports.set(record.id, record); return record;
 }
+export type D0BaseSummary = { fileName?: string; rowCount: number; uploadedBy?: string; uploadedAt?: string };
+export type D0SyncResult = { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number };
+
+export async function getD0BaseSummary(): Promise<D0BaseSummary> {
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const [{ count, error: countError }, { data, error }] = await Promise.all([
+      admin.from('d0_base_records').select('id', { count: 'exact', head: true }),
+      admin.from('d0_base_records').select('file_name, uploaded_by, imported_at').order('imported_at', { ascending: false }).limit(1).maybeSingle(),
+    ]);
+    if (countError || error) throw new Error(countError?.message || error?.message || 'Nao foi possivel consultar a base D-0.');
+    return { fileName: data?.file_name, rowCount: count || 0, uploadedBy: data?.uploaded_by, uploadedAt: data?.imported_at };
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const [countResult, latestResult] = await Promise.all([
+      client.query<{ row_count: number }>('SELECT COUNT(*)::integer AS row_count FROM d0_base_records'),
+      client.query<{ file_name: string; uploaded_by: string; imported_at: string }>('SELECT file_name, uploaded_by, imported_at FROM d0_base_records ORDER BY imported_at DESC LIMIT 1'),
+    ]);
+    const latest = latestResult.rows[0];
+    return { fileName: latest?.file_name, rowCount: countResult.rows[0]?.row_count || 0, uploadedBy: latest?.uploaded_by, uploadedAt: latest?.imported_at };
+  }
+  const latest = d0BaseRows.at(-1);
+  return { fileName: latest?.fileName, rowCount: d0BaseRows.length, uploadedBy: latest?.uploadedBy, uploadedAt: latest?.importedAt };
+}
+
+export async function replaceD0Base(fileName: string, uploadedBy: string, rows: D0Row[]): Promise<D0SyncResult> {
+  if (!rows.length) throw new Error('A base D-0 nao possui linhas para importar.');
+  const importedAt = new Date().toISOString();
+  const records = rows.map((payload, index) => ({ fileName, rowNumber: index + 2, payload, uploadedBy, importedAt }));
+
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const { error: deleteError } = await admin.from('d0_base_records').delete().not('id', 'is', null);
+    if (deleteError) throw new Error(deleteError.message);
+    for (let offset = 0; offset < records.length; offset += 500) {
+      const batch = records.slice(offset, offset + 500).map((record) => ({ file_name: record.fileName, row_number: record.rowNumber, payload: record.payload, uploaded_by: record.uploadedBy, imported_at: record.importedAt }));
+      const { error } = await admin.from('d0_base_records').insert(batch);
+      if (error) throw new Error(error.message);
+    }
+  } else if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query('BEGIN');
+    try {
+      await client.query('DELETE FROM d0_base_records WHERE id IS NOT NULL');
+      for (let offset = 0; offset < records.length; offset += 500) {
+        const batch = records.slice(offset, offset + 500);
+        const values = batch.flatMap((record) => [record.fileName, record.rowNumber, JSON.stringify(record.payload), record.uploadedBy, record.importedAt]);
+        const tuples = batch.map((_, index) => {
+          const position = index * 5;
+          return `($${position + 1}, $${position + 2}, $${position + 3}::jsonb, $${position + 4}, $${position + 5})`;
+        });
+        await client.query(`INSERT INTO d0_base_records (file_name, row_number, payload, uploaded_by, imported_at) VALUES ${tuples.join(', ')}`, values);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  } else {
+    d0BaseRows.splice(0, d0BaseRows.length, ...records);
+  }
+
+  const currentCalls = await listCalls();
+  const { matches, unmatchedRows } = matchD0Rows(rows, currentCalls);
+  const callsById = new Map(currentCalls.map((call) => [call.id, call]));
+  const actor: User = { id: 'system-d0-import', name: 'Importacao D-0', email: 'system-d0@jhtelecom.com', roleId: 'system', active: true, createdAt: importedAt };
+  let updatedCalls = 0;
+  for (const match of matches) {
+    const current = callsById.get(match.callId);
+    const changed = current && Object.entries(match.fields).some(([field, value]) => String(current[field as keyof Call] ?? '') !== String(value ?? ''));
+    const updated = await updateCall(match.callId, match.fields, actor);
+    if (updated && changed) updatedCalls += 1;
+  }
+  return { rows: rows.length, matchedCalls: matches.length, updatedCalls, unmatchedRows };
+}
+
+export async function clearD0Base(): Promise<number> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('d0_base_records').delete().not('id', 'is', null).select('id');
+    if (error) throw new Error(error.message);
+    return data?.length || 0;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ id: number }>('DELETE FROM d0_base_records WHERE id IS NOT NULL RETURNING id');
+    return result.rowCount || 0;
+  }
+  const deleted = d0BaseRows.length;
+  d0BaseRows.length = 0;
+  return deleted;
+}
+
 function manualBaseDate(date?: string) {
   return date || new Date().toISOString().slice(0, 10);
 }

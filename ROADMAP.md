@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: exclusão global de chamados em lote protegida por `calls.delete`.
+Última implementação: importação da base operacional D-0 com enriquecimento de chamados e Status OFS separado do status interno.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar a migration 011 no Supabase antes de repetir a exclusão em lote; migrations 008–011 devem estar aplicadas conforme o runtime.
+Próxima ação: aplicar a migration local `010_d0_base_and_ofs_status.sql` ou Supabase `202609290012_d0_base_and_ofs_status.sql` antes de usar D-0; confirmar os nomes de colunas e o fuso da planilha oficial.
 
 ---
 
@@ -27,6 +27,7 @@ Próxima ação: aplicar a migration 011 no Supabase antes de repetir a exclusã
 - Frontend: aplicação em React + Vite, em [frontend/src](frontend/src).
 - Backend: API Express em [backend/src/server.ts](backend/src/server.ts) com regras de negócio em [backend/src/store.ts](backend/src/store.ts).
 - Banco de dados: PostgreSQL com migrations em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations).
+- Base D-0: snapshot da última planilha armazenado em `d0_base_records`; o campo `calls.ofs_status` mantém o estado nativo OFS sem substituir `calls.status`.
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
 - APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
 - Infraestrutura: runtime local com variáveis de ambiente, fallback demo e configs de produção.
@@ -48,6 +49,7 @@ Próxima ação: aplicar a migration 011 no Supabase antes de repetir a exclusã
 - [x] Finalização, cancelamento e regras de status.
 - [x] WuzAPI, acionamentos e análise de mensagens operacionais.
 - [x] Importação de bases CSV/XLSX.
+- [x] Upload/substituição e limpeza da base D-0 na aba Importações, com atualização de localização, Status OFS e Data Fim por identificadores de chamado.
 - [x] Dashboards e indicadores operacionais.
 - [x] Escopo de supervisão aplicado por equipe para chamadas e dashboard.
 - [x] Tela de ordens da equipe do supervisor com filtro de período.
@@ -75,6 +77,19 @@ Próxima ação: aplicar a migration 011 no Supabase antes de repetir a exclusã
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Base operacional D-0 e Status OFS — implementado em 2026-09-29
+
+- a aba Importações permite enviar/substituir a planilha D-0 e limpar somente o snapshot armazenado; a limpeza não remove dados já sincronizados nos chamados;
+- o backend cruza OS, BDESK, Office Track, OS Casa Cliente e Contrato com chamados existentes; correspondências ambíguas são ignoradas e contabilizadas como não correspondentes;
+- Endereço, Bairro, Cidade, Região e OLT são atualizados somente quando a planilha traz valor; `Data` + `Fim` são convertidos para timestamp com fuso `-03:00` e persistidos em `executedAt`;
+- Status OFS é persistido em `calls.ofs_status` e exibido separado de Status interno nas tabelas e no detalhe; a sincronização não altera `calls.status`;
+- a leitura XLSX preserva datas seriais e horas como fração do dia para evitar deslocamento de data pelo fuso do processo;
+- migrations incrementais: PostgreSQL local [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) e Supabase [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql);
+- validação focada: 28 testes D-0/parser/supervisor passaram, incluindo matching ambíguo, XLSX, limpeza e regressões próximas; typecheck backend e build frontend passaram. A suíte completa não retornou resumo conclusivo nesta implementação;
+- pendente: aplicar a migration no runtime utilizado e confirmar cabeçalhos/semântica de horário com uma planilha D-0 oficial.
+
+Arquivos alterados: `backend/src/imports/d0.ts`, `backend/src/imports/parser.ts`, `backend/src/store.ts`, `backend/src/server.ts`, `backend/src/integrations/supabase/client.ts`, `backend/src/types.ts`, `backend/test/d0-import.test.ts`, `frontend/src/api.ts`, `frontend/src/App.tsx`, `database/migrations/010_d0_base_and_ofs_status.sql`, `supabase/migrations/202609290012_d0_base_and_ofs_status.sql` e `ROADMAP.md`.
 
 ### Exclusão em lote de chamados — plano pré-implementação
 
@@ -197,6 +212,46 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Importação operacional D-0 e Status OFS
+
+### Objetivo
+Sincronizar a base operacional do dia com chamados existentes sem confundir o status nativo OFS com o status de controle interno.
+
+### Alterações realizadas
+
+- aba Importações passou a consultar, substituir e limpar o snapshot da base D-0;
+- matching por OS, BDESK, Office Track, OS Casa Cliente e Contrato; chamadas ambíguas não são atualizadas;
+- Endereço, Bairro, Cidade, Região, OLT, Status OFS e Data Fim são sincronizados quando a planilha contém valores;
+- `Data` + `Fim` são persistidos como ISO com offset `-03:00`; telas exibem Status interno, Status OFS e Data Fim em colunas separadas;
+- limpeza remove apenas os registros da base D-0 e preserva os dados já sincronizados nos chamados.
+
+### Arquivos criados
+
+- [backend/src/imports/d0.ts](backend/src/imports/d0.ts)
+- [backend/test/d0-import.test.ts](backend/test/d0-import.test.ts)
+- [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql)
+- [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql)
+
+### Arquivos modificados
+
+- backend: `src/imports/parser.ts`, `src/integrations/supabase/client.ts`, `src/server.ts`, `src/store.ts`, `src/types.ts`;
+- frontend: `src/api.ts`, `src/App.tsx`;
+- documentação: `ROADMAP.md`.
+
+### Resultado e testes
+
+- os quatro testes D-0 e os 24 testes de parser/supervisor executados junto deles passaram (28 no total), cobrindo matching, ambiguidade, XLSX, timestamp, limpeza e regressões próximas;
+- typecheck do backend passou após as rotas e persistência;
+- build do frontend passou; permanece o aviso existente de bundle acima de 500 kB;
+- a execução completa de `npm test` iniciou testes HTTP, mas não retornou um resumo final conclusivo neste ambiente; repetir o comando antes do próximo release.
+
+### Pendências e próximo passo
+
+- aplicar a migration `010` no PostgreSQL local ou `202609290012` no Supabase;
+- validar os cabeçalhos reais e o fuso horário da planilha D-0 oficial, além de testar a integração no banco publicado.
+
+## 2026-09-29 — Exclusão global de chamados em lote
 
 ## 2026-09-29 — Exclusão global de chamados em lote
 
@@ -763,7 +818,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 ## 10. BANCO DE DADOS
 
-O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql); ambientes que já aplicaram 010 devem aplicar 011 para substituir a função. Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
+O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). A importação D-0 requer [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) no runtime PostgreSQL local ou [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql) no Supabase. Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
 
 ---
 
@@ -812,9 +867,14 @@ Resultado: ✅ regra aplicada no backend, com teste de regressão registrado.
 ### Teste
 Boot do backend em suíte HTTP
 
-Resultado: ❌ falhou no ambiente atual.
+Resultado: ✅ testes HTTP existentes chegaram a passar em execuções recentes; nesta implementação, a suíte completa não retornou resumo final conclusivo.
 
-Motivo: a inicialização do servidor não ficou disponível para a suíte automatizada.
+Observação: repetir `npm test --workspace backend` e confirmar o resumo integral antes do próximo release.
+
+### Teste
+Importação D-0, Status OFS e limpeza do snapshot
+
+Resultado: ✅ 28 testes focados passaram; typecheck do backend e build do frontend passaram.
 
 ---
 
@@ -822,12 +882,13 @@ Motivo: a inicialização do servidor não ficou disponível para a suíte autom
 
 ### 🔴 CRÍTICO
 
-- estabilizar o boot do backend em testes automatizados;
+- aplicar a migration D-0 no banco do runtime antes do primeiro upload;
 - validar autenticação do Supabase real com seed e login oficial;
 - confirmar consistência entre runtime local e produção.
 
 ### 🟠 IMPORTANTE
 
+- validar cabeçalhos, correspondência e fuso horário com a planilha D-0 oficial;
 - revisar a interface de dashboards para filtros de supervisor e data;
 - confirmar integração de exceções de acesso por papel.
 
@@ -840,13 +901,50 @@ Motivo: a inicialização do servidor não ficou disponível para a suíte autom
 
 ## 14. PRÓXIMA AÇÃO
 
-1. aplicar migrations 008 e 009 no runtime utilizado;
-2. validar a sincronização real do Drive e confirmar Bairro/Endereço/Região nos registros persistidos;
-3. validar a integração real com Supabase Auth quando a seed e o ambiente estiverem prontos.
+1. aplicar `database/migrations/010_d0_base_and_ofs_status.sql` no PostgreSQL local ou `supabase/migrations/202609290012_d0_base_and_ofs_status.sql` no Supabase;
+2. subir uma planilha D-0 oficial e conferir campos, Data Fim e contagens de correspondência/ignorados;
+3. repetir `npm test --workspace backend` até obter resumo final e validar a integração no ambiente Supabase publicado.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Base D-0
+
+### O que foi feito
+
+- implementados upload/substituição/limpeza da base D-0, matching com chamados, Status OFS e Data Fim;
+- atualizado o roadmap e criadas migrations incrementais local/Supabase.
+
+### Onde paramos
+
+A implementação está concluída no código. Falta aplicar a migration correspondente ao runtime e validar com a planilha oficial; a suíte completa do backend precisa de uma execução com resumo conclusivo.
+
+### O que está funcionando
+
+- 28 testes focados D-0/parser/supervisor;
+- typecheck backend;
+- build frontend;
+- limpeza do snapshot preserva os campos já sincronizados nos chamados.
+
+### O que não está validado
+
+- schema D-0 aplicado em PostgreSQL/Supabase real;
+- nomes de colunas e fuso horário confirmados contra a planilha oficial;
+- resumo final da suíte completa nesta execução.
+
+### Arquivos modificados nesta sessão
+
+- [backend/src/imports/d0.ts](backend/src/imports/d0.ts), [backend/src/imports/parser.ts](backend/src/imports/parser.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/server.ts](backend/src/server.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/src/types.ts](backend/src/types.ts);
+- [backend/test/d0-import.test.ts](backend/test/d0-import.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx), migrations 010/012 e [ROADMAP.md](ROADMAP.md).
+
+### Próximo passo exato
+
+Aplicar a migration D-0 no runtime utilizado, importar uma planilha oficial e verificar amostras abertas, finalizadas e canceladas, incluindo Data Fim.
+
+### Observações para o próximo agente
+
+A correspondência ambígua é ignorada. A limpeza apaga apenas `d0_base_records`, não reverte atualizações nos chamados. Status OFS nunca substitui `calls.status`. O timestamp importado usa offset fixo `-03:00`; confirmar se corresponde ao contrato da planilha.
 
 ## 🔖 CHECKPOINT — 2026-09-23
 
