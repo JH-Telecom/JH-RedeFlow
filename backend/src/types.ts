@@ -90,6 +90,8 @@ export type Call = {
   reason: string;
   region: string;
   city: string;
+  address?: string;
+  bairro?: string;
   olt: string;
   slotPon: string;
   status: CallStatus;
@@ -113,7 +115,7 @@ export type Call = {
   sourceProcessedAt?: string;
 };
 
-export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
+export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
 
 export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
@@ -181,4 +183,4 @@ export type ManualProductionTechnician = { name: string; pending: number; enRout
 export type ManualProductionOrder = { order: string; technician: string; inicio: string; tempo: string };
 export type ManualProductionData = { activities: ManualProductionActivity[]; technicians: ManualProductionTechnician[]; orders: ManualProductionOrder[]; updatedAt: string };
 export type ManualDailyBase = { businessDate: string; fileName: string; data: ManualProductionData; uploadedBy: string; updatedAt: string };
-export type DashboardMetrics = { receivedToday: number; open: number; unassigned: number; inProgress: number; finished: number; cancelled: number; pendingActivations: number; byStatus: { label: string; value: number }[]; byRegion: { label: string; value: number }[]; byTechnician: { label: string; value: number }[]; byType: { label: string; value: number }[] };
+export type DashboardMetrics = { receivedToday: number; open: number; unassigned: number; inProgress: number; finished: number; cancelled: number; pendingActivations: number; byStatus: { label: string; value: number }[]; byRegion: { label: string; value: number }[]; byNeighborhood: { label: string; value: number }[]; byTechnician: { label: string; value: number }[]; byType: { label: string; value: number }[] };

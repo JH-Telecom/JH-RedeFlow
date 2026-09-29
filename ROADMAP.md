@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: sincronização histórica do Google Drive com criação incremental de chamados, snapshots auditáveis e indicadores por data operacional.
+Última implementação: Bairro/Endereço unificados no chamado, com região automática pelo mapeamento OLT existente.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar as migrations de histórico Drive no banco de produção e validar uma sincronização real com a pasta operacional.
+Próxima ação: aplicar a migration de localização nos bancos locais/Supabase e validar os dados persistidos em ambiente real.
 
 ---
 
@@ -76,39 +76,84 @@ Próxima ação: aplicar as migrations de histórico Drive no banco de produçã
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
-### Tarefa atual
-Escopo de visibilidade da equipe do supervisor
+### Correção — Bairro unificado + Região automática por OLT
 
-### Objetivo
-Garantir que o supervisor veja apenas os chamados e indicadores relacionados à sua equipe, sem depender da conversa anterior.
+Plano registrado antes da implementação em 2026-09-29.
 
-### Já realizado
+#### Estruturas encontradas e reutilizadas
 
-- criação de usuários demo de supervisor com vínculo ao supervisor correto;
-- ajuste de filtro de equipe em `listCalls` e `getCall` para o runtime local/in-memory;
-- registro de teste de regressão para a regra de supervisor em [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts);
-- atualização do roadmap para manter o contexto de continuidade.
+- `ActivationAnalysis.bairro_principal` e `endereco_principal` já recebem a saída da consolidação NOC em [backend/src/integrations/wuzapi/semantic.ts](backend/src/integrations/wuzapi/semantic.ts);
+- `resolveOltRegion` já centraliza o mapa padrão e overrides manuais em [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts);
+- `calls` é a entidade consultada por listagem e dashboard; o contrato `Call` ainda não possui Bairro nem Endereço;
+- a sincronização Google Drive já cria/atualiza `calls`, mas não trata endereço FIELD/bairro nem chama o resolver de OLT;
+- o dashboard agrega região/tipo/status no backend, mas não possui agrupamento por bairro.
 
-### Resultado concluído
+#### Escopo planejado
 
-- validação do fluxo HTTP completo do backend em ambiente estável;
-- isolamento de estado de testes e reinicialização limpa do servidor em cada caso;
-- confirmação do comportamento real no servidor em execução em ambiente local de teste;
-- revisão do comportamento do Supabase real permanece pendente quando a autenticação estiver ligada ao banco oficial.
+- adicionar somente os campos oficiais `bairro` e `address` ao chamado, com migration compatível para PostgreSQL e Supabase;
+- copiar a saída NOC existente para o chamado aceito sem alterar classificação ou extração NOC;
+- extrair Bairro de endereço D-1 com critérios conservadores, mantendo o endereço original no payload de origem;
+- preservar Bairro/Endereço já preenchidos quando uma atualização vier vazia;
+- aplicar `resolveOltRegion` na criação, edição e reprocessamento; se não houver mapeamento, manter a região já disponível;
+- disponibilizar os campos na API, listagem/detalhe de chamados e agregar chamados por `bairro` no dashboard;
+- testar NOC, FIELD, ausência/preservação de Bairro, mudança de OLT e indicador por bairro.
 
-### Arquivos envolvidos
+#### Arquivos previstos
 
+- backend: `types.ts`, `store.ts`, `server.ts`, integração Google Drive e adaptador Supabase;
+- banco: nova migration incremental em `database/migrations` e `supabase/migrations`;
+- frontend: `api.ts` e `App.tsx`;
+- testes: regressões existentes de parser e store.
+
+### Resultado da correção (2026-09-29)
+
+#### O que foi feito
+
+- o campo oficial `calls.bairro` e `calls.address` agora recebem a análise NOC existente ao aceitar acionamento; a lógica de classificação e consolidação NOC não foi alterada;
+- a sincronização Google Drive limpa prefixos de rua duplicados e extrai bairro somente quando o endereço contém contexto suficiente de cidade;
+- atualizações vazias preservam Bairro/Endereço válidos já gravados;
+- `resolveOltRegion` é usado na criação WuzAPI/Drive e em qualquer atualização; OLT sem mapeamento preserva a região atual/disponível;
+- listagem, busca/filtro, detalhe e ranking do dashboard usam o mesmo campo `bairro`.
+
+#### Arquivos alterados
+
+- [backend/src/types.ts](backend/src/types.ts)
 - [backend/src/store.ts](backend/src/store.ts)
-- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
 - [backend/src/server.ts](backend/src/server.ts)
+- [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql)
+- [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql)
 - [ROADMAP.md](ROADMAP.md)
 
-### Próxima ação
-Executar a validação em runtime real do backend e confirmar se o supervisor não consegue visualizar chamadas fora da sua equipe.
+#### Banco e endpoints
+
+- entidade alterada: `calls`, com `address` e `bairro`; índice composto para consultas por bairro/status/data;
+- endpoints alterados: `PATCH /api/chamados/:id` aceita Endereço/Bairro; `GET /api/chamados` e `GET /api/dashboards/operacao` retornam/agrupam os campos existentes; nenhum endpoint novo.
+
+#### Problemas encontrados e próximos passos
+
+- NOC já extraía bairro/endereço, mas a criação do chamado descartava esses valores; o modelo `Call` também não tinha os campos;
+- o sincronizador D-1 não extraía endereço/bairro FIELD e não reutilizava o mapa OLT na reconciliação;
+- aplicação da migration e validação com credenciais/linhas reais de Drive e Supabase continuam pendentes.
+
+#### Testes
+
+- regressões de parser + store: 22 passaram, 0 falharam;
+- typecheck backend e build frontend passaram; o build mantém apenas o aviso existente de bundle maior que 500 kB.
 
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Bairro unificado e região automática por OLT
+
+O plano foi registrado na seção 5 antes das mudanças de código. Implementada a integração da saída NOC existente e do endereço FIELD ao único campo `calls.bairro`, persistência de `calls.address`, proteção contra sobrescrita por valor vazio, resolução OLT→região na criação/edição/reprocessamento e agrupamento por bairro no dashboard. NOC ACESSO não foi reimplementado.
+
+Migrations: [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) e [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql).
 
 ## 2026-09-29 — Sincronização histórica incremental do Google Drive
 
@@ -661,7 +706,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 ## 10. BANCO DE DADOS
 
-O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql), conforme o runtime. Elas adicionam metadados de origem aos chamados, snapshots de importação e contadores de execução. Devem ser aplicadas antes de habilitar a sincronização no ambiente correspondente.
+O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql), conforme o runtime. Aplique-as na ordem antes de habilitar a integração no ambiente correspondente.
 
 ---
 
@@ -738,8 +783,8 @@ Motivo: a inicialização do servidor não ficou disponível para a suíte autom
 
 ## 14. PRÓXIMA AÇÃO
 
-1. aplicar a migration de histórico Drive no runtime utilizado;
-2. validar uma execução real contra a pasta operacional e conferir os contadores/snapshots;
+1. aplicar migrations 008 e 009 no runtime utilizado;
+2. validar a sincronização real do Drive e confirmar Bairro/Endereço/Região nos registros persistidos;
 3. validar a integração real com Supabase Auth quando a seed e o ambiente estiverem prontos.
 
 ---

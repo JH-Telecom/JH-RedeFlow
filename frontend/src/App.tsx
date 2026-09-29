@@ -524,6 +524,24 @@ function OperationalDashboard({ user, dateRange }: { user: User; dateRange: { fr
               </section>
             </div>
 
+            <section className="panel status-panel">
+              <div className="panel-heading">
+                <div>
+                  <span className="section-kicker">LOCALIDADE</span>
+                  <h2>Chamados por Bairro</h2>
+                </div>
+              </div>
+              <div className="rank-list">
+                {metrics.byNeighborhood.length ? metrics.byNeighborhood.map((item) => (
+                  <div className="rank-row" key={item.label}>
+                    <span>{item.label}</span>
+                    <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
+                    <b>{item.value}</b>
+                  </div>
+                )) : <div className="empty-state">Nenhum chamado com bairro no período.</div>}
+              </div>
+            </section>
+
             <section className="panel chart-panel daily-calls-panel">
               <div className="panel-heading">
                 <div>
@@ -1621,6 +1639,7 @@ function RangeCallTable({ calls }: { calls: Call[] }) {
               <th>Cliente</th>
               <th>Tipo</th>
               <th>Regiao</th>
+              <th>Bairro / Endereço</th>
               <th>Status</th>
               <th>Tecnico</th>
             </tr>
@@ -1632,10 +1651,11 @@ function RangeCallTable({ calls }: { calls: Call[] }) {
                 <td><strong>{call.client}</strong><small>{call.city}</small></td>
                 <td>{call.type}<small>{call.reason}</small></td>
                 <td>{call.region}</td>
+                <td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small>{call.address}</small></td>
                 <td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td>
                 <td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td>
               </tr>
-            )) : <tr><td colSpan={6} className="empty-state-cell">Sem chamados neste periodo.</td></tr>}
+            )) : <tr><td colSpan={7} className="empty-state-cell">Sem chamados neste periodo.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -1653,6 +1673,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [regionFilter, setRegionFilter] = useState("Todas");
+  const [neighborhoodFilter, setNeighborhoodFilter] = useState("Todos");
   const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">("Todos");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [showFilters, setShowFilters] = useState(false);
@@ -1729,14 +1750,16 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   }
   const visibleCalls = calls.filter((call) =>
     (!assignedOnly || Boolean(call.technicianId || call.technicianName)) &&
-    [call.orderNumber, call.client, call.bdesk, call.region, call.city]
+    [call.orderNumber, call.client, call.bdesk, call.region, call.city, call.bairro, call.address]
       .join(" ")
       .toLowerCase()
       .includes(query.toLowerCase()) &&
     (statusFilter === "Todos" || call.status === statusFilter) &&
-    (regionFilter === "Todas" || call.region === regionFilter),
+    (regionFilter === "Todas" || call.region === regionFilter) &&
+    (neighborhoodFilter === "Todos" || call.bairro === neighborhoodFilter),
   );
   const regions = [...new Set(calls.map((call) => call.region))];
+  const neighborhoods = [...new Set(calls.map((call) => call.bairro).filter((item): item is string => Boolean(item)))];
   return (
     <>
       <div className="page-heading">
@@ -1777,7 +1800,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
             <span className="result-count">{visibleCalls.length} resultados</span>
           </div>
         </div>
-        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
+        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
@@ -1785,7 +1808,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           <table ref={tableRef}>
             <thead>
               <tr>
-                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Abertura</th><th>Tempo aguardando</th><th>Status</th><th>Tecnico</th></>}
+                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Bairro / Endereço</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Bairro / Endereço</th><th>Abertura</th><th>Tempo aguardando</th><th>Status</th><th>Tecnico</th></>}
               </tr>
             </thead>
             <tbody>
@@ -1794,7 +1817,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
                   key={call.id}
                   onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)}
                 >
-                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaDurationCell openedAt={call.openedAt} /></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.client}<small className="table-subtext">{call.city}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td></>}
+                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaDurationCell openedAt={call.openedAt} /></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.client}<small className="table-subtext">{call.city}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}</td></>}
                 </tr>
               ))}
             </tbody>
@@ -1861,6 +1884,8 @@ function CallDetailBase() {
   const [reason, setReason] = useState("");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
+  const [address, setAddress] = useState("");
+  const [bairro, setBairro] = useState("");
   const [olt, setOlt] = useState("");
   const [slotPon, setSlotPon] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1872,7 +1897,7 @@ function CallDetailBase() {
         setStatus(callData.call.status);
         setTechnicianId(callData.call.technicianId || "");
         setNotes(callData.call.notes);
-        setOrderNumber(callData.call.orderNumber); setBdesk(callData.call.bdesk); setOfficeTrack(callData.call.officeTrack); setClient(callData.call.client); setType(callData.call.type); setReason(callData.call.reason); setRegion(callData.call.region); setCity(callData.call.city); setOlt(callData.call.olt); setSlotPon(callData.call.slotPon);
+        setOrderNumber(callData.call.orderNumber); setBdesk(callData.call.bdesk); setOfficeTrack(callData.call.officeTrack); setClient(callData.call.client); setType(callData.call.type); setReason(callData.call.reason); setRegion(callData.call.region); setCity(callData.call.city); setAddress(callData.call.address || ""); setBairro(callData.call.bairro || ""); setOlt(callData.call.olt); setSlotPon(callData.call.slotPon);
         setTechnicians(technicianData.technicians);
       },
     );
@@ -1881,7 +1906,7 @@ function CallDetailBase() {
   async function save() {
     setSaving(true);
     try {
-      const data = await api.updateCall(id, { orderNumber, bdesk, officeTrack, client, type, reason, region, city, olt, slotPon, status, technicianId: technicianId || null, notes });
+      const data = await api.updateCall(id, { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, status, technicianId: technicianId || null, notes });
       setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || "");
       setMessage("Chamado atualizado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar alteracoes."); }
@@ -1923,6 +1948,8 @@ function CallDetailBase() {
             <EditableDetailItem label="Motivo" value={reason} onChange={setReason} />
             <label className="detail-item editable-detail-item"><span>Regiao</span><select className="region-detail-select" value={region} onChange={(event) => setRegion(event.target.value)}><option value="">Selecione uma região</option>{region && !operationalRegions.includes(region) && <option value={region}>{region}</option>}{operationalRegions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
             <EditableDetailItem label="Cidade" value={city} onChange={setCity} />
+            <EditableDetailItem label="Bairro" value={bairro} onChange={setBairro} />
+            <EditableDetailItem label="Endereço" value={address} onChange={setAddress} />
             <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
             <DetailItem label="Abertura" value={new Date(call.openedAt).toLocaleString("pt-BR")} />

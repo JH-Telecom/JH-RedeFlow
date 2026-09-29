@@ -29,6 +29,9 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 - Identificadores operacionais sao avaliados em ordem de preferencia: ordem de servico, BDESK, Office Track, OS Casa Cliente, contrato e numero do cliente.
 - `Data` e `Fim` formam `executed_at`, preservando a data real da conclusao.
 - Nos filtros historicos de chamados e indicadores, registros finalizados/cancelados usam `executed_at`; chamados ativos usam `opened_at`.
+- Para atividades com endereço, o backend remove prefixos duplicados como `RUA RUA` e extrai `bairro` somente quando consegue separar o logradouro do trecho de cidade; endereço sem contexto suficiente não gera bairro.
+- `bairro` e `address` são campos do chamado compartilhados por NOC, FIELD e demais origens; uma atualização vazia mantém um valor válido já persistido.
+- A região é recalculada pelo mapeamento OLT→Região existente, inclusive em atualizações/reprocessamentos; OLT sem correspondência mantém a região disponível.
 - O motivo de encerramento vira o resultado e tambem fica registrado nas observacoes quando houver valor.
 - Cada alteracao efetiva gera log e snapshot com arquivo, identificador, payload e horario; cada execucao grava contadores em `google_drive_sync_runs`.
 - Status e motivo de cancelamento da base podem reconciliar chamados ja encerrados; alteracoes humanas continuam sujeitas ao bloqueio normal.
@@ -36,6 +39,6 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 
 ## Banco de dados
 
-Antes de sincronizar, aplique `database/migrations/008_google_drive_history.sql` no PostgreSQL local ou `supabase/migrations/202609290008_google_drive_history.sql` no Supabase.
+Antes de sincronizar, aplique em ordem `database/migrations/008_google_drive_history.sql` e `database/migrations/009_call_location_fields.sql` no PostgreSQL local, ou suas equivalentes `supabase/migrations/202609290008_google_drive_history.sql` e `supabase/migrations/202609290009_call_location_fields.sql` no Supabase.
 
 Linhas sem identificador operacional ou com tipo/status fora das regras sao contabilizadas como `unmatched` ou `skipped` e nao criam chamados.

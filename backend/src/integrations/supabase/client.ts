@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
-import { identifyAtreladas } from '../wuzapi/noc-consolidation.js';
+import { identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
 
 let adminClient: SupabaseClient | null = null;
 let authClient: SupabaseClient | null = null;
@@ -150,7 +150,7 @@ export async function deleteSupabaseTechnician(id: string) {
 
 export async function listSupabaseCalls(status?: CallStatus, filters: { from?: string; to?: string; supervisorId?: string } = {}): Promise<Call[]> {
   const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
-  let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false });
+  let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false });
   if (status) query = query.eq('status', status);
   if (filters.from || filters.to) {
     const from = filters.from ? `${filters.from}T00:00:00.000Z` : undefined;
@@ -169,7 +169,7 @@ export async function listSupabaseCalls(status?: CallStatus, filters: { from?: s
     const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
     const observationRows = Array.isArray((row as any).call_observations) ? (row as any).call_observations : [];
     const lastObservationAt = observationRows.map((observation: { created_at?: string }) => observation.created_at).filter(Boolean).sort().pop();
-    return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
+    return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', address: row.address || '', bairro: row.bairro || '', olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
   });
 }
 
@@ -209,11 +209,11 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 
-export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; executedAt?: string; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
+export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; executedAt?: string; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
-  if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+  if (!current || (['Finalizado', 'Cancelado'].includes(current.status) && actor.roleId !== 'system')) return undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
+  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
   for (const field of Object.keys(databaseFields)) {
     const value = input[field as keyof typeof input];
     if (value !== undefined) changes[databaseFields[field]] = value;
@@ -223,7 +223,7 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
   const { data, error } = await getSupabaseAdmin().from('calls').update(changes).eq('id', id).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
   for (const field of Object.keys(input)) {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(input[field as keyof typeof input] ?? '');
@@ -322,6 +322,7 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
     const structured = (analysis || {}) as Partial<ActivationAnalysis>;
     const value = (key: string) => typeof extractedData[key] === 'string' ? String(extractedData[key]) : '';
     const orderNumber = structured.office_track || structured.os_ot || value('officeTrack') || value('orderNumber') || value('bdesk') || `PEND-${id.slice(-6)}`;
+    const olt = structured.olt || value('olt');
     const callInput = {
       order_number: orderNumber,
       bdesk: structured.bdesk || value('bdesk') || '',
@@ -329,17 +330,19 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
       client: value('client') || 'Cliente nao identificado',
       type: structured.tipo_registro || value('type') || 'Acionamento',
       reason: structured.motivo || structured.tipo_falha || value('reason') || 'Acionamento recebido',
-      region: value('region') || 'Nao informada',
+      region: resolveOltRegion(olt).region || value('region') || 'Nao informada',
       city: value('city') || 'Nao informada',
-      olt: structured.olt || value('olt') || '',
+      address: structured.endereco_principal || '',
+      bairro: structured.bairro_principal || '',
+      olt,
       slot_pon: Array.isArray(structured.slot_pon) ? structured.slot_pon.join(', ') : value('slotPon') || '',
       status: 'Aberto',
       opened_at: new Date().toISOString(),
       notes: 'Criado a partir de acionamento aceito.',
     };
-    const { data: callRow, error: callError } = await admin.from('calls').insert(callInput).select('id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes').single();
+    const { data: callRow, error: callError } = await admin.from('calls').insert(callInput).select('id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes').single();
     if (callError || !callRow) throw new Error(callError?.message || 'Nao foi possivel criar o chamado.');
-    call = { id: callRow.id, orderNumber: callRow.order_number, bdesk: callRow.bdesk || '', officeTrack: callRow.office_track || '', client: callRow.client || '', type: callRow.type || '', reason: callRow.reason || '', region: callRow.region || '', city: callRow.city || '', olt: callRow.olt || '', slotPon: callRow.slot_pon || '', status: callRow.status as CallStatus, technicianId: callRow.technician_id || undefined, openedAt: callRow.opened_at, assignedAt: callRow.assigned_at || undefined, executedAt: callRow.executed_at || undefined, result: callRow.result || undefined, cancellationReason: callRow.cancellation_reason || undefined, notes: callRow.notes || '' };
+    call = { id: callRow.id, orderNumber: callRow.order_number, bdesk: callRow.bdesk || '', officeTrack: callRow.office_track || '', client: callRow.client || '', type: callRow.type || '', reason: callRow.reason || '', region: callRow.region || '', city: callRow.city || '', address: callRow.address || '', bairro: callRow.bairro || '', olt: callRow.olt || '', slotPon: callRow.slot_pon || '', status: callRow.status as CallStatus, technicianId: callRow.technician_id || undefined, openedAt: callRow.opened_at, assignedAt: callRow.assigned_at || undefined, executedAt: callRow.executed_at || undefined, result: callRow.result || undefined, cancellationReason: callRow.cancellation_reason || undefined, notes: callRow.notes || '' };
   }
   const { error: updateError } = await admin.from('activations').update({ status: decision, decision_by: actorId, decision_at: new Date().toISOString(), created_call_id: call?.id || null, rejection_reason: decision === 'Recusado' ? rejectionReason || null : null }).eq('id', id).eq('status', 'Pendente');
   if (updateError) throw new Error(updateError.message);

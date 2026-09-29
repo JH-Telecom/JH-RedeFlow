@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createDriveCall, listCalls, recordDriveCallSnapshot, recordDriveSyncRun, updateCall, type DriveCallSource } from '../store.js';
 import type { Call, EditableCallFields, User } from '../types.js';
 import { parseImport } from '../imports/parser.js';
+import { resolveOltRegion } from './wuzapi/noc-consolidation.js';
 
 const defaultFolderId = '1m9m2atkUrxwb2v9xzTLgqebOQ4GQJue-';
 const validActivityTypes = new Set(['manutencao corretiva de rede', 'manutencao de rede field', 'reparo corretivo']);
@@ -88,6 +89,44 @@ function parseReferenceDate(dateValue: string) {
   return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 }
 
+function normalizeNeighborhood(valueText: string, city: string) {
+  const candidate = valueText.replace(/^\d+[A-Z]?\s*/i, '').trim();
+  const normalized = candidate.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+  const normalizedCity = city.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+  if (!normalized || normalized === normalizedCity || /^\d+$/.test(normalized) || /^(?:SP|UF|CEP|APTO|APARTAMENTO|BLOCO|BL|N\/A|NA|SEM BAIRRO)$/i.test(normalized)) return '';
+  return normalized;
+}
+
+function parseDriveLocation(row: DriveRow) {
+  const rawAddress = value(row, 'Endereço', 'Endereco', 'Endereço do Cliente', 'Endereco do Cliente', 'Endereço de Instalação', 'Endereco de Instalacao');
+  let address = rawAddress.replace(/\s+/g, ' ').trim();
+  const duplicateStreetPrefix = /^(RUA|AVENIDA|AV\.?|ALAMEDA|TRAVESSA|ESTRADA|RODOVIA)\s+\1\b/i;
+  while (duplicateStreetPrefix.test(address)) address = address.replace(duplicateStreetPrefix, '$1').trim();
+
+  let city = value(row, 'Cidade', 'Municipio', 'Município');
+  const state = value(row, 'Estado', 'UF');
+  const suffix = address.match(/,\s*([^,]+?)\s*-\s*([A-Z]{2})\s*$/i);
+  if (!city && suffix) city = suffix[1].trim();
+  if (!address || !city) return { address, bairro: '', city };
+
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  const normalizedCity = normalizeOrder(city);
+  const normalizedState = normalizeOrder(state || suffix?.[2] || '');
+  let cityIndex = -1;
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const part = parts[index];
+    const normalizedPart = normalizeOrder(part);
+    if (normalizedPart === normalizedCity || (normalizedPart.startsWith(normalizedCity) && (!normalizedState || normalizedPart.endsWith(normalizedState)))) {
+      cityIndex = index;
+      break;
+    }
+  }
+  if (cityIndex < 1) return { address, bairro: '', city };
+
+  const neighborhood = normalizeNeighborhood(parts[cityIndex - 1], city);
+  return { address, bairro: neighborhood, city };
+}
+
 function normalizeDriveStatus(valueText: string) {
   const status = normalize(valueText);
   if (!status) return 'desconhecido';
@@ -109,6 +148,8 @@ export function buildDriveCall(row: DriveRow): Call | undefined {
   const bdesk = value(row, 'BDESK', 'BDesk');
   const officeTrack = value(row, 'Office Track', 'OS OT', 'OT');
   const orderNumber = order || (bdesk ? `BDESK-${bdesk}` : '') || officeTrack || primary.raw;
+  const location = parseDriveLocation(row);
+  const olt = value(row, 'OLT');
   const referenceDate = parseReferenceDate(value(row, 'Data'));
   const result = value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo');
   const executedAt = parseFinishedAt(value(row, 'Data'), value(row, 'Fim'));
@@ -118,9 +159,10 @@ export function buildDriveCall(row: DriveRow): Call | undefined {
     client: value(row, 'Nome do Cliente', 'Cliente', 'Assinante'),
     type: value(row, 'Tipo de Atividade', 'Tipo'),
     reason: value(row, 'Motivo', 'Motivo de Encerramento das atividades', 'Motivo de Encerramento'),
-    region: value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual'),
-    city: value(row, 'Cidade', 'Municipio', 'Município'),
-    olt: value(row, 'OLT'), slotPon: value(row, 'Slot/PON', 'Slot PON', 'PON'),
+    region: resolveOltRegion(olt).region || value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual'),
+    city: location.city,
+    address: location.address, bairro: location.bairro,
+    olt, slotPon: value(row, 'Slot/PON', 'Slot PON', 'PON'),
     status, openedAt: referenceDate ? `${referenceDate}T00:00:00-03:00` : new Date().toISOString(),
     executedAt, result: result || undefined, cancellationReason: status === 'Cancelado' ? result || undefined : undefined,
     notes: result || 'Importado da base historica do Google Drive.',
@@ -145,7 +187,9 @@ function buildDriveUpdate(row: DriveRow, existing: Call) {
   const activityType = value(row, 'Tipo de Atividade', 'Tipo');
   const resultValue = value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo');
   const rawRegion = value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual');
-  const rawCity = value(row, 'Cidade', 'Municipio', 'Município');
+  const location = parseDriveLocation(row);
+  const rawCity = location.city || value(row, 'Cidade', 'Municipio', 'Município');
+  const olt = value(row, 'OLT') || existing.olt;
   const rawType = activityType || existing.type;
   const nextStatus: 'Aberto' | 'Finalizado' | 'Cancelado' | undefined = statusText === 'finalizado' ? 'Finalizado' : statusText === 'cancelado' ? 'Cancelado' : statusText === 'aberto' ? 'Aberto' : undefined;
   const executedAt = parseFinishedAt(value(row, 'Data'), value(row, 'Fim')) || existing.executedAt;
@@ -160,8 +204,12 @@ function buildDriveUpdate(row: DriveRow, existing: Call) {
   const changes: Partial<EditableCallFields> = {
     type: rawType || existing.type,
     reason: value(row, 'Motivo', 'Motivo de Encerramento das atividades', 'Motivo de Encerramento') || existing.reason,
-    region: rawRegion || existing.region,
+    region: resolveOltRegion(olt).region || rawRegion || existing.region,
     city: rawCity || existing.city,
+    address: location.address || existing.address || '',
+    bairro: location.bairro || existing.bairro || '',
+    olt,
+    slotPon: value(row, 'Slot/PON', 'Slot PON', 'PON') || existing.slotPon,
     notes,
   };
 
