@@ -222,7 +222,7 @@ test('stores observation attachments and serves them through the authenticated c
   });
   const session = await loginResponse.json() as { token: string };
   const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
-  const imageBase64 = Buffer.from('image fixture').toString('base64');
+  const imageBase64 = Buffer.alloc(4 * 1024 * 1024, 1).toString('base64');
   const documentBase64 = Buffer.from('work report fixture').toString('base64');
   const created = await fetch(`${baseUrl}/api/chamados/call-240918-01/observacoes`, {
     method: 'POST',
@@ -236,9 +236,10 @@ test('stores observation attachments and serves them through the authenticated c
     }),
   });
   const createdBody = await created.json() as { observation: { id: string; attachments: Array<{ id: string; fileName: string; mimeType: string; sizeBytes: number }> } };
-  assert.equal(created.status, 201);
+  assert.equal(created.status, 201, JSON.stringify(createdBody));
   assert.equal(createdBody.observation.attachments.length, 2);
   assert.deepEqual(createdBody.observation.attachments.map((attachment) => attachment.fileName), ['fachada.jpg', 'relatorio.txt']);
+  assert.equal(createdBody.observation.attachments[0].sizeBytes, 4 * 1024 * 1024);
 
   const historyResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01/observacoes`, { headers });
   const historyBody = await historyResponse.json() as { observations: Array<{ id: string; attachments: Array<{ id: string }> }> };

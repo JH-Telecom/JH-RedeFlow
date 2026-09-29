@@ -94,9 +94,10 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - imagens recebem miniatura no histórico; outros formatos aparecem como arquivo; clicar em qualquer anexo baixa seu conteúdo;
 - listagens carregam apenas metadados; conteúdo é entregue sob demanda por endpoint autenticado e condicionado ao acesso/escopo do chamado;
 - limites por observação: até 8 arquivos, 5 MB por arquivo e 10 MB combinados; anexos sem texto são permitidos;
+- validação Base64 usa decode/reencode por Buffer; evita stack overflow que ocorria com arquivos de imagem grandes;
 - novas tabelas: `call_observation_attachments`, com remoção em cascata quando a observação é removida;
 - migrations: [database/migrations/012_call_observation_attachments.sql](database/migrations/012_call_observation_attachments.sql) e [supabase/migrations/202609290014_call_observation_attachments.sql](supabase/migrations/202609290014_call_observation_attachments.sql);
-- validação: teste HTTP de upload/listagem/download 1/1 passou, typecheck backend e build frontend passaram. Migração ainda precisa ser aplicada no ambiente correspondente.
+- validação: teste HTTP de upload/listagem/download com imagem de 4 MiB 1/1 passou, typecheck backend e build frontend passaram. Migração ainda precisa ser aplicada no ambiente correspondente.
 
 Arquivos alterados: [backend/src/types.ts](backend/src/types.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/server.ts](backend/src/server.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/main.tsx](frontend/src/main.tsx), [frontend/src/observation-attachments.css](frontend/src/observation-attachments.css), migrations local 012/Supabase 014 e [ROADMAP.md](ROADMAP.md).
 
@@ -1020,7 +1021,7 @@ Portas e serviços:
 ### Teste
 Upload, prévia e download de anexos em observações
 
-Resultado: ✅ teste HTTP de upload/listagem/download 1/1 passou; typecheck backend e build frontend passaram.
+Resultado: ✅ teste HTTP de upload/listagem/download com imagem de 4 MiB 1/1 passou; typecheck backend e build frontend passaram.
 
 ### Teste
 Balanço do sino e rotação do refresh
@@ -1122,7 +1123,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Anexos em observações
 
-Upload/listagem/download autenticados e prévia de imagem implementados. Teste HTTP 1/1, typecheck backend e build frontend passaram. Aplicar migration local 012 ou Supabase 014 antes de usar em runtime com banco. Limites: 8 arquivos, 5 MB por arquivo, 10 MB total por observação. Downloads respeitam `calls.view` e o escopo do chamado.
+Upload/listagem/download autenticados e prévia de imagem implementados. A validação Base64 foi trocada por Buffer após um stack overflow com arquivo grande; imagem de 4 MiB passa no teste HTTP (1/1). Typecheck backend e build frontend passaram. Aplicar migration local 012 ou Supabase 014 antes de usar em runtime com banco. Limites: 8 arquivos, 5 MB por arquivo, 10 MB total por observação. Downloads respeitam `calls.view` e o escopo do chamado.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Animação do sino
 

@@ -368,8 +368,10 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
   const decodedAttachments: CallObservationAttachmentInput[] = [];
   let totalBytes = 0;
   for (const attachment of parsed.data.attachments) {
-    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(attachment.contentBase64)) return response.status(400).json({ message: `O arquivo ${attachment.fileName} possui conteudo invalido.` });
-    const sizeBytes = Buffer.from(attachment.contentBase64, 'base64').byteLength;
+    const decodedContent = Buffer.from(attachment.contentBase64, 'base64');
+    const canonicalBase64 = decodedContent.toString('base64').replace(/=+$/, '');
+    if (!canonicalBase64 || canonicalBase64 !== attachment.contentBase64.replace(/=+$/, '')) return response.status(400).json({ message: `O arquivo ${attachment.fileName} possui conteudo invalido.` });
+    const sizeBytes = decodedContent.byteLength;
     if (sizeBytes !== attachment.sizeBytes) return response.status(400).json({ message: `O tamanho do arquivo ${attachment.fileName} nao corresponde ao conteudo.` });
     totalBytes += sizeBytes;
     decodedAttachments.push({ ...attachment, fileName: attachment.fileName.replace(/[\\/\r\n]/g, '_'), mimeType: attachment.mimeType || 'application/octet-stream' });
