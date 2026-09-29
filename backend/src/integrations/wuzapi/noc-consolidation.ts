@@ -168,9 +168,9 @@ export function parseNocAddress(raw: string): NocAddressRecord {
   const header = raw.match(/(?:^|\n)\s*NOME\s*:\s*(.*?)\s*\|\s*CONTRATO\s*:\s*([^\n|]+)/i);
   const nome = header?.[1]?.trim() || valueBetween(raw, /(?:^|\n)\s*NOME\s*:\s*/i, /\n\s*CONTRATO\s*:/i);
   const contrato = header?.[2]?.trim() || valueBetween(raw, /(?:^|\n)\s*CONTRATO\s*:\s*/i, /\n\s*CEP\s*:/i);
-  const cep = raw.match(/\bCEP\s*:\s*([0-9]{5}[-.]?[0-9]{3})/i)?.[1] || null;
+  const cep = raw.match(/\bCEP\s*:\s*((?:[0-9]{2}\.[0-9]{3}|[0-9]{5})[-.]?[0-9]{3})/i)?.[1] || null;
   const labeledAddress = valueBetween(raw, /(?:^|\n)\s*ENDERE[CÇ]O\s*:\s*/i, /\n\s*(?:COMP\.?\s*\/\s*REF|COMPLEMENTO|REFER[EÊ]NCIA)\s*:/i);
-  const fallbackAddress = raw.replace(/^.*?\bCEP\s*:\s*[0-9]{5}[-.]?[0-9]{3}\s*/is, '').trim();
+  const fallbackAddress = raw.replace(/^.*?\bCEP\s*:\s*(?:[0-9]{2}\.[0-9]{3}|[0-9]{5})[-.]?[0-9]{3}\s*/is, '').trim();
   const endereco = cleanAddressText(labeledAddress || fallbackAddress);
   const complemento = valueBetween(raw, /(?:^|\n)\s*(?:COMP\.?\s*\/\s*REF|COMPLEMENTO|REFER[EÊ]NCIA)\s*:\s*/i, /\n\s*[-=]{3,}|$/i);
   const enderecoBase = normalizeAddressBase(endereco);

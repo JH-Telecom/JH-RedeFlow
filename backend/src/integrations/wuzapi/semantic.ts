@@ -25,6 +25,9 @@ function sectionValue(text: string, heading: RegExp, until: RegExp) {
 function parseAddresses(text: string) {
   const section = sectionValue(text, /(?:^|\n)\s*-?\s*endere[cç]os?\s*:\s*/i, /\n\s*-?\s*(?:cope\s+rede|t[eé]cnico\s+rede|observa[cç][oõ]es?)\s*:/i);
   if (!section) return null;
+  const customerRecords = section.split(/(?=^\s*(?:\d{4,}\s+\S|NOME\s*:))/gim).map((item) => item.trim()).filter(Boolean);
+  const recordsWithCep = customerRecords.filter((item) => /\bCEP\s*:\s*(?:[0-9]{2}\.[0-9]{3}|[0-9]{5})[-.]?[0-9]{3}/i.test(item));
+  if (recordsWithCep.length > 1) return recordsWithCep;
   return section.split(/(?=\bCEP\s*:\s*)/i).map((item) => item.trim()).filter(Boolean);
 }
 

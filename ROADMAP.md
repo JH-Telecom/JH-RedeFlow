@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: correção da consolidação NOC para endereços com números na rua, placeholders e bairros repetidos.
+Última implementação: correção do parser NOC para listas com contrato/nome antes de CEP pontuado.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: validar a próxima mensagem NOC real com rua numerada e conferir Endereço/Bairro no chamado aceito; registros antigos precisam ser reprocessados para receber a correção.
+Próxima ação: reprocessar/editar chamados criados com Endereço igual ao contrato e validar uma nova mensagem no fluxo de aceite.
 
 ---
 
@@ -72,6 +72,7 @@ Próxima ação: validar a próxima mensagem NOC real com rua numerada e conferi
 - [x] Aceite de acionamentos com campos longos corrigido.
 - [x] Consolidação determinística de endereços NOC, bairros, clientes afetados e atreladas.
 - [x] Normalização NOC de ruas com números no nome, placeholders com underscore e bairro consensual por CEP.
+- [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
 - [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
@@ -80,6 +81,17 @@ Próxima ação: validar a próxima mensagem NOC real com rua numerada e conferi
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Correção de registros NOC iniciados por contrato/nome — implementada em 2026-09-29
+
+- causa: `parseAddresses` dividia registros somente antes de `CEP`; o contrato/nome anterior ao primeiro CEP virava um sexto registro sem CEP e podia ser selecionado como Endereço;
+- `parseAddresses` agora agrupa por linhas iniciadas por contrato numérico ou `Nome:` quando encontra múltiplos registros válidos; formatos antigos continuam usando a divisão por CEP;
+- reconhecimento de CEP inclui o formato pontuado `NN.NNN-NNN` (ex.: `08.343-200`) em segmentação, extração e remoção do cabeçalho;
+- regressão da mensagem reportada valida cinco clientes, endereço principal `RUA LA VIOLETEIRA, 122` e bairro `JARDIM DA CONQUISTA`;
+- nenhuma alteração de schema; chamados que já foram persistidos com endereço incorreto não são recalculados automaticamente e exigem reprocessamento/edição;
+- validação: suíte de parser passou 23/23 e typecheck backend passou.
+
+Arquivos alterados: [backend/src/integrations/wuzapi/semantic.ts](backend/src/integrations/wuzapi/semantic.ts), [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/test/parsers.test.ts](backend/test/parsers.test.ts) e [ROADMAP.md](ROADMAP.md).
 
 ### Correção de endereço e bairro NOC — implementada em 2026-09-29
 
@@ -244,6 +256,12 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Contrato antes do CEP na lista de endereços NOC
+
+Corrigido caso em que o endereço principal era preenchido com o número do contrato. Listas no formato contrato/nome, CEP pontuado e endereço agora são separadas por registro de cliente antes da extração; quando não há cabeçalhos por cliente, o fallback anterior de segmentação por CEP é mantido.
+
+Regressão confirma cinco registros, Endereço `RUA LA VIOLETEIRA, 122` e Bairro `JARDIM DA CONQUISTA`. Suíte de parsers 23/23; typecheck backend passou. Nenhuma migration. Registros antigos não são recalculados automaticamente.
 
 ## 2026-09-29 — Correção de endereço e bairro NOC
 
@@ -930,7 +948,7 @@ Resultado: ✅ 21 testes de parser/resolução e 1 teste HTTP de salvar/permiss�
 ### Teste
 Consolidação de endereço/bairro NOC
 
-Resultado: ✅ 22 testes de parser passaram, incluindo a amostra com rua numerada, placeholder underscore e CEP compartilhado; typecheck backend passou.
+Resultado: ✅ 23 testes de parser passaram, incluindo rua numerada, placeholder underscore, contrato antes do CEP e CEP pontuado; typecheck backend passou.
 
 ---
 
@@ -945,6 +963,7 @@ Resultado: ✅ 22 testes de parser passaram, incluindo a amostra com rua numerad
 
 ### 🟠 IMPORTANTE
 
+- reprocessar/editar chamados antigos que tenham Endereço igual ao contrato;
 - confirmar em acionamento real que novos chamados e registros reprocessados recebem o bairro corrigido;
 - validar cabeçalhos, correspondência e fuso horário com a planilha D-0 oficial;
 - revisar a interface de dashboards para filtros de supervisor e data;
@@ -959,13 +978,17 @@ Resultado: ✅ 22 testes de parser passaram, incluindo a amostra com rua numerad
 
 ## 14. PRÓXIMA AÇÃO
 
-1. validar uma nova mensagem NOC com Endereço/Bairro no chamado aceito;
-2. reprocessar manualmente os chamados antigos que tenham sido salvos com rua ou bairro incorretos;
+1. reprocessar/editar o chamado recente com Endereço igual ao contrato;
+2. validar uma nova mensagem NOC com CEP pontuado no fluxo de aceite;
 3. continuar a validação pendente do editor OLT→Região no banco publicado após aplicar migration 011/013.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Parsing de endereço NOC antes do CEP
+
+Parser ajustado para associar contrato/nome ao CEP/endereço seguinte, reconhecer CEP `NN.NNN-NNN` e manter fallback dos formatos legados. Suíte de parsers 23/23 e typecheck passaram. O chamado já persistido com endereço incorreto não é alterado por esta correção; deve ser reprocessado ou editado manualmente. Esperado no exemplo: Endereço `RUA LA VIOLETEIRA, 122`, Bairro `JARDIM DA CONQUISTA`.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Consolidação NOC
 

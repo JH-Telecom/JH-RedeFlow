@@ -180,6 +180,46 @@ test('consolidates NOC addresses with numbered street names and underscore place
   assert.deepEqual(result.clientes.map((client) => client.bairro), Array(5).fill('VILA IOLANDA II'));
 });
 
+test('parses NOC address blocks that start with contract and customer before CEP', () => {
+  const analysis = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️
+- OLT: * VIP-CQT-SPO-OHW-01
+- SLOT/PON: * 05/10
+- Tipo de Falha: * Parcial
+- Data/Hora do Evento: * 29/09/2026 10:47
+- Contrato(s) Exemplo(s): * 4434699 | 6122077 | 4515016 | 4503780 | 6527402
+- Afetados: * 10
+- BDESK: * 653091
+- Tarefa Office Track: 602159272440102
+- Técnico Rede: JH TELECOM
+- Endereços:
+4434699 MARIA DE FATIMA BENICIO BRAGA ARAUJO
+CEP: 08.343-200
+RUA LA VIOLETEIRA, 122 CASA 1 JARDIM DA CONQUISTA, SAO PAULO - SP
+
+6122077 MARIA LUCINEIDE BEZERRA DA SILVA
+CEP: 08.343-200
+TRAVESSA LA VIOLETEIRA, 145 JARDIM DA CONQUISTA ZONA LESTE, SAO PAULO - SP
+
+4515016 ANDRÉIA SANTOS DA SILVA
+CEP: 08.343-200
+RUA LA VIOLETEIRA, 112 NAO_INFORMADO JARDIM DA CONQUISTA, SAO PAULO - SP
+
+4503780 HIAGO VINICIUS MARCONDES PINTO
+CEP: 08.343-200
+RUA LA VIOLETEIRA, 98 NAO_INFORMADO JARDIM DA CONQUISTA, SAO PAULO - SP
+
+6527402 MAIARA DA SILVA MOURA
+CEP: 08.343-200
+TRAVESSA LA VIOLETEIRA, 96 JARDIM DA CONQUISTA ZONA LESTE, SAO PAULO - SP
+
+- COPE REDE: paloma.tostes@alloha.com`);
+
+  assert.equal(analysis.localizacao?.length, 5);
+  assert.equal(analysis.endereco_principal, 'RUA LA VIOLETEIRA, 122');
+  assert.equal(analysis.bairro_principal, 'JARDIM DA CONQUISTA');
+  assert.equal(analysis.clientes_afetados?.length, 5);
+});
+
 test('identifies atreladas through technical identifiers and matching consolidated location', () => {
   const current = { olt: 'OLT-01', placa_pon: '06', slot_pon: ['00'], bdesk: null, office_track: 'OS-10', contrato: null, endereco_principal: 'RUA X, 100', bairro_principal: 'BAIRRO A' } as const;
   const ids = identifyAtreladas(current, [{ id: 'activation-1', analysis: { ...current, raw_text: '', eh_acionamento: true, tipo_registro: null, tipo_card: null, categoria: null, origem: null, prioridade: null, tecnico: null, auxiliar: null, telefone: null, bdesk: null, ticket: null, office_track: 'OS-10', os_ot: null, os_casa_cliente: null, contrato: null, sn: null, olt: 'OLT-01', slot_pon: ['00'], placa_pon: '06', tipo_falha: null, motivo: null, afetados: null, data_hora_evento: null, tratativa_realizada: null, localizacao: null, id_cto: null, loc_cto: null, materiais_utilizados: null, tecnico_rede: null, cope_rede: null, observacoes: null } }]);
