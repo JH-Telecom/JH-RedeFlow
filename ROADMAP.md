@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: enriquecimento do nome de cliente em chamados FIELD usando a coluna `Nome` das bases D-0/D-1.
+Última implementação: remoção de letra de bloco do bairro na consolidação de endereços NOC.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: sincronizar D-0/D-1 e verificar nomes nos chamados FIELD existentes; chamados antigos precisam ser reprocessados se não forem atualizados pela sincronização.
+Próxima ação: reprocessar/editar o chamado já salvo com bairro `A PARQUE SAO RAFAEL` e validar novos acionamentos com bloco no endereço.
 
 ---
 
@@ -74,6 +74,7 @@ Próxima ação: sincronizar D-0/D-1 e verificar nomes nos chamados FIELD existe
 - [x] Normalização NOC de ruas com números no nome, placeholders com underscore e bairro consensual por CEP.
 - [x] Remoção de prefixo CLT_ e duplicação de tipos de via, com inferência do Bairro em endereços FIELD.
 - [x] Enriquecimento do nome do cliente em chamados FIELD pela coluna `Nome` nas bases D-0/D-1, sem alterar chamados não FIELD.
+- [x] Remoção de letra isolada de bloco entre número do imóvel e bairro na extração NOC.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
 - [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
@@ -83,6 +84,15 @@ Próxima ação: sincronizar D-0/D-1 e verificar nomes nos chamados FIELD existe
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Letra de bloco contaminando o Bairro NOC — implementado em 2026-09-29
+
+- em endereços como `..., 733 A PARQUE SAO RAFAEL`, a letra isolada após o número do imóvel é tratada como complemento/bloco e removida antes da inferência do bairro;
+- o consenso do exemplo resulta em `PARQUE SAO RAFAEL`, inclusive nos bairros individuais dos três clientes;
+- nenhum schema foi alterado; chamados já persistidos não são recalculados e precisam de edição/reprocessamento;
+- validação: parsers 26/26 e typecheck backend passaram.
+
+Arquivos alterados: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/test/parsers.test.ts](backend/test/parsers.test.ts) e [ROADMAP.md](ROADMAP.md).
 
 ### Nome do cliente em chamados FIELD — implementado em 2026-09-29
 
@@ -279,6 +289,10 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Remoção de letra de bloco do Bairro NOC
+
+Corrigido o bairro que recebia o token isolado `A` entre número do imóvel e nome do bairro. A inferência remove uma letra de complemento/bloco imediatamente após a base do endereço, sem alterar o endereço-base. A regressão valida `PARQUE SAO RAFAEL` no resumo e nos três clientes. Parsers 26/26; typecheck backend passou; nenhuma migration.
 
 ## 2026-09-29 — Nome do cliente a partir de D-0/D-1 para Field
 
@@ -990,6 +1004,11 @@ Nome do cliente em chamados Field
 
 Resultado: ✅ 11 testes D-0/D-1/supervisor passaram; typecheck backend e build frontend passaram.
 
+### Teste
+Bairro NOC com letra de bloco
+
+Resultado: ✅ 26 testes de parser passaram, incluindo o caso `A PARQUE SAO RAFAEL`; typecheck backend passou.
+
 ---
 
 ## 13. PENDÊNCIAS
@@ -1003,6 +1022,7 @@ Resultado: ✅ 11 testes D-0/D-1/supervisor passaram; typecheck backend e build 
 
 ### 🟠 IMPORTANTE
 
+- editar/reprocessar chamado existente cujo bairro ainda contém letra de bloco;
 - sincronizar D-0/D-1 para preencher o nome em chamados FIELD existentes;
 - corrigir/reprocessar chamados antigos com Endereço contendo `CLT_` ou tipo de via duplicado;
 - reprocessar/editar chamados antigos que tenham Endereço igual ao contrato;
@@ -1020,13 +1040,17 @@ Resultado: ✅ 11 testes D-0/D-1/supervisor passaram; typecheck backend e build 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. sincronizar a base D-0/D-1 e verificar nomes em chamados FIELD;
-2. corrigir/reprocessar chamados recentes com Endereço contendo `CLT_`, rua duplicada ou Endereço igual ao contrato;
+1. corrigir/reprocessar o chamado existente cujo bairro contém `A` antes de `PARQUE SAO RAFAEL`;
+2. sincronizar D-0/D-1 e verificar nomes em chamados FIELD, além de revisar endereços importados;
 3. continuar a validação pendente do editor OLT→Região no banco publicado após aplicar migration 011/013.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Letra de bloco no Bairro NOC
+
+A inferência remove letra isolada de complemento/bloco imediatamente após o número do imóvel, evitando `A PARQUE SAO RAFAEL`. Parsers 26/26 e typecheck backend passaram; nenhuma alteração de schema. Chamados já salvos não são atualizados automaticamente e precisam ser reprocessados/editados manualmente.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Nome do cliente Field
 

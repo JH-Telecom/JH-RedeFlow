@@ -245,6 +245,33 @@ test('deduplicates repeated street types in NOC addresses', () => {
   }
 });
 
+test('does not include an apartment block letter in the NOC neighborhood', () => {
+  const analysis = analyzeOperationalMessage(`⚠️VALIDAR COM NOC ACESSO⚠️
+- OLT: * VIP-SRF-SPO-OHW-01
+- SLOT/PON: * 02/14
+- Tipo de Falha: * Parcial
+- BDESK: * 653068
+- Tarefa Office Track: 602144565080102
+- Endereços:
+Nome: WESLEY PATRICK PASSOS DE ANDRADE SILVA | Contrato: 4478053.2
+CEP: 08310-560
+RUA LEONICE ALVES RODRIGUES, 733 A PARQUE SAO RAFAEL, SAO PAULO - SP
+------------------------------
+
+Nome: CAIO SILVA ALENCAR | Contrato: 6778174.1
+CEP: 08310-550
+RUA RUA RUI DE AVEIRO, 16 CASA:0 PARQUE SAO RAFAEL, SAO PAULO - SP
+------------------------------
+
+Nome: LADJANE DE SOUZA NASCIMENTO | Contrato: 4579854.2
+CEP: 08310-550
+RUA RUI DE AVEIRO, 5 B CS PARQUE SAO RAFAEL, SAO PAULO - SP
+- COPE REDE: kaua.silva@alloha.com`);
+
+  assert.equal(analysis.bairro_principal, 'PARQUE SAO RAFAEL');
+  assert.deepEqual(analysis.clientes_afetados?.map((client) => client.bairro), Array(3).fill('PARQUE SAO RAFAEL'));
+});
+
 test('identifies atreladas through technical identifiers and matching consolidated location', () => {
   const current = { olt: 'OLT-01', placa_pon: '06', slot_pon: ['00'], bdesk: null, office_track: 'OS-10', contrato: null, endereco_principal: 'RUA X, 100', bairro_principal: 'BAIRRO A' } as const;
   const ids = identifyAtreladas(current, [{ id: 'activation-1', analysis: { ...current, raw_text: '', eh_acionamento: true, tipo_registro: null, tipo_card: null, categoria: null, origem: null, prioridade: null, tecnico: null, auxiliar: null, telefone: null, bdesk: null, ticket: null, office_track: 'OS-10', os_ot: null, os_casa_cliente: null, contrato: null, sn: null, olt: 'OLT-01', slot_pon: ['00'], placa_pon: '06', tipo_falha: null, motivo: null, afetados: null, data_hora_evento: null, tratativa_realizada: null, localizacao: null, id_cto: null, loc_cto: null, materiais_utilizados: null, tecnico_rede: null, cope_rede: null, observacoes: null } }]);

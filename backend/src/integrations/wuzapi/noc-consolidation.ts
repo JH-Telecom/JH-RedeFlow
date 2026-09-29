@@ -157,6 +157,7 @@ function inferNeighborhood(address: string | null) {
   const beforeCity = cityMatch ? normalized.slice(0, cityMatch.index) : normalized;
   const base = normalizeAddressBase(address);
   let remainder = base ? beforeCity.slice(base.length) : beforeCity;
+  if (base) remainder = remainder.replace(/^\s+[A-Z]\s+/, ' ');
   remainder = remainder.replace(/\b(APARTAMENTO|APTO|APT|CASA)\s*[:#]?\s*[A-Z0-9-]+/g, '').replace(/(?:\bBLOCO|\bBL\.?)\s*[:#]?\s*(?:BL\s*)?[A-Z0-9_-]+/g, '').replace(/\bFTTA\s*-?\s*[A-Z0-9-]*/g, '').replace(/\bFU\b/g, '').replace(/\bCOND(?:OMINIO)?\.?\s*[^,]*?(?=\bAP\b|,|$)/g, '').replace(/\bAP(?=\s+[A-Z])/g, '');
   const parts = remainder.split(/[,-]/).map((part) => cleanNeighborhoodCandidate(part)).filter((part): part is string => Boolean(part));
   if (parts.length) return parts[parts.length - 1] || null;
