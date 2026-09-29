@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   RefreshCcw,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -1681,6 +1682,8 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState("");
+  const [bulkDeleteMessage, setBulkDeleteMessage] = useState("");
+  const [canDeleteAllCalls, setCanDeleteAllCalls] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [, setClock] = useState(Date.now());
@@ -1692,6 +1695,32 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
       .then((data) => setCalls(data.calls))
       .catch((err) => setError(err.message));
   }, [status, dateRange.from, dateRange.to]);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('jh-redeflow-session');
+      const session = raw ? JSON.parse(raw) : null;
+      setCanDeleteAllCalls(Boolean(session?.user?.role?.permissions?.includes('calls.delete')));
+    } catch {
+      setCanDeleteAllCalls(false);
+    }
+  }, []);
+
+  async function deleteAllCalls() {
+    const confirmation = window.prompt('Esta ação apagará TODOS os chamados, inclusive os fora dos filtros atuais. Digite APAGAR TODOS para confirmar.');
+    if (confirmation !== 'APAGAR TODOS') return;
+    setLoading(true);
+    setError('');
+    setBulkDeleteMessage('');
+    try {
+      const result = await api.deleteAllCalls();
+      setCalls([]);
+      setBulkDeleteMessage(`${result.deleted} chamado(s) apagado(s).`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nao foi possivel apagar os chamados.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function copyTableAsImage() {
     const table = tableRef.current;
@@ -1774,14 +1803,20 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
             para abrir o atendimento.
           </p>
         </div>
-        <button
-          className={`secondary-button compact ${loading ? "is-refreshing" : ""}`}
-          onClick={() => void refreshCalls()}
-          disabled={loading}
-        >
-          <Activity size={15} /> Atualizar
-        </button>
+        <div className="calls-heading-actions">
+          {canDeleteAllCalls && !teamScoped && <button className="bulk-delete-button" onClick={() => void deleteAllCalls()} disabled={loading} title="Apaga todos os chamados, não apenas os filtrados">
+            <Trash2 size={15} /> Apagar todos os chamados
+          </button>}
+          <button
+            className={`secondary-button compact ${loading ? "is-refreshing" : ""}`}
+            onClick={() => void refreshCalls()}
+            disabled={loading}
+          >
+            <Activity size={15} /> Atualizar
+          </button>
+        </div>
       </div>
+      {bulkDeleteMessage && <div className="save-message">{bulkDeleteMessage}</div>}
       <section className={`panel table-panel calls-table${assignedOnly ? " attendance-table" : ""}`}>
         <div className="table-toolbar">
           <div className="search-field">

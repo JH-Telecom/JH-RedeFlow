@@ -175,12 +175,50 @@
   white-space: nowrap;
 }
 
+.calls-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.bulk-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #e1a7a7;
+  border-radius: 7px;
+  background: #fff7f7;
+  color: #bd5156;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bulk-delete-button:hover:not(:disabled) {
+  background: #fff0f0;
+}
+
+.bulk-delete-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 @media (max-width: 900px) {
   .dashboard-page-heading {
     align-items: stretch;
   }
 
   .dashboard-toolbar {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .calls-heading-actions {
+    width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
   }
@@ -208,6 +246,10 @@
 
   .dashboard-refresh-button {
     width: 100%;
+  }
+
+  .calls-heading-actions > button {
+    flex: 1 1 100%;
   }
 }
 

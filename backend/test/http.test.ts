@@ -302,6 +302,38 @@ test('admin can delete a test call through the protected API route', async () =>
   assert.equal(fetchResponse.status, 404);
 });
 
+test('bulk call deletion requires calls.delete and clears all calls', async () => {
+  const operatorLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'matheus@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const operatorSession = await operatorLogin.json() as { token: string };
+  const forbidden = await fetch(`${baseUrl}/api/chamados`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${operatorSession.token}` },
+  });
+  assert.equal(forbidden.status, 403);
+
+  const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const adminSession = await adminLogin.json() as { token: string };
+  const deleted = await fetch(`${baseUrl}/api/chamados`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${adminSession.token}` },
+  });
+  assert.equal(deleted.status, 200);
+  assert.deepEqual(await deleted.json(), { deleted: 4 });
+
+  const callsResponse = await fetch(`${baseUrl}/api/chamados`, {
+    headers: { authorization: `Bearer ${adminSession.token}` },
+  });
+  assert.deepEqual((await callsResponse.json() as { calls: unknown[] }).calls, []);
+});
+
 test('does not create duplicate activations when WuzAPI retries a message', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

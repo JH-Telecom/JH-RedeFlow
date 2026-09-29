@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: correção do bairro NOC quando linhas `N/A`/`NÃO INFORMADA` vêm após endereço e cidade/UF.
+Última implementação: exclusão global de chamados em lote protegida por `calls.delete`.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar a migration de localização nos bancos locais/Supabase e validar os dados persistidos em ambiente real.
+Próxima ação: aplicar a RPC de exclusão em lote no Supabase antes de usar a operação em produção; migrations 008–010 ainda precisam estar aplicadas conforme o runtime.
 
 ---
 
@@ -75,6 +75,27 @@ Próxima ação: aplicar a migration de localização nos bancos locais/Supabase
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Exclusão em lote de chamados — plano pré-implementação
+
+Registrado em 2026-09-29 antes das alterações de código.
+
+- estrutura existente: endpoint individual `DELETE /api/chamados/:id`, função `deleteCall` e permissão RBAC `calls.delete`;
+- reutilizar a mesma permissão e as tabelas existentes `calls`, `call_logs` e `call_observations`;
+- adicionar endpoint global `DELETE /api/chamados`, transacional no PostgreSQL/Supabase e protegido pela mesma permissão;
+- exibir ação em lote nas listas somente para quem tem `calls.delete`; exigir digitação de `APAGAR TODOS` e informar que a ação inclui chamados fora dos filtros visíveis;
+- preservar a exclusão individual e testar endpoint sem permissão, exclusão global e limpeza dos dependentes.
+
+#### Resultado
+
+- `DELETE /api/chamados` reutiliza `calls.delete`; a exclusão individual continua disponível;
+- PostgreSQL local remove `call_logs`, `call_observations` e `calls` em uma transação;
+- Supabase chama `delete_all_calls()` em transação, com execução concedida somente ao `service_role`; logs e observações são removidos antes dos chamados;
+- a lista mostra o botão global apenas a usuários com a permissão, exige digitar `APAGAR TODOS` e informa que ignora os filtros atuais;
+- endpoint retorna a contagem apagada; referências de acionamentos são anuladas pela FK existente e snapshots de Drive são removidos em cascata;
+- teste HTTP confirma `403` para Operador e exclusão total pelo Administrador; teste do store confirma contagem e lista vazia.
+
+Arquivos alterados: `backend/src/store.ts`, `backend/src/server.ts`, `backend/test/http.test.ts`, `frontend/src/api.ts`, `frontend/src/App.tsx`, `frontend/src/filters.css`, `supabase/migrations/202609290010_bulk_delete_calls.sql` e `ROADMAP.md`.
 
 ### Correção — Bairro unificado + Região automática por OLT
 
@@ -165,6 +186,14 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Exclusão global de chamados em lote
+
+Implementado `DELETE /api/chamados` com a permissão existente `calls.delete`, confirmação digitada `APAGAR TODOS` e remoção consistente de chamados, observações, logs e snapshots relacionados. O PostgreSQL local usa transação na store; Supabase usa RPC `delete_all_calls()` restrita ao `service_role`.
+
+Validação: teste HTTP confirma negação para Operador e sucesso para Administrador; teste de store confirma contagem e lista vazia; typecheck do backend e build do frontend passaram.
+
+Migration Supabase: [supabase/migrations/202609290010_bulk_delete_calls.sql](supabase/migrations/202609290010_bulk_delete_calls.sql). A migration é obrigatória antes de usar a operação em Supabase.
 
 ## 2026-09-29 — Bairro unificado e região automática por OLT
 
@@ -723,7 +752,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 ## 10. BANCO DE DADOS
 
-O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql), conforme o runtime. Aplique-as na ordem antes de habilitar a integração no ambiente correspondente.
+O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer [supabase/migrations/202609290010_bulk_delete_calls.sql](supabase/migrations/202609290010_bulk_delete_calls.sql). Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
 
 ---
 

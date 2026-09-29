@@ -793,6 +793,34 @@ export async function deleteCall(id: string): Promise<boolean> {
   }
   return true;
 }
+export async function deleteAllCalls(): Promise<number> {
+  ensureDemoData();
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().rpc('delete_all_calls');
+    if (error) throw new Error(error.message || 'Nao foi possivel apagar os chamados.');
+    return Number(data || 0);
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM call_logs');
+      await client.query('DELETE FROM call_observations');
+      const result = await client.query('DELETE FROM calls');
+      await client.query('COMMIT');
+      return result.rowCount || 0;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  }
+  const deleted = calls.size;
+  calls.clear();
+  observations.clear();
+  auditLogs.clear();
+  for (const activation of activations.values()) activation.createdCallId = undefined;
+  return deleted;
+}
 export async function listNotifications(includeOperational = true) {
   const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string }[];
   if (includeOperational) {

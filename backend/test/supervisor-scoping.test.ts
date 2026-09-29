@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
+import { getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
 import { buildDriveCall } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
@@ -140,6 +140,35 @@ test('accepted NOC and Drive FIELD calls persist the official neighborhood and a
     const neighborhoodMetrics = await getDashboardMetrics();
     assert.ok(neighborhoodMetrics.byNeighborhood.some((item) => item.label === 'COLOMBIA'));
     assert.ok(neighborhoodMetrics.byNeighborhood.some((item) => item.label === 'PIRAPORINHA'));
+  } finally {
+    if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
+    if (previousDemoData === undefined) delete process.env.REDEFLOW_DEMO_DATA; else process.env.REDEFLOW_DEMO_DATA = previousDemoData;
+    if (previousDatabaseUrl === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = previousDatabaseUrl;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = previousSupabaseUrl;
+    if (previousSupabaseAnon === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = previousSupabaseAnon;
+    if (previousSupabaseServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = previousSupabaseServiceRole;
+  }
+});
+
+test('bulk deletion removes every call and returns the number deleted', async () => {
+  const previousRuntime = process.env.REDEFLOW_RUNTIME;
+  const previousDemoData = process.env.REDEFLOW_DEMO_DATA;
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+  const previousSupabaseAnon = process.env.SUPABASE_ANON_KEY;
+  const previousSupabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  try {
+    process.env.REDEFLOW_RUNTIME = 'local';
+    process.env.REDEFLOW_DEMO_DATA = 'true';
+    process.env.DATABASE_URL = '';
+    process.env.SUPABASE_URL = '';
+    process.env.SUPABASE_ANON_KEY = '';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = '';
+    const initialCalls = await listCalls();
+    assert.ok(initialCalls.length > 0);
+    assert.equal(await deleteAllCalls(), initialCalls.length);
+    assert.deepEqual(await listCalls(), []);
   } finally {
     if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
     if (previousDemoData === undefined) delete process.env.REDEFLOW_DEMO_DATA; else process.env.REDEFLOW_DEMO_DATA = previousDemoData;
