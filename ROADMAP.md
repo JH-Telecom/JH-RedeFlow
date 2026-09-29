@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: persistência de Bairro inferido pela base D-1 mesmo quando Bairro é a única alteração no chamado.
+Última implementação: animação do sino de notificações alterada para toque oscilante ao receber acionamento.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: sincronizar D-0/D-1 e verificar Bairro/Cidade nos chamados FIELD que estavam sem geolocalização.
+Próxima ação: observar o sino ao receber novo acionamento e validar movimento reduzido no dispositivo.
 
 ---
 
@@ -75,6 +75,7 @@ Próxima ação: sincronizar D-0/D-1 e verificar Bairro/Cidade nos chamados FIEL
 - [x] Remoção de prefixo CLT_ e duplicação de tipos de via, com inferência do Bairro em endereços FIELD.
 - [x] Enriquecimento do nome do cliente em chamados FIELD pela coluna `Nome` nas bases D-0/D-1, sem alterar chamados não FIELD.
 - [x] Remoção de letra isolada de bloco entre número do imóvel e bairro na extração NOC.
+- [x] Animação do sino em balanço amortecido para novos acionamentos; rotação reservada ao refresh.
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
@@ -85,6 +86,16 @@ Próxima ação: sincronizar D-0/D-1 e verificar Bairro/Cidade nos chamados FIEL
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Animação de ícones — implementada em 2026-09-29
+
+- varredura do frontend encontrou animação de ícone somente no spinner de atualização; keyframes de toasts/confirmações animam contêineres e foram preservados;
+- o sino não gira durante polling; ao detectar novo acionamento, faz um toque lateral curto e amortecido;
+- o ícone RefreshCcw mantém rotação enquanto a operação está ativa;
+- `prefers-reduced-motion` desativa as duas animações;
+- validação: build frontend passou; permanece o aviso existente de bundle acima de 500 kB.
+
+Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/refresh.css](frontend/src/refresh.css) e [ROADMAP.md](ROADMAP.md).
 
 ### Inferência de Bairro FIELD a partir do endereço completo — implementada em 2026-09-29
 
@@ -302,6 +313,10 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Toque animado do sino de notificações
+
+O sino agora oscila para os dois lados com desaceleração ao detectar novo acionamento, em vez de girar durante consultas periódicas. O RefreshCcw mantém a rotação de carregamento. As animações de ícones respeitam `prefers-reduced-motion`. Build frontend passou.
 
 ## 2026-09-29 — Persistência de Bairro FIELD na sincronização D-1
 
@@ -986,6 +1001,11 @@ Portas e serviços:
 ## 12. TESTES
 
 ### Teste
+Balanço do sino e rotação do refresh
+
+Resultado: ✅ build frontend passou; `prefers-reduced-motion` desativa ambas as animações.
+
+### Teste
 Login com usuário administrador
 
 Resultado: ✅ funcionando no modo local demonstrativo.
@@ -1076,6 +1096,10 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Animação do sino
+
+O sino balança brevemente quando chega acionamento novo; polling não dispara animação. O refresh segue girando durante carga. Ambos respeitam `prefers-reduced-motion`. Build frontend passou.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Persistência de Bairro FIELD
 

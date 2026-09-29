@@ -2,6 +2,12 @@
   animation: refresh-spin 0.85s linear infinite;
 }
 
+.notification.is-ringing svg {
+  transform-box: fill-box;
+  transform-origin: 50% 10%;
+  animation: bell-ring 0.9s ease-in-out both;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.72;
@@ -10,5 +16,23 @@ button:disabled {
 @keyframes refresh-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0); }
+  12% { transform: rotate(18deg); }
+  24% { transform: rotate(-16deg); }
+  36% { transform: rotate(12deg); }
+  48% { transform: rotate(-8deg); }
+  60% { transform: rotate(5deg); }
+  72% { transform: rotate(-2deg); }
+  84% { transform: rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-refreshing svg,
+  .notification.is-ringing svg {
+    animation: none;
   }
 }

@@ -242,6 +242,7 @@ function Shell({
   const [activationCount, setActivationCount] = useState(0);
   const [activationToast, setActivationToast] = useState<AppNotification | null>(null);
   const [activationToastClosing, setActivationToastClosing] = useState(false);
+  const [bellRinging, setBellRinging] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const knownActivationIds = useRef<Set<string> | null>(null);
@@ -260,6 +261,8 @@ function Shell({
                 const newActivation = pending.find((activation) => !knownActivationIds.current?.has(activation.id));
                 if (newActivation) {
                   setActivationToastClosing(false);
+                  setBellRinging(true);
+                  window.setTimeout(() => setBellRinging(false), 900);
                   setActivationToast({ id: newActivation.id, type: "info", title: "Novo acionamento recebido", detail: newActivation.extractedData.orderNumber ? `Ordem ${newActivation.extractedData.orderNumber} aguardando análise.` : "Existe um acionamento aguardando análise.", href: "/acionamentos" });
                   window.setTimeout(() => setActivationToastClosing(true), 7000);
                   window.setTimeout(() => { setActivationToast(null); setActivationToastClosing(false); }, 8000);
@@ -385,7 +388,7 @@ function Shell({
           </div>
           <div className="topbar-actions">
             <div className="notification-wrap">
-              <button className={`icon-button notification ${notificationsLoading ? "is-refreshing" : ""}`} onClick={() => { setNotificationsOpen((current) => !current); void loadNotifications(); }} title="Notificacoes">
+              <button className={`icon-button notification ${bellRinging ? "is-ringing" : ""}`} onClick={() => { setNotificationsOpen((current) => !current); void loadNotifications(); }} title="Notificacoes">
                 <Bell size={18} />
                 {notifications.length > 0 && <i />}
               </button>
