@@ -1,6 +1,6 @@
-# Sincronizacao da base D-1
+# Sincronizacao da base historica operacional
 
-O backend pode ler os CSVs da pasta `BASE END` do Google Drive e sincronizar os chamados diariamente as 09:00 (horario de Sao Paulo).
+O backend deve tratar a pasta `BASE END` no Google Drive como uma base historica atualizada diariamente, com referencia D-1, e nao como uma planilha isolada do ultimo dia. A rotina precisa processar apenas o que e novo ou alterado, preservando o historico e atualizando chamados existentes sem duplicar registros.
 
 ## Configuracao
 
@@ -20,10 +20,12 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 
 ## Regras aplicadas
 
+- A pasta do Drive e tratada como base historica operacional, nao como base D-1 isolada.
 - Apenas arquivos CSV da pasta configurada sao lidos.
+- Registros repetidos em varios arquivos nao geram duplicidade: a sincronizacao compara o identificador operacional e o payload relevante antes de atualizar.
 - Sao processados os tipos `Manutencao Corretiva de Rede`, `Manutencao de Rede Field` e `Reparo Corretivo`.
 - Linhas com status `pendente` e motivo contendo `nao cumprimento` sao ignoradas.
-- A Ordem de Servico e comparada com `order_number`, `bdesk` e `office_track`, com ou sem o prefixo `BDESK-`.
-- `Data` e `Fim` formam `executed_at`.
+- Identificadores operacionais sao avaliados em ordem de preferencia: ordem de servico, BDESK, Office Track, OS Casa Cliente, contrato e demais chaves existentes.
+- `Data` e `Fim` formam `executed_at`, preservando a data real da conclusao.
 - O motivo de encerramento vira o resultado e tambem fica registrado nas observacoes quando houver valor.
-- Cada alteracao efetiva gera auditoria no chamado.
+- Cada alteracao efetiva gera auditoria no chamado e nenhuma exclusao automatica e feita por ausencia temporaria do registro na base.
