@@ -12,13 +12,13 @@ Principais usuários: operadores, supervisores, administradores, mesários e usu
 
 Status geral: EM DESENVOLVIMENTO
 
-Última atualização: 2026-09-25
+Última atualização: 2026-09-29
 
-Última implementação: correção do salvamento de chamados com normalização de campos e validação compatível com dados do Supabase.
+Última implementação: filtros de chamados e indicadores históricos passam a usar a data de execução para registros encerrados.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: validar o comportamento real do backend em produção local com integração de Supabase e confirmar a operação em ambiente publicado.
+Próxima ação: persistir linhas históricas do Drive sem chamado correspondente e disponibilizá-las para consulta sem criar duplicidade com chamados operacionais.
 
 ---
 
@@ -109,6 +109,37 @@ Executar a validação em runtime real do backend e confirmar se o supervisor n�
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Referência de data nos indicadores históricos
+
+### Objetivo
+Exibir chamados encerrados no período em que foram executados, mesmo quando a abertura ocorreu em outra data.
+
+### Alterações realizadas
+
+- filtros de período usam `executed_at` para chamados finalizados/cancelados e `opened_at` para chamados ativos;
+- quando um chamado encerrado não possui data de execução, o filtro usa a data de abertura;
+- dashboard e listagem compartilham a mesma regra no runtime local, PostgreSQL e Supabase;
+- teste de regressão cobre a listagem e o indicador de finalizados.
+
+### Arquivos modificados
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [docs/google-drive-d1-sync.md](docs/google-drive-d1-sync.md)
+- [ROADMAP.md](ROADMAP.md)
+
+### Resultado
+Chamados históricos já existentes no banco entram no período de execução correto. O ciclo atual persiste o status em `calls.status` e registra alterações em `call_logs`; não houve mudança de schema.
+
+### Limitação pendente
+Linhas do Drive sem chamado correspondente ainda não são inseridas no banco e seguem fora das telas e indicadores. A próxima etapa deve definir sua persistência histórica e evitar sobreposição com chamados criados pelo fluxo operacional.
+
+### Testes
+
+- `npx.cmd tsx --test test/supervisor-scoping.test.ts`: 2 passaram, 0 falharam;
+- `npx.cmd tsc -p tsconfig.json --noEmit`: passou.
 
 ## 2026-09-23 — Escopo de supervisor e continuidade do projeto
 

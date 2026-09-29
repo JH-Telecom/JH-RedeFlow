@@ -27,5 +27,10 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 - Linhas com status `pendente` e motivo contendo `nao cumprimento` sao ignoradas.
 - Identificadores operacionais sao avaliados em ordem de preferencia: ordem de servico, BDESK, Office Track, OS Casa Cliente, contrato e demais chaves existentes.
 - `Data` e `Fim` formam `executed_at`, preservando a data real da conclusao.
+- Nos filtros historicos de chamados e indicadores, registros finalizados/cancelados usam `executed_at`; chamados ainda ativos usam `opened_at`. Quando o encerramento nao tem data de execucao, o sistema usa a abertura como fallback.
 - O motivo de encerramento vira o resultado e tambem fica registrado nas observacoes quando houver valor.
 - Cada alteracao efetiva gera auditoria no chamado e nenhuma exclusao automatica e feita por ausencia temporaria do registro na base.
+
+## Limite atual
+
+A sincronizacao ainda atualiza somente linhas que encontram um chamado existente por identificador operacional. Linhas sem correspondencia sao contabilizadas como ignoradas; `newRecords` permanece zero. Portanto, o armazenamento e a exibicao de novos registros historicos do Drive ainda precisam de uma etapa própria antes de a base do Drive se tornar fonte completa para consultas.

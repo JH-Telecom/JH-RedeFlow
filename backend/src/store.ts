@@ -582,6 +582,13 @@ export async function updateSupervisor(id: string, input: { userId?: string | nu
   return updated;
 }
 export type CallQuery = { from?: string; to?: string; supervisorId?: string };
+function callReferenceDate(call: Call) {
+  return (['Finalizado', 'Cancelado'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt).slice(0, 10);
+}
+function isCallInDateRange(call: Call, query: CallQuery) {
+  const referenceDate = callReferenceDate(call);
+  return (!query.from || referenceDate >= query.from) && (!query.to || referenceDate <= query.to);
+}
 export async function getSupervisorIdForUser(userId: string): Promise<string | undefined> {
   ensureDemoData();
   if (isSupabaseConfigured()) return (await listSupabaseSupervisors()).find((item) => item.userId === userId)?.id;
@@ -601,7 +608,7 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
       `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, latest_observation.created_at AS last_observation_at
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
        LEFT JOIN LATERAL (SELECT created_at FROM call_observations WHERE call_id = c.id ORDER BY created_at DESC LIMIT 1) latest_observation ON true
-       WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR c.opened_at::date >= $2::date) AND ($3::date IS NULL OR c.opened_at::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
+      WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
       [status ?? null, query.from ?? null, query.to ?? null, query.supervisorId ?? null],
     );
     return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined }));
@@ -611,8 +618,7 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
     return { ...call, lastObservationAt };
   }).filter((call) => {
     if (status && call.status !== status) return false;
-    if (query.from && call.openedAt.slice(0, 10) < query.from) return false;
-    if (query.to && call.openedAt.slice(0, 10) > query.to) return false;
+    if (!isCallInDateRange(call, query)) return false;
     if (!query.supervisorId) return true;
     if (call.technicianId) {
       const technician = technicians.get(call.technicianId);

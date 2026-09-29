@@ -152,8 +152,15 @@ export async function listSupabaseCalls(status?: CallStatus, filters: { from?: s
   const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
   let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false });
   if (status) query = query.eq('status', status);
-  if (filters.from) query = query.gte('opened_at', `${filters.from}T00:00:00.000Z`);
-  if (filters.to) query = query.lt('opened_at', `${filters.to}T23:59:59.999Z`);
+  if (filters.from || filters.to) {
+    const from = filters.from ? `${filters.from}T00:00:00.000Z` : undefined;
+    const upperBound = filters.to ? new Date(Date.parse(`${filters.to}T00:00:00.000Z`) + 86400000).toISOString() : undefined;
+    const bounds = (column: string) => [from ? `${column}.gte.${from}` : '', upperBound ? `${column}.lt.${upperBound}` : ''].filter(Boolean);
+    const closedExecution = ['status.in.(Finalizado,Cancelado)', ...bounds('executed_at')];
+    const closedOpeningFallback = ['status.in.(Finalizado,Cancelado)', 'executed_at.is.null', ...bounds('opened_at')];
+    const activeOpening = ['status.not.in.(Finalizado,Cancelado)', ...bounds('opened_at')];
+    query = query.or([closedExecution, closedOpeningFallback, activeOpening].map((terms) => `and(${terms.join(',')})`).join(','));
+  }
   if (filters.supervisorId) query = query.eq('technicians.supervisor_id', filters.supervisorId);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
