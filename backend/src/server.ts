@@ -3,14 +3,14 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listOltRegionMappings, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listOltRegionMappings, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
-import type { AuthUser, CallStatus, PermissionCode } from './types.js';
+import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -354,14 +354,39 @@ app.post('/api/chamados/:id/reabrir', auth, requirePermission('calls.reopen'), a
   if (!call) return response.status(409).json({ message: 'Somente chamados finalizados ou cancelados podem ser reabertos.' });
   return response.json({ call });
 });
-app.get('/api/chamados/:id/observacoes', auth, requirePermission('calls.view'), async (request, response) => response.json({ observations: await listObservations(String(request.params.id)) }));
+app.get('/api/chamados/:id/observacoes', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  const call = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
+  if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  return response.json({ observations: await listObservations(call.id) });
+});
 app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_observation'), async (request: AuthRequest, response) => {
-  const parsed = z.object({ text: z.string().trim().min(1).max(5000) }).safeParse(request.body);
-  if (!parsed.success) return response.status(400).json({ message: 'A observacao nao pode ficar vazia.' });
-  const existing = await getCall(String(request.params.id));
+  const parsed = z.object({
+    text: z.string().trim().max(5000).optional().default(''),
+    attachments: z.array(z.object({ fileName: z.string().trim().min(1).max(255), mimeType: z.string().trim().min(1).max(255), sizeBytes: z.number().int().min(1).max(5 * 1024 * 1024), contentBase64: z.string().min(4).max(7_000_000) })).max(8).default([]),
+  }).safeParse(request.body);
+  if (!parsed.success || (!parsed.data.text && !parsed.data.attachments.length)) return response.status(400).json({ message: 'Informe um texto ou anexe pelo menos um arquivo.' });
+  const decodedAttachments: CallObservationAttachmentInput[] = [];
+  let totalBytes = 0;
+  for (const attachment of parsed.data.attachments) {
+    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(attachment.contentBase64)) return response.status(400).json({ message: `O arquivo ${attachment.fileName} possui conteudo invalido.` });
+    const sizeBytes = Buffer.from(attachment.contentBase64, 'base64').byteLength;
+    if (sizeBytes !== attachment.sizeBytes) return response.status(400).json({ message: `O tamanho do arquivo ${attachment.fileName} nao corresponde ao conteudo.` });
+    totalBytes += sizeBytes;
+    decodedAttachments.push({ ...attachment, fileName: attachment.fileName.replace(/[\\/\r\n]/g, '_'), mimeType: attachment.mimeType || 'application/octet-stream' });
+  }
+  if (totalBytes > 10 * 1024 * 1024) return response.status(413).json({ message: 'O total de anexos por observacao nao pode ultrapassar 10 MB.' });
+  const existing = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
   if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   if (['Finalizado', 'Cancelado'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
-  return response.status(201).json({ observation: await addObservation(String(request.params.id), request.authUser!, parsed.data.text) });
+  return response.status(201).json({ observation: await addObservation(String(request.params.id), request.authUser!, parsed.data.text, decodedAttachments) });
+});
+app.get('/api/chamados/:id/observacoes/:observationId/anexos/:attachmentId', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  const callId = String(request.params.id);
+  const call = await getCall(callId, await getScopedCallQuery(request, request.query.teamScope === 'true'));
+  if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  const attachment = await getObservationAttachment(callId, String(request.params.observationId), String(request.params.attachmentId));
+  if (!attachment) return response.status(404).json({ message: 'Anexo nao encontrado.' });
+  return response.json({ attachment });
 });
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), async (request, response) => response.json({ logs: await listAuditLogs(String(request.params.id)) }));
 app.post('/api/integrations/wuzapi/webhook', async (request, response) => {

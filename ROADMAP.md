@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: animação do sino de notificações alterada para toque oscilante ao receber acionamento.
+Última implementação: anexos persistentes nas observações de chamados, com prévia de imagens e download autenticado.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: observar o sino ao receber novo acionamento e validar movimento reduzido no dispositivo.
+Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e validar upload/download no runtime usado.
 
 ---
 
@@ -76,6 +76,7 @@ Próxima ação: observar o sino ao receber novo acionamento e validar movimento
 - [x] Enriquecimento do nome do cliente em chamados FIELD pela coluna `Nome` nas bases D-0/D-1, sem alterar chamados não FIELD.
 - [x] Remoção de letra isolada de bloco entre número do imóvel e bairro na extração NOC.
 - [x] Animação do sino em balanço amortecido para novos acionamentos; rotação reservada ao refresh.
+- [x] Anexos no histórico de observações de chamados, com prévia de imagens e download por clique.
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
@@ -86,6 +87,18 @@ Próxima ação: observar o sino ao receber novo acionamento e validar movimento
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Anexos nas observações de chamados — implementado em 2026-09-29
+
+- observações aceitam texto, anexos ou ambos; cada observação mantém relação persistente com os arquivos enviados;
+- imagens recebem miniatura no histórico; outros formatos aparecem como arquivo; clicar em qualquer anexo baixa seu conteúdo;
+- listagens carregam apenas metadados; conteúdo é entregue sob demanda por endpoint autenticado e condicionado ao acesso/escopo do chamado;
+- limites por observação: até 8 arquivos, 5 MB por arquivo e 10 MB combinados; anexos sem texto são permitidos;
+- novas tabelas: `call_observation_attachments`, com remoção em cascata quando a observação é removida;
+- migrations: [database/migrations/012_call_observation_attachments.sql](database/migrations/012_call_observation_attachments.sql) e [supabase/migrations/202609290014_call_observation_attachments.sql](supabase/migrations/202609290014_call_observation_attachments.sql);
+- validação: teste HTTP de upload/listagem/download 1/1 passou, typecheck backend e build frontend passaram. Migração ainda precisa ser aplicada no ambiente correspondente.
+
+Arquivos alterados: [backend/src/types.ts](backend/src/types.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/server.ts](backend/src/server.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/main.tsx](frontend/src/main.tsx), [frontend/src/observation-attachments.css](frontend/src/observation-attachments.css), migrations local 012/Supabase 014 e [ROADMAP.md](ROADMAP.md).
 
 ### Animação de ícones — implementada em 2026-09-29
 
@@ -313,6 +326,10 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Anexos no histórico de observações
+
+As observações de chamados agora aceitam múltiplos arquivos; imagens mostram miniatura e clicar no cartão do anexo baixa o arquivo original. Metadados ficam no histórico e o conteúdo é buscado sob demanda por rota autenticada, com validação de permissão e escopo de supervisor. Limites: 8 arquivos/observação, 5 MB por arquivo, 10 MB no total. Migration local 012 e Supabase 014. Teste HTTP 1/1, typecheck backend e build frontend passaram.
 
 ## 2026-09-29 — Toque animado do sino de notificações
 
@@ -969,7 +986,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 ## 10. BANCO DE DADOS
 
-O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). A importação D-0 requer [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) no runtime PostgreSQL local ou [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql) no Supabase. O editor OLT→Região requer [database/migrations/011_olt_region_overrides.sql](database/migrations/011_olt_region_overrides.sql) ou [supabase/migrations/202609290013_olt_region_overrides.sql](supabase/migrations/202609290013_olt_region_overrides.sql). Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
+O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). A importação D-0 requer [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) no runtime PostgreSQL local ou [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql) no Supabase. O editor OLT→Região requer [database/migrations/011_olt_region_overrides.sql](database/migrations/011_olt_region_overrides.sql) ou [supabase/migrations/202609290013_olt_region_overrides.sql](supabase/migrations/202609290013_olt_region_overrides.sql). Os anexos de observação requerem [database/migrations/012_call_observation_attachments.sql](database/migrations/012_call_observation_attachments.sql) ou [supabase/migrations/202609290014_call_observation_attachments.sql](supabase/migrations/202609290014_call_observation_attachments.sql). Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
 
 ---
 
@@ -999,6 +1016,11 @@ Portas e serviços:
 ---
 
 ## 12. TESTES
+
+### Teste
+Upload, prévia e download de anexos em observações
+
+Resultado: ✅ teste HTTP de upload/listagem/download 1/1 passou; typecheck backend e build frontend passaram.
 
 ### Teste
 Balanço do sino e rotação do refresh
@@ -1063,6 +1085,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ### 🔴 CRÍTICO
 
+- aplicar migration de anexos 012 local ou 014 Supabase antes de usar o novo fluxo;
 - aplicar a migration D-0 no banco do runtime antes do primeiro upload;
 - aplicar a migration 011 local ou 013 Supabase antes de salvar overrides de OLT;
 - validar autenticação do Supabase real com seed e login oficial;
@@ -1089,13 +1112,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. sincronizar D-0/D-1 e conferir Bairro/Cidade em chamados FIELD que estavam sem esses valores;
-2. corrigir/reprocessar chamados antigos com bairro contaminado por bloco e revisar nomes de clientes Field;
-3. continuar a validação pendente do editor OLT→Região no banco publicado após aplicar migration 011/013.
+1. aplicar migration local 012 ou Supabase 014 no ambiente ativo;
+2. testar anexos no chamado: imagem em prévia, arquivo genérico por download e usuário sem acesso;
+3. sincronizar D-0/D-1 e conferir Bairro/Cidade em chamados FIELD que estavam sem esses valores.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Anexos em observações
+
+Upload/listagem/download autenticados e prévia de imagem implementados. Teste HTTP 1/1, typecheck backend e build frontend passaram. Aplicar migration local 012 ou Supabase 014 antes de usar em runtime com banco. Limites: 8 arquivos, 5 MB por arquivo, 10 MB total por observação. Downloads respeitam `calls.view` e o escopo do chamado.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Animação do sino
 

@@ -16,11 +16,14 @@ import {
   CircleHelp,
   ClipboardList,
   Copy,
+  Download,
+  FileText,
   LayoutDashboard,
   LockKeyhole,
   LogOut,
   Menu,
   Plus,
+  Paperclip,
   Search,
   Settings,
   ShieldCheck,
@@ -2123,15 +2126,19 @@ function EditableDetailItem({ label, value, onChange }: { label: string; value: 
   return <label className="detail-item editable-detail-item"><span>{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }
 function AuditedCallDetailPage() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const id = pathname.split("/").pop()!;
+  const teamScoped = new URLSearchParams(search).get("teamScope") === "true";
   const [observations, setObservations] = useState<CallObservation[]>([]);
   const [logs, setLogs] = useState<CallAuditLog[]>([]);
   const [text, setText] = useState("");
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState("");
+  const [savingObservation, setSavingObservation] = useState(false);
   const [tab, setTab] = useState<"observations" | "logs">("observations");
   async function refreshHistory() {
     const [observationData, logData] = await Promise.all([
-      api.observations(id),
+      api.observations(id, { teamScope: teamScoped }),
       api.auditLogs(id),
     ]);
     setObservations(observationData.observations);
@@ -2139,12 +2146,33 @@ function AuditedCallDetailPage() {
   }
   useEffect(() => {
     refreshHistory();
-  }, [id]);
+  }, [id, teamScoped]);
+  function selectAttachments(event: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!selected.length) return;
+    const combined = [...attachmentFiles, ...selected];
+    if (combined.length > 8) { setAttachmentError("Anexe no maximo 8 arquivos por observacao."); return; }
+    if (selected.some((file) => file.size > 5 * 1024 * 1024)) { setAttachmentError("Cada arquivo pode ter no maximo 5 MB."); return; }
+    if (combined.reduce((total, file) => total + file.size, 0) > 10 * 1024 * 1024) { setAttachmentError("O total de anexos pode ter no maximo 10 MB."); return; }
+    setAttachmentFiles(combined);
+    setAttachmentError("");
+  }
   async function addNote() {
-    if (!text.trim()) return;
-    await api.addObservation(id, text);
-    setText("");
-    await refreshHistory();
+    if (!text.trim() && !attachmentFiles.length) return;
+    setSavingObservation(true);
+    setAttachmentError("");
+    try {
+      const attachments = await Promise.all(attachmentFiles.map(readObservationFile));
+      await api.addObservation(id, text, attachments, { teamScope: teamScoped });
+      setText("");
+      setAttachmentFiles([]);
+      await refreshHistory();
+    } catch (error) {
+      setAttachmentError(error instanceof Error ? error.message : "Nao foi possivel salvar a observacao.");
+    } finally {
+      setSavingObservation(false);
+    }
   }
   return (
     <>
@@ -2176,10 +2204,15 @@ function AuditedCallDetailPage() {
                 placeholder="Registrar uma observacao operacional..."
                 rows={3}
               />
-              <button className="primary-button compact" onClick={addNote}>
-                Adicionar observacao
-              </button>
+              <div className="observation-compose-actions">
+                <label className="secondary-button compact observation-attachment-picker"><Paperclip size={15}/>Anexar arquivos<input type="file" multiple onChange={selectAttachments}/></label>
+                <button className="primary-button compact" onClick={addNote} disabled={savingObservation || (!text.trim() && !attachmentFiles.length)}>
+                  {savingObservation ? "Salvando..." : "Adicionar observacao"}
+                </button>
+              </div>
             </div>
+            {attachmentFiles.length > 0 && <div className="observation-selected-attachments">{attachmentFiles.map((file, index) => <span className="observation-selected-file" key={`${file.name}-${file.lastModified}-${index}`}><FileText size={14}/><span>{file.name}</span><button type="button" aria-label={`Remover ${file.name}`} onClick={() => setAttachmentFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}><X size={14}/></button></span>)}</div>}
+            {attachmentError && <div className="form-error observation-attachment-error">{attachmentError}</div>}
             <div className="history-list">
               {observations.length ? (
                 observations.map((item) => (
@@ -2192,7 +2225,8 @@ function AuditedCallDetailPage() {
                       <small>
                         {new Date(item.createdAt).toLocaleString("pt-BR")}
                       </small>
-                      <p>{item.text}</p>
+                      {item.text && <p>{item.text}</p>}
+                      {item.attachments?.length > 0 && <div className="observation-attachments">{item.attachments.map((attachment) => <ObservationAttachmentItem key={attachment.id} callId={id} observationId={item.id} attachment={attachment} teamScoped={teamScoped}/>)}</div>}
                     </div>
                   </div>
                 ))
@@ -2231,6 +2265,70 @@ function AuditedCallDetailPage() {
       </section>
     </>
   );
+}
+async function readObservationFile(file: File) {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error(`Nao foi possivel ler ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+  return { fileName: file.name, mimeType: file.type || 'application/octet-stream', sizeBytes: file.size, contentBase64: dataUrl.split(',')[1] || '' };
+}
+
+function observationAttachmentBlob(base64: string, mimeType: string) {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: mimeType });
+}
+
+function ObservationAttachmentItem({ callId, observationId, attachment, teamScoped }: { callId: string; observationId: string; attachment: CallObservation['attachments'][number]; teamScoped: boolean }) {
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [attachmentError, setAttachmentError] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const objectUrl = useRef('');
+  const isImage = attachment.mimeType.startsWith('image/');
+
+  useEffect(() => {
+    if (!isImage) return;
+    let active = true;
+    api.observationAttachment(callId, observationId, attachment.id, { teamScope: teamScoped }).then(({ attachment: file }) => {
+      const url = URL.createObjectURL(observationAttachmentBlob(file.contentBase64, file.mimeType));
+      if (!active) { URL.revokeObjectURL(url); return; }
+      objectUrl.current = url;
+      setPreviewUrl(url);
+    }).catch(() => setAttachmentError(true));
+    return () => { active = false; if (objectUrl.current) URL.revokeObjectURL(objectUrl.current); };
+  }, [callId, observationId, attachment.id, teamScoped, isImage]);
+
+  async function download() {
+    setDownloading(true);
+    setAttachmentError(false);
+    try {
+      let url = objectUrl.current;
+      if (!url) {
+        const { attachment: file } = await api.observationAttachment(callId, observationId, attachment.id, { teamScope: teamScoped });
+        url = URL.createObjectURL(observationAttachmentBlob(file.contentBase64, file.mimeType));
+      }
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      if (!isImage) window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch {
+      setAttachmentError(true);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return <button className={`observation-attachment${isImage ? ' image' : ' file'}`} type="button" onClick={() => void download()} title={`Baixar ${attachment.fileName}`}>
+    {isImage ? previewUrl ? <img src={previewUrl} alt={`Prévia de ${attachment.fileName}`}/> : <span className="observation-image-loading">{attachmentError ? "Prévia indisponível" : "Carregando prévia..."}</span> : <FileText size={22}/>}
+    <span className="observation-attachment-name">{attachment.fileName}</span><Download size={14}/>{downloading && <span className="observation-download-state">Baixando...</span>}
+  </button>;
 }
 function CallOutcomeActions() {
   const { pathname } = useLocation();

@@ -3,7 +3,7 @@ import { getDatabaseClient, isDatabaseConfigured } from './db.js';
 import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
 import { getDefaultOltRegionMap, getManualOltRegionMap, identifyAtreladas, normalizeOltCode, replaceManualOltRegionMap, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
 import { matchD0Rows, type D0Row } from './imports/d0.js';
-import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
+import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallObservationAttachment, CallObservationAttachmentInput, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, StoredCallObservationAttachment, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
   'dashboard.view': 'Visualizar o dashboard operacional',
@@ -68,6 +68,7 @@ const calls = new Map<string, Call>([
   ['call-240916-01', { id: 'call-240916-01', orderNumber: 'RF-240916', bdesk: 'BD-88291', officeTrack: 'OT-71882', client: 'Edificio Central', type: 'BAIXA TECNICA', reason: 'Cliente sem conexao', region: 'Leste', city: 'Suzano', olt: 'VIP-SMP-SPO-ONK-01', slotPon: '4/9', status: 'Em campo', technicianId: 'tech-andre', technicianName: 'Andre Costa', supervisorName: 'Maria Oliveira', openedAt: '2026-09-16T10:05:00-03:00', assignedAt: '2026-09-16T10:42:00-03:00', notes: 'Tecnico em deslocamento para a CTO.' }]
 ]);
 const observations = new Map<string, CallObservation>();
+const observationAttachments = new Map<string, StoredCallObservationAttachment>();
 const auditLogs = new Map<string, CallAuditLog>();
 const activations = new Map<string, Activation>([
   ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
@@ -88,6 +89,7 @@ function ensureDemoData() {
     technicians.clear();
     calls.clear();
     observations.clear();
+    observationAttachments.clear();
     auditLogs.clear();
     activations.clear();
     imports.clear();
@@ -980,11 +982,27 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   });
   return updated;
 }
+function mapObservationAttachment(row: { id: string; file_name: string; mime_type: string; size_bytes: number | string; created_at: string }): CallObservationAttachment {
+  return { id: row.id, fileName: row.file_name, mimeType: row.mime_type, sizeBytes: Number(row.size_bytes), createdAt: row.created_at };
+}
+
 export async function listObservations(callId: string): Promise<CallObservation[]> {
   if (isSupabaseConfigured()) {
-    const { data, error } = await getSupabaseAdmin().from('call_observations').select('id, call_id, user_id, text, created_at, profiles(name)').eq('call_id', callId).order('created_at', { ascending: false });
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin.from('call_observations').select('id, call_id, user_id, text, created_at, profiles(name)').eq('call_id', callId).order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    return (data || []).map((row: any) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Usuario' : row.profiles?.name || 'Usuario', text: row.text, createdAt: row.created_at }));
+    const rows = data || [];
+    const attachmentsByObservation = new Map<string, CallObservationAttachment[]>();
+    if (rows.length) {
+      const { data: attachments, error: attachmentError } = await admin.from('call_observation_attachments').select('id, observation_id, file_name, mime_type, size_bytes, created_at').in('observation_id', rows.map((row: any) => row.id)).order('created_at', { ascending: true });
+      if (attachmentError) throw new Error(attachmentError.message);
+      for (const row of attachments || []) {
+        const group = attachmentsByObservation.get(row.observation_id) || [];
+        group.push(mapObservationAttachment(row));
+        attachmentsByObservation.set(row.observation_id, group);
+      }
+    }
+    return rows.map((row: any) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Usuario' : row.profiles?.name || 'Usuario', text: row.text, createdAt: row.created_at, attachments: attachmentsByObservation.get(row.id) || [] }));
   }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -993,17 +1011,38 @@ export async function listObservations(callId: string): Promise<CallObservation[
        FROM call_observations o JOIN users u ON u.id = o.user_id
        WHERE o.call_id = $1 ORDER BY o.created_at DESC`, [callId],
     );
-    return result.rows.map((row) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: row.user_name, text: row.text, createdAt: row.created_at }));
+    const observationIds = result.rows.map((row) => row.id);
+    const attachmentResult = observationIds.length ? await client.query<{ id: string; observation_id: string; file_name: string; mime_type: string; size_bytes: number | string; created_at: string }>(
+      `SELECT id, observation_id, file_name, mime_type, size_bytes, created_at FROM call_observation_attachments WHERE observation_id = ANY($1::uuid[]) ORDER BY created_at ASC`, [observationIds],
+    ) : { rows: [] as Array<{ id: string; observation_id: string; file_name: string; mime_type: string; size_bytes: number | string; created_at: string }> };
+    const attachmentsByObservation = new Map<string, CallObservationAttachment[]>();
+    for (const row of attachmentResult.rows) {
+      const group = attachmentsByObservation.get(row.observation_id) || [];
+      group.push(mapObservationAttachment(row));
+      attachmentsByObservation.set(row.observation_id, group);
+    }
+    return result.rows.map((row) => ({ id: row.id, callId: row.call_id, userId: row.user_id, userName: row.user_name, text: row.text, createdAt: row.created_at, attachments: attachmentsByObservation.get(row.id) || [] }));
   }
-  return [...observations.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return [...observations.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((item) => ({ ...item, attachments: [...observationAttachments.values()].filter((attachment) => attachment.observationId === item.id).map(({ observationId: _observationId, contentBase64: _contentBase64, ...metadata }) => metadata) }));
 }
-export async function addObservation(callId: string, actor: User, text: string): Promise<CallObservation> {
+
+export async function addObservation(callId: string, actor: User, text: string, attachments: CallObservationAttachmentInput[] = []): Promise<CallObservation> {
+  const auditValue = text || `Anexos: ${attachments.map((attachment) => attachment.fileName).join(', ')}`;
   if (isSupabaseConfigured()) {
     const admin = getSupabaseAdmin();
     const { data, error } = await admin.from('call_observations').insert({ call_id: callId, user_id: actor.id, text }).select('id, call_id, user_id, text, created_at, profiles(name)').single();
     if (error || !data) throw new Error(error?.message || 'Nao foi possivel adicionar a observacao.');
-    const observation = { id: data.id, callId: data.call_id, userId: data.user_id, userName: actor.name, text: data.text, createdAt: data.created_at };
-    const { error: logError } = await admin.from('call_logs').insert({ call_id: callId, user_id: actor.id, action: 'Observacao adicionada', field: 'observations', previous_value: '', new_value: text });
+    const savedAttachments: CallObservationAttachment[] = [];
+    if (attachments.length) {
+      const { data: savedRows, error: attachmentError } = await admin.from('call_observation_attachments').insert(attachments.map((attachment) => ({ observation_id: data.id, file_name: attachment.fileName, mime_type: attachment.mimeType, size_bytes: attachment.sizeBytes, content_base64: attachment.contentBase64 }))).select('id, file_name, mime_type, size_bytes, created_at');
+      if (attachmentError) {
+        await admin.from('call_observations').delete().eq('id', data.id);
+        throw new Error(attachmentError.message);
+      }
+      savedAttachments.push(...(savedRows || []).map(mapObservationAttachment));
+    }
+    const observation: CallObservation = { id: data.id, callId: data.call_id, userId: data.user_id, userName: actor.name, text: data.text, createdAt: data.created_at, attachments: savedAttachments };
+    const { error: logError } = await admin.from('call_logs').insert({ call_id: callId, user_id: actor.id, action: 'Observacao adicionada', field: 'observations', previous_value: '', new_value: auditValue });
     if (logError) throw new Error(logError.message);
     return observation;
   }
@@ -1019,19 +1058,57 @@ export async function addObservation(callId: string, actor: User, text: string):
          FROM inserted JOIN users ON users.id = inserted.user_id`, [callId, actor.id, text],
       );
       const row = result.rows[0];
-      await client.query(`INSERT INTO call_logs (call_id, user_id, action, field, previous_value, new_value) VALUES ($1, $2, $3, $4, $5, $6)`, [callId, actor.id, 'Observacao adicionada', 'observations', '', text]);
+      const savedAttachments: CallObservationAttachment[] = [];
+      for (const attachment of attachments) {
+        const insertedAttachment = await client.query<{ id: string; file_name: string; mime_type: string; size_bytes: number | string; created_at: string }>(
+          `INSERT INTO call_observation_attachments (observation_id, file_name, mime_type, size_bytes, content_base64) VALUES ($1, $2, $3, $4, $5) RETURNING id, file_name, mime_type, size_bytes, created_at`,
+          [row.id, attachment.fileName, attachment.mimeType, attachment.sizeBytes, attachment.contentBase64],
+        );
+        savedAttachments.push(mapObservationAttachment(insertedAttachment.rows[0]));
+      }
+      await client.query(`INSERT INTO call_logs (call_id, user_id, action, field, previous_value, new_value) VALUES ($1, $2, $3, $4, $5, $6)`, [callId, actor.id, 'Observacao adicionada', 'observations', '', auditValue]);
       await client.query('COMMIT');
-      return { id: row.id, callId: row.call_id, userId: row.user_id, userName: row.user_name, text: row.text, createdAt: row.created_at };
+      return { id: row.id, callId: row.call_id, userId: row.user_id, userName: row.user_name, text: row.text, createdAt: row.created_at, attachments: savedAttachments };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     }
   }
-  const observation: CallObservation = { id: `obs-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, text, createdAt: new Date().toISOString() };
+  const observation: CallObservation = { id: `obs-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, text, createdAt: new Date().toISOString(), attachments: [] };
   observations.set(observation.id, observation);
-  const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, action: 'Observacao adicionada', field: 'observations', previousValue: '', newValue: text, createdAt: observation.createdAt };
+  for (const attachment of attachments) {
+    const saved: StoredCallObservationAttachment = { id: `attachment-${crypto.randomUUID()}`, observationId: observation.id, fileName: attachment.fileName, mimeType: attachment.mimeType, sizeBytes: attachment.sizeBytes, contentBase64: attachment.contentBase64, createdAt: observation.createdAt };
+    observationAttachments.set(saved.id, saved);
+    observation.attachments.push({ id: saved.id, fileName: saved.fileName, mimeType: saved.mimeType, sizeBytes: saved.sizeBytes, createdAt: saved.createdAt });
+  }
+  const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, action: 'Observacao adicionada', field: 'observations', previousValue: '', newValue: auditValue, createdAt: observation.createdAt };
   auditLogs.set(log.id, log);
   return observation;
+}
+
+export async function getObservationAttachment(callId: string, observationId: string, attachmentId: string): Promise<StoredCallObservationAttachment | undefined> {
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const { data: observation, error: observationError } = await admin.from('call_observations').select('id').eq('id', observationId).eq('call_id', callId).maybeSingle();
+    if (observationError) throw new Error(observationError.message);
+    if (!observation) return undefined;
+    const { data, error } = await admin.from('call_observation_attachments').select('id, observation_id, file_name, mime_type, size_bytes, content_base64, created_at').eq('id', attachmentId).eq('observation_id', observationId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? { id: data.id, observationId: data.observation_id, fileName: data.file_name, mimeType: data.mime_type, sizeBytes: Number(data.size_bytes), contentBase64: data.content_base64, createdAt: data.created_at } : undefined;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ id: string; observation_id: string; file_name: string; mime_type: string; size_bytes: number | string; content_base64: string; created_at: string }>(
+      `SELECT a.id, a.observation_id, a.file_name, a.mime_type, a.size_bytes, a.content_base64, a.created_at
+       FROM call_observation_attachments a JOIN call_observations o ON o.id = a.observation_id
+       WHERE o.call_id = $1 AND o.id = $2 AND a.id = $3 LIMIT 1`, [callId, observationId, attachmentId],
+    );
+    const row = result.rows[0];
+    return row ? { id: row.id, observationId: row.observation_id, fileName: row.file_name, mimeType: row.mime_type, sizeBytes: Number(row.size_bytes), contentBase64: row.content_base64, createdAt: row.created_at } : undefined;
+  }
+  const observation = observations.get(observationId);
+  const attachment = observationAttachments.get(attachmentId);
+  return observation?.callId === callId && attachment?.observationId === observationId ? attachment : undefined;
 }
 export async function listAuditLogs(callId: string): Promise<CallAuditLog[]> {
   if (isSupabaseConfigured()) {

@@ -6,7 +6,10 @@ export type Technician = { id: string; supervisorId?: string; name: string; regi
 export type Supervisor = { id: string; userId?: string; name: string; region: string; active: boolean; technicianCount: number };
 export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado';
 export type Call = { id: string; orderNumber: string; bdesk: string; officeTrack: string; client: string; type: string; reason: string; region: string; city: string; address?: string; bairro?: string; ofsStatus?: string; olt: string; slotPon: string; status: CallStatus; technicianId?: string; technicianName?: string; supervisorName?: string; openedAt: string; assignedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string; notes: string; lastObservationAt?: string };
-export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
+export type CallObservationAttachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; createdAt: string };
+export type CallObservationAttachmentUpload = Pick<CallObservationAttachment, 'fileName' | 'mimeType' | 'sizeBytes'> & { contentBase64: string };
+export type CallObservationAttachmentContent = CallObservationAttachment & { observationId: string; contentBase64: string };
+export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string; attachments: CallObservationAttachment[] };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
 export type Activation = { id: string; source: string; originalMessage: string; receivedAt: string; status: 'Pendente' | 'Processando' | 'Aceito' | 'Recusado'; extractedData: Record<string, string>; analysis?: Record<string, unknown>; decisionBy?: string; decisionAt?: string; createdCallId?: string; rejectionReason?: string };
 export type ImportRecord = { id: string; fileName: string; fileType: 'csv' | 'xlsx'; sheetName: string; columns: string[]; preview: Record<string, string>[]; totalRows: number; validRows: number; errors: string[]; status: 'Previsualizada' | 'Confirmada' | 'Falhou'; importedBy: string; createdAt: string };
@@ -71,8 +74,9 @@ export const api = {
   deleteCall: (id: string) => request<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),
   deleteAllCalls: () => request<{ deleted: number }>('/api/chamados', { method: 'DELETE' }),
   reopenCall: (id: string) => request<{ call: Call }>(`/api/chamados/${id}/reabrir`, { method: 'POST' }),
-  observations: (id: string) => request<{ observations: CallObservation[] }>(`/api/chamados/${id}/observacoes`),
-  addObservation: (id: string, text: string) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes`, { method: 'POST', body: JSON.stringify({ text }) }),
+  observations: (id: string, filters?: { teamScope?: boolean }) => request<{ observations: CallObservation[] }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`),
+  addObservation: (id: string, text: string, attachments: CallObservationAttachmentUpload[] = [], filters?: { teamScope?: boolean }) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`, { method: 'POST', body: JSON.stringify({ text, attachments }) }),
+  observationAttachment: (callId: string, observationId: string, attachmentId: string, filters?: { teamScope?: boolean }) => request<{ attachment: CallObservationAttachmentContent }>(`/api/chamados/${callId}/observacoes/${observationId}/anexos/${attachmentId}${filters?.teamScope ? '?teamScope=true' : ''}`),
   auditLogs: (id: string) => request<{ logs: CallAuditLog[] }>(`/api/chamados/${id}/logs`),
   activations: (status?: Activation['status']) => request<{ activations: Activation[] }>(`/api/acionamentos${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   acceptActivation: (id: string) => request<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),

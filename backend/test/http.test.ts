@@ -214,6 +214,47 @@ test('shares, replaces and clears the daily dashboard base', async () => {
   assert.equal(afterClearBody.base, undefined);
 });
 
+test('stores observation attachments and serves them through the authenticated call route', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const imageBase64 = Buffer.from('image fixture').toString('base64');
+  const documentBase64 = Buffer.from('work report fixture').toString('base64');
+  const created = await fetch(`${baseUrl}/api/chamados/call-240918-01/observacoes`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      text: 'Registro de atendimento com evidencias.',
+      attachments: [
+        { fileName: 'fachada.jpg', mimeType: 'image/jpeg', sizeBytes: Buffer.from(imageBase64, 'base64').byteLength, contentBase64: imageBase64 },
+        { fileName: 'relatorio.txt', mimeType: 'text/plain', sizeBytes: Buffer.from(documentBase64, 'base64').byteLength, contentBase64: documentBase64 },
+      ],
+    }),
+  });
+  const createdBody = await created.json() as { observation: { id: string; attachments: Array<{ id: string; fileName: string; mimeType: string; sizeBytes: number }> } };
+  assert.equal(created.status, 201);
+  assert.equal(createdBody.observation.attachments.length, 2);
+  assert.deepEqual(createdBody.observation.attachments.map((attachment) => attachment.fileName), ['fachada.jpg', 'relatorio.txt']);
+
+  const historyResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01/observacoes`, { headers });
+  const historyBody = await historyResponse.json() as { observations: Array<{ id: string; attachments: Array<{ id: string }> }> };
+  const savedObservation = historyBody.observations.find((observation) => observation.id === createdBody.observation.id);
+  assert.ok(savedObservation);
+  assert.equal(savedObservation.attachments.length, 2);
+
+  const image = createdBody.observation.attachments.find((attachment) => attachment.fileName === 'fachada.jpg');
+  assert.ok(image);
+  const downloadResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01/observacoes/${createdBody.observation.id}/anexos/${image.id}`, { headers });
+  const downloadBody = await downloadResponse.json() as { attachment: { contentBase64: string; mimeType: string; fileName: string } };
+  assert.equal(downloadResponse.status, 200);
+  assert.equal(downloadBody.attachment.contentBase64, imageBase64);
+  assert.equal(downloadBody.attachment.mimeType, 'image/jpeg');
+});
+
 test('admins can manage OLT region mappings while operators are denied', async () => {
   const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

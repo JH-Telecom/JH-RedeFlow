@@ -118,7 +118,10 @@ export type Call = {
 
 export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
 
-export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string };
+export type CallObservationAttachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; createdAt: string };
+export type CallObservationAttachmentInput = Omit<CallObservationAttachment, 'id' | 'createdAt'> & { contentBase64: string };
+export type StoredCallObservationAttachment = CallObservationAttachment & { observationId: string; contentBase64: string };
+export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string; attachments: CallObservationAttachment[] };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
 
 export type ActivationStatus = 'Pendente' | 'Processando' | 'Aceito' | 'Recusado';
