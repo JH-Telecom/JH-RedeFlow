@@ -64,6 +64,15 @@ test('D-0 imports Data Fim only for finalized or cancelled calls', () => {
   }
 });
 
+test('D-0 imports Nome only into FIELD calls', () => {
+  const row: D0Row = { 'Número OS': call.orderNumber, Nome: 'Maria de Fatima' };
+  const fieldResult = matchD0Rows([row], [call]);
+  const nonFieldResult = matchD0Rows([row], [{ ...call, type: 'NOC ACESSO' }]);
+
+  assert.equal(fieldResult.matches[0]?.fields.client, 'Maria de Fatima');
+  assert.equal(nonFieldResult.matches[0]?.fields.client, undefined);
+});
+
 test('D-0 rejects ambiguous matches and invalid completion timestamps', () => {
   const duplicateCall = { ...call, id: 'call-duplicate' };
   const result = matchD0Rows([{ BDESK: '88421', Data: '29/09/2026', Fim: '16:45' }], [call, duplicateCall]);

@@ -1,7 +1,7 @@
 import type { Call, EditableCallFields } from '../types.js';
 
 export type D0Row = Record<string, string>;
-export type D0CallFields = Partial<Pick<EditableCallFields, 'address' | 'bairro' | 'city' | 'region' | 'olt' | 'ofsStatus' | 'executedAt'>>;
+export type D0CallFields = Partial<Pick<EditableCallFields, 'client' | 'address' | 'bairro' | 'city' | 'region' | 'olt' | 'ofsStatus' | 'executedAt'>>;
 export type D0Match = { callId: string; fields: D0CallFields };
 export type D0MatchResult = { matches: D0Match[]; unmatchedRows: number };
 
@@ -56,7 +56,7 @@ function callIdentifiers(call: Call) {
   return [call.orderNumber, call.bdesk, call.officeTrack, ...(call.sourceIdentifiers || [])].map(normalizeIdentifier).filter(Boolean);
 }
 
-function mapFields(row: D0Row, callStatus: Call['status']): D0CallFields {
+function mapFields(row: D0Row, call: Call): D0CallFields {
   const fields: D0CallFields = {};
   const address = value(row, 'Endereço', 'Endereco', 'Endereço do Cliente', 'Endereco do Cliente', 'Endereço de Instalação', 'Endereco de Instalacao');
   const bairro = value(row, 'Bairro', 'Neighborhood');
@@ -64,7 +64,8 @@ function mapFields(row: D0Row, callStatus: Call['status']): D0CallFields {
   const region = value(row, 'Região', 'Regiao', 'Região Operacional', 'Regiao Operacional');
   const olt = value(row, 'OLT', 'OLT de atendimento');
   const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
-  const isClosed = callStatus === 'Finalizado' || callStatus === 'Cancelado';
+  const isClosed = call.status === 'Finalizado' || call.status === 'Cancelado';
+  const clientName = call.type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('field') ? value(row, 'Nome', 'Nome do Cliente', 'Cliente') : '';
   const executedAt = isClosed ? parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) : null;
   if (address) fields.address = address;
   if (bairro) fields.bairro = bairro;
@@ -72,6 +73,7 @@ function mapFields(row: D0Row, callStatus: Call['status']): D0CallFields {
   if (region) fields.region = region;
   if (olt) fields.olt = olt;
   if (ofsStatus) fields.ofsStatus = ofsStatus;
+  if (clientName) fields.client = clientName;
   if (isClosed && executedAt) fields.executedAt = executedAt;
   else if (!isClosed) fields.executedAt = null;
   return fields;
@@ -90,7 +92,7 @@ export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
       continue;
     }
     const candidate = candidates[0];
-    const fields = mapFields(row, candidate.call.status);
+    const fields = mapFields(row, candidate.call);
     if (Object.keys(fields).length) updates.set(candidate.call.id, { ...updates.get(candidate.call.id), ...fields });
   }
 

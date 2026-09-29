@@ -148,6 +148,8 @@ export function buildDriveCall(row: DriveRow): Call | undefined {
   const bdesk = value(row, 'BDESK', 'BDesk');
   const officeTrack = value(row, 'Office Track', 'OS OT', 'OT');
   const orderNumber = order || (bdesk ? `BDESK-${bdesk}` : '') || officeTrack || primary.raw;
+  const type = value(row, 'Tipo de Atividade', 'Tipo');
+  const isField = normalize(type).includes('field');
   const location = parseDriveLocation(row);
   const olt = value(row, 'OLT');
   const referenceDate = parseReferenceDate(value(row, 'Data'));
@@ -156,8 +158,8 @@ export function buildDriveCall(row: DriveRow): Call | undefined {
 
   return {
     id: randomUUID(), orderNumber, bdesk, officeTrack,
-    client: value(row, 'Nome do Cliente', 'Cliente', 'Assinante'),
-    type: value(row, 'Tipo de Atividade', 'Tipo'),
+    client: isField ? value(row, 'Nome', 'Nome do Cliente', 'Cliente', 'Assinante') : value(row, 'Nome do Cliente', 'Cliente', 'Assinante'),
+    type,
     reason: value(row, 'Motivo', 'Motivo de Encerramento das atividades', 'Motivo de Encerramento'),
     region: resolveOltRegion(olt).region || value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual'),
     city: location.city,
@@ -182,7 +184,7 @@ function buildDriveSource(row: DriveRow, fileId: string, fileName: string): Driv
   };
 }
 
-function buildDriveUpdate(row: DriveRow, existing: Call) {
+export function buildDriveUpdate(row: DriveRow, existing: Call) {
   const statusText = normalizeDriveStatus(value(row, 'Status da Atividade', 'Status'));
   const activityType = value(row, 'Tipo de Atividade', 'Tipo');
   const resultValue = value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo');
@@ -213,6 +215,11 @@ function buildDriveUpdate(row: DriveRow, existing: Call) {
     notes,
   };
 
+  if (normalize(rawType).includes('field')) {
+    const clientName = value(row, 'Nome', 'Nome do Cliente', 'Cliente', 'Assinante');
+    if (clientName) changes.client = clientName;
+  }
+
   if (nextStatus) changes.status = nextStatus;
   if (executedAt) changes.executedAt = executedAt;
   if (resultValue) changes.result = resultValue;
@@ -229,8 +236,8 @@ function buildDriveUpdate(row: DriveRow, existing: Call) {
   return changes;
 }
 
-function hasMeaningfulCallChange(existing: Call, candidate: Partial<EditableCallFields>) {
-  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'type', 'reason', 'region', 'city', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
+export function hasMeaningfulCallChange(existing: Call, candidate: Partial<EditableCallFields>) {
+  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'client', 'type', 'reason', 'region', 'city', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
   for (const field of fieldsToCompare) {
     const current = String(existing[field] ?? '');
     const next = String(candidate[field] ?? '');

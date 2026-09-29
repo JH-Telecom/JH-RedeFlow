@@ -1877,7 +1877,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar ordem, tecnico B2C, BDESK ou regiao"
+              placeholder="Buscar ordem, cliente/técnico, BDESK ou região"
             />
           </div>
           <div className="table-toolbar-actions">
@@ -1899,7 +1899,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
           <table ref={tableRef}>
             <thead>
               <tr>
-                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Bairro / Endereço</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Bairro / Endereço</th><th>Abertura</th><th>Tempo aguardando</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Tecnico</th></>}
+                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Cidade</th><th>Bairro / Endereço</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Obs.</th><th>Timer</th></> : <><th>Ordem</th><th>Cliente / Técnico B2C</th><th>Tipo / motivo</th><th>Regiao</th><th>Bairro / Endereço</th><th>Abertura</th><th>Tempo aguardando</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Tecnico</th></>}
               </tr>
             </thead>
             <tbody>
@@ -2039,7 +2039,7 @@ function CallDetailBase() {
             <EditableDetailItem label="Ordem" value={orderNumber} onChange={setOrderNumber} />
             <EditableDetailItem label="BDESK" value={bdesk} onChange={setBdesk} />
             <EditableDetailItem label="Office Track" value={officeTrack} onChange={setOfficeTrack} />
-            <EditableDetailItem label={`Tecnico B2C${["NOC TX", "NOC ACESSO"].includes(type.trim().toUpperCase()) ? " (opcional)" : ""}`} value={client} onChange={setClient} />
+            <EditableDetailItem label={`${type.trim().toUpperCase().includes("FIELD") ? "Cliente" : "Tecnico B2C"}${["NOC TX", "NOC ACESSO"].includes(type.trim().toUpperCase()) ? " (opcional)" : ""}`} value={client} onChange={setClient} />
             <EditableDetailItem label="Tipo" value={type} onChange={setType} />
             <EditableDetailItem label="Motivo" value={reason} onChange={setReason} />
             <label className="detail-item editable-detail-item"><span>Regiao</span><select className="region-detail-select" value={region} onChange={(event) => setRegion(event.target.value)}><option value="">Selecione uma região</option>{region && !operationalRegions.includes(region) && <option value={region}>{region}</option>}{operationalRegions.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>

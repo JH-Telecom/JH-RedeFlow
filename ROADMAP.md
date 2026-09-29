@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: normalização de endereço FIELD/NOC com prefixo CLT_ e tipos de via duplicados.
+Última implementação: enriquecimento do nome de cliente em chamados FIELD usando a coluna `Nome` das bases D-0/D-1.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: reprocessar/editar chamados antigos cujo Endereço foi salvo com prefixo CLT_ ou rua duplicada e validar novos acionamentos FIELD.
+Próxima ação: sincronizar D-0/D-1 e verificar nomes nos chamados FIELD existentes; chamados antigos precisam ser reprocessados se não forem atualizados pela sincronização.
 
 ---
 
@@ -73,6 +73,7 @@ Próxima ação: reprocessar/editar chamados antigos cujo Endereço foi salvo co
 - [x] Consolidação determinística de endereços NOC, bairros, clientes afetados e atreladas.
 - [x] Normalização NOC de ruas com números no nome, placeholders com underscore e bairro consensual por CEP.
 - [x] Remoção de prefixo CLT_ e duplicação de tipos de via, com inferência do Bairro em endereços FIELD.
+- [x] Enriquecimento do nome do cliente em chamados FIELD pela coluna `Nome` nas bases D-0/D-1, sem alterar chamados não FIELD.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
 - [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
@@ -82,6 +83,17 @@ Próxima ação: reprocessar/editar chamados antigos cujo Endereço foi salvo co
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Nome do cliente em chamados FIELD — implementado em 2026-09-29
+
+- a coluna `Nome` das bases D-0 e D-1 atualiza `calls.client` somente quando o tipo do chamado contém `Field`;
+- o importador D-1 considera novos chamados e atualiza registros existentes; `client` agora participa da detecção de mudança para sincronização;
+- chamadas de outros tipos não recebem o valor da coluna genérica `Nome`; aliases históricos já usados em D-1 permanecem preservados;
+- o detalhe mostra o rótulo `Cliente` para Field; a fila identifica a coluna como `Cliente / Técnico B2C`;
+- nenhuma alteração de schema; atualizações ocorrem nos próximos uploads/sincronizações;
+- validação: 11 testes D-0/D-1/supervisor passaram; typecheck backend e build frontend passaram.
+
+Arquivos alterados: [backend/src/imports/d0.ts](backend/src/imports/d0.ts), [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts), [backend/test/d0-import.test.ts](backend/test/d0-import.test.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts), [frontend/src/App.tsx](frontend/src/App.tsx) e [ROADMAP.md](ROADMAP.md).
 
 ### Endereços FIELD com CLT_ e tipos de via duplicados — implementado em 2026-09-29
 
@@ -267,6 +279,12 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Nome do cliente a partir de D-0/D-1 para Field
+
+Chamados Field passam a receber `client` a partir da coluna `Nome` nas bases D-0 e D-1. D-1 preenche novas chamadas e atualiza existentes; o comparador de sincronização reconhece mudança no cliente. Chamados não Field não usam a coluna `Nome`. No detalhe Field o rótulo é `Cliente`; na fila a coluna é `Cliente / Técnico B2C`.
+
+Validação: 11 testes D-0/D-1/supervisor passaram, typecheck backend e build frontend passaram. Não houve mudança de schema.
 
 ## 2026-09-29 — Normalização de Endereço/Bairro FIELD
 
@@ -967,6 +985,11 @@ Consolidação de endereço/bairro NOC
 
 Resultado: ✅ 25 testes de parser passaram, incluindo rua numerada, placeholder underscore, contrato antes do CEP, CEP pontuado e endereço FIELD com tipos duplicados; typecheck backend passou.
 
+### Teste
+Nome do cliente em chamados Field
+
+Resultado: ✅ 11 testes D-0/D-1/supervisor passaram; typecheck backend e build frontend passaram.
+
 ---
 
 ## 13. PENDÊNCIAS
@@ -980,6 +1003,7 @@ Resultado: ✅ 25 testes de parser passaram, incluindo rua numerada, placeholder
 
 ### 🟠 IMPORTANTE
 
+- sincronizar D-0/D-1 para preencher o nome em chamados FIELD existentes;
 - corrigir/reprocessar chamados antigos com Endereço contendo `CLT_` ou tipo de via duplicado;
 - reprocessar/editar chamados antigos que tenham Endereço igual ao contrato;
 - confirmar em acionamento real que novos chamados e registros reprocessados recebem o bairro corrigido;
@@ -996,13 +1020,17 @@ Resultado: ✅ 25 testes de parser passaram, incluindo rua numerada, placeholder
 
 ## 14. PRÓXIMA AÇÃO
 
-1. corrigir/reprocessar chamados recentes com Endereço contendo `CLT_` ou tipo de via duplicado;
-2. reprocessar/editar o chamado antigo com Endereço igual ao contrato e validar nova mensagem NOC com CEP pontuado;
+1. sincronizar a base D-0/D-1 e verificar nomes em chamados FIELD;
+2. corrigir/reprocessar chamados recentes com Endereço contendo `CLT_`, rua duplicada ou Endereço igual ao contrato;
 3. continuar a validação pendente do editor OLT→Região no banco publicado após aplicar migration 011/013.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Nome do cliente Field
+
+O campo `calls.client` é preenchido pela coluna `Nome` nas importações D-0/D-1 somente para tipos Field; o D-1 atualiza chamadas existentes e a interface rotula o campo como Cliente. 11 testes próximos, typecheck backend e build frontend passaram. Não houve migration. Sincronizar a base para preencher registros antigos; nome ausente na planilha preserva o valor atual.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Normalização Endereço/Bairro FIELD
 

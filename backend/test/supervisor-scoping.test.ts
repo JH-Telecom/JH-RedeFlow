@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
-import { buildDriveCall } from '../src/integrations/google-drive.js';
+import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
 
@@ -88,6 +88,27 @@ test('historical date filters use execution date for finished calls and dashboar
     if (previousSupabaseAnon === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = previousSupabaseAnon;
     if (previousSupabaseServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = previousSupabaseServiceRole;
   }
+});
+
+test('D-1 maps Nome to the client field only for FIELD activities', () => {
+  const fieldRow = { BDESK: 'BD-FIELD-NAME-01', 'Tipo de Atividade': 'Manutencao de Rede Field', 'Status da Atividade': 'Concluido', Nome: 'Maria de Fatima' };
+  const nonFieldRow = { BDESK: 'BD-NAME-01', 'Tipo de Atividade': 'Manutencao Corretiva de Rede', 'Status da Atividade': 'Concluido', Nome: 'Cliente fora de Field' };
+  const fieldCall = buildDriveCall(fieldRow);
+  const nonFieldCall = buildDriveCall(nonFieldRow);
+
+  assert.equal(fieldCall?.client, 'Maria de Fatima');
+  assert.equal(nonFieldCall?.client, '');
+  assert.ok(fieldCall);
+  assert.ok(nonFieldCall);
+
+  const existingFieldCall = { ...fieldCall, client: 'Cliente nao identificado' };
+  const fieldUpdate = buildDriveUpdate(fieldRow, existingFieldCall);
+  assert.equal(fieldUpdate.client, 'Maria de Fatima');
+  assert.equal(hasMeaningfulCallChange(existingFieldCall, fieldUpdate), true);
+
+  const existingNonFieldCall = { ...nonFieldCall, client: 'Cliente existente' };
+  const nonFieldUpdate = buildDriveUpdate(nonFieldRow, existingNonFieldCall);
+  assert.equal(nonFieldUpdate.client, undefined);
 });
 
 test('accepted NOC and Drive FIELD calls persist the official neighborhood and address', async () => {
