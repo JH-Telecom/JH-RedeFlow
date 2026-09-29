@@ -18,7 +18,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar a RPC de exclusão em lote no Supabase antes de usar a operação em produção; migrations 008–010 ainda precisam estar aplicadas conforme o runtime.
+Próxima ação: aplicar a migration 011 no Supabase antes de repetir a exclusão em lote; migrations 008–011 devem estar aplicadas conforme o runtime.
 
 ---
 
@@ -86,6 +86,16 @@ Registrado em 2026-09-29 antes das alterações de código.
 - exibir ação em lote nas listas somente para quem tem `calls.delete`; exigir digitação de `APAGAR TODOS` e informar que a ação inclui chamados fora dos filtros visíveis;
 - preservar a exclusão individual e testar endpoint sem permissão, exclusão global e limpeza dos dependentes.
 
+#### Correção adicional — filtro SQL explícito
+
+Plano registrado em 2026-09-29 após o erro `DELETE requires a WHERE clause`:
+
+- causa encontrada: a RPC Supabase e o fallback PostgreSQL faziam `DELETE` sem cláusula `WHERE`;
+- manter a semântica global usando predicados sobre colunas `NOT NULL` (`call_logs.call_id`, `call_observations.call_id`, `calls.id`);
+- criar migration corretiva nova para ambientes que já aplicaram a migration 010 e também atualizar a 010 para instalações novas;
+- a migration 011 substitui a função instalada; reexecutar a 010 não atualiza migrations já registradas pelo Supabase;
+- validar typecheck e regressões da exclusão; confirmar em Supabase real após aplicar a migration corretiva não é possível neste ambiente.
+
 #### Resultado
 
 - `DELETE /api/chamados` reutiliza `calls.delete`; a exclusão individual continua disponível;
@@ -94,8 +104,9 @@ Registrado em 2026-09-29 antes das alterações de código.
 - a lista mostra o botão global apenas a usuários com a permissão, exige digitar `APAGAR TODOS` e informa que ignora os filtros atuais;
 - endpoint retorna a contagem apagada; referências de acionamentos são anuladas pela FK existente e snapshots de Drive são removidos em cascata;
 - teste HTTP confirma `403` para Operador e exclusão total pelo Administrador; teste do store confirma contagem e lista vazia.
+- o erro `DELETE requires a WHERE clause` foi corrigido com predicados `IS NOT NULL` sobre IDs obrigatórios; o efeito continua sendo apagar todas as linhas.
 
-Arquivos alterados: `backend/src/store.ts`, `backend/src/server.ts`, `backend/test/http.test.ts`, `frontend/src/api.ts`, `frontend/src/App.tsx`, `frontend/src/filters.css`, `supabase/migrations/202609290010_bulk_delete_calls.sql` e `ROADMAP.md`.
+Arquivos alterados: `backend/src/store.ts`, `backend/src/server.ts`, `backend/test/http.test.ts`, `frontend/src/api.ts`, `frontend/src/App.tsx`, `frontend/src/filters.css`, `supabase/migrations/202609290010_bulk_delete_calls.sql`, `supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql` e `ROADMAP.md`.
 
 ### Correção — Bairro unificado + Região automática por OLT
 
@@ -191,9 +202,9 @@ Plano registrado antes da implementação em 2026-09-29.
 
 Implementado `DELETE /api/chamados` com a permissão existente `calls.delete`, confirmação digitada `APAGAR TODOS` e remoção consistente de chamados, observações, logs e snapshots relacionados. O PostgreSQL local usa transação na store; Supabase usa RPC `delete_all_calls()` restrita ao `service_role`.
 
-Validação: teste HTTP confirma negação para Operador e sucesso para Administrador; teste de store confirma contagem e lista vazia; typecheck do backend e build do frontend passaram.
+Validação: teste HTTP confirma negação para Operador e sucesso para Administrador; teste de store confirma contagem e lista vazia; typecheck do backend e build do frontend passaram. A regressão automatizada não executa SQL contra o Supabase real.
 
-Migration Supabase: [supabase/migrations/202609290010_bulk_delete_calls.sql](supabase/migrations/202609290010_bulk_delete_calls.sql). A migration é obrigatória antes de usar a operação em Supabase.
+Migrations Supabase: [supabase/migrations/202609290010_bulk_delete_calls.sql](supabase/migrations/202609290010_bulk_delete_calls.sql) e correção [supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). Aplique 011 nos ambientes que já aplicaram 010 antes de repetir a operação.
 
 ## 2026-09-29 — Bairro unificado e região automática por OLT
 
@@ -752,7 +763,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 ## 10. BANCO DE DADOS
 
-O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer [supabase/migrations/202609290010_bulk_delete_calls.sql](supabase/migrations/202609290010_bulk_delete_calls.sql). Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
+O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql); ambientes que já aplicaram 010 devem aplicar 011 para substituir a função. Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
 
 ---
 

@@ -804,9 +804,9 @@ export async function deleteAllCalls(): Promise<number> {
     const client = await getDatabaseClient();
     try {
       await client.query('BEGIN');
-      await client.query('DELETE FROM call_logs');
-      await client.query('DELETE FROM call_observations');
-      const result = await client.query('DELETE FROM calls');
+      await client.query('DELETE FROM call_logs WHERE call_id IS NOT NULL');
+      await client.query('DELETE FROM call_observations WHERE call_id IS NOT NULL');
+      const result = await client.query('DELETE FROM calls WHERE id IS NOT NULL');
       await client.query('COMMIT');
       return result.rowCount || 0;
     } catch (error) {
