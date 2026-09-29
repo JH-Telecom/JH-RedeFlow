@@ -66,9 +66,22 @@ function normalizeText(value: string | null | undefined) {
   return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').replace(/\s*[,;/]\s*/g, ', ').trim();
 }
 
-function normalizeOltCode(value: string | null | undefined) {
+export function normalizeOltCode(value: string | null | undefined) {
   if (!value) return null;
   return value.trim().toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+}
+
+export function getDefaultOltRegionMap() {
+  return { ...defaultOltRegionMap };
+}
+
+export function getManualOltRegionMap() {
+  return Object.fromEntries(manualOltRegionMap);
+}
+
+export function replaceManualOltRegionMap(mappings: Record<string, string>) {
+  manualOltRegionMap.clear();
+  for (const [olt, region] of Object.entries(mappings)) setManualOltRegion(olt, region);
 }
 
 export function setManualOltRegion(olt: string | null | undefined, region: string) {

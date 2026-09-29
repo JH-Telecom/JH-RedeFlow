@@ -15,6 +15,7 @@ export type DashboardMetrics = { receivedToday: number; open: number; unassigned
 export type ManualProductionData = { activities: { type: string; pending: number; enRoute: number; started: number; concluded: number; cancelled: number; suspended: number; total: number }[]; technicians: { name: string; pending: number; enRoute: number; started: number; concluded: number; cancelled: number; suspended: number; total: number }[]; orders: { order: string; technician: string; inicio: string; tempo: string }[]; updatedAt: string };
 export type ManualDailyBase = { businessDate: string; fileName: string; data: ManualProductionData; uploadedBy: string; updatedAt: string };
 export type SystemSettings = { autoRefresh: boolean; refreshIntervalSeconds: number; slaAlertHours: number; defaultRegion: string };
+export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
 export type AppNotification = { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string };
 export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -89,5 +90,7 @@ export const api = {
   createRole: (data: { name: string; description: string; permissions: string[] }) => request<{ role: Role }>('/api/roles', { method: 'POST', body: JSON.stringify(data) }),
   updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[] }) => request<{ role: Role }>(`/api/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
-  updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) })
+  updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) }),
+  oltRegionMappings: () => request<{ mappings: OltRegionMapping[] }>('/api/configuracoes/olt-regioes'),
+  saveOltRegionMappings: (mappings: Array<Pick<OltRegionMapping, 'olt' | 'region'>>) => request<{ mappings: OltRegionMapping[] }>('/api/configuracoes/olt-regioes', { method: 'PUT', body: JSON.stringify({ mappings }) })
 };

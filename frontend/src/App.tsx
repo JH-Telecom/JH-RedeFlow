@@ -20,6 +20,7 @@ import {
   LockKeyhole,
   LogOut,
   Menu,
+  Plus,
   Search,
   Settings,
   ShieldCheck,
@@ -47,6 +48,7 @@ import {
   type DashboardMetrics,
   type ImportRecord,
   type D0BaseSummary,
+  type OltRegionMapping,
 } from "./api";
 
 const operationalRegions = [
@@ -2744,11 +2746,47 @@ function SettingsPage() {
   const [settings, setSettings] = useState({ autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: "Todas" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [oltRegions, setOltRegions] = useState<OltRegionMapping[]>([]);
+  const [searchOlt, setSearchOlt] = useState("");
+  const [newOlt, setNewOlt] = useState("");
+  const [newOltRegion, setNewOltRegion] = useState(operationalRegions[0]);
+  const [mappingMessage, setMappingMessage] = useState("");
+  const [mappingError, setMappingError] = useState("");
+  const [mappingLoading, setMappingLoading] = useState(true);
+  const [mappingSaving, setMappingSaving] = useState(false);
   useEffect(() => { api.settings().then((data) => setSettings(data.settings)).catch((err) => setError(err.message)); }, []);
+  useEffect(() => { api.oltRegionMappings().then((data) => setOltRegions(data.mappings)).catch((err) => setMappingError(err.message)).finally(() => setMappingLoading(false)); }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
     try { const result = await api.updateSettings(settings); setSettings(result.settings); setMessage("Configuracoes salvas."); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar configuracoes."); }
   }
+  async function saveOltRegions(event: React.FormEvent) {
+    event.preventDefault();
+    setMappingSaving(true);
+    setMappingError("");
+    setMappingMessage("");
+    try {
+      const result = await api.saveOltRegionMappings(oltRegions.map(({ olt, region }) => ({ olt, region })));
+      setOltRegions(result.mappings);
+      setMappingMessage("Mapa de OLTs salvo.");
+    } catch (err) {
+      setMappingError(err instanceof Error ? err.message : "Nao foi possivel salvar o mapa de OLTs.");
+    } finally {
+      setMappingSaving(false);
+    }
+  }
+  function addOlt() {
+    const normalizedOlt = newOlt.trim().toUpperCase().replace(/\s+/g, "");
+    if (!normalizedOlt || oltRegions.some((mapping) => mapping.olt.toUpperCase().replace(/\s+/g, "") === normalizedOlt)) {
+      setMappingError(normalizedOlt ? "Esta OLT ja esta cadastrada." : "Informe o codigo da OLT.");
+      return;
+    }
+    setOltRegions((current) => [...current, { olt: normalizedOlt, region: newOltRegion }].sort((left, right) => left.olt.localeCompare(right.olt)));
+    setNewOlt("");
+    setMappingError("");
+    setMappingMessage("");
+  }
+  const filteredOltRegions = oltRegions.filter((mapping) => `${mapping.olt} ${mapping.region}`.toLowerCase().includes(searchOlt.toLowerCase()));
   return (
     <>
       <div className="page-heading">
@@ -2771,6 +2809,20 @@ function SettingsPage() {
           {message && <div className="save-message">{message}</div>}
           {error && <div className="form-error">{error}</div>}
         </div>
+      </form>
+      <form className="panel settings-olt-panel" onSubmit={saveOltRegions}>
+        <div className="settings-olt-heading">
+          <div><span className="section-kicker">MAPEAMENTO OPERACIONAL</span><h2>OLT por Região</h2><p>Altere a Região associada a uma OLT ou cadastre uma nova. Alterações passam a valer para os próximos chamados e sincronizações.</p></div>
+          <button className="primary-button compact" type="submit" disabled={mappingSaving || mappingLoading}><Settings size={15}/>{mappingSaving ? "Salvando..." : "Salvar mapa"}</button>
+        </div>
+        <div className="settings-olt-toolbar"><label className="search-field"><Search size={16}/><input value={searchOlt} onChange={(event) => setSearchOlt(event.target.value)} placeholder="Buscar OLT ou Região" /></label><span>{filteredOltRegions.length} de {oltRegions.length} OLTs</span></div>
+        <div className="settings-olt-add">
+          <label>Nova OLT<input value={newOlt} onChange={(event) => setNewOlt(event.target.value)} placeholder="Ex.: VIP-OLT-SPO-01" maxLength={120}/></label>
+          <label>Região<select value={newOltRegion} onChange={(event) => setNewOltRegion(event.target.value)}>{operationalRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></label>
+          <button className="secondary-button compact" type="button" onClick={addOlt}><Plus size={15}/> Adicionar OLT</button>
+        </div>
+        <div className="settings-olt-table-wrap"><table className="settings-olt-table"><thead><tr><th>OLT</th><th>Região</th><th>Origem</th><th>Ação</th></tr></thead><tbody>{filteredOltRegions.map((mapping) => <tr key={mapping.olt}><td><strong>{mapping.olt}</strong></td><td><select aria-label={`Região da OLT ${mapping.olt}`} value={mapping.region} onChange={(event) => setOltRegions((current) => current.map((item) => item.olt === mapping.olt ? { ...item, region: event.target.value } : item))}>{mapping.region && !operationalRegions.includes(mapping.region) && <option value={mapping.region}>{mapping.region}</option>}{operationalRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></td><td>{mapping.defaultRegion ? "Padrão" : "Personalizada"}</td><td>{!mapping.defaultRegion && <button className="icon-button settings-olt-remove" type="button" aria-label={`Remover OLT ${mapping.olt}`} title="Remover OLT personalizada" onClick={() => setOltRegions((current) => current.filter((item) => item.olt !== mapping.olt))}><Trash2 size={15}/></button>}</td></tr>)}</tbody></table>{mappingLoading && <div className="empty-state">Carregando mapeamentos...</div>}{!mappingLoading && !filteredOltRegions.length && <div className="empty-state">Nenhuma OLT encontrada.</div>}</div>
+        {mappingMessage && <div className="save-message">{mappingMessage}</div>}{mappingError && <div className="form-error">{mappingError}</div>}
       </form>
     </>
   );

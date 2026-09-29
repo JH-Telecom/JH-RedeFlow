@@ -18,6 +18,7 @@ import './imports.css';
 import './dashboard.css';
 import './sidebar.css';
 import './admin.css';
+import './settings-olt.css';
 import './permissions.css';
 import './filters.css';
 import './refresh.css';

@@ -5,6 +5,7 @@ import { parseImport } from '../src/imports/parser.js';
 import { extractOperationalData, parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { clearManualOltRegion, consolidateNocAddresses, identifyAtreladas, resolveOltRegion, setManualOltRegion } from '../src/integrations/wuzapi/noc-consolidation.js';
+import { listOltRegionMappings, saveOltRegionMappings } from '../src/store.js';
 
 test('normalizes a nested WuzAPI message', () => {
   const result = parseIncomingMessage({
@@ -229,6 +230,22 @@ test('resolves the OLT region from the default table with manual override priori
 
   clearManualOltRegion('VIP-ITA-SPO-OHW-01');
   assert.equal(resolveOltRegion('VIP-ITA-SPO-OHW-01').region, 'ITAIM PAULISTA');
+});
+
+test('settings can override a default OLT region and add a custom OLT', async () => {
+  const original = await listOltRegionMappings();
+  try {
+    const updated = original.map(({ olt, region }) => ({ olt, region: olt === 'VIP-ITA-SPO-OHW-01' ? 'GUARULHOS 1' : region }));
+    updated.push({ olt: 'CUSTOM-OLT-01', region: 'MOGI 1' });
+    const saved = await saveOltRegionMappings(updated);
+
+    assert.equal(resolveOltRegion('VIP-ITA-SPO-OHW-01').region, 'GUARULHOS 1');
+    assert.equal(resolveOltRegion('CUSTOM-OLT-01').region, 'MOGI 1');
+    assert.ok(saved.some((mapping) => mapping.olt === 'VIP-ITA-SPO-OHW-01' && mapping.defaultRegion === 'ITAIM PAULISTA'));
+    assert.ok(saved.some((mapping) => mapping.olt === 'CUSTOM-OLT-01' && !mapping.defaultRegion));
+  } finally {
+    await saveOltRegionMappings(original.map(({ olt, region }) => ({ olt, region })));
+  }
 });
 
 test('does not classify ordinary group conversation as an activation', () => {

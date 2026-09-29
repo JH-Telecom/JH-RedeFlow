@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
 import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
-import { identifyAtreladas, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
+import { getDefaultOltRegionMap, getManualOltRegionMap, identifyAtreladas, normalizeOltCode, replaceManualOltRegionMap, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
 import { matchD0Rows, type D0Row } from './imports/d0.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, Supervisor, SystemSettings, Technician, User } from './types.js';
 
@@ -428,6 +428,70 @@ export async function updateRole(id: string, input: { name?: string; description
 }
 export function getSettings(): SystemSettings { return { ...settings }; }
 export function updateSettings(input: Partial<SystemSettings>): SystemSettings { Object.assign(settings, input); return getSettings(); }
+export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
+
+async function readManualOltRegionMap(): Promise<Record<string, string>> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('olt_region_overrides').select('olt, region').order('olt', { ascending: true });
+    if (error) throw new Error(error.message);
+    return Object.fromEntries((data || []).map((row) => [row.olt, row.region]));
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ olt: string; region: string }>('SELECT olt, region FROM olt_region_overrides ORDER BY olt ASC');
+    return Object.fromEntries(result.rows.map((row) => [row.olt, row.region]));
+  }
+  return getManualOltRegionMap();
+}
+
+export async function listOltRegionMappings(): Promise<OltRegionMapping[]> {
+  const defaults = getDefaultOltRegionMap();
+  const overrides = await readManualOltRegionMap();
+  replaceManualOltRegionMap(overrides);
+  const merged = { ...defaults, ...overrides };
+  return Object.entries(merged).map(([olt, region]) => ({ olt, region, defaultRegion: defaults[olt] })).sort((left, right) => left.olt.localeCompare(right.olt));
+}
+
+export async function saveOltRegionMappings(mappings: Array<{ olt: string; region: string }>): Promise<OltRegionMapping[]> {
+  const defaults = getDefaultOltRegionMap();
+  const overrides: Record<string, string> = {};
+  for (const mapping of mappings) {
+    const olt = normalizeOltCode(mapping.olt);
+    const region = mapping.region.trim();
+    if (!olt || !region) throw new Error('Informe uma OLT e uma regiao para cada mapeamento.');
+    if (overrides[olt]) throw new Error(`A OLT ${olt} foi informada mais de uma vez.`);
+    if (defaults[olt] !== region) overrides[olt] = region;
+  }
+
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const { error: deleteError } = await admin.from('olt_region_overrides').delete().not('olt', 'is', null);
+    if (deleteError) throw new Error(deleteError.message);
+    const rows = Object.entries(overrides).map(([olt, region]) => ({ olt, region, updated_at: new Date().toISOString() }));
+    if (rows.length) {
+      const { error } = await admin.from('olt_region_overrides').insert(rows);
+      if (error) throw new Error(error.message);
+    }
+  } else if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query('BEGIN');
+    try {
+      await client.query('DELETE FROM olt_region_overrides WHERE olt IS NOT NULL');
+      for (const [olt, region] of Object.entries(overrides)) {
+        await client.query('INSERT INTO olt_region_overrides (olt, region) VALUES ($1, $2)', [olt, region]);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  }
+
+  replaceManualOltRegionMap(overrides);
+  const merged = { ...defaults, ...overrides };
+  return Object.entries(merged).map(([olt, region]) => ({ olt, region, defaultRegion: defaults[olt] })).sort((left, right) => left.olt.localeCompare(right.olt));
+}
+
 export async function listSupervisors(): Promise<Supervisor[]> {
   ensureDemoData();
   if (isSupabaseConfigured()) {

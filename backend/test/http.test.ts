@@ -214,6 +214,44 @@ test('shares, replaces and clears the daily dashboard base', async () => {
   assert.equal(afterClearBody.base, undefined);
 });
 
+test('admins can manage OLT region mappings while operators are denied', async () => {
+  const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const adminSession = await adminLogin.json() as { token: string };
+  const adminHeaders = { 'content-type': 'application/json', authorization: `Bearer ${adminSession.token}` };
+
+  const initial = await fetch(`${baseUrl}/api/configuracoes/olt-regioes`, { headers: adminHeaders });
+  const initialBody = await initial.json() as { mappings: Array<{ olt: string; region: string; defaultRegion?: string }> };
+  assert.equal(initial.status, 200);
+  assert.ok(initialBody.mappings.some((mapping) => mapping.olt === 'VIP-ITA-SPO-OHW-01' && mapping.region === 'ITAIM PAULISTA'));
+
+  const saved = await fetch(`${baseUrl}/api/configuracoes/olt-regioes`, {
+    method: 'PUT',
+    headers: adminHeaders,
+    body: JSON.stringify({ mappings: [{ olt: 'VIP-ITA-SPO-OHW-01', region: 'GUARULHOS 1' }, { olt: 'CUSTOM-OLT-HTTP', region: 'MOGI 1' }] }),
+  });
+  const savedBody = await saved.json() as { mappings: Array<{ olt: string; region: string }> };
+  assert.equal(saved.status, 200);
+  assert.ok(savedBody.mappings.some((mapping) => mapping.olt === 'VIP-ITA-SPO-OHW-01' && mapping.region === 'GUARULHOS 1'));
+  assert.ok(savedBody.mappings.some((mapping) => mapping.olt === 'VIP-CT1-SPO-OHW-01'));
+
+  const operatorLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'matheus@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const operatorSession = await operatorLogin.json() as { token: string };
+  const forbidden = await fetch(`${baseUrl}/api/configuracoes/olt-regioes`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${operatorSession.token}` },
+    body: JSON.stringify({ mappings: [{ olt: 'CUSTOM-OLT-HTTP', region: 'PALMEIRAS' }] }),
+  });
+  assert.equal(forbidden.status, 403);
+});
+
 test('parses WuzAPI group metadata without conflating sender and chat', () => {
   const payload = {
     event: {

@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-29
 
-Última implementação: Data Fim da base D-0 restrita a chamados fechados, com limpeza de valores antigos em chamados ativos.
+Última implementação: editor persistente de mapeamentos OLT→Região na aba Configurações.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar a migration local `010_d0_base_and_ofs_status.sql` ou Supabase `202609290012_d0_base_and_ofs_status.sql` antes de usar D-0; confirmar os nomes de colunas e o fuso da planilha oficial.
+Próxima ação: aplicar a migration local `011_olt_region_overrides.sql` ou Supabase `202609290013_olt_region_overrides.sql`; depois confirmar a alteração de região em um chamado/sincronização real.
 
 ---
 
@@ -28,6 +28,7 @@ Próxima ação: aplicar a migration local `010_d0_base_and_ofs_status.sql` ou S
 - Backend: API Express em [backend/src/server.ts](backend/src/server.ts) com regras de negócio em [backend/src/store.ts](backend/src/store.ts).
 - Banco de dados: PostgreSQL com migrations em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations).
 - Base D-0: snapshot da última planilha armazenado em `d0_base_records`; o campo `calls.ofs_status` mantém o estado nativo OFS sem substituir `calls.status`.
+- Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
 - APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
 - Infraestrutura: runtime local com variáveis de ambiente, fallback demo e configs de produção.
@@ -50,6 +51,7 @@ Próxima ação: aplicar a migration local `010_d0_base_and_ofs_status.sql` ou S
 - [x] WuzAPI, acionamentos e análise de mensagens operacionais.
 - [x] Importação de bases CSV/XLSX.
 - [x] Upload/substituição e limpeza da base D-0 na aba Importações, com atualização de localização, Status OFS e Data Fim por identificadores de chamado.
+- [x] Editor pesquisável de OLT→Região em Configurações, com alteração de defaults, inclusão/remoção de OLTs personalizadas e persistência após reinício.
 - [x] Dashboards e indicadores operacionais.
 - [x] Escopo de supervisão aplicado por equipe para chamadas e dashboard.
 - [x] Tela de ordens da equipe do supervisor com filtro de período.
@@ -77,6 +79,17 @@ Próxima ação: aplicar a migration local `010_d0_base_and_ofs_status.sql` ou S
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Editor de OLT por Região — implementado em 2026-09-29
+
+- a aba Configurações lista defaults e OLTs personalizadas; permite buscar, alterar Região, adicionar OLT e remover entradas personalizadas;
+- `GET/PUT /api/configuracoes/olt-regioes` exigem `settings.manage`; duplicatas normalizadas são rejeitadas;
+- overrides são persistidos em `olt_region_overrides` no PostgreSQL/Supabase e carregados no início do backend; a tabela padrão continua no código e serve de fallback;
+- salvar novamente a Região padrão de uma OLT remove seu override; adicionar OLT personalizada cria override persistente;
+- migrations: [database/migrations/011_olt_region_overrides.sql](database/migrations/011_olt_region_overrides.sql) e [supabase/migrations/202609290013_olt_region_overrides.sql](supabase/migrations/202609290013_olt_region_overrides.sql);
+- testes: 21 testes de parser/resolução passaram incluindo override e OLT customizada; teste HTTP focado 1/1 passou para leitura/salvamento e permissão; build frontend e typecheck backend passaram.
+
+Arquivos alterados: `backend/src/integrations/wuzapi/noc-consolidation.ts`, `backend/src/store.ts`, `backend/src/server.ts`, `backend/test/parsers.test.ts`, `backend/test/http.test.ts`, `frontend/src/api.ts`, `frontend/src/App.tsx`, `frontend/src/main.tsx`, `frontend/src/settings-olt.css`, migrations 011/013 e `ROADMAP.md`.
 
 ### Base operacional D-0 e Status OFS — implementado em 2026-09-29
 
@@ -219,6 +232,14 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-29 — Editor de mapeamento OLT→Região
+
+Adicionada à aba Configurações uma tabela com busca e edição da Região de cada OLT, cadastro/remoção de OLTs personalizadas e salvamento explícito. Os defaults existentes permanecem como referência e overrides são persistidos em PostgreSQL/Supabase, carregados no boot e aplicados pelo resolver comum. Endpoints usam `settings.manage`; migration local 011 e Supabase 013.
+
+Arquivos principais: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/server.ts](backend/src/server.ts), [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/settings-olt.css](frontend/src/settings-olt.css), [database/migrations/011_olt_region_overrides.sql](database/migrations/011_olt_region_overrides.sql) e [supabase/migrations/202609290013_olt_region_overrides.sql](supabase/migrations/202609290013_olt_region_overrides.sql).
+
+Validação: teste focado do mapa 21/21 e teste HTTP de permissão/gravação 1/1 passaram; typecheck backend e build frontend passaram. Migration não aplicada em banco real neste ambiente.
 
 ## 2026-09-29 — Importação operacional D-0 e Status OFS
 
@@ -825,7 +846,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 ## 10. BANCO DE DADOS
 
-O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). A importação D-0 requer [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) no runtime PostgreSQL local ou [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql) no Supabase. Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
+O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). A importação D-0 requer [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) no runtime PostgreSQL local ou [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql) no Supabase. O editor OLT→Região requer [database/migrations/011_olt_region_overrides.sql](database/migrations/011_olt_region_overrides.sql) ou [supabase/migrations/202609290013_olt_region_overrides.sql](supabase/migrations/202609290013_olt_region_overrides.sql). Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
 
 ---
 
@@ -883,6 +904,11 @@ Importação D-0, Status OFS e limpeza do snapshot
 
 Resultado: ✅ 29 testes focados passaram; typecheck do backend e build do frontend passaram.
 
+### Teste
+Editor de mapeamento OLT→Região
+
+Resultado: ✅ 21 testes de parser/resolução e 1 teste HTTP de salvar/permissão passaram; typecheck backend e build frontend passaram.
+
 ---
 
 ## 13. PENDÊNCIAS
@@ -890,6 +916,7 @@ Resultado: ✅ 29 testes focados passaram; typecheck do backend e build do front
 ### 🔴 CRÍTICO
 
 - aplicar a migration D-0 no banco do runtime antes do primeiro upload;
+- aplicar a migration 011 local ou 013 Supabase antes de salvar overrides de OLT;
 - validar autenticação do Supabase real com seed e login oficial;
 - confirmar consistência entre runtime local e produção.
 
@@ -908,13 +935,17 @@ Resultado: ✅ 29 testes focados passaram; typecheck do backend e build do front
 
 ## 14. PRÓXIMA AÇÃO
 
-1. aplicar `database/migrations/010_d0_base_and_ofs_status.sql` no PostgreSQL local ou `supabase/migrations/202609290012_d0_base_and_ofs_status.sql` no Supabase;
-2. subir uma planilha D-0 oficial e conferir campos, Data Fim e contagens de correspondência/ignorados;
-3. repetir `npm test --workspace backend` até obter resumo final e validar a integração no ambiente Supabase publicado.
+1. aplicar `database/migrations/011_olt_region_overrides.sql` no PostgreSQL local ou `supabase/migrations/202609290013_olt_region_overrides.sql` no Supabase;
+2. editar uma OLT na aba Configurações e confirmar que a Região calculada muda para novos chamados e sincronizações;
+3. validar a alteração de Região com a migration aplicada no banco Supabase publicado.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-29 — Configuração OLT→Região
+
+Editor e persistência estão implementados. 21 testes focados do mapa, 1 teste HTTP de permissão/gravação, typecheck backend e build frontend passaram. Aplicar migration local 011 ou Supabase 013 antes de salvar overrides no banco. Ao retornar a uma OLT default original, o override é removido e o valor embutido volta a prevalecer; OLTs personalizadas podem ser excluídas pela interface.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Base D-0
 
