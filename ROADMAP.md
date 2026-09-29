@@ -212,6 +212,35 @@ Arquivos envolvidos:
 
 ---
 
+### 🟢 Problema resolvido
+Bairros placeholders em NOC e ausência de mapeamento de OLT para região.
+
+Status: Resolvido
+
+Impacto: mensagens com `NÃO INFORMADO COLOMBIA`, `N/A` e outras sentenças genéricas podiam contaminar o bairro principal, e OLTs conhecidos não tinham região padrão quando a operação dependia de classificação geográfica.
+
+Causa conhecida: a consolidação de endereços NOC não removia placeholders de bairro corretamente, enquanto o módulo de NOC não possuía tabela padrão de `OLT -> região` nem prioridade de override manual.
+
+Solução aplicada:
+
+- limpeza robusta do bairro para remover placeholders e manter o valor válido mais recorrente;
+- preservação do prefixo `BAIRRO` quando ele faz parte do dado real (ex.: `BAIRRO A`);
+- tabela de fallback de região por OLT com override manual de maior prioridade;
+- bloqueio do preenchimento de bairro/endereço para fluxos `NOC TX`, que não possuem bairro aplicável.
+
+Arquivos envolvidos:
+
+- [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts)
+- [backend/src/integrations/wuzapi/semantic.ts](backend/src/integrations/wuzapi/semantic.ts)
+- [backend/test/parsers.test.ts](backend/test/parsers.test.ts)
+
+### Validação
+
+- execução de regressão focada: `npx tsx --test test/parsers.test.ts`;
+- resultado: 19 testes passaram, 0 falharam.
+
+---
+
 ## 8. DECISÕES TÉCNICAS
 
 ## Decisão — 2026-09-23

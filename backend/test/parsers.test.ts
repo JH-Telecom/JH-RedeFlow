@@ -4,7 +4,7 @@ import XLSX from 'xlsx';
 import { parseImport } from '../src/imports/parser.js';
 import { extractOperationalData, parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
-import { consolidateNocAddresses, identifyAtreladas } from '../src/integrations/wuzapi/noc-consolidation.js';
+import { clearManualOltRegion, consolidateNocAddresses, identifyAtreladas, resolveOltRegion, setManualOltRegion } from '../src/integrations/wuzapi/noc-consolidation.js';
 
 test('normalizes a nested WuzAPI message', () => {
   const result = parseIncomingMessage({
@@ -169,6 +169,29 @@ test('identifies atreladas through technical identifiers and matching consolidat
   const current = { olt: 'OLT-01', placa_pon: '06', slot_pon: ['00'], bdesk: null, office_track: 'OS-10', contrato: null, endereco_principal: 'RUA X, 100', bairro_principal: 'BAIRRO A' } as const;
   const ids = identifyAtreladas(current, [{ id: 'activation-1', analysis: { ...current, raw_text: '', eh_acionamento: true, tipo_registro: null, tipo_card: null, categoria: null, origem: null, prioridade: null, tecnico: null, auxiliar: null, telefone: null, bdesk: null, ticket: null, office_track: 'OS-10', os_ot: null, os_casa_cliente: null, contrato: null, sn: null, olt: 'OLT-01', slot_pon: ['00'], placa_pon: '06', tipo_falha: null, motivo: null, afetados: null, data_hora_evento: null, tratativa_realizada: null, localizacao: null, id_cto: null, loc_cto: null, materiais_utilizados: null, tecnico_rede: null, cope_rede: null, observacoes: null } }]);
   assert.deepEqual(ids, ['activation-1']);
+});
+
+test('removes placeholder neighborhood text and keeps the most recurrent valid neighborhood', () => {
+  const result = consolidateNocAddresses([
+    'CEP: 01000-000\nEndereço: Rua X, 100, NÃO INFORMADO COLOMBIA, Sao Paulo - SP',
+    'CEP: 01000-000\nEndereço: Rua Y, 200, COLOMBIA, Sao Paulo - SP',
+    'CEP: 01000-000\nEndereço: Rua Z, 300, COLOMBIA, Sao Paulo - SP',
+    'CEP: 01000-000\nEndereço: Rua A, 400, JARDIM XYZ, Sao Paulo - SP',
+  ]);
+  assert.equal(result.bairroPrincipal, 'COLOMBIA');
+});
+
+test('resolves the OLT region from the default table with manual override priority', () => {
+  const defaultResolution = resolveOltRegion('VIP-ITA-SPO-OHW-01');
+  assert.equal(defaultResolution.region, 'ITAIM PAULISTA');
+  assert.equal(defaultResolution.source, 'default');
+
+  setManualOltRegion('VIP-ITA-SPO-OHW-01', 'REGIAO TESTE');
+  assert.equal(resolveOltRegion('VIP-ITA-SPO-OHW-01').region, 'REGIAO TESTE');
+  assert.equal(resolveOltRegion('VIP-ITA-SPO-OHW-01').source, 'manual');
+
+  clearManualOltRegion('VIP-ITA-SPO-OHW-01');
+  assert.equal(resolveOltRegion('VIP-ITA-SPO-OHW-01').region, 'ITAIM PAULISTA');
 });
 
 test('does not classify ordinary group conversation as an activation', () => {
