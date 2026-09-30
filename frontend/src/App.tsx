@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import {
   Activity,
+  Archive,
   BarChart3,
   Bell,
   Building2,
@@ -80,6 +81,12 @@ const navItems = [
     label: "Em atendimento",
     to: "/chamados/atendimento",
     icon: Activity,
+    permission: "calls.view",
+  },
+  {
+    label: "Finalizados e cancelados",
+    to: "/chamados/finalizados",
+    icon: Archive,
     permission: "calls.view",
   },
   {
@@ -288,6 +295,8 @@ function Shell({
       ? "Visao geral"
       : location.pathname.includes("/chamados/abertos")
         ? "Chamados abertos"
+        : location.pathname === "/chamados/finalizados"
+          ? "Finalizados e cancelados"
           : location.pathname.includes("/chamados/atendimento")
             ? "Em atendimento"
           : location.pathname === "/supervisor/ordens"
@@ -411,6 +420,10 @@ function Shell({
             <Route
               path="/chamados/atendimento"
               element={<CallsPage title="Chamados em atendimento" assignedOnly />}
+            />
+            <Route
+              path="/chamados/finalizados"
+              element={<CallsPage title="Finalizados e cancelados" closedOnly />}
             />
             <Route path="/supervisor/ordens" element={<SupervisorOrdersPage user={user} />} />
             <Route path="/acionamentos" element={<ActivationsPage />} />
@@ -1731,7 +1744,7 @@ function SupervisorOrdersPage({ user }: { user: User & { role: Role } }) {
   return <CallsPage title="Ordens dos meus tecnicos" teamScoped />;
 }
 
-function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; teamScoped?: boolean }) {
+function CallsPage({ status, title, assignedOnly = false, teamScoped = false, closedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; teamScoped?: boolean; closedOnly?: boolean }) {
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1743,17 +1756,17 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
   const [error, setError] = useState("");
   const [bulkDeleteMessage, setBulkDeleteMessage] = useState("");
   const [canDeleteAllCalls, setCanDeleteAllCalls] = useState(false);
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
   useEffect(() => {
     api
-      .calls(status, { ...dateRange, teamScope: teamScoped })
+      .calls(closedOnly ? undefined : status, { ...dateRange, teamScope: teamScoped })
       .then((data) => setCalls(data.calls))
       .catch((err) => setError(err.message));
-  }, [status, dateRange.from, dateRange.to]);
+  }, [status, closedOnly, dateRange.from, dateRange.to]);
   useEffect(() => {
     try {
       const raw = localStorage.getItem('jh-redeflow-session');
@@ -1781,59 +1794,36 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
     }
   }
 
-  async function copyTableAsImage() {
+  async function copyTableAsTsv() {
     const table = tableRef.current;
     if (!table) return;
 
-    const captureWidth = table.scrollWidth;
-    const captureHost = document.createElement("div");
-    captureHost.className = `panel table-panel calls-table${assignedOnly ? " attendance-table" : ""}`;
-    captureHost.style.cssText = `position:fixed;left:-100000px;top:0;display:block;width:${captureWidth}px;max-width:none;height:auto;min-height:0;overflow:visible;background:#fff;`;
-    const tableClone = table.cloneNode(true) as HTMLTableElement;
-    tableClone.style.width = `${captureWidth}px`;
-    tableClone.style.minWidth = `${captureWidth}px`;
-    tableClone.style.maxWidth = "none";
-    tableClone.style.height = "auto";
-    tableClone.querySelectorAll<HTMLElement>(".sla-cell").forEach((cell) => {
-      const color = cell.classList.contains("on-time") ? "#138a5e" : cell.classList.contains("late") ? "#a86b00" : "#bd3f45";
-      cell.style.color = color;
-      cell.querySelectorAll<HTMLElement>("strong, small").forEach((text) => { text.style.color = color; text.style.display = "block"; });
-    });
-    captureHost.appendChild(tableClone);
-    document.body.appendChild(captureHost);
-    const captureHeight = Math.max(tableClone.scrollHeight, tableClone.getBoundingClientRect().height);
-
     try {
-      const canvas = await html2canvas(captureHost, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        width: captureWidth,
-        height: captureHeight,
-        windowWidth: Math.max(window.innerWidth, captureWidth),
-        windowHeight: Math.max(window.innerHeight, captureHeight),
-        useCORS: true,
-        logging: false,
-      });
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("Imagem indisponivel");
-      if (navigator.clipboard && window.ClipboardItem) {
-        await navigator.clipboard.write([
-          new ClipboardItem({ [blob.type]: blob }),
-        ]);
-        setCopyState("copied");
+      const tsv = Array.from(table.querySelectorAll("tr"), (row) =>
+        Array.from(row.querySelectorAll("th, td"), (cell) => {
+          const element = cell as HTMLElement;
+          const prazo = element.dataset.prazo || element.querySelector<HTMLElement>("[data-prazo]")?.dataset.prazo;
+          return (prazo || element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
+        }).join("\t"),
+      ).join("\n");
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(tsv);
       } else {
-        const downloadUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = "redeflow-tabela.png";
-        link.click();
-        URL.revokeObjectURL(downloadUrl);
-        setCopyState("downloaded");
+        const textarea = document.createElement("textarea");
+        textarea.value = tsv;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+        if (!copied) throw new Error("Clipboard indisponivel");
       }
+      setCopyState("copied");
     } catch {
       setCopyState("error");
-    } finally {
-      captureHost.remove();
     }
 
     window.setTimeout(() => setCopyState("idle"), 1800);
@@ -1841,9 +1831,10 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
 
   async function refreshCalls() {
     setLoading(true);
-    try { setCalls((await api.calls(status, { ...dateRange, teamScope: teamScoped })).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
+    try { setCalls((await api.calls(closedOnly ? undefined : status, { ...dateRange, teamScope: teamScoped })).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
   }
   const visibleCalls = calls.filter((call) =>
+    (!closedOnly || call.status === "Finalizado" || call.status === "Cancelado") &&
     (!assignedOnly || Boolean(call.technicianId || call.technicianName)) &&
     [call.orderNumber, call.client, call.bdesk, call.region, call.city, call.bairro, call.address]
       .join(" ")
@@ -1894,14 +1885,14 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false }: 
             <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
               <SlidersHorizontal size={15} /> Filtros
             </button>
-            <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button" aria-label="Copiar tabela completa como imagem">
+            <button className="secondary-button compact" onClick={() => void copyTableAsTsv()} type="button" aria-label="Copiar tabela como TSV">
               <Copy size={15} />
-              {copyState === "copied" ? "Tabela copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
+              {copyState === "copied" ? "Tabela copiada" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
             </button>
             <span className="result-count">{visibleCalls.length} resultados</span>
           </div>
         </div>
-        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
+        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option></> : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
@@ -1949,7 +1940,7 @@ function SlaCell({ openedAt }: { openedAt: string }) {
   const state = elapsedMinutes > 600 ? "outlier" : elapsedMinutes > 480 ? "late" : "on-time";
   const label = state === "outlier" ? "Outlier" : state === "late" ? "Fora do prazo" : "No prazo";
   const color = state === "outlier" ? "#bd3f45" : state === "late" ? "#a86b00" : "#138a5e";
-  return <span className={`sla-cell ${state}`} style={{ color }}><strong style={{ color }}>{label}</strong><small style={{ color }}>Limite 08:00</small></span>;
+  return <span className={`sla-cell ${state}`} data-prazo={`${label} - Limite 08:00`} style={{ color }}><strong style={{ color }}>{label}</strong><small style={{ color }}>Limite 08:00</small></span>;
 }
 function SlaDurationCell({ openedAt }: { openedAt: string }) {
   const elapsedMinutes = getElapsedMinutes(openedAt);

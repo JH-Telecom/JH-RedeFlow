@@ -12,9 +12,9 @@ Principais usuários: operadores, supervisores, administradores, mesários e usu
 
 Status geral: EM DESENVOLVIMENTO
 
-Última atualização: 2026-09-29
+Última atualização: 2026-09-30
 
-Última implementação: anexos persistentes nas observações de chamados, com prévia de imagens e download autenticado.
+Última implementação: tela dedicada de chamados finalizados e cancelados, com tabela e filtros reutilizados.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -46,6 +46,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Runtime local separado do Supabase oficial por ambiente.
 - [x] Fluxos de técnicos, supervisores e relacionamento entre equipes.
 - [x] Chamados, fila operacional, detalhe e atribuição.
+- [x] Tela de chamados finalizados e cancelados com busca, filtros e tabela operacional reutilizada.
 - [x] Observações e auditoria de chamados.
 - [x] Finalização, cancelamento e regras de status.
 - [x] WuzAPI, acionamentos e análise de mensagens operacionais.
@@ -80,7 +81,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
-- [x] Scroll horizontal isolado na tabela de atendimento e captura integral para clipboard/PNG.
+- [x] Scroll horizontal isolado na tabela de atendimento, colunas com larguras fixas e cópia TSV sem estilos visuais, incluindo o texto e limite da coluna PRAZO.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
@@ -327,6 +328,85 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Tela de chamados finalizados e cancelados
+
+### Objetivo
+
+Disponibilizar uma tela no mesmo padrão de Chamados abertos, limitada a chamados com status Finalizado ou Cancelado.
+
+### Alterações realizadas
+
+- adicionados o item de navegação e a rota `/chamados/finalizados`;
+- a tela reutiliza `CallsPage`, busca a listagem sem restringir a um único status e filtra no frontend para manter apenas Finalizado/Cancelado;
+- o filtro de status da tela oferece somente Todos, Finalizado e Cancelado; busca, região, bairro e período permanecem disponíveis;
+- nenhuma alteração de backend, API ou banco.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/calls-layout.css](frontend/src/calls-layout.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite); permanece o aviso de bundle acima de 500 kB.
+
+### Próximo passo
+
+Revisar o diff e commitar as alterações pendentes da tabela e desta tela.
+
+## 2026-09-30 — Texto da coluna PRAZO na cópia TSV
+
+### Objetivo
+
+Garantir que a exportação TSV inclua o estado textual e o limite da badge PRAZO, mesmo se a extração de texto visível da célula falhar.
+
+### Alterações realizadas
+
+- a badge PRAZO expõe `data-prazo` com valores como `Outlier - Limite 08:00`;
+- o copiador procura esse atributo na célula e em seus elementos filhos e mantém fallback para `innerText`/`textContent`;
+- o texto exportado continua normalizado, sem múltiplas quebras de linha ou espaços;
+- nenhuma alteração de banco de dados.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite); permanece o aviso de bundle acima de 500 kB. A cópia no clipboard ainda requer validação manual no navegador.
+
+### Próximo passo
+
+Conferir a saída TSV com estados No prazo, Fora do prazo e Outlier.
+
+## 2026-09-30 — Largura compacta e cópia TSV da tabela
+
+### Objetivo
+Manter a tabela de atendimento legível quando há poucos resultados e impedir que o botão de cópia transporte o espaçamento visual do layout.
+
+### Alterações realizadas
+
+- as 14 colunas da tabela de atendimento receberam larguras fixas; Bairro/Endereço, tipo, técnico e observação podem quebrar texto dentro dos limites definidos;
+- a tabela permanece alinhada à esquerda e usa rolagem horizontal quando sua largura excede o container;
+- `Copiar tabela` agora copia cabeçalhos e linhas atualmente exibidas como texto TSV, normalizando espaços e removendo dependência dos estilos CSS;
+- mantido fallback por textarea para navegadores sem `navigator.clipboard.writeText`.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/calls-layout.css](frontend/src/calls-layout.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Banco e testes
+
+Nenhuma alteração de banco realizada nesta implementação. `npm.cmd run build --workspace frontend` passou (TypeScript e Vite); permanece o aviso de bundle acima de 500 kB. A cópia no clipboard ainda não foi validada manualmente no navegador.
+
+### Próximo passo
+
+Conferir a cópia TSV no navegador com um e múltiplos chamados; depois seguir a aplicação da migration de anexos registrada no estado atual.
 
 ## 2026-09-29 — Anexos no histórico de observações
 
@@ -1120,6 +1200,42 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Tela de chamados encerrados
+
+Adicionada a rota `/chamados/finalizados` e navegação **Finalizados e cancelados**. A tela reutiliza a tabela comum, mantém busca/filtros e força `Finalizado` ou `Cancelado` tanto no carregamento inicial como no refresh; o filtro de status só oferece os dois estados e Todos. Nenhuma alteração de API ou banco. Build/typecheck passaram; resta o aviso conhecido de bundle acima de 500 kB.
+
+Arquivos: [frontend/src/App.tsx](frontend/src/App.tsx), [ROADMAP.md](ROADMAP.md), além das alterações anteriores em [frontend/src/calls-layout.css](frontend/src/calls-layout.css).
+
+## 🔖 CHECKPOINT — 2026-09-30 — Conteúdo da coluna PRAZO
+
+A cópia TSV prioriza `data-prazo` no elemento da célula ou em seus filhos. A badge publica textos completos como `Outlier - Limite 08:00`; `innerText` e `textContent` seguem como fallback para os demais dados. Build/typecheck passaram; falta validar manualmente o clipboard para os três estados da badge.
+
+Arquivos modificados: [frontend/src/App.tsx](frontend/src/App.tsx), [ROADMAP.md](ROADMAP.md).
+
+## 🔖 CHECKPOINT — 2026-09-30 — Tabela compacta e cópia TSV
+
+### O que foi feito
+
+Larguras fixas foram aplicadas às 14 colunas da tabela de atendimento, mantendo alinhamento à esquerda e scroll horizontal. A ação `Copiar tabela` passou a gerar TSV a partir do conteúdo textual visível, sem exportar estilos ou dimensões visuais.
+
+### Onde paramos
+
+Alterações implementadas no frontend; build/typecheck passaram. Falta conferir manualmente a cópia no clipboard com uma e várias linhas.
+
+### Arquivos modificados nesta sessão
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/calls-layout.css](frontend/src/calls-layout.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Próximo passo exato
+
+Validar a cópia com uma e várias linhas na tabela de atendimento; em seguida, continuar a aplicação da migration de anexos conforme a próxima ação geral.
+
+### Observações para o próximo agente
+
+A cópia inclui a linha de cabeçalho e as linhas renderizadas após os filtros atuais. A exportação anterior como PNG foi substituída por texto TSV.
 
 ## 🔖 CHECKPOINT — 2026-09-29 — Anexos em observações
 

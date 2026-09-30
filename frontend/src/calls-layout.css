@@ -1,1 +1,19 @@
 .calls-table.table-panel{display:flex;flex-direction:column;min-height:max(360px,calc(100vh - 270px));overflow:hidden}.calls-table.table-panel>.table-scroll-container{flex:1 0 auto;min-height:240px;max-height:none;overflow-x:auto;overflow-y:visible}.calls-table.attendance-table.table-panel>.table-scroll-container{max-height:none;overflow-y:visible}@media(max-width:900px){.calls-table.table-panel{min-height:max(340px,calc(100vh - 245px))}}@media(max-height:600px){.calls-table.table-panel{min-height:360px}}
+
+.calls-table.attendance-table .table-scroll-container{display:block;text-align:left}
+.calls-table.attendance-table .table-scroll-container table{width:1602px;min-width:1602px;max-width:none;table-layout:fixed;margin-left:0}
+.calls-table.attendance-table th,.calls-table.attendance-table td{box-sizing:border-box}
+.calls-table.attendance-table th:nth-child(1),.calls-table.attendance-table td:nth-child(1){width:105px;min-width:105px;max-width:105px;white-space:nowrap}
+.calls-table.attendance-table th:nth-child(2),.calls-table.attendance-table td:nth-child(2){width:130px;min-width:130px;max-width:130px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(3),.calls-table.attendance-table td:nth-child(3){width:95px;min-width:95px;max-width:95px;white-space:nowrap}
+.calls-table.attendance-table th:nth-child(4),.calls-table.attendance-table td:nth-child(4){width:105px;min-width:105px;max-width:105px;white-space:nowrap}
+.calls-table.attendance-table th:nth-child(5),.calls-table.attendance-table td:nth-child(5){width:52px;min-width:52px;max-width:52px;white-space:nowrap}
+.calls-table.attendance-table th:nth-child(6),.calls-table.attendance-table td:nth-child(6){width:145px;min-width:145px;max-width:145px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(7),.calls-table.attendance-table td:nth-child(7){width:90px;min-width:90px;max-width:90px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(8),.calls-table.attendance-table td:nth-child(8){width:110px;min-width:110px;max-width:110px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(9),.calls-table.attendance-table td:nth-child(9){width:210px;min-width:210px;max-width:210px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(10),.calls-table.attendance-table td:nth-child(10){width:120px;min-width:120px;max-width:120px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(11),.calls-table.attendance-table td:nth-child(11){width:100px;min-width:100px;max-width:100px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(12),.calls-table.attendance-table td:nth-child(12){width:125px;min-width:125px;max-width:125px;white-space:nowrap}
+.calls-table.attendance-table th:nth-child(13),.calls-table.attendance-table td:nth-child(13){width:210px;min-width:210px;max-width:210px;white-space:normal;overflow-wrap:anywhere}
+.calls-table.attendance-table th:nth-child(14),.calls-table.attendance-table td:nth-child(14){width:105px;min-width:105px;max-width:105px;white-space:nowrap}
