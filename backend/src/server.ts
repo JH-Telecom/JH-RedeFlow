@@ -3,10 +3,11 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listOltRegionMappings, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, insertHistoricalCalls, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listOltRegionMappings, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
+import { normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
@@ -22,6 +23,8 @@ const wuzapiDebug = process.env.WUZAPI_DEBUG === 'true';
 const skipWuzapiGroupFilter = process.env.WUZAPI_SKIP_GROUP_FILTER === 'true';
 const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean);
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+type PendingHistoricalImport = { userId: string; fileName: string; candidates: HistoricalActivationCandidate[]; expiresAt: number };
+const pendingHistoricalImports = new Map<string, PendingHistoricalImport>();
 const processedWebhookMessages = new Map<string, { activationId: string; expiresAt: number }>();
 const webhookDeduplicationWindowMs = 24 * 60 * 60 * 1000;
 const loginAttemptWindowMs = 15 * 60 * 1000;
@@ -476,6 +479,67 @@ app.post('/api/importacoes/d0', auth, requirePermission('imports.create'), async
 app.delete('/api/importacoes/d0', auth, requirePermission('imports.create'), async (_request, response) => {
   try { return response.json({ deleted: await clearD0Base(), base: await getD0BaseSummary() }); }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel limpar a base D-0.' }); }
+});
+app.post('/api/importacoes/acionamentos-historicos/preview', auth, requirePermission('imports.create'), requirePermission('calls.create'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ fileName: z.string().trim().min(1).max(255), contentBase64: z.string().min(1) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie um arquivo XLSX historico valido.' });
+  try {
+    const buffer = Buffer.from(parsed.data.contentBase64, 'base64');
+    if (!buffer.length || buffer.length > 10 * 1024 * 1024) return response.status(413).json({ message: 'A planilha deve ter ate 10 MB.' });
+    const result = parseHistoricalActivationWorkbook(parsed.data.fileName, buffer);
+    const allIdentifiers = result.candidates.flatMap((candidate) => candidate.identifiers);
+    const existingIdentifiers = await findExistingCallIdentifiers();
+    const candidates = result.candidates.filter((candidate) => !candidate.identifiers.some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier))));
+    const alreadyInSystem = result.candidates.length - candidates.length;
+    const previewId = crypto.randomUUID();
+    const expiresAt = Date.now() + 30 * 60 * 1000;
+    for (const [id, pending] of pendingHistoricalImports) if (pending.expiresAt < Date.now()) pendingHistoricalImports.delete(id);
+    pendingHistoricalImports.set(previewId, { userId: request.authUser!.id, fileName: parsed.data.fileName, candidates, expiresAt });
+    const canWrite = isSupabaseConfigured() || shouldUseLocalDatabase();
+    const target = isSupabaseConfigured() ? 'Supabase ativo' : shouldUseLocalDatabase() ? 'PostgreSQL local' : 'Demo em memória';
+    return response.json({
+      previewId,
+      fileName: parsed.data.fileName,
+      sheetName: result.sheetName,
+      target,
+      canWrite,
+      totalRows: result.totalRows,
+      parsedRows: result.candidates.length,
+      importableRows: candidates.length,
+      alreadyInSystem,
+      duplicatesWithinFile: result.duplicatesWithinFile,
+      conflictingOrderRows: result.conflictingOrders,
+      conflicts: result.conflicts,
+      missingOpeningDate: result.missingOpeningDate,
+      missingFinishedDate: result.missingFinishedDate,
+      missingOrder: result.missingOrder,
+      missingReason: result.missingReason,
+      missingOlt: result.missingOlt,
+      missingTechnician: result.missingTechnician,
+      byType: result.byType,
+      sample: candidates.slice(0, 12).map(({ rowNumber, call }) => ({ rowNumber, orderNumber: call.orderNumber, type: call.type, status: call.status, openedAt: call.openedAt, executedAt: call.executedAt, region: call.region })),
+      expiresAt: new Date(expiresAt).toISOString(),
+    });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel analisar a planilha historica.' });
+  }
+});
+app.post('/api/importacoes/acionamentos-historicos/:previewId/confirmar', auth, requirePermission('imports.create'), requirePermission('calls.create'), async (request: AuthRequest, response) => {
+  const pending = pendingHistoricalImports.get(String(request.params.previewId));
+  if (!pending || pending.userId !== request.authUser!.id || pending.expiresAt < Date.now()) {
+    pendingHistoricalImports.delete(String(request.params.previewId));
+    return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
+  }
+  if (!isSupabaseConfigured() && !shouldUseLocalDatabase()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no sistema conectado ao banco de producao.' });
+  try {
+    const existingIdentifiers = await findExistingCallIdentifiers();
+    const toInsert = pending.candidates.map((candidate) => candidate.call).filter((call) => ![call.orderNumber, call.officeTrack, call.bdesk].filter(Boolean).some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier))));
+    const imported = await insertHistoricalCalls(toInsert);
+    pendingHistoricalImports.delete(String(request.params.previewId));
+    return response.json({ imported, skippedAlreadyPresent: pending.candidates.length - toInsert.length, fileName: pending.fileName });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel importar os chamados historicos.' });
+  }
 });
 app.post('/api/importacoes/preview', auth, requirePermission('imports.create'), async (request: AuthRequest, response) => {
   const parsed = z.object({ fileName: z.string().min(1), content: z.string().min(1) }).safeParse(request.body);

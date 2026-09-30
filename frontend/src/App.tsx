@@ -51,6 +51,7 @@ import {
   type AppNotification,
   type DashboardMetrics,
   type ImportRecord,
+  type HistoricalActivationImportPreview,
   type D0BaseSummary,
   type OltRegionMapping,
 } from "./api";
@@ -428,7 +429,7 @@ function Shell({
             <Route path="/supervisor/ordens" element={<SupervisorOrdersPage user={user} />} />
             <Route path="/acionamentos" element={<ActivationsPage />} />
             <Route path="/painel-diario" element={<ManualProductionDashboard />} />
-            <Route path="/importacoes" element={<><D0ImportPanel /><ImportsPage /></>} />
+            <Route path="/importacoes" element={<><D0ImportPanel /><HistoricalActivationImportPanel /><ImportsPage /></>} />
             <Route path="/chamados/:id" element={<CallDetailRoute />} />
             <Route path="/tecnicos" element={<TechniciansPage />} />
             <Route path="/supervisores" element={<SupervisorsPage user={user} />} />
@@ -1564,6 +1565,79 @@ function ManualProductionDashboard() {
       )}
     </>
   );
+}
+
+function HistoricalActivationImportPanel() {
+  const [preview, setPreview] = useState<HistoricalActivationImportPreview | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [importedMessage, setImportedMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function selectHistoricalFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setPreview(null);
+    setImportedMessage("");
+    setError("");
+    try {
+      const contentBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+        reader.onerror = () => reject(new Error("Nao foi possivel ler o arquivo."));
+        reader.readAsDataURL(file);
+      });
+      setPreview(await api.previewHistoricalActivationImport(file.name, contentBase64));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel preparar a previa.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmHistoricalImport() {
+    if (!preview?.canWrite || !preview.importableRows) return;
+    const accepted = window.confirm(`Importar ${preview.importableRows.toLocaleString("pt-BR")} chamados como Finalizado em ${preview.target}? Os registros ja existentes serao ignorados.`);
+    if (!accepted) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api.confirmHistoricalActivationImport(preview.previewId);
+      setImportedMessage(`${result.imported.toLocaleString("pt-BR")} chamados importados; ${result.skippedAlreadyPresent.toLocaleString("pt-BR")} ja estavam no sistema.`);
+      setPreview(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel importar os chamados.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="panel historical-import-panel">
+    <div className="panel-heading">
+      <div><span className="section-kicker">HISTORICO OPERACIONAL</span><h2>Acionamentos finalizados</h2><p>Importe a planilha antiga como chamados Finalizados, com deduplicação por identificadores.</p></div>
+      <label className={`primary-button compact file-button ${busy ? "is-disabled" : ""}`}><ClipboardList size={15}/>{busy ? "Analisando..." : "Selecionar XLSX"}<input type="file" accept=".xlsx,.xls" onChange={(event) => void selectHistoricalFile(event)} disabled={busy}/></label>
+    </div>
+    {error && <div className="form-error import-error">{error}</div>}
+    {importedMessage && <div className="save-message import-message">{importedMessage}</div>}
+    {preview && <div className="historical-import-review">
+      <div className={`historical-import-target ${preview.canWrite ? "is-ready" : "is-demo"}`}><strong>Destino: {preview.target}</strong><span>{preview.canWrite ? "A confirmação gravará os chamados neste banco." : "Esta instância não grava no banco ativo; use a tela no ambiente conectado à produção."}</span></div>
+      <div className="historical-import-stats">
+        <span><b>{preview.totalRows.toLocaleString("pt-BR")}</b> linhas</span>
+        <span><b>{preview.importableRows.toLocaleString("pt-BR")}</b> novas</span>
+        <span><b>{preview.alreadyInSystem.toLocaleString("pt-BR")}</b> já existentes</span>
+        <span><b>{preview.duplicatesWithinFile.toLocaleString("pt-BR")}</b> duplicadas idênticas</span>
+        <span><b>{preview.conflictingOrderRows.toLocaleString("pt-BR")}</b> em O.S. conflitante</span>
+        <span><b>{(preview.missingOpeningDate + preview.missingFinishedDate + preview.missingOrder).toLocaleString("pt-BR")}</b> sem abertura/fim/O.S.</span>
+      </div>
+      <p className="historical-import-note">Data Abertura e Data-Fim são preservadas. Linhas sem esses dados ou sem O.S. não entram; Data-Fim define Finalizado. Motivo/OLT ausentes: {preview.missingReason}/{preview.missingOlt}. Sem técnico identificado: {preview.missingTechnician}.</p>
+      {preview.conflictingOrderRows > 0 && <p className="historical-import-warning">Linhas com a mesma O.S. e conteúdo diferente foram excluídas da confirmação para revisão manual.</p>}
+      {preview.conflicts.length > 0 && <div className="import-table-wrap historical-import-conflicts"><table><thead><tr><th>O.S. conflitante</th><th>Linha</th><th>Abertura</th><th>Acionamento</th><th>Data-Fim</th></tr></thead><tbody>{preview.conflicts.flatMap((conflict) => conflict.rows.map((row) => <tr key={`${conflict.orderNumber}-${row.rowNumber}`}><td>{conflict.orderNumber}</td><td>{row.rowNumber}</td><td>{new Date(row.openedAt).toLocaleString("pt-BR")}</td><td>{row.assignedAt ? new Date(row.assignedAt).toLocaleString("pt-BR") : "-"}</td><td>{new Date(row.executedAt).toLocaleString("pt-BR")}</td></tr>))}</tbody></table></div>}
+      <div className="historical-import-type-counts">{Object.entries(preview.byType).map(([type, count]) => <span key={type}>{type}: <b>{count.toLocaleString("pt-BR")}</b></span>)}</div>
+      {preview.sample.length > 0 && <div className="import-table-wrap historical-import-table"><table><thead><tr><th>Linha</th><th>O.S. OT</th><th>Tipo</th><th>Status</th><th>Abertura</th><th>Data-Fim</th><th>Região</th></tr></thead><tbody>{preview.sample.map((item) => <tr key={`${item.rowNumber}-${item.orderNumber}`}><td>{item.rowNumber}</td><td>{item.orderNumber}</td><td>{item.type}</td><td>{item.status}</td><td>{new Date(item.openedAt).toLocaleString("pt-BR")}</td><td>{item.executedAt ? new Date(item.executedAt).toLocaleString("pt-BR") : "-"}</td><td>{item.region}</td></tr>)}</tbody></table></div>}
+      <button className="primary-button compact confirm-import" type="button" onClick={() => void confirmHistoricalImport()} disabled={busy || !preview.canWrite || !preview.importableRows}>{busy ? "Importando..." : `Importar ${preview.importableRows.toLocaleString("pt-BR")} finalizados`}<ChevronRight size={16}/></button>
+    </div>}
+  </section>;
 }
 
 function ImportsPage() {

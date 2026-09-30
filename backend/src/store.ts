@@ -700,6 +700,104 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
     return false;
   });
 }
+
+function normalizeExternalCallIdentifier(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+export async function findExistingCallIdentifiers(): Promise<Set<string>> {
+  ensureDemoData();
+  const identifiers = new Set<string>();
+  const addRow = (row: { order_number?: string | null; bdesk?: string | null; office_track?: string | null }) => {
+    [row.order_number, row.bdesk, row.office_track].forEach((value) => {
+      const normalized = value ? normalizeExternalCallIdentifier(value) : '';
+      if (normalized) identifiers.add(normalized);
+    });
+  };
+
+  if (isSupabaseConfigured()) {
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await getSupabaseAdmin().from('calls').select('order_number, bdesk, office_track').range(from, from + pageSize - 1);
+      if (error) throw new Error(error.message || 'Nao foi possivel verificar chamados existentes.');
+      (data || []).forEach(addRow);
+      if (!data || data.length < pageSize) break;
+    }
+    return identifiers;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ order_number: string | null; bdesk: string | null; office_track: string | null }>('SELECT order_number, bdesk, office_track FROM calls');
+    result.rows.forEach(addRow);
+    return identifiers;
+  }
+  calls.forEach((call) => addRow({ order_number: call.orderNumber, bdesk: call.bdesk, office_track: call.officeTrack }));
+  return identifiers;
+}
+
+export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<number> {
+  if (!historicalCalls.length) return 0;
+  if (isSupabaseConfigured()) {
+    let inserted = 0;
+    for (let from = 0; from < historicalCalls.length; from += 250) {
+      const batch = historicalCalls.slice(from, from + 250).map((call) => ({
+        id: call.id,
+        order_number: call.orderNumber,
+        bdesk: call.bdesk || null,
+        office_track: call.officeTrack || null,
+        client: call.client || 'Cliente nao identificado',
+        type: call.type,
+        reason: call.reason,
+        region: call.region,
+        city: call.city || null,
+        address: call.address || null,
+        bairro: call.bairro || null,
+        olt: call.olt || null,
+        slot_pon: call.slotPon || null,
+        status: 'Finalizado',
+        opened_at: call.openedAt,
+        assigned_at: call.assignedAt || null,
+        executed_at: call.executedAt || null,
+        result: call.result || null,
+        notes: call.notes,
+        cancellation_reason: null,
+      }));
+      const { data, error } = await getSupabaseAdmin().from('calls').upsert(batch, { onConflict: 'id', ignoreDuplicates: true }).select('id');
+      if (error) throw new Error(error.message || 'Nao foi possivel importar chamados historicos.');
+      inserted += data?.length || 0;
+    }
+    return inserted;
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    let inserted = 0;
+    try {
+      await client.query('BEGIN');
+      for (let from = 0; from < historicalCalls.length; from += 150) {
+        const batch = historicalCalls.slice(from, from + 150);
+        const columns = ['id', 'order_number', 'bdesk', 'office_track', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'olt', 'slot_pon', 'status', 'opened_at', 'assigned_at', 'executed_at', 'result', 'notes', 'cancellation_reason'];
+        const values = batch.flatMap((call) => [call.id, call.orderNumber, call.bdesk || null, call.officeTrack || null, call.client || 'Cliente nao identificado', call.type, call.reason, call.region, call.city || null, call.address || null, call.bairro || null, call.olt || null, call.slotPon || null, 'Finalizado', call.openedAt, call.assignedAt || null, call.executedAt || null, call.result || null, call.notes, null]);
+        const tuples = batch.map((_, rowIndex) => `(${columns.map((__, columnIndex) => `$${rowIndex * columns.length + columnIndex + 1}`).join(', ')})`).join(', ');
+        const result = await client.query(`INSERT INTO calls (${columns.join(', ')}) VALUES ${tuples} ON CONFLICT (id) DO NOTHING`, values);
+        inserted += result.rowCount || 0;
+      }
+      await client.query('COMMIT');
+      return inserted;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+  }
+  ensureDemoData();
+  let inserted = 0;
+  historicalCalls.forEach((call) => {
+    if (calls.has(call.id)) return;
+    calls.set(call.id, { ...call, status: 'Finalizado' });
+    inserted += 1;
+  });
+  return inserted;
+}
+
 export type DriveCallSource = { identity: string; identifiers: string[]; fileId: string; fileName: string; referenceDate?: string; fingerprint: string; payload: Record<string, string> };
 const driveSyncRuns: Array<{ startedAt: string; result: Record<string, unknown> }> = [];
 export async function createDriveCall(call: Call, sourceData: DriveCallSource): Promise<{ call: Call; created: boolean }> {

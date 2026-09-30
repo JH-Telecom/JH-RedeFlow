@@ -14,11 +14,11 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: segmentação do Painel diário em Guarulhos/SP por correspondência da Ordem de Serviço OFS com a Ordem do chamado.
+Última implementação: prévia e confirmação protegida para importar chamados finalizados de Acionamentos_Finalizados_Antigos.xlsx.
 
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e validar upload/download no runtime usado.
+Próxima ação: implantar a versão com banco ativo configurado e executar a importação confirmada após revisar as duas O.S. conflitantes.
 
 ---
 
@@ -52,6 +52,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Finalização, cancelamento e regras de status.
 - [x] WuzAPI, acionamentos e análise de mensagens operacionais.
 - [x] Importação de bases CSV/XLSX.
+- [x] Prévia e importação idempotente de acionamentos históricos XLSX como chamados Finalizado, com deduplicação e bloqueio de gravação em modo demo.
 - [x] Upload/substituição e limpeza da base D-0 na aba Importações, com atualização de localização, Status OFS e Data Fim por identificadores de chamado.
 - [x] Editor pesquisável de OLT→Região em Configurações, com alteração de defaults, inclusão/remoção de OLTs personalizadas e persistência após reinício.
 - [x] Dashboards e indicadores operacionais.
@@ -330,6 +331,44 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Importação de acionamentos históricos finalizados
+
+### Objetivo
+
+Adicionar chamados antigos da planilha de acionamentos finalizados ao sistema atual sem duplicar ordens e sem gravar antes da conferência.
+
+### Alterações realizadas
+
+- parser XLSX reconhece `Tecnico`, `Data Abertura`, `Data Acionamento`, `Data-Fim` e `ACIONAMENTO`, reutilizando o parser operacional existente;
+- os chamados são preparados como `Finalizado`; abertura, acionamento e fim são preservados, O.S. OT vira a chave primária e OLT é mapeada para Região quando possível;
+- a tela Importações fornece prévia agregada, amostra segura, contagem de chamadas existentes, duplicatas internas/conflitos, campos faltantes e ambiente de destino;
+- confirmação exige permissões de importação e criação de chamados, revalida duplicatas, usa IDs determinísticos e só grava em PostgreSQL/Supabase configurado; demo em memória bloqueia gravação;
+- a planilha atual, aba Planilha1: 3.724 linhas, todas com Data Abertura/Data-Fim/O.S. OT; 3.722 candidatas; duas linhas de uma mesma O.S. têm conteúdo operacional conflitante e são excluídas para revisão; faltam 75 motivos e 211 OLTs; nenhuma migration nova;
+- o workspace atual está sem conexão ao banco ativo. A importação completa não foi gravada; a base real continua intocada.
+
+### Arquivos modificados/criados
+
+- [backend/src/imports/historical-activations.ts](backend/src/imports/historical-activations.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/types.ts](backend/src/types.ts)
+- [backend/test/historical-activations.test.ts](backend/test/historical-activations.test.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/imports.css](frontend/src/imports.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+- `npx.cmd tsx --test backend/test/historical-activations.test.ts`: 3 passaram, 0 falharam;
+- build backend e frontend passaram; build mantém aviso conhecido de bundle > 500 kB;
+- teste browser da planilha real mostrou destino `Demo em memória`, 3.722 novas, 0 existentes no conjunto demo e botão de gravação desabilitado;
+- duplicata exata não havia na versão atual; duas linhas com a mesma O.S. e datas de abertura/acionamento divergentes foram omitidas como conflito.
+
+### Próximo passo
+
+Implantar esta versão conectada ao banco ativo; na prévia de produção, rever as duas linhas conflitantes e deduplicar contra os chamados existentes antes de confirmar.
 
 ## 2026-09-30 — Segmentação regional do Painel diário pelo OFS
 
@@ -1360,6 +1399,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ### 🔴 CRÍTICO
 
+- configurar/implantar o endpoint de importação histórica no backend conectado ao banco ativo; rever as duas O.S. conflitantes na prévia antes da confirmação;
 - aplicar migration de anexos 012 local ou 014 Supabase antes de usar o novo fluxo;
 - aplicar a migration D-0 no banco do runtime antes do primeiro upload;
 - aplicar a migration 011 local ou 013 Supabase antes de salvar overrides de OLT;
@@ -1394,6 +1434,12 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Importação histórica de chamados
+
+O importador está implementado em **Importações**, mas não foi gravado nenhum chamado: o workspace não tem conexão de produção e o runtime demo bloqueia confirmação. A prévia do `Acionamentos_Finalizados_Antigos_Atualizados.xlsx` mostrou 3.724 linhas, 3.722 candidatas, 2 registros em conflito (mesma O.S., diferentes timestamps de abertura/acionamento), 0 datas/chaves obrigatórias ausentes, 75 sem motivo e 211 sem OLT. Deduplicação interna/idempotência por O.S. e contra banco ativo está implementada. Reimportar/rever no backend de produção, conferir duplicatas existentes e então confirmar.
+
+O teste da rota usou a sessão e o dataset demo em memória; backend foi reiniciado depois e a base de teste foi descartada. Nenhuma alteração de banco/schema.
 
 ## 🔖 CHECKPOINT — 2026-09-30 — Segmentação Guarulhos/SP do OFS
 
