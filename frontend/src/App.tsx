@@ -1146,14 +1146,52 @@ function ManualProductionDashboard() {
     const source = manualDashboardRef.current;
     if (!source) return;
     const clone = source.cloneNode(true) as HTMLDivElement;
-    clone.style.cssText = `position:fixed;left:-100000px;top:0;width:${Math.max(source.scrollWidth, source.clientWidth)}px;max-width:none;background:#f7f9fc;padding:20px;`;
-    clone.querySelectorAll<HTMLElement>(".manual-table-wrap").forEach((element) => {
-      element.style.maxHeight = "none";
-      element.style.overflow = "visible";
-    });
+    const exportWidth = 1840;
+    clone.classList.add("manual-dashboard-export");
+    clone.style.cssText = `position:fixed;left:-100000px;top:0;width:${exportWidth}px;max-width:none;box-sizing:border-box;background:#edf2f8;padding:30px;font-family:'Manrope','Segoe UI',Arial,sans-serif;color:#25364d;`;
+    const exportHeading = document.createElement("header");
+    exportHeading.style.cssText = "display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:20px;padding:4px 2px 18px;border-bottom:1px solid #dce4ef";
+    const titleBlock = document.createElement("div");
+    const brand = document.createElement("div");
+    brand.textContent = "JH TELECOM  /  REDEFLOW";
+    brand.style.cssText = "margin-bottom:8px;color:#2375d8;font-size:11px;font-weight:800;letter-spacing:1px";
+    const exportTitle = document.createElement("div");
+    exportTitle.textContent = "Painel diário de produção";
+    exportTitle.style.cssText = "color:#182b45;font-size:25px;font-weight:800;line-height:1.2";
+    const exportMeta = document.createElement("div");
+    exportMeta.textContent = `${selectedFileName || "Base operacional"}  |  Atualizado em ${data?.updatedAt || "-"}`;
+    exportMeta.style.cssText = "margin-top:8px;color:#718198;font-size:12px;font-weight:500";
+    titleBlock.append(brand, exportTitle, exportMeta);
+    const generatedAt = document.createElement("div");
+    generatedAt.textContent = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
+    generatedAt.style.cssText = "flex:none;padding:10px 14px;border:1px solid #d9e7f8;border-radius:8px;background:#f2f7fd;color:#315f96;font-size:12px;font-weight:700";
+    exportHeading.append(titleBlock, generatedAt);
+    clone.prepend(exportHeading);
+    const exportStyles = document.createElement("style");
+    exportStyles.textContent = `
+      .manual-dashboard-export .manual-summary-row{display:flex!important;justify-content:flex-start!important;margin:0 0 14px!important}
+      .manual-dashboard-export .manual-production-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:start!important;gap:16px!important}
+      .manual-dashboard-export .manual-production-grid>.panel{box-sizing:border-box!important;grid-column:auto!important;min-width:0!important;width:auto!important;overflow:visible!important;border:1px solid #dce4ef!important;border-radius:10px!important;background:#fff!important;box-shadow:none!important}
+      .manual-dashboard-export .manual-production-grid>.orders-panel{grid-column:1/-1!important}
+      .manual-dashboard-export .panel-heading{padding:15px 18px!important;border-bottom:1px solid #e5ebf3!important}
+      .manual-dashboard-export .panel-heading h2{margin:0!important;color:#25364d!important;font-size:15px!important}
+      .manual-dashboard-export .manual-table-wrap{width:100%!important;max-height:none!important;overflow:visible!important}
+      .manual-dashboard-export .manual-table{width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important}
+      .manual-dashboard-export .manual-table th,.manual-dashboard-export .manual-table td{box-sizing:border-box!important;padding:10px 9px!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:11px!important;line-height:1.35!important}
+      .manual-dashboard-export .manual-table th{background:#f4f7fb!important;color:#5b6b80!important;text-align:left!important;font-weight:800!important}
+      .manual-dashboard-export .manual-table td{color:#40516a!important;text-align:right!important}
+      .manual-dashboard-export .manual-table th:first-child,.manual-dashboard-export .manual-table td:first-child{width:180px!important;text-align:left!important;font-weight:700!important}
+      .manual-dashboard-export .orders-panel .manual-table th:nth-child(1),.manual-dashboard-export .orders-panel .manual-table td:nth-child(1){width:22%!important}
+      .manual-dashboard-export .orders-panel .manual-table th:nth-child(2),.manual-dashboard-export .orders-panel .manual-table td:nth-child(2){width:38%!important}
+      .manual-dashboard-export .orders-panel .manual-table th:nth-child(3),.manual-dashboard-export .orders-panel .manual-table td:nth-child(3){width:22%!important}
+      .manual-dashboard-export .orders-panel .manual-table th:nth-child(4),.manual-dashboard-export .orders-panel .manual-table td:nth-child(4){width:18%!important}
+      .manual-dashboard-export .manual-total-row{background:#eaf2fc!important}
+    `;
+    clone.prepend(exportStyles);
     document.body.appendChild(clone);
     try {
-      const canvas = await html2canvas(clone, { backgroundColor: "#f7f9fc", scale: 2, width: clone.scrollWidth, height: clone.scrollHeight, windowWidth: clone.scrollWidth, windowHeight: clone.scrollHeight, logging: false });
+      await document.fonts.ready;
+      const canvas = await html2canvas(clone, { backgroundColor: "#edf2f8", scale: 2, width: exportWidth, height: clone.scrollHeight, windowWidth: exportWidth, windowHeight: clone.scrollHeight, logging: false });
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Imagem indisponivel");
       const downloadImage = () => {

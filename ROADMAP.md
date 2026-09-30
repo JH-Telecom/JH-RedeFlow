@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: exportação da tabela como imagem PNG formatada, com cabeçalho, metadados e badges de status.
+Última implementação: exportações PNG de chamados e do Painel diário com layouts próprios, dimensões de relatório e textos legíveis.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -81,7 +81,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
-- [x] Scroll horizontal isolado na tabela de atendimento, colunas com larguras fixas e exportação PNG formatada incluindo o texto e limite da coluna PRAZO.
+- [x] Exportações PNG apresentáveis da tabela de chamados e do Painel diário, com texto legível e estilos adequados para compartilhamento.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
@@ -328,6 +328,32 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Legibilidade dos relatórios em imagem
+
+### Objetivo
+
+Garantir que as imagens copiadas para compartilhamento mantenham legibilidade fora do layout responsivo da aplicação.
+
+### Alterações realizadas
+
+- os dois fluxos de captura existentes foram mapeados: tabela de chamados e Painel diário;
+- o Painel diário agora exporta em largura fixa de relatório, com título/identificação, duas tabelas de produção lado a lado e ordens em faixa completa;
+- as tabelas exportadas removem limites de scroll/ellipsis, permitem quebra de texto e aplicam tamanhos e cores próprios;
+- a tabela de chamados mantém seu layout PNG dedicado, sem alteração de comportamento.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite). O navegador local, usando apenas runtime demo em memória, gerou a composição do Painel diário com três tabelas em 1.840 × 844 px e confirmou `Painel copiado`. A base sintética foi removida depois do teste; o fallback de download não foi exercitado. Permanece o aviso de bundle acima de 500 kB.
+
+### Próximo passo
+
+Validar fallback de download em navegador sem suporte/permissão para clipboard de imagens.
 
 ## 2026-09-30 — Exportação visual da tabela como PNG
 
@@ -1226,6 +1252,12 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Legibilidade das imagens compartilháveis
+
+Os dois fluxos de imagem existentes são tabela de chamados e Painel diário. A tabela usa composição PNG própria; o Painel diário agora exporta com largura de relatório, atividades/técnicos em duas colunas e ordens em largura total, com quebra de texto e sem ellipsis/scroll. Build/typecheck passaram e a composição foi copiada em teste browser com base sintética local, removida após o teste. Fallback de download permanece sem validação manual.
+
+Arquivos: [frontend/src/App.tsx](frontend/src/App.tsx), [ROADMAP.md](ROADMAP.md).
 
 ## 🔖 CHECKPOINT — 2026-09-30 — Exportação PNG apresentável
 
