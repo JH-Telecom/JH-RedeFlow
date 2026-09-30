@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: Painel diário com alto contraste, busca de técnicos, tabelas equilibradas e exportação PNG de maior nitidez.
+Última implementação: cards do Painel diário empilhados em largura total e PNG ajustado para leitura em prévias de compartilhamento.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -329,6 +329,33 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Cards em largura total e prévia PNG legível
+
+### Objetivo
+
+Resolver a disposição desequilibrada e o tamanho reduzido do texto nos cards e nas imagens compartilhadas do Painel diário.
+
+### Alterações realizadas
+
+- atividades, técnicos e ordens passaram a ocupar linhas separadas em largura total; atividades/ordens usam altura de conteúdo, enquanto técnicos mantêm scroll interno;
+- tipografia, espaçamento de células e badges foram ampliados no painel; o técnico deixa de dividir metade da largura com outra tabela de oito colunas;
+- o PNG passou de duas colunas para uma, reduziu a largura base para 1200 px e elevou as tabelas para 15 px, preservando resolução dinâmica até 3×;
+- nenhuma regra de SLA foi presumida a partir do campo Tempo.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/manual-dashboard.css](frontend/src/manual-dashboard.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite). Teste browser com 18 técnicos confirmou os três cards em largura total: atividades 370 px, técnicos 558 px com scroll interno e ordens 333 px; fonte da tabela 13 px. Em viewport 390 px, a página não excedeu a largura disponível. PNG ficou em coluna única, fonte 15 px, gerado em 3600 × 6885 px (~1,36 MB). Base demo e clone de inspeção foram removidos. Permanece o aviso de bundle acima de 500 kB.
+
+### Próximo passo
+
+Validar com a base operacional real e usuários finais se o card técnico deve manter o limite atual de 420 px de scroll.
 
 ## 2026-09-30 — Redesign do Painel diário para operação e compartilhamento
 
@@ -1282,6 +1309,12 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Cards do Painel diário em largura total
+
+As tabelas de atividades, técnicos e ordens agora aparecem empilhadas e ocupam a largura disponível; atividades e ordens usam altura do conteúdo, técnicos têm área rolável de 420 px. Fonte na tela: 13 px; no PNG compartilhável: 15 px em coluna única, resolução 3× sujeita ao orçamento de 40 MP. Build e browser desktop/mobile passaram com dados demo; a base foi limpa após o teste.
+
+Arquivos: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/manual-dashboard.css](frontend/src/manual-dashboard.css), [ROADMAP.md](ROADMAP.md).
 
 ## 🔖 CHECKPOINT — 2026-09-30 — Painel diário legível
 

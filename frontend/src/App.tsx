@@ -1171,7 +1171,7 @@ function ManualProductionDashboard() {
     const source = manualDashboardRef.current;
     if (!source) return;
     const clone = source.cloneNode(true) as HTMLDivElement;
-    const exportWidth = 1840;
+    const exportWidth = 1200;
     clone.classList.add("manual-dashboard-screen", "manual-dashboard-export");
     clone.querySelector(".manual-technician-search")?.remove();
     clone.style.cssText = `position:fixed;left:-100000px;top:0;width:${exportWidth}px;max-width:none;box-sizing:border-box;background:#edf2f8;padding:30px;font-family:'Manrope','Segoe UI',Arial,sans-serif;color:#25364d;`;
@@ -1196,18 +1196,18 @@ function ManualProductionDashboard() {
     const exportStyles = document.createElement("style");
     exportStyles.textContent = `
       .manual-dashboard-export .manual-summary-row{display:flex!important;justify-content:flex-start!important;margin:0 0 14px!important}
-      .manual-dashboard-export .manual-production-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:start!important;gap:16px!important}
+      .manual-dashboard-export .manual-production-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:start!important;gap:18px!important}
       .manual-dashboard-export .manual-production-grid>.panel{box-sizing:border-box!important;grid-column:auto!important;min-width:0!important;width:auto!important;overflow:visible!important;border:1px solid #dce4ef!important;border-radius:10px!important;background:#fff!important;box-shadow:none!important}
       .manual-dashboard-export .manual-production-grid>.panel{height:auto!important;min-height:0!important;max-height:none!important}
       .manual-dashboard-export .manual-production-grid>.orders-panel{grid-column:1/-1!important}
-      .manual-dashboard-export .panel-heading{padding:15px 18px!important;border-bottom:1px solid #e5ebf3!important}
-      .manual-dashboard-export .panel-heading h2{margin:0!important;color:#25364d!important;font-size:15px!important}
+      .manual-dashboard-export .panel-heading{padding:18px 22px!important;border-bottom:1px solid #e5ebf3!important}
+      .manual-dashboard-export .panel-heading h2{margin:0!important;color:#25364d!important;font-size:21px!important}
       .manual-dashboard-export .manual-table-wrap{width:100%!important;max-height:none!important;overflow:visible!important}
       .manual-dashboard-export .manual-table{width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important}
-      .manual-dashboard-export .manual-table th,.manual-dashboard-export .manual-table td{box-sizing:border-box!important;padding:10px 9px!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:11px!important;line-height:1.35!important}
-      .manual-dashboard-export .manual-table th{background:#f4f7fb!important;color:#5b6b80!important;text-align:left!important;font-weight:800!important}
-      .manual-dashboard-export .manual-table td{color:#40516a!important;text-align:right!important}
-      .manual-dashboard-export .manual-table th:first-child,.manual-dashboard-export .manual-table td:first-child{width:180px!important;text-align:left!important;font-weight:700!important}
+      .manual-dashboard-export .manual-table th,.manual-dashboard-export .manual-table td{box-sizing:border-box!important;padding:15px 12px!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:15px!important;line-height:1.45!important}
+      .manual-dashboard-export .manual-table th{background:#f4f7fb!important;color:#334155!important;text-align:left!important;font-weight:800!important}
+      .manual-dashboard-export .manual-table td{color:#0f172a!important;text-align:right!important}
+      .manual-dashboard-export .manual-table th:first-child,.manual-dashboard-export .manual-table td:first-child{width:34%!important;text-align:left!important;font-weight:700!important}
       .manual-dashboard-export .orders-panel .manual-table th:nth-child(1),.manual-dashboard-export .orders-panel .manual-table td:nth-child(1){width:22%!important}
       .manual-dashboard-export .orders-panel .manual-table th:nth-child(2),.manual-dashboard-export .orders-panel .manual-table td:nth-child(2){width:38%!important}
       .manual-dashboard-export .orders-panel .manual-table th:nth-child(3),.manual-dashboard-export .orders-panel .manual-table td:nth-child(3){width:22%!important}
