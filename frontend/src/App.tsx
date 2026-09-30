@@ -1756,7 +1756,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
   const [error, setError] = useState("");
   const [bulkDeleteMessage, setBulkDeleteMessage] = useState("");
   const [canDeleteAllCalls, setCanDeleteAllCalls] = useState(false);
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
@@ -1794,39 +1794,176 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
     }
   }
 
-  async function copyTableAsTsv() {
+  async function copyTableAsImage() {
     const table = tableRef.current;
     if (!table) return;
 
-    try {
-      const tsv = Array.from(table.querySelectorAll("tr"), (row) =>
-        Array.from(row.querySelectorAll("th, td"), (cell) => {
-          const element = cell as HTMLElement;
-          const prazo = element.dataset.prazo || element.querySelector<HTMLElement>("[data-prazo]")?.dataset.prazo;
-          return (prazo || element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
-        }).join("\t"),
-      ).join("\n");
+    const readCellLines = (cell: HTMLTableCellElement) => {
+      const prazo = cell.dataset.prazo || cell.querySelector<HTMLElement>("[data-prazo]")?.dataset.prazo;
+      const text = prazo || cell.innerText || cell.textContent || "";
+      return text.split(/\n+/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+    };
+    const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>("thead th"), (cell) => readCellLines(cell).join(" "));
+    const dataRows = Array.from(table.querySelectorAll<HTMLTableRowElement>("tbody tr"))
+      .filter((row) => row.cells.length === headers.length)
+      .map((row) => Array.from(row.cells, readCellLines));
+    if (!headers.length) return;
 
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(tsv);
+    const normalizedHeaders = headers.map((header) => header.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
+    const columnWidths = normalizedHeaders.map((header) => {
+      if (/ordem|protocolo/.test(header)) return 140;
+      if (/cliente/.test(header)) return 235;
+      if (/tipo|motivo/.test(header)) return 210;
+      if (/bairro|endere/.test(header)) return 330;
+      if (/abertura|data fim/.test(header)) return 155;
+      if (/tempo aguardando|timer|sla/.test(header)) return 145;
+      if (/prazo/.test(header)) return 135;
+      if (/afet/.test(header)) return 82;
+      if (/status/.test(header)) return 138;
+      if (/regiao/.test(header)) return 145;
+      if (/tecnico/.test(header)) return 175;
+      if (/olt/.test(header)) return 130;
+      if (/cidade/.test(header)) return 140;
+      if (/obs/.test(header)) return 240;
+      return 150;
+    });
+    const tableWidth = columnWidths.reduce((total, width) => total + width, 0);
+    const hostWidth = tableWidth + 64;
+    const captureHost = document.createElement("div");
+    captureHost.style.cssText = `position:fixed;left:-100000px;top:0;width:${hostWidth}px;box-sizing:border-box;padding:32px;background:#edf2f8;color:#25364d;font-family:'Manrope','Segoe UI',Arial,sans-serif;`;
+
+    const card = document.createElement("div");
+    card.style.cssText = "overflow:hidden;border:1px solid #dce4ef;border-radius:12px;background:#fff;box-shadow:0 8px 24px rgba(32,51,77,.08)";
+    const heading = document.createElement("div");
+    heading.style.cssText = "display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding:26px 28px 22px;border-bottom:1px solid #e5ebf3";
+    const titleBlock = document.createElement("div");
+    const brand = document.createElement("div");
+    brand.textContent = "JH TELECOM  /  REDEFLOW";
+    brand.style.cssText = "margin-bottom:8px;color:#2375d8;font-size:11px;font-weight:800;letter-spacing:1px";
+    const headingTitle = document.createElement("div");
+    headingTitle.textContent = title;
+    headingTitle.style.cssText = "color:#182b45;font-size:25px;font-weight:800;line-height:1.2";
+    const metadata = document.createElement("div");
+    metadata.textContent = `${dataRows.length} ${dataRows.length === 1 ? "chamado" : "chamados"}  |  ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`;
+    metadata.style.cssText = "margin-top:8px;color:#718198;font-size:12px;font-weight:500";
+    titleBlock.append(brand, headingTitle, metadata);
+    const count = document.createElement("div");
+    count.style.cssText = "flex:none;padding:10px 14px;border:1px solid #d9e7f8;border-radius:8px;background:#f2f7fd;color:#315f96;font-size:13px;font-weight:700";
+    count.textContent = `${dataRows.length} REGISTROS`;
+    heading.append(titleBlock, count);
+
+    const imageTable = document.createElement("table");
+    imageTable.style.cssText = `width:${tableWidth}px;table-layout:fixed;border-collapse:collapse;font-family:'Manrope','Segoe UI',Arial,sans-serif`;
+    const colgroup = document.createElement("colgroup");
+    columnWidths.forEach((width) => {
+      const column = document.createElement("col");
+      column.style.width = `${width}px`;
+      colgroup.appendChild(column);
+    });
+    imageTable.appendChild(colgroup);
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    headers.forEach((header) => {
+      const cell = document.createElement("th");
+      cell.textContent = header;
+      cell.style.cssText = "padding:13px 12px;border-bottom:1px solid #dce4ef;background:#f4f7fb;color:#5b6b80;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;vertical-align:middle";
+      headerRow.appendChild(cell);
+    });
+    thead.appendChild(headerRow);
+    imageTable.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    dataRows.forEach((row, rowIndex) => {
+      const tr = document.createElement("tr");
+      tr.style.background = rowIndex % 2 === 0 ? "#ffffff" : "#f9fbfe";
+      row.forEach((lines, columnIndex) => {
+        const cell = document.createElement("td");
+        cell.style.cssText = "padding:13px 12px;border-bottom:1px solid #e8edf4;color:#40516a;text-align:left;vertical-align:top;font-size:12px;line-height:1.45;overflow-wrap:anywhere;white-space:normal";
+        const header = normalizedHeaders[columnIndex] || "";
+        const value = lines.join(" ");
+        if (/status|prazo/.test(header) && value && value !== "-") {
+          const badge = document.createElement("span");
+          badge.textContent = value;
+          let badgeColors = "background:#edf4fd;color:#315f96";
+          if (/cancelad|outlier|fora do prazo/.test(value.toLowerCase())) badgeColors = "background:#fff0f0;color:#a83b43";
+          else if (/finalizado|no prazo/.test(value.toLowerCase())) badgeColors = "background:#eaf7f0;color:#18744e";
+          badge.style.cssText = `display:inline-block;padding:5px 8px;border-radius:5px;font-size:11px;font-weight:700;${badgeColors}`;
+          cell.appendChild(badge);
+        } else if (lines.length) {
+          lines.forEach((line, lineIndex) => {
+            const text = document.createElement("div");
+            text.textContent = line;
+            text.style.cssText = lineIndex === 0 ? "color:#273b55;font-weight:700" : "margin-top:4px;color:#78869a;font-size:10px;font-weight:500";
+            cell.appendChild(text);
+          });
+        } else {
+          cell.textContent = "-";
+          cell.style.color = "#a0aaba";
+        }
+        tr.appendChild(cell);
+      });
+      tbody.appendChild(tr);
+    });
+    if (!dataRows.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = headers.length;
+      cell.textContent = "Nenhum chamado para os filtros selecionados.";
+      cell.style.cssText = "padding:28px;color:#718198;text-align:center;font-size:13px";
+      row.appendChild(cell);
+      tbody.appendChild(row);
+    }
+    imageTable.appendChild(tbody);
+    const footer = document.createElement("div");
+    footer.textContent = "JH RedeFlow  |  Relatório operacional";
+    footer.style.cssText = "padding:12px 18px;background:#fbfcfe;color:#8a97a8;text-align:right;font-size:10px;font-weight:600";
+    card.append(heading, imageTable, footer);
+    captureHost.appendChild(card);
+    document.body.appendChild(captureHost);
+
+    try {
+      await document.fonts.ready;
+      const canvas = await html2canvas(captureHost, {
+        backgroundColor: "#edf2f8",
+        scale: 2,
+        width: hostWidth,
+        height: captureHost.scrollHeight,
+        windowWidth: hostWidth,
+        windowHeight: captureHost.scrollHeight,
+        useCORS: true,
+        logging: false,
+      });
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("Nao foi possivel gerar a imagem.");
+
+      if (navigator.clipboard?.write && window.ClipboardItem) {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+          setCopyState("copied");
+        } catch {
+          const downloadUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+          link.download = "redeflow-chamados.png";
+          link.click();
+          window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+          setCopyState("downloaded");
+        }
       } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = tsv;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "fixed";
-        textarea.style.left = "-9999px";
-        document.body.appendChild(textarea);
-        textarea.select();
-        const copied = document.execCommand("copy");
-        textarea.remove();
-        if (!copied) throw new Error("Clipboard indisponivel");
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = "redeflow-chamados.png";
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        setCopyState("downloaded");
       }
-      setCopyState("copied");
     } catch {
       setCopyState("error");
+    } finally {
+      captureHost.remove();
     }
 
-    window.setTimeout(() => setCopyState("idle"), 1800);
+    window.setTimeout(() => setCopyState("idle"), 2200);
   }
 
   async function refreshCalls() {
@@ -1885,9 +2022,9 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
             <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
               <SlidersHorizontal size={15} /> Filtros
             </button>
-            <button className="secondary-button compact" onClick={() => void copyTableAsTsv()} type="button" aria-label="Copiar tabela como TSV">
+            <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button" aria-label="Copiar tabela como imagem">
               <Copy size={15} />
-              {copyState === "copied" ? "Tabela copiada" : copyState === "error" ? "Falha ao copiar" : "Copiar tabela"}
+              {copyState === "copied" ? "Imagem copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao exportar" : "Copiar imagem"}
             </button>
             <span className="result-count">{visibleCalls.length} resultados</span>
           </div>

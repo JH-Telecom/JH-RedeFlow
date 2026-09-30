@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: tela dedicada de chamados finalizados e cancelados, com tabela e filtros reutilizados.
+Última implementação: exportação da tabela como imagem PNG formatada, com cabeçalho, metadados e badges de status.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -81,7 +81,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
-- [x] Scroll horizontal isolado na tabela de atendimento, colunas com larguras fixas e cópia TSV sem estilos visuais, incluindo o texto e limite da coluna PRAZO.
+- [x] Scroll horizontal isolado na tabela de atendimento, colunas com larguras fixas e exportação PNG formatada incluindo o texto e limite da coluna PRAZO.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
@@ -328,6 +328,32 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Exportação visual da tabela como PNG
+
+### Objetivo
+
+Atender ao uso da tabela como imagem compartilhável, com leitura confortável e apresentação consistente, em vez de colar dados como texto TSV ou capturar o layout comprimido da tela.
+
+### Alterações realizadas
+
+- a ação `Copiar imagem` monta uma composição própria com título da tela, quantidade de registros, data de geração e rodapé RedeFlow;
+- a tabela de exportação usa larguras por tipo de coluna, quebra de texto e linhas alternadas; status, prazo e SLA recebem destaque em badges;
+- a imagem PNG é copiada para o clipboard quando suportado; caso contrário, baixa `redeflow-chamados.png`;
+- a exportação utiliza as linhas visíveis após busca e filtros e preserva o conteúdo `data-prazo`.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite). Em navegador local com runtime demo em memória, `Copiar imagem` gerou a composição de 2 linhas (tabela com 2.303 px de largura) e o botão confirmou `Imagem copiada`. O fallback de download não foi exercitado; permanece o aviso de bundle acima de 500 kB.
+
+### Próximo passo
+
+Validar o fallback de download em navegador sem suporte/permissão para clipboard de imagens.
 
 ## 2026-09-30 — Tela de chamados finalizados e cancelados
 
@@ -1200,6 +1226,12 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Exportação PNG apresentável
+
+`Copiar imagem` gera um PNG independente dos estilos da tela, com título, data, contagem, larguras por conteúdo, linhas alternadas e badges de status/prazo; inclui a badge PRAZO com limite. Build/typecheck passaram e a cópia foi confirmada no navegador local demo em memória. Fallback de download ainda não foi exercitado.
+
+Arquivos: [frontend/src/App.tsx](frontend/src/App.tsx), [ROADMAP.md](ROADMAP.md).
 
 ## 🔖 CHECKPOINT — 2026-09-30 — Tela de chamados encerrados
 
