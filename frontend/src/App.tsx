@@ -1211,9 +1211,11 @@ function ManualProductionDashboard() {
       .manual-card-export-frame .manual-table th,.manual-card-export-frame .manual-table td{box-sizing:border-box!important;padding:15px 12px!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:15px!important;line-height:1.45!important}
       .manual-card-export-frame .manual-table th{background:#f4f7fb!important;color:#334155!important;text-align:left!important;font-weight:800!important}
       .manual-card-export-frame .manual-table td{color:#0f172a!important;text-align:right!important}
+      .manual-card-export-frame .manual-table th:not(:first-child),.manual-card-export-frame .manual-table td:not(:first-child){text-align:center!important}
       .manual-card-export-frame .manual-table th:first-child,.manual-card-export-frame .manual-table td:first-child{width:34%!important;text-align:left!important;font-weight:700!important}
       .manual-card-export-frame .orders-panel .manual-table th:nth-child(1),.manual-card-export-frame .orders-panel .manual-table td:nth-child(1){width:22%!important}
       .manual-card-export-frame .orders-panel .manual-table th:nth-child(2),.manual-card-export-frame .orders-panel .manual-table td:nth-child(2){width:38%!important}
+      .manual-card-export-frame .orders-panel .manual-table th:nth-child(2),.manual-card-export-frame .orders-panel .manual-table td:nth-child(2){text-align:left!important}
       .manual-card-export-frame .orders-panel .manual-table th:nth-child(3),.manual-card-export-frame .orders-panel .manual-table td:nth-child(3){width:22%!important}
       .manual-card-export-frame .orders-panel .manual-table th:nth-child(4),.manual-card-export-frame .orders-panel .manual-table td:nth-child(4){width:18%!important}
       .manual-card-export-frame .manual-total-row{background:#eaf2fc!important}

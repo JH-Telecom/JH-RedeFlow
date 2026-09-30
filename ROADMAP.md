@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: painel diário oferece cópia PNG individual para atividades, técnicos e ordens.
+Última implementação: valores e cabeçalhos numéricos centralizados nas imagens individuais dos cards do Painel diário.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -329,6 +329,31 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Alinhamento dos números nos PNGs dos cards
+
+### Objetivo
+
+Corrigir os valores numéricos que apareciam deslocados nas imagens individuais do Painel diário.
+
+### Alterações realizadas
+
+- cabeçalhos e células que não são a primeira coluna agora ficam centralizados nos PNGs de atividades e técnicos;
+- em Ordens, Ordem e Técnico permanecem à esquerda, enquanto Início e Tempo ficam centralizados;
+- nenhuma alteração no alinhamento da interface da tela.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite). Teste browser temporário copiou os três PNGs; os estilos calculados ficaram centralizados em todos os cabeçalhos/valores numéricos de Atividades e Técnicos. Em Ordens, Ordem e Técnico ficaram à esquerda e Início/Tempo centralizados. A base sintética foi apagada após o teste; nenhuma alteração de banco.
+
+### Próximo passo
+
+Validar visualmente com uma base operacional real após atualização do ambiente.
 
 ## 2026-09-30 — Cópia PNG individual por card do Painel diário
 
@@ -1336,6 +1361,10 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Alinhamento numérico das imagens
+
+A regra do export que aplicava `text-align:right` a todas as células foi sobrescrita para centralizar cabeçalhos e valores métricos. Ordem/Técnico ficam à esquerda; Início/Tempo centralizados. Build passou e os estilos calculados foram verificados no navegador com base sintética, posteriormente removida.
 
 ## 🔖 CHECKPOINT — 2026-09-30 — PNG individual por card
 
