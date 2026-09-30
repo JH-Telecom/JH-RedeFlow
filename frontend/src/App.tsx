@@ -1118,11 +1118,20 @@ function getImageCaptureScale(width: number, height: number) {
   return Math.min(3, Math.sqrt(maxPixels / Math.max(1, width * height)));
 }
 
+type ManualProductionCardKey = "activities" | "technicians" | "orders";
+type ManualProductionCopyState = "idle" | "copied" | "downloaded" | "error";
+
+function ManualCardCopyButton({ cardKey, state, onCopy }: { cardKey: ManualProductionCardKey; state: ManualProductionCopyState; onCopy: () => void }) {
+  const labels: Record<ManualProductionCardKey, string> = { activities: "atividades", technicians: "técnicos", orders: "ordens" };
+  const buttonText = state === "copied" ? "Imagem copiada" : state === "downloaded" ? "PNG baixado" : state === "error" ? "Falha ao exportar" : "Copiar imagem";
+  return <button className="secondary-button compact manual-card-copy-button" onClick={onCopy} type="button" aria-label={`Copiar imagem de ${labels[cardKey]}`}><Copy size={14} /> {buttonText}</button>;
+}
+
 function ManualProductionDashboard() {
   const [data, setData] = useState<ManualProductionData | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
+  const [copyStates, setCopyStates] = useState<Record<ManualProductionCardKey, ManualProductionCopyState>>({ activities: "idle", technicians: "idle", orders: "idle" });
   const [technicianQuery, setTechnicianQuery] = useState("");
   const [refreshingBase, setRefreshingBase] = useState(false);
   const manualDashboardRef = useRef<HTMLDivElement | null>(null);
@@ -1167,66 +1176,63 @@ function ManualProductionDashboard() {
     }
   }
 
-  async function copyManualDashboard() {
-    const source = manualDashboardRef.current;
+  async function copyManualCard(cardKey: ManualProductionCardKey, title: string, fileName: string) {
+    const source = manualDashboardRef.current?.querySelector<HTMLElement>(`[data-manual-card="${cardKey}"]`);
     if (!source) return;
-    const clone = source.cloneNode(true) as HTMLDivElement;
-    const exportWidth = 1200;
-    clone.classList.add("manual-dashboard-screen", "manual-dashboard-export");
-    clone.querySelector(".manual-technician-search")?.remove();
-    clone.style.cssText = `position:fixed;left:-100000px;top:0;width:${exportWidth}px;max-width:none;box-sizing:border-box;background:#edf2f8;padding:30px;font-family:'Manrope','Segoe UI',Arial,sans-serif;color:#25364d;`;
-    const exportHeading = document.createElement("header");
-    exportHeading.style.cssText = "display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:20px;padding:4px 2px 18px;border-bottom:1px solid #dce4ef";
-    const titleBlock = document.createElement("div");
+
+    const exportWidth = cardKey === "orders" ? 1000 : 1200;
+    const clone = source.cloneNode(true) as HTMLElement;
+    clone.classList.add("manual-card-export");
+    clone.querySelectorAll(".manual-technician-search, .manual-card-copy-button").forEach((element) => element.remove());
+    clone.style.cssText = "width:100%;height:auto;min-height:0;max-height:none;box-sizing:border-box;overflow:visible;border:1px solid #dce4ef;border-radius:10px;background:#fff;";
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "manual-card-export-frame manual-dashboard-screen";
+    wrapper.style.cssText = `position:fixed;left:-100000px;top:0;width:${exportWidth}px;box-sizing:border-box;padding:24px;background:#edf2f8;font-family:'Manrope','Segoe UI',Arial,sans-serif;color:#25364d;`;
+    const header = document.createElement("header");
+    header.style.cssText = "margin-bottom:16px;padding:0 2px 14px;border-bottom:1px solid #dce4ef";
     const brand = document.createElement("div");
     brand.textContent = "JH TELECOM  /  REDEFLOW";
-    brand.style.cssText = "margin-bottom:8px;color:#2375d8;font-size:11px;font-weight:800;letter-spacing:1px";
-    const exportTitle = document.createElement("div");
-    exportTitle.textContent = "Painel diário de produção";
-    exportTitle.style.cssText = "color:#182b45;font-size:25px;font-weight:800;line-height:1.2";
-    const exportMeta = document.createElement("div");
-    exportMeta.textContent = `${selectedFileName || "Base operacional"}  |  Atualizado em ${data?.updatedAt || "-"}`;
-    exportMeta.style.cssText = "margin-top:8px;color:#718198;font-size:12px;font-weight:500";
-    titleBlock.append(brand, exportTitle, exportMeta);
-    const generatedAt = document.createElement("div");
-    generatedAt.textContent = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
-    generatedAt.style.cssText = "flex:none;padding:10px 14px;border:1px solid #d9e7f8;border-radius:8px;background:#f2f7fd;color:#315f96;font-size:12px;font-weight:700";
-    exportHeading.append(titleBlock, generatedAt);
-    clone.prepend(exportHeading);
+    brand.style.cssText = "margin-bottom:6px;color:#2375d8;font-size:11px;font-weight:800;letter-spacing:1px";
+    const heading = document.createElement("div");
+    heading.textContent = title;
+    heading.style.cssText = "color:#182b45;font-size:23px;font-weight:800;line-height:1.2";
+    const metadata = document.createElement("div");
+    metadata.textContent = `${selectedFileName || "Base operacional"}  |  ${data?.updatedAt || ""}  |  ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`;
+    metadata.style.cssText = "margin-top:6px;color:#475569;font-size:12px;font-weight:600";
+    header.append(brand, heading, metadata);
     const exportStyles = document.createElement("style");
     exportStyles.textContent = `
-      .manual-dashboard-export .manual-summary-row{display:flex!important;justify-content:flex-start!important;margin:0 0 14px!important}
-      .manual-dashboard-export .manual-production-grid{display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:start!important;gap:18px!important}
-      .manual-dashboard-export .manual-production-grid>.panel{box-sizing:border-box!important;grid-column:auto!important;min-width:0!important;width:auto!important;overflow:visible!important;border:1px solid #dce4ef!important;border-radius:10px!important;background:#fff!important;box-shadow:none!important}
-      .manual-dashboard-export .manual-production-grid>.panel{height:auto!important;min-height:0!important;max-height:none!important}
-      .manual-dashboard-export .manual-production-grid>.orders-panel{grid-column:1/-1!important}
-      .manual-dashboard-export .panel-heading{padding:18px 22px!important;border-bottom:1px solid #e5ebf3!important}
-      .manual-dashboard-export .panel-heading h2{margin:0!important;color:#25364d!important;font-size:21px!important}
-      .manual-dashboard-export .manual-table-wrap{width:100%!important;max-height:none!important;overflow:visible!important}
-      .manual-dashboard-export .manual-table{width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important}
-      .manual-dashboard-export .manual-table th,.manual-dashboard-export .manual-table td{box-sizing:border-box!important;padding:15px 12px!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:15px!important;line-height:1.45!important}
-      .manual-dashboard-export .manual-table th{background:#f4f7fb!important;color:#334155!important;text-align:left!important;font-weight:800!important}
-      .manual-dashboard-export .manual-table td{color:#0f172a!important;text-align:right!important}
-      .manual-dashboard-export .manual-table th:first-child,.manual-dashboard-export .manual-table td:first-child{width:34%!important;text-align:left!important;font-weight:700!important}
-      .manual-dashboard-export .orders-panel .manual-table th:nth-child(1),.manual-dashboard-export .orders-panel .manual-table td:nth-child(1){width:22%!important}
-      .manual-dashboard-export .orders-panel .manual-table th:nth-child(2),.manual-dashboard-export .orders-panel .manual-table td:nth-child(2){width:38%!important}
-      .manual-dashboard-export .orders-panel .manual-table th:nth-child(3),.manual-dashboard-export .orders-panel .manual-table td:nth-child(3){width:22%!important}
-      .manual-dashboard-export .orders-panel .manual-table th:nth-child(4),.manual-dashboard-export .orders-panel .manual-table td:nth-child(4){width:18%!important}
-      .manual-dashboard-export .manual-total-row{background:#eaf2fc!important}
+      .manual-card-export-frame .manual-card-export{display:block!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;padding:0!important;box-shadow:none!important}
+      .manual-card-export-frame .panel-heading{min-height:0!important;padding:18px 22px!important;border-bottom:1px solid #e5ebf3!important}
+      .manual-card-export-frame .panel-heading h2{margin:0!important;color:#25364d!important;font-size:21px!important}
+      .manual-card-export-frame .manual-table-wrap{width:100%!important;max-height:none!important;overflow:visible!important}
+      .manual-card-export-frame .manual-table{width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important}
+      .manual-card-export-frame .manual-table th,.manual-card-export-frame .manual-table td{box-sizing:border-box!important;padding:15px 12px!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:15px!important;line-height:1.45!important}
+      .manual-card-export-frame .manual-table th{background:#f4f7fb!important;color:#334155!important;text-align:left!important;font-weight:800!important}
+      .manual-card-export-frame .manual-table td{color:#0f172a!important;text-align:right!important}
+      .manual-card-export-frame .manual-table th:first-child,.manual-card-export-frame .manual-table td:first-child{width:34%!important;text-align:left!important;font-weight:700!important}
+      .manual-card-export-frame .orders-panel .manual-table th:nth-child(1),.manual-card-export-frame .orders-panel .manual-table td:nth-child(1){width:22%!important}
+      .manual-card-export-frame .orders-panel .manual-table th:nth-child(2),.manual-card-export-frame .orders-panel .manual-table td:nth-child(2){width:38%!important}
+      .manual-card-export-frame .orders-panel .manual-table th:nth-child(3),.manual-card-export-frame .orders-panel .manual-table td:nth-child(3){width:22%!important}
+      .manual-card-export-frame .orders-panel .manual-table th:nth-child(4),.manual-card-export-frame .orders-panel .manual-table td:nth-child(4){width:18%!important}
+      .manual-card-export-frame .manual-total-row{background:#eaf2fc!important}
     `;
-    clone.prepend(exportStyles);
-    document.body.appendChild(clone);
+    wrapper.append(exportStyles, header, clone);
+    document.body.appendChild(wrapper);
+    setCopyStates((current) => ({ ...current, [cardKey]: "idle" }));
+
     try {
       await document.fonts.ready;
-      const captureHeight = clone.scrollHeight;
-      const canvas = await html2canvas(clone, { backgroundColor: "#edf2f8", scale: getImageCaptureScale(exportWidth, captureHeight), width: exportWidth, height: captureHeight, windowWidth: exportWidth, windowHeight: captureHeight, logging: false });
+      const captureHeight = wrapper.scrollHeight;
+      const canvas = await html2canvas(wrapper, { backgroundColor: "#edf2f8", scale: getImageCaptureScale(exportWidth, captureHeight), width: exportWidth, height: captureHeight, windowWidth: exportWidth, windowHeight: captureHeight, logging: false });
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Imagem indisponivel");
       const downloadImage = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = "painel-diario.png";
+        link.download = fileName;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -1235,20 +1241,20 @@ function ManualProductionDashboard() {
       if (navigator.clipboard && window.ClipboardItem) {
         try {
           await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-          setCopyState("copied");
+          setCopyStates((current) => ({ ...current, [cardKey]: "copied" }));
         } catch {
           downloadImage();
-          setCopyState("downloaded");
+          setCopyStates((current) => ({ ...current, [cardKey]: "downloaded" }));
         }
       } else {
         downloadImage();
-        setCopyState("downloaded");
+        setCopyStates((current) => ({ ...current, [cardKey]: "downloaded" }));
       }
     } catch {
-      setCopyState("error");
+      setCopyStates((current) => ({ ...current, [cardKey]: "error" }));
     } finally {
-      clone.remove();
-      window.setTimeout(() => setCopyState("idle"), 2200);
+      wrapper.remove();
+      window.setTimeout(() => setCopyStates((current) => ({ ...current, [cardKey]: "idle" })), 2200);
     }
   }
 
@@ -1304,9 +1310,6 @@ function ManualProductionDashboard() {
           <button className={`secondary-button compact ${refreshingBase ? "is-refreshing" : ""}`} onClick={() => void refreshBase()} type="button" disabled={refreshingBase} aria-label="Atualizar painel diário">
             <RefreshCcw size={15} /> {refreshingBase ? "Atualizando..." : "Atualizar"}
           </button>
-          <button className="secondary-button compact" onClick={() => void copyManualDashboard()} type="button">
-            <Copy size={15} /> {copyState === "copied" ? "Painel copiado" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar painel"}
-          </button>
           <button className="secondary-button compact danger-button" onClick={clearBase} type="button">
             Limpar base
           </button>
@@ -1334,12 +1337,13 @@ function ManualProductionDashboard() {
             return (
               <>
           <div className="manual-production-grid">
-            <section className="panel panel-elevated">
+            <section className="panel panel-elevated" data-manual-card="activities">
               <div className="panel-heading">
                 <div>
                   <span className="section-kicker">PRODUCAO</span>
                   <h2>Produção por atividades</h2>
                 </div>
+                <ManualCardCopyButton cardKey="activities" state={copyStates.activities} onCopy={() => void copyManualCard("activities", "Produção por atividades", "producao-atividades.png")} />
               </div>
               <div className="manual-table-wrap">
                 <table className="manual-table">
@@ -1383,16 +1387,19 @@ function ManualProductionDashboard() {
               </div>
             </section>
 
-            <section className="panel panel-elevated">
+            <section className="panel panel-elevated" data-manual-card="technicians">
               <div className="panel-heading">
                 <div>
                   <span className="section-kicker">TÉCNICOS</span>
                   <h2>Produção por técnico</h2>
                 </div>
-                <label className="manual-technician-search">
-                  <Search size={14} aria-hidden="true" />
-                  <input value={technicianQuery} onChange={(event) => setTechnicianQuery(event.target.value)} placeholder="Buscar técnico" aria-label="Buscar técnico" />
-                </label>
+                <div className="manual-technician-heading-actions">
+                  <label className="manual-technician-search">
+                    <Search size={14} aria-hidden="true" />
+                    <input value={technicianQuery} onChange={(event) => setTechnicianQuery(event.target.value)} placeholder="Buscar técnico" aria-label="Buscar técnico" />
+                  </label>
+                  <ManualCardCopyButton cardKey="technicians" state={copyStates.technicians} onCopy={() => void copyManualCard("technicians", "Produção por técnico", "producao-por-tecnico.png")} />
+                </div>
               </div>
               <div className="manual-table-wrap compact">
                 <table className="manual-table">
@@ -1436,12 +1443,13 @@ function ManualProductionDashboard() {
               </div>
             </section>
 
-            <section className="panel panel-elevated orders-panel">
+            <section className="panel panel-elevated orders-panel" data-manual-card="orders">
               <div className="panel-heading">
                 <div>
                   <span className="section-kicker">ORDENS</span>
                   <h2>Ordens iniciadas</h2>
                 </div>
+                <ManualCardCopyButton cardKey="orders" state={copyStates.orders} onCopy={() => void copyManualCard("orders", "Ordens iniciadas", "ordens-iniciadas.png")} />
               </div>
               <div className="manual-table-wrap compact">
                 <table className="manual-table">

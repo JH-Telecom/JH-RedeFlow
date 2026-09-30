@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: cards do Painel diário empilhados em largura total e PNG ajustado para leitura em prévias de compartilhamento.
+Última implementação: painel diário oferece cópia PNG individual para atividades, técnicos e ordens.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -81,7 +81,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
-- [x] Painel diário com tabelas equilibradas, busca de técnicos, contraste reforçado e exportação PNG de alta nitidez.
+- [x] Painel diário com tabelas equilibradas, busca de técnicos, contraste reforçado e exportação PNG individual por card.
 - [x] Exportações PNG apresentáveis da tabela de chamados com dimensões de relatório, texto legível e estilos para compartilhamento.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
@@ -329,6 +329,33 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Cópia PNG individual por card do Painel diário
+
+### Objetivo
+
+Evitar uma imagem única muito alta e pequena para leitura, oferecendo um arquivo separado para cada tabela.
+
+### Alterações realizadas
+
+- removida a ação global `Copiar painel`;
+- adicionada uma ação de copiar imagem nos cards Produção por atividades, Produção por técnico e Ordens iniciadas;
+- cada ação captura somente o card correspondente, com cabeçalho, origem e horário; nomes dos arquivos são específicos por seção;
+- estados de cópia/download/erro são independentes por card e a busca por técnico permanece refletida na imagem copiada.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/manual-dashboard.css](frontend/src/manual-dashboard.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite). Teste browser confirmou os três botões, cópia de PNG e conteúdo isolado por card com base demo temporária: atividades 3600 × 1404 px, técnicos 3600 × 4101 px, ordens 3000 × 1257 px. A base foi removida após o teste; permanece o aviso de bundle acima de 500 kB.
+
+### Próximo passo
+
+Validar o fallback de download em navegador sem suporte/permissão para clipboard de imagens.
 
 ## 2026-09-30 — Cards em largura total e prévia PNG legível
 
@@ -1309,6 +1336,12 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — PNG individual por card
+
+O botão global `Copiar painel` foi substituído por três botões independentes nos cards de Atividades, Técnicos e Ordens. Cada botão captura somente seu card e atualiza seu próprio estado, com fallback para arquivo PNG específico. Build e cópia dos três PNGs passaram em navegador local; imagens testadas: atividades 3600 × 1404 px, técnicos 3600 × 4101 px, ordens 3000 × 1257 px. A base sintética foi removida.
+
+Arquivos: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/manual-dashboard.css](frontend/src/manual-dashboard.css), [ROADMAP.md](ROADMAP.md).
 
 ## 🔖 CHECKPOINT — 2026-09-30 — Cards do Painel diário em largura total
 
