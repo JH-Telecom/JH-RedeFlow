@@ -853,10 +853,20 @@ type ManualProductionOrder = {
   tempo: string;
 };
 
+type ManualProductionRecord = {
+  activityType: string;
+  technician: string;
+  status: string;
+  order: string;
+  inicio: string;
+  tempo: string;
+};
+
 type ManualProductionData = {
   activities: ManualProductionActivity[];
   technicians: ManualProductionTechnician[];
   orders: ManualProductionOrder[];
+  records?: ManualProductionRecord[];
   updatedAt: string;
 };
 
@@ -933,6 +943,7 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
   const activities = new Map<string, ManualProductionActivity>();
   const technicians = new Map<string, ManualProductionTechnician>();
   const orders: ManualProductionOrder[] = [];
+  const records: ManualProductionRecord[] = [];
 
   for (const cells of rows.slice(1)) {
     if (cells.length < 25) continue;
@@ -955,6 +966,8 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
     };
     incrementProductionStatus(activity, status);
     activities.set(activityType, activity);
+    const record = { activityType, technician: technicianName || "", status, order: order || "", inicio: cells[15]?.trim() ?? "", tempo: cells[20]?.trim() ?? "" };
+    records.push(record);
 
     if (technicianName) {
       const technician = technicians.get(technicianName) ?? {
@@ -972,12 +985,7 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
     }
 
     if (order && normalizeText(status) === "iniciado") {
-      orders.push({
-        order,
-        technician: technicianName,
-        inicio: cells[15]?.trim() ?? "",
-        tempo: cells[20]?.trim() ?? "",
-      });
+      orders.push({ order, technician: technicianName, inicio: record.inicio, tempo: record.tempo });
     }
   }
 
@@ -985,6 +993,7 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
     activities: [...activities.values()].filter((item) => allowedActivityTypes.has(normalizeText(item.type))),
     technicians: [...technicians.values()],
     orders,
+    records,
     updatedAt: new Date().toLocaleString("pt-BR"),
   };
 }
@@ -1001,9 +1010,10 @@ function parseManualProductionData(raw: string): ManualProductionData {
 
   const firstRow = splitCsvLikeLine(rows[0]);
   const flatHeader = firstRow.map(normalizeText);
+  const activityTypeHeaderCount = flatHeader.filter((cell) => /^tipo de atividade(?:\s*\d+)?$/.test(cell)).length;
   const isFlatActivityExport = flatHeader.includes("recurso")
     && flatHeader.includes("status da atividade")
-    && flatHeader.filter((cell) => cell === "tipo de atividade").length >= 2
+    && activityTypeHeaderCount >= 2
     && flatHeader.includes("ordem de servico");
   if (isFlatActivityExport) {
     return parseFlatActivityExport(rows.map(splitCsvLikeLine));
@@ -1109,6 +1119,51 @@ function sumProductionRows(rows: Array<ManualProductionActivity | ManualProducti
   }), { pending: 0, enRoute: 0, started: 0, concluded: 0, cancelled: 0, suspended: 0, total: 0 });
 }
 
+type ManualDashboardArea = "guarulhos" | "sp";
+type ManualDashboardSegment = { activities: ManualProductionActivity[]; technicians: ManualProductionTechnician[]; orders: ManualProductionOrder[]; recordCount: number; unmatchedOrderCount: number };
+
+function normalizeOrderMatchKey(value: string) {
+  return normalizeText(value).replace(/[^a-z0-9]/g, "").replace(/^bdesk/, "");
+}
+
+function buildManualDashboardSegments(records: ManualProductionRecord[], calls: Call[]): Record<ManualDashboardArea, ManualDashboardSegment> {
+  const regionByOrder = new Map<string, string>();
+  calls.forEach((call) => {
+    const key = normalizeOrderMatchKey(call.orderNumber);
+    if (!key || !call.region) return;
+    const existingRegion = regionByOrder.get(key);
+    if (existingRegion && normalizeText(existingRegion) !== normalizeText(call.region)) regionByOrder.set(key, "");
+    else if (!regionByOrder.has(key)) regionByOrder.set(key, call.region);
+  });
+
+  const createSegment = () => ({ activityMap: new Map<string, ManualProductionActivity>(), technicianMap: new Map<string, ManualProductionTechnician>(), orders: [] as ManualProductionOrder[], recordCount: 0, unmatchedOrders: new Set<string>() });
+  const segments = { guarulhos: createSegment(), sp: createSegment() };
+  records.forEach((record) => {
+    const orderKey = normalizeOrderMatchKey(record.order);
+    const region = orderKey ? regionByOrder.get(orderKey) : undefined;
+    const area: ManualDashboardArea = normalizeText(region || "").includes("guarulhos") ? "guarulhos" : "sp";
+    const segment = segments[area];
+    segment.recordCount += 1;
+    if (record.order && !region) segment.unmatchedOrders.add(orderKey || record.order);
+
+    const activity = segment.activityMap.get(record.activityType) ?? { type: record.activityType, pending: 0, enRoute: 0, started: 0, concluded: 0, cancelled: 0, suspended: 0, total: 0 };
+    incrementProductionStatus(activity, record.status);
+    segment.activityMap.set(record.activityType, activity);
+
+    if (record.technician) {
+      const technician = segment.technicianMap.get(record.technician) ?? { name: record.technician, pending: 0, enRoute: 0, started: 0, concluded: 0, cancelled: 0, suspended: 0, total: 0 };
+      incrementProductionStatus(technician, record.status);
+      segment.technicianMap.set(record.technician, technician);
+    }
+    if (orderKey && normalizeText(record.status) === "iniciado") segment.orders.push({ order: record.order, technician: record.technician, inicio: record.inicio, tempo: record.tempo });
+  });
+
+  return {
+    guarulhos: { activities: [...segments.guarulhos.activityMap.values()], technicians: [...segments.guarulhos.technicianMap.values()], orders: segments.guarulhos.orders, recordCount: segments.guarulhos.recordCount, unmatchedOrderCount: segments.guarulhos.unmatchedOrders.size },
+    sp: { activities: [...segments.sp.activityMap.values()], technicians: [...segments.sp.technicianMap.values()], orders: segments.sp.orders, recordCount: segments.sp.recordCount, unmatchedOrderCount: segments.sp.unmatchedOrders.size },
+  };
+}
+
 function manualMetricCell(value: number, state: string) {
   return <td className={`manual-metric-cell manual-metric-${state} ${value === 0 ? "is-zero" : "is-active"}`}><span>{value.toLocaleString("pt-BR")}</span></td>;
 }
@@ -1133,6 +1188,10 @@ function ManualProductionDashboard() {
   const [selectedFileName, setSelectedFileName] = useState("");
   const [copyStates, setCopyStates] = useState<Record<ManualProductionCardKey, ManualProductionCopyState>>({ activities: "idle", technicians: "idle", orders: "idle" });
   const [technicianQuery, setTechnicianQuery] = useState("");
+  const [areaSegment, setAreaSegment] = useState<ManualDashboardArea>("guarulhos");
+  const [callsForArea, setCallsForArea] = useState<Call[]>([]);
+  const [areaCallsReady, setAreaCallsReady] = useState(false);
+  const [areaLookupError, setAreaLookupError] = useState(false);
   const [refreshingBase, setRefreshingBase] = useState(false);
   const manualDashboardRef = useRef<HTMLDivElement | null>(null);
 
@@ -1147,6 +1206,7 @@ function ManualProductionDashboard() {
       setSelectedFileName(result.base.fileName);
     }).catch((error) => setUploadError(error instanceof Error ? error.message : "Nao foi possivel carregar a base salva."));
     void loadBase();
+    api.calls().then((result) => { setCallsForArea(result.calls); setAreaCallsReady(true); setAreaLookupError(false); }).catch(() => { setCallsForArea([]); setAreaCallsReady(true); setAreaLookupError(true); });
     const interval = window.setInterval(loadBase, 15000);
     return () => window.clearInterval(interval);
   }, []);
@@ -1165,9 +1225,11 @@ function ManualProductionDashboard() {
   async function refreshBase() {
     setRefreshingBase(true);
     try {
-      const result = await api.dailyBase();
+      const [result, callsResult] = await Promise.all([api.dailyBase(), api.calls().catch(() => null)]);
       setData(result.base?.data || null);
       setSelectedFileName(result.base?.fileName || "");
+      if (callsResult) { setCallsForArea(callsResult.calls); setAreaCallsReady(true); setAreaLookupError(false); }
+      else { setAreaCallsReady(true); setAreaLookupError(true); }
       setUploadError("");
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Nao foi possivel atualizar a base.");
@@ -1287,6 +1349,7 @@ function ManualProductionDashboard() {
       setSelectedFileName(saved.base.fileName);
       setData(saved.base.data);
       setUploadError("");
+      api.calls().then((result) => { setCallsForArea(result.calls); setAreaCallsReady(true); setAreaLookupError(false); }).catch(() => { setAreaCallsReady(true); setAreaLookupError(true); });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Nao foi possivel carregar o arquivo.";
       setUploadError(message);
@@ -1295,6 +1358,13 @@ function ManualProductionDashboard() {
       event.target.value = "";
     }
   }
+
+  const canSplitByArea = Boolean(data?.records?.length && areaCallsReady && !areaLookupError);
+  const areaSegments = canSplitByArea && data?.records ? buildManualDashboardSegments(data.records, callsForArea) : null;
+  const hasDetailedRecords = Boolean(data?.records?.length);
+  const selectedData = hasDetailedRecords ? areaSegments?.[areaSegment] || null : data;
+  const selectedAreaLabel = areaSegment === "guarulhos" ? "Guarulhos" : "SP";
+  const segmentFileSuffix = areaSegment === "guarulhos" ? "guarulhos" : "sp";
 
   return (
     <>
@@ -1326,15 +1396,24 @@ function ManualProductionDashboard() {
           </label>
         </div>
 
+        {canSplitByArea && areaSegments && <div className="manual-area-switch" role="tablist" aria-label="Segmento regional">
+          <button className={areaSegment === "guarulhos" ? "active" : ""} type="button" role="tab" aria-selected={areaSegment === "guarulhos"} onClick={() => { setAreaSegment("guarulhos"); setTechnicianQuery(""); }}>Guarulhos <b>{areaSegments.guarulhos.recordCount}</b></button>
+          <button className={areaSegment === "sp" ? "active" : ""} type="button" role="tab" aria-selected={areaSegment === "sp"} onClick={() => { setAreaSegment("sp"); setTechnicianQuery(""); }}>SP <b>{areaSegments.sp.recordCount}</b></button>
+        </div>}
+        {data && !data.records?.length && <div className="manual-area-message">Para separar Guarulhos e SP, reimporte a exportação OFS detalhada com Ordem de Serviço, Status da Atividade, Técnico e Tipo de Atividade. Bases antigas agregadas não têm as linhas necessárias para recalcular cada região.</div>}
+        {data?.records?.length && !areaCallsReady && <div className="manual-area-message">Carregando regiões dos chamados para separar o OFS...</div>}
+        {data?.records?.length && areaLookupError && <div className="manual-area-message is-error">Não foi possível consultar as Regiões dos chamados. Verifique o acesso de consulta a chamados e tente Atualizar.</div>}
+        {areaSegments && <div className="manual-area-note">Região cruzada pela Ordem de Serviço. Ordens sem correspondência são incluídas em SP.</div>}
+        {areaSegments?.[areaSegment].unmatchedOrderCount ? <div className="manual-area-caption">{areaSegments[areaSegment].unmatchedOrderCount} Ordem(ns) sem correspondência com os chamados foram consideradas em SP.</div> : null}
         {uploadError && <div className="form-error import-error">{uploadError}</div>}
       </div>
 
-      {data && (
+      {data && selectedData && (
         <div ref={manualDashboardRef} className="manual-dashboard-capture manual-dashboard-screen">
         <>
           {(() => {
-            const activityTotals = sumProductionRows(data.activities);
-            const visibleTechnicians = data.technicians.filter((item) => item.name.toLowerCase().includes(technicianQuery.trim().toLowerCase()));
+            const activityTotals = sumProductionRows(selectedData.activities);
+            const visibleTechnicians = selectedData.technicians.filter((item) => item.name.toLowerCase().includes(technicianQuery.trim().toLowerCase()));
             const technicianTotals = sumProductionRows(visibleTechnicians);
             return (
               <>
@@ -1343,9 +1422,9 @@ function ManualProductionDashboard() {
               <div className="panel-heading">
                 <div>
                   <span className="section-kicker">PRODUCAO</span>
-                  <h2>Produção por atividades</h2>
+                    <h2>Produção por atividades{areaSegments ? ` · ${selectedAreaLabel}` : ""}</h2>
                 </div>
-                <ManualCardCopyButton cardKey="activities" state={copyStates.activities} onCopy={() => void copyManualCard("activities", "Produção por atividades", "producao-atividades.png")} />
+                <ManualCardCopyButton cardKey="activities" state={copyStates.activities} onCopy={() => void copyManualCard("activities", `Produção por atividades · ${areaSegments ? selectedAreaLabel : "Geral"}`, `producao-atividades-${areaSegments ? segmentFileSuffix : "geral"}.png`)} />
               </div>
               <div className="manual-table-wrap">
                 <table className="manual-table">
@@ -1362,7 +1441,7 @@ function ManualProductionDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.activities.map((item) => (
+                    {selectedData.activities.map((item) => (
                       <tr key={`${item.type}-${item.total}`}>
                         <td>{item.type}</td>
                         {manualMetricCell(item.pending, "pending")}
@@ -1393,14 +1472,14 @@ function ManualProductionDashboard() {
               <div className="panel-heading">
                 <div>
                   <span className="section-kicker">TÉCNICOS</span>
-                  <h2>Produção por técnico</h2>
+                  <h2>Produção por técnico{areaSegments ? ` · ${selectedAreaLabel}` : ""}</h2>
                 </div>
                 <div className="manual-technician-heading-actions">
                   <label className="manual-technician-search">
                     <Search size={14} aria-hidden="true" />
                     <input value={technicianQuery} onChange={(event) => setTechnicianQuery(event.target.value)} placeholder="Buscar técnico" aria-label="Buscar técnico" />
                   </label>
-                  <ManualCardCopyButton cardKey="technicians" state={copyStates.technicians} onCopy={() => void copyManualCard("technicians", "Produção por técnico", "producao-por-tecnico.png")} />
+                  <ManualCardCopyButton cardKey="technicians" state={copyStates.technicians} onCopy={() => void copyManualCard("technicians", `Produção por técnico · ${areaSegments ? selectedAreaLabel : "Geral"}`, `producao-por-tecnico-${areaSegments ? segmentFileSuffix : "geral"}.png`)} />
                 </div>
               </div>
               <div className="manual-table-wrap compact">
@@ -1449,9 +1528,9 @@ function ManualProductionDashboard() {
               <div className="panel-heading">
                 <div>
                   <span className="section-kicker">ORDENS</span>
-                  <h2>Ordens iniciadas</h2>
+                  <h2>Ordens iniciadas{areaSegments ? ` · ${selectedAreaLabel}` : ""}</h2>
                 </div>
-                <ManualCardCopyButton cardKey="orders" state={copyStates.orders} onCopy={() => void copyManualCard("orders", "Ordens iniciadas", "ordens-iniciadas.png")} />
+                <ManualCardCopyButton cardKey="orders" state={copyStates.orders} onCopy={() => void copyManualCard("orders", `Ordens iniciadas · ${areaSegments ? selectedAreaLabel : "Geral"}`, `ordens-iniciadas-${areaSegments ? segmentFileSuffix : "geral"}.png`)} />
               </div>
               <div className="manual-table-wrap compact">
                 <table className="manual-table">
@@ -1464,7 +1543,7 @@ function ManualProductionDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.orders.map((item, index) => (
+                    {selectedData.orders.map((item, index) => (
                       <tr key={`${item.order}-${index}`}>
                         <td>{item.order}</td>
                         <td>{item.technician}</td>

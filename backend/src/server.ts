@@ -202,7 +202,13 @@ app.get('/api/dashboards/painel-diario/base', auth, requirePermission('dashboard
   return response.json({ base: await getManualDailyBase(typeof request.query.date === 'string' ? request.query.date : undefined) });
 });
 app.put('/api/dashboards/painel-diario/base', auth, requirePermission('imports.create'), async (request: AuthRequest, response) => {
-  const parsed = z.object({ fileName: z.string().trim().min(1).max(255), data: z.object({ activities: z.array(z.object({ type: z.string(), pending: z.number(), enRoute: z.number(), started: z.number(), concluded: z.number(), cancelled: z.number(), suspended: z.number(), total: z.number() })), technicians: z.array(z.object({ name: z.string(), pending: z.number(), enRoute: z.number(), started: z.number(), concluded: z.number(), cancelled: z.number(), suspended: z.number(), total: z.number() })), orders: z.array(z.object({ order: z.string(), technician: z.string(), inicio: z.string(), tempo: z.string() })), updatedAt: z.string() }) }).safeParse(request.body);
+  const parsed = z.object({ fileName: z.string().trim().min(1).max(255), data: z.object({
+    activities: z.array(z.object({ type: z.string(), pending: z.number(), enRoute: z.number(), started: z.number(), concluded: z.number(), cancelled: z.number(), suspended: z.number(), total: z.number() })),
+    technicians: z.array(z.object({ name: z.string(), pending: z.number(), enRoute: z.number(), started: z.number(), concluded: z.number(), cancelled: z.number(), suspended: z.number(), total: z.number() })),
+    orders: z.array(z.object({ order: z.string(), technician: z.string(), inicio: z.string(), tempo: z.string() })),
+    records: z.array(z.object({ activityType: z.string(), technician: z.string(), status: z.string(), order: z.string(), inicio: z.string(), tempo: z.string() })).optional(),
+    updatedAt: z.string(),
+  }) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados da base diaria invalidos.' });
   return response.json({ base: await saveManualDailyBase(parsed.data.fileName, parsed.data.data, request.authUser!.name, typeof request.query.date === 'string' ? request.query.date : undefined) });
 });

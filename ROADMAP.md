@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: valores e cabeçalhos numéricos centralizados nas imagens individuais dos cards do Painel diário.
+Última implementação: segmentação do Painel diário em Guarulhos/SP por correspondência da Ordem de Serviço OFS com a Ordem do chamado.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -28,6 +28,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - Backend: API Express em [backend/src/server.ts](backend/src/server.ts) com regras de negócio em [backend/src/store.ts](backend/src/store.ts).
 - Banco de dados: PostgreSQL com migrations em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations).
 - Base D-0: snapshot da última planilha armazenado em `d0_base_records`; o campo `calls.ofs_status` mantém o estado nativo OFS sem substituir `calls.status`.
+- Painel diário: exportação OFS detalhada é preservada no JSON existente e conciliada com Região dos chamados por Ordem de Serviço; Guarulhos fica separado e demais ordens são exibidas em SP.
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
 - APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
@@ -81,7 +82,7 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
-- [x] Painel diário com tabelas equilibradas, busca de técnicos, contraste reforçado e exportação PNG individual por card.
+- [x] Painel diário com tabelas equilibradas, busca de técnicos, contraste reforçado, exportação PNG individual por card e segmentação regional Guarulhos/SP por ordem.
 - [x] Exportações PNG apresentáveis da tabela de chamados com dimensões de relatório, texto legível e estilos para compartilhamento.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
@@ -329,6 +330,38 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Segmentação regional do Painel diário pelo OFS
+
+### Objetivo
+
+Separar atividades, técnicos e ordens em Guarulhos ou SP conciliando a Ordem de Serviço da exportação OFS com a Ordem dos chamados e usando a Região do chamado.
+
+### Alterações realizadas
+
+- parser flat OFS reconhece cabeçalho duplicado numerado `Tipo de Atividade2` e preserva cada linha detalhada junto aos totais;
+- a API aceita opcionalmente os registros detalhados no JSON do painel existente; nenhuma tabela ou migration foi criada;
+- a Região de cada ordem é consultada em `/api/chamados`; Região contendo Guarulhos vai ao segmento Guarulhos; as outras e ordens sem match vão a SP;
+- ordens duplicadas com regiões conflitantes são tratadas como sem correspondência e não recebem Região arbitrária;
+- a interface troca todos os cards entre as abas Guarulhos/SP e informa quantas ordens sem match foram atribuídas a SP;
+- bases antigas que guardam somente totais agregados precisam ser reimportadas com o OFS detalhado.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [backend/src/types.ts](backend/src/types.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+- [frontend/src/manual-dashboard.css](frontend/src/manual-dashboard.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+Build backend e frontend passaram. Upload browser de CSV com `Tipo de Atividade2` passou; a ordem RF-240918 foi conciliada em Guarulhos, enquanto RF-240917 (duas regiões conflitantes) e BDESK-UNKNOWN foram para SP (2 sem match). Base e alteração de região usadas no teste foram descartadas reiniciando o backend demo.
+
+### Próximo passo
+
+Reimportar uma base OFS real e validar a correspondência de ordens/regiões antes de compartilhar os relatórios.
 
 ## 2026-09-30 — Alinhamento dos números nos PNGs dos cards
 
@@ -1361,6 +1394,10 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Segmentação Guarulhos/SP do OFS
+
+O OFS flat é preservado como `records` opcional no JSON diário, sem migration. As linhas cruzam `Ordem de Serviço` com `calls.orderNumber` após normalização; região contendo Guarulhos vai para Guarulhos, demais/sem match vão para SP. Chaves duplicadas com Regiões conflitantes são consideradas sem match. O parser aceita `Tipo de Atividade2`. Build backend/frontend e teste browser passaram; teste comprovou 1 ordem em Guarulhos e 2 em SP, ambas não conciliadas. Teste local demo foi reiniciado para restaurar dados. Bases antigas sem `records` precisam ser reimportadas.
 
 ## 🔖 CHECKPOINT — 2026-09-30 — Alinhamento numérico das imagens
 
