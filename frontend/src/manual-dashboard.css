@@ -1,0 +1,51 @@
+.manual-dashboard-heading-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.manual-dashboard-heading-title h1{margin:0}
+.manual-base-status{display:inline-flex;align-items:center;min-height:26px;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.manual-base-status.is-ready{background:#e6f5ec;color:#17643a}
+.manual-base-status.is-empty{background:#edf2f7;color:#475569}
+.manual-update-meta{display:flex;flex-direction:column;gap:3px;max-width:240px;text-align:right}
+.manual-update-meta span{color:#475569;font-size:9px;font-weight:800}
+.manual-update-meta strong{color:#0f172a;font-size:12px}
+.manual-update-meta small{overflow:hidden;color:#475569;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.manual-dashboard-screen .manual-production-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:stretch!important;gap:16px}
+.manual-dashboard-screen .manual-production-grid>.panel{display:flex;min-width:0;height:440px;min-height:440px;max-height:440px;flex-direction:column;overflow:hidden;border:1px solid #dce4ef;border-radius:8px;background:#fff}
+.manual-dashboard-screen .manual-production-grid>.panel .panel-heading{display:flex;min-height:74px;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0}
+.manual-dashboard-screen .panel-heading .section-kicker{color:#2563eb;font-size:9px;font-weight:800}
+.manual-dashboard-screen .panel-heading h2{margin:4px 0 0;color:#0f172a;font-size:15px;font-weight:750}
+.manual-dashboard-screen .manual-table-wrap{width:100%;max-height:350px;min-height:0;flex:1;overflow:auto}
+.manual-dashboard-screen .manual-table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse}
+.manual-dashboard-screen .manual-table th,.manual-dashboard-screen .manual-table td{box-sizing:border-box;padding:8px 7px;border-bottom:1px solid #e2e8f0;font-size:10px;line-height:1.35}
+.manual-dashboard-screen .manual-table th{background:#f1f5f9;color:#334155;font-weight:800;text-align:center;white-space:normal}
+.manual-dashboard-screen .manual-table td{color:#0f172a;font-weight:600;text-align:center;overflow-wrap:anywhere}
+.manual-dashboard-screen .manual-table th:first-child,.manual-dashboard-screen .manual-table td:first-child{width:31%;text-align:left}
+.manual-dashboard-screen .manual-table tbody tr:nth-child(even){background:#f8fafc}
+.manual-dashboard-screen .manual-table tbody td:first-child{font-weight:700}
+.manual-dashboard-screen .manual-metric-cell span{display:inline-flex;min-width:24px;justify-content:center;padding:3px 6px;border-radius:5px;font-weight:800}
+.manual-dashboard-screen .manual-metric-cell.is-zero span{background:#f1f5f9;color:#64748b}
+.manual-dashboard-screen .manual-metric-pending.is-active span{background:#eaf2ff;color:#1d4ed8}
+.manual-dashboard-screen .manual-metric-en-route.is-active span{background:#e6f7fb;color:#0e7490}
+.manual-dashboard-screen .manual-metric-started.is-active span{background:#fff6df;color:#a16207}
+.manual-dashboard-screen .manual-metric-concluded.is-active span{background:#e7f6ed;color:#166534}
+.manual-dashboard-screen .manual-metric-cancelled.is-active span{background:#fff0f0;color:#b42332}
+.manual-dashboard-screen .manual-metric-suspended.is-active span{background:#eef2f6;color:#475569}
+.manual-dashboard-screen .manual-total-row{background:#eaf2fc!important;font-weight:800}
+.manual-dashboard-screen .manual-total-row td{border-top:2px solid #b6c9e0;color:#0f172a;font-weight:800}
+.manual-dashboard-screen .manual-total-row .manual-metric-cell span{background:#fff}
+.manual-dashboard-screen .manual-total-cell{color:#0f172a;font-weight:900!important}
+.manual-technician-search{display:flex;min-width:150px;max-width:190px;height:32px;align-items:center;gap:7px;padding:0 9px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#475569}
+.manual-technician-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#0f172a;font:inherit;font-size:11px}
+.manual-technician-search input::placeholder{color:#64748b}
+.manual-dashboard-screen .manual-production-grid>.orders-panel{grid-column:1/-1;height:auto!important;min-height:0!important;max-height:none!important}
+.manual-dashboard-screen .orders-panel .manual-table-wrap{min-height:0;max-height:360px;flex:none}
+.manual-dashboard-screen .orders-panel .manual-table th:first-child,.manual-dashboard-screen .orders-panel .manual-table td:first-child{width:22%}
+.manual-dashboard-screen .orders-panel .manual-table th:nth-child(2),.manual-dashboard-screen .orders-panel .manual-table td:nth-child(2){width:40%;text-align:left}
+.manual-dashboard-screen .orders-panel .manual-table th:nth-child(3),.manual-dashboard-screen .orders-panel .manual-table td:nth-child(3){width:20%}
+.manual-dashboard-screen .orders-panel .manual-table th:nth-child(4),.manual-dashboard-screen .orders-panel .manual-table td:nth-child(4){width:18%}
+.manual-order-time{display:inline-flex;min-width:76px;justify-content:center;padding:5px 8px;border-radius:999px;background:#edf4ff;color:#1e40af;font-size:10px;font-weight:800;white-space:nowrap}
+.manual-order-time.is-alert{background:#fff0f0;color:#b42332}
+.manual-dashboard-export .manual-dashboard-screen{color:#0f172a}
+.manual-dashboard-export .manual-production-grid>.panel{height:auto!important;min-height:0!important;max-height:none!important}
+.manual-dashboard-export .manual-table td{color:#0f172a!important}
+.manual-dashboard-export .manual-table th{color:#334155!important}
+@media(max-width:1000px){.manual-dashboard-screen .manual-production-grid{grid-template-columns:minmax(0,1fr)!important}.manual-dashboard-screen .manual-production-grid>.panel{height:420px;min-height:420px;max-height:420px}.manual-dashboard-screen .orders-panel{height:auto;min-height:0;max-height:none}.manual-update-meta{max-width:180px}}
+@media(max-width:650px){.manual-dashboard-heading-title{align-items:flex-start;flex-direction:column;gap:6px}.manual-dashboard-heading-title h1{font-size:24px}.manual-update-meta{display:none}.manual-dashboard-screen .manual-production-grid>.panel{height:400px;min-height:400px;max-height:400px}.manual-dashboard-screen .manual-production-grid>.panel .panel-heading{align-items:flex-start;flex-direction:column}.manual-technician-search{width:100%;max-width:none}.manual-dashboard-screen .manual-table th,.manual-dashboard-screen .manual-table td{padding:7px 5px;font-size:9px}}

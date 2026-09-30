@@ -1109,11 +1109,22 @@ function sumProductionRows(rows: Array<ManualProductionActivity | ManualProducti
   }), { pending: 0, enRoute: 0, started: 0, concluded: 0, cancelled: 0, suspended: 0, total: 0 });
 }
 
+function manualMetricCell(value: number, state: string) {
+  return <td className={`manual-metric-cell manual-metric-${state} ${value === 0 ? "is-zero" : "is-active"}`}><span>{value.toLocaleString("pt-BR")}</span></td>;
+}
+
+function getImageCaptureScale(width: number, height: number) {
+  const maxPixels = 40_000_000;
+  return Math.min(3, Math.sqrt(maxPixels / Math.max(1, width * height)));
+}
+
 function ManualProductionDashboard() {
   const [data, setData] = useState<ManualProductionData | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
   const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
+  const [technicianQuery, setTechnicianQuery] = useState("");
+  const [refreshingBase, setRefreshingBase] = useState(false);
   const manualDashboardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -1142,12 +1153,27 @@ function ManualProductionDashboard() {
     }
   }
 
+  async function refreshBase() {
+    setRefreshingBase(true);
+    try {
+      const result = await api.dailyBase();
+      setData(result.base?.data || null);
+      setSelectedFileName(result.base?.fileName || "");
+      setUploadError("");
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Nao foi possivel atualizar a base.");
+    } finally {
+      setRefreshingBase(false);
+    }
+  }
+
   async function copyManualDashboard() {
     const source = manualDashboardRef.current;
     if (!source) return;
     const clone = source.cloneNode(true) as HTMLDivElement;
     const exportWidth = 1840;
-    clone.classList.add("manual-dashboard-export");
+    clone.classList.add("manual-dashboard-screen", "manual-dashboard-export");
+    clone.querySelector(".manual-technician-search")?.remove();
     clone.style.cssText = `position:fixed;left:-100000px;top:0;width:${exportWidth}px;max-width:none;box-sizing:border-box;background:#edf2f8;padding:30px;font-family:'Manrope','Segoe UI',Arial,sans-serif;color:#25364d;`;
     const exportHeading = document.createElement("header");
     exportHeading.style.cssText = "display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:20px;padding:4px 2px 18px;border-bottom:1px solid #dce4ef";
@@ -1172,6 +1198,7 @@ function ManualProductionDashboard() {
       .manual-dashboard-export .manual-summary-row{display:flex!important;justify-content:flex-start!important;margin:0 0 14px!important}
       .manual-dashboard-export .manual-production-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:start!important;gap:16px!important}
       .manual-dashboard-export .manual-production-grid>.panel{box-sizing:border-box!important;grid-column:auto!important;min-width:0!important;width:auto!important;overflow:visible!important;border:1px solid #dce4ef!important;border-radius:10px!important;background:#fff!important;box-shadow:none!important}
+      .manual-dashboard-export .manual-production-grid>.panel{height:auto!important;min-height:0!important;max-height:none!important}
       .manual-dashboard-export .manual-production-grid>.orders-panel{grid-column:1/-1!important}
       .manual-dashboard-export .panel-heading{padding:15px 18px!important;border-bottom:1px solid #e5ebf3!important}
       .manual-dashboard-export .panel-heading h2{margin:0!important;color:#25364d!important;font-size:15px!important}
@@ -1191,7 +1218,8 @@ function ManualProductionDashboard() {
     document.body.appendChild(clone);
     try {
       await document.fonts.ready;
-      const canvas = await html2canvas(clone, { backgroundColor: "#edf2f8", scale: 2, width: exportWidth, height: clone.scrollHeight, windowWidth: exportWidth, windowHeight: clone.scrollHeight, logging: false });
+      const captureHeight = clone.scrollHeight;
+      const canvas = await html2canvas(clone, { backgroundColor: "#edf2f8", scale: getImageCaptureScale(exportWidth, captureHeight), width: exportWidth, height: captureHeight, windowWidth: exportWidth, windowHeight: captureHeight, logging: false });
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Imagem indisponivel");
       const downloadImage = () => {
@@ -1265,10 +1293,17 @@ function ManualProductionDashboard() {
       <div className="page-heading">
         <div>
           <span className="section-kicker">OPERACAO DE REDE</span>
-          <h1>Painel diario</h1>
-          <p>Selecione a base do dia para atualizar as ordens e a produção.</p>
+          <div className="manual-dashboard-heading-title">
+            <h1>Painel diário de produção</h1>
+            <span className={`manual-base-status ${data ? "is-ready" : "is-empty"}`}>{data ? "Base carregada" : "Aguardando base"}</span>
+          </div>
+          <p>{data ? "Produção operacional consolidada por atividade, técnico e ordem." : "Selecione a base do dia para atualizar as ordens e a produção."}</p>
         </div>
         <div className="page-actions compact-actions">
+          {data && <div className="manual-update-meta"><span>ÚLTIMA ATUALIZAÇÃO</span><strong>{data.updatedAt}</strong><small>{selectedFileName}</small></div>}
+          <button className={`secondary-button compact ${refreshingBase ? "is-refreshing" : ""}`} onClick={() => void refreshBase()} type="button" disabled={refreshingBase} aria-label="Atualizar painel diário">
+            <RefreshCcw size={15} /> {refreshingBase ? "Atualizando..." : "Atualizar"}
+          </button>
           <button className="secondary-button compact" onClick={() => void copyManualDashboard()} type="button">
             <Copy size={15} /> {copyState === "copied" ? "Painel copiado" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao copiar" : "Copiar painel"}
           </button>
@@ -1284,27 +1319,20 @@ function ManualProductionDashboard() {
             <input type="file" accept=".csv,.tsv,.txt,.xls,.xlsx" onChange={handleFileSelection} />
             <span>Selecionar arquivo</span>
           </label>
-          {selectedFileName && <span className="selected-file-name">{selectedFileName}</span>}
         </div>
 
         {uploadError && <div className="form-error import-error">{uploadError}</div>}
       </div>
 
       {data && (
-        <div ref={manualDashboardRef} className="manual-dashboard-capture">
+        <div ref={manualDashboardRef} className="manual-dashboard-capture manual-dashboard-screen">
         <>
           {(() => {
             const activityTotals = sumProductionRows(data.activities);
-            const technicianTotals = sumProductionRows(data.technicians);
+            const visibleTechnicians = data.technicians.filter((item) => item.name.toLowerCase().includes(technicianQuery.trim().toLowerCase()));
+            const technicianTotals = sumProductionRows(visibleTechnicians);
             return (
               <>
-          <div className="manual-summary-row">
-            <div className="summary-badge">
-              <span>Última atualização</span>
-              <strong>{data.updatedAt}</strong>
-            </div>
-          </div>
-
           <div className="manual-production-grid">
             <section className="panel panel-elevated">
               <div className="panel-heading">
@@ -1331,24 +1359,24 @@ function ManualProductionDashboard() {
                     {data.activities.map((item) => (
                       <tr key={`${item.type}-${item.total}`}>
                         <td>{item.type}</td>
-                        <td>{item.pending}</td>
-                        <td>{item.enRoute}</td>
-                        <td>{item.started}</td>
-                        <td>{item.concluded}</td>
-                        <td>{item.cancelled}</td>
-                        <td>{item.suspended}</td>
-                        <td>{item.total}</td>
+                        {manualMetricCell(item.pending, "pending")}
+                        {manualMetricCell(item.enRoute, "en-route")}
+                        {manualMetricCell(item.started, "started")}
+                        {manualMetricCell(item.concluded, "concluded")}
+                        {manualMetricCell(item.cancelled, "cancelled")}
+                        {manualMetricCell(item.suspended, "suspended")}
+                        <td className="manual-total-cell">{item.total.toLocaleString("pt-BR")}</td>
                       </tr>
                     ))}
                     <tr className="manual-total-row">
                       <td>Total</td>
-                      <td>{activityTotals.pending}</td>
-                      <td>{activityTotals.enRoute}</td>
-                      <td>{activityTotals.started}</td>
-                      <td>{activityTotals.concluded}</td>
-                      <td>{activityTotals.cancelled}</td>
-                      <td>{activityTotals.suspended}</td>
-                      <td>{activityTotals.total}</td>
+                      {manualMetricCell(activityTotals.pending, "pending")}
+                      {manualMetricCell(activityTotals.enRoute, "en-route")}
+                      {manualMetricCell(activityTotals.started, "started")}
+                      {manualMetricCell(activityTotals.concluded, "concluded")}
+                      {manualMetricCell(activityTotals.cancelled, "cancelled")}
+                      {manualMetricCell(activityTotals.suspended, "suspended")}
+                      <td className="manual-total-cell">{activityTotals.total.toLocaleString("pt-BR")}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1361,6 +1389,10 @@ function ManualProductionDashboard() {
                   <span className="section-kicker">TÉCNICOS</span>
                   <h2>Produção por técnico</h2>
                 </div>
+                <label className="manual-technician-search">
+                  <Search size={14} aria-hidden="true" />
+                  <input value={technicianQuery} onChange={(event) => setTechnicianQuery(event.target.value)} placeholder="Buscar técnico" aria-label="Buscar técnico" />
+                </label>
               </div>
               <div className="manual-table-wrap compact">
                 <table className="manual-table">
@@ -1377,27 +1409,27 @@ function ManualProductionDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.technicians.map((item) => (
+                    {visibleTechnicians.map((item) => (
                       <tr key={`${item.name}-${item.total}`}>
                         <td>{item.name}</td>
-                        <td>{item.pending}</td>
-                        <td>{item.enRoute}</td>
-                        <td>{item.started}</td>
-                        <td>{item.concluded}</td>
-                        <td>{item.cancelled}</td>
-                        <td>{item.suspended}</td>
-                        <td>{item.total}</td>
+                        {manualMetricCell(item.pending, "pending")}
+                        {manualMetricCell(item.enRoute, "en-route")}
+                        {manualMetricCell(item.started, "started")}
+                        {manualMetricCell(item.concluded, "concluded")}
+                        {manualMetricCell(item.cancelled, "cancelled")}
+                        {manualMetricCell(item.suspended, "suspended")}
+                        <td className="manual-total-cell">{item.total.toLocaleString("pt-BR")}</td>
                       </tr>
                     ))}
                     <tr className="manual-total-row">
                       <td>Total</td>
-                      <td>{technicianTotals.pending}</td>
-                      <td>{technicianTotals.enRoute}</td>
-                      <td>{technicianTotals.started}</td>
-                      <td>{technicianTotals.concluded}</td>
-                      <td>{technicianTotals.cancelled}</td>
-                      <td>{technicianTotals.suspended}</td>
-                      <td>{technicianTotals.total}</td>
+                      {manualMetricCell(technicianTotals.pending, "pending")}
+                      {manualMetricCell(technicianTotals.enRoute, "en-route")}
+                      {manualMetricCell(technicianTotals.started, "started")}
+                      {manualMetricCell(technicianTotals.concluded, "concluded")}
+                      {manualMetricCell(technicianTotals.cancelled, "cancelled")}
+                      {manualMetricCell(technicianTotals.suspended, "suspended")}
+                      <td className="manual-total-cell">{technicianTotals.total.toLocaleString("pt-BR")}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1415,7 +1447,7 @@ function ManualProductionDashboard() {
                 <table className="manual-table">
                   <thead>
                     <tr>
-                      <th>Orders</th>
+                      <th>Ordem</th>
                       <th>Técnico</th>
                       <th>Início</th>
                       <th>Tempo</th>
@@ -1427,7 +1459,7 @@ function ManualProductionDashboard() {
                         <td>{item.order}</td>
                         <td>{item.technician}</td>
                         <td>{item.inicio}</td>
-                        <td>{item.tempo}</td>
+                        <td><span className={`manual-order-time${/atrasad|vencid|excedid|estourad|outlier|fora do prazo/i.test(item.tempo) ? " is-alert" : ""}`}>{item.tempo || "-"}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -1960,13 +1992,14 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
 
     try {
       await document.fonts.ready;
+      const captureHeight = captureHost.scrollHeight;
       const canvas = await html2canvas(captureHost, {
         backgroundColor: "#edf2f8",
-        scale: 2,
+        scale: getImageCaptureScale(hostWidth, captureHeight),
         width: hostWidth,
-        height: captureHost.scrollHeight,
+        height: captureHeight,
         windowWidth: hostWidth,
-        windowHeight: captureHost.scrollHeight,
+        windowHeight: captureHeight,
         useCORS: true,
         logging: false,
       });

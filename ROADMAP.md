@@ -14,7 +14,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-09-30
 
-Última implementação: exportações PNG de chamados e do Painel diário com layouts próprios, dimensões de relatório e textos legíveis.
+Última implementação: Painel diário com alto contraste, busca de técnicos, tabelas equilibradas e exportação PNG de maior nitidez.
 
 Agente responsável pela última alteração: GitHub Copilot
 
@@ -81,7 +81,8 @@ Próxima ação: aplicar a migration de anexos 012 local ou 014 Supabase e valid
 - [x] Inferência do Bairro a partir do endereço completo em D-0/D-1 quando a coluna Bairro não existe, com Cidade derivada do sufixo do endereço em caso de placeholder.
 - [x] Segmentação de registros NOC iniciados por contrato/nome e leitura de CEP no formato `NN.NNN-NNN`.
 - [x] Salvamento de chamados com listas longas de Slot/PON e motivos extensos.
-- [x] Exportações PNG apresentáveis da tabela de chamados e do Painel diário, com texto legível e estilos adequados para compartilhamento.
+- [x] Painel diário com tabelas equilibradas, busca de técnicos, contraste reforçado e exportação PNG de alta nitidez.
+- [x] Exportações PNG apresentáveis da tabela de chamados com dimensões de relatório, texto legível e estilos para compartilhamento.
 - [x] Validação do salvamento normaliza campos nulos/escalares e informa o campo inválido.
 - [~] Integração completa com Supabase Auth e dados persistentes em produção. A parte de autenticação e seed RBAC foi preparada, mas ainda precisa ser validada com execução real do SQL e login oficial.
 
@@ -328,6 +329,35 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-09-30 — Redesign do Painel diário para operação e compartilhamento
+
+### Objetivo
+
+Melhorar leitura do painel em monitores operacionais e a nitidez das imagens copiadas para compartilhamento.
+
+### Alterações realizadas
+
+- cabeçalho reúne título, estado da base, nome do arquivo, horário de atualização e ação Atualizar;
+- atividades e técnicos ficam em cards de altura equivalente com rolagem interna; busca rápida filtra técnicos e seus totais;
+- tabelas usam contraste alto, totais em negrito e pílulas coloridas por estado; ordens têm colunas proporcionais e Tempo em badge;
+- alertas de tempo só recebem destaque quando a origem fornece explicitamente texto de atraso, sem inferir SLA;
+- captura PNG usa fator de até 3× com orçamento de 40 milhões de pixels, evitando crescimento de memória em bases longas.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/main.tsx](frontend/src/main.tsx)
+- [frontend/src/manual-dashboard.css](frontend/src/manual-dashboard.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou (TypeScript e Vite). Teste browser com 18 técnicos: busca reduziu a lista ao resultado esperado; tabela rolou internamente (721 px de conteúdo/282 px visíveis); cards laterais mediram 440 px cada e Ordens 289 px no desktop. Em viewport mobile 390 px, a grade empilhou os cards e a página não excedeu a largura disponível. Export PNG confirmou clipboard e gerou 5520 × 4800 px (~1,26 MB). A base demo de teste foi removida após a validação. Permanece o aviso de bundle acima de 500 kB.
+
+### Próximo passo
+
+Validar o fallback de download em navegador sem suporte/permissão para clipboard de imagens.
 
 ## 2026-09-30 — Legibilidade dos relatórios em imagem
 
@@ -1252,6 +1282,12 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-09-30 — Painel diário legível
+
+Implementado novo cabeçalho de status/data/arquivo, Atualizar, busca por técnico, cards de atividades/técnicos com altura equivalente e scroll interno, métricas coloridas, tabela de ordens com larguras proporcionais e badge de Tempo. PNGs usam escala dinâmica de até 3× limitada a 40 MP. Build passou; testes browser desktop/mobile confirmaram busca, scroll, composição e PNG 5520 × 4800 px. Base sintética removida. Não foi criada regra de atraso sem sinal explícito no conteúdo de origem.
+
+Arquivos: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/main.tsx](frontend/src/main.tsx), [frontend/src/manual-dashboard.css](frontend/src/manual-dashboard.css), [ROADMAP.md](ROADMAP.md).
 
 ## 🔖 CHECKPOINT — 2026-09-30 — Legibilidade das imagens compartilháveis
 
