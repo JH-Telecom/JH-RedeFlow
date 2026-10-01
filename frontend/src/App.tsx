@@ -504,7 +504,7 @@ function IGPPage() {
   return <>
     <div className="page-heading">
       <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso e Backbone, ponderado pela quantidade de ordens.</p></div>
-      <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
+      <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
     </div>
     {error ? <div className="empty-state">{error}</div> : !metrics ? <div className="empty-state">Calculando indicadores do mês...</div> : <>
       <div className="metric-grid igp-summary">
@@ -514,7 +514,7 @@ function IGPPage() {
         <Metric label="MTTR médio" value={formatIgpHours(metrics.total.mttrHours)} note="Meta 5,0h · limite 6,0h" />
       </div>
       <section className="panel igp-panel">
-        <div className="panel-heading"><div><span className="section-kicker">{new Date(`${month}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase()} · {area === 'ALL' ? 'SP + GRU' : area}</span><h2>Resultado mensal</h2></div></div>
+        <div className="panel-heading"><div><span className="section-kicker">{new Date(`${month}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }).toUpperCase()} · {area === 'ALL' ? 'SP + GRU + ALTO TIETÊ' : area === 'ALTO_TIETE' ? 'ALTO TIETÊ' : area}</span><h2>Resultado mensal</h2></div></div>
         {metrics.total.orders === 0 ? <div className="empty-state">Não há ordens finalizadas e classificáveis neste mês.</div> : <div className="igp-table-wrap"><table className="igp-table"><thead><tr><th>Indicador</th><th>Acesso <small>{metrics.access.orders} OS</small></th><th>Backbone <small>{metrics.backbone.orders} OS</small></th><th>Total ponderado <small>{metrics.total.orders} OS</small></th><th>Meta 100%</th><th>Meta mínima</th><th>Resultado</th></tr></thead><tbody>{metricRows.map((row) => {
           const totalValue = metrics.total[row.key];
           const state = getIgpGoalState(totalValue, row.target, row.minimum, row.lowerIsBetter);

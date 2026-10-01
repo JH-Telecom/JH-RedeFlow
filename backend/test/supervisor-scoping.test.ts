@@ -29,6 +29,10 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   for (const region of ['GUARULHOS', 'GUARULHOS 6', 'GUAIANASES 1', 'DIADEMA']) {
     assert.equal(classifyIgpArea(region), 'SP');
   }
+  for (const region of ['FERRAZ DE VASCONCELOS 2', 'MOGI DAS CRUZES', 'MOGI 1', 'MOGI 2', 'PALMEIRAS', 'SUZANO', 'FERRAZ DE VASCONCELOS', 'FERRAZ DE VASCONCELOS 1']) {
+    assert.equal(classifyIgpArea(region), 'ALTO_TIETE');
+  }
+  assert.equal(classifyIgpArea('MOGI 3'), 'SP');
 
   const createCall = (id: string, type: string, status: Call['status'], openedAt: string, executedAt?: string, region = 'SÃO PAULO'): Call => ({
     id,
@@ -77,6 +81,11 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   assert.equal(guarulhosMetrics.total.orders, 1);
   assert.equal(guarulhosMetrics.access.orders, 1);
   assert.equal(guarulhosMetrics.backbone.orders, 0);
+  const altoTieteMetrics = calculateIgpMetrics([
+    createCall('alto-tiete-call', 'NOC TX', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T04:00:00.000Z', 'MOGI DAS CRUZES'),
+  ], '2026-09', 'ALTO_TIETE');
+  assert.equal(altoTieteMetrics.total.orders, 1);
+  assert.equal(altoTieteMetrics.backbone.orders, 1);
 });
 
 test('supervisor users resolve to their own team and can only see their calls', async () => {

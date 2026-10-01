@@ -205,8 +205,8 @@ app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), a
 app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   const parsed = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).safeParse(request.query.month);
   if (!parsed.success) return response.status(400).json({ message: 'Informe um mes valido no formato AAAA-MM.' });
-  const parsedArea = z.enum(['ALL', 'SP', 'GRU']).safeParse(request.query.area ?? 'ALL');
-  if (!parsedArea.success) return response.status(400).json({ message: 'Selecione Todas, SP ou GRU para o IGP.' });
+  const parsedArea = z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE']).safeParse(request.query.area ?? 'ALL');
+  if (!parsedArea.success) return response.status(400).json({ message: 'Selecione Todas, SP, GRU ou Alto Tiete para o IGP.' });
   const [year, monthNumber] = parsed.data.split('-').map(Number);
   const from = `${parsed.data}-01`;
   const to = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);

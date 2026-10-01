@@ -19,8 +19,18 @@ export type IgpMetrics = {
   excludedOrders: number;
 };
 
-export type IgpArea = 'ALL' | 'SP' | 'GRU';
+export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE';
 type IgpGroupKey = 'access' | 'backbone';
+const altoTieteRegions = new Set([
+  'FERRAZ DE VASCONCELOS 2',
+  'MOGI DAS CRUZES',
+  'MOGI 1',
+  'MOGI 2',
+  'PALMEIRAS',
+  'SUZANO',
+  'FERRAZ DE VASCONCELOS',
+  'FERRAZ DE VASCONCELOS 1',
+]);
 
 function createGroup(): IgpGroup {
   return { orders: 0, outliers: 0, onTime: 0, totalRepairHours: 0, outlierPercent: null, onTimePercent: null, mttrHours: null };
@@ -44,7 +54,9 @@ function classifyIgpGroup(type: string): IgpGroupKey | undefined {
 
 export function classifyIgpArea(region: string): Exclude<IgpArea, 'ALL'> {
   const normalized = region.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
-  return /^GUARULHOS [1-5]$/.test(normalized) ? 'GRU' : 'SP';
+  if (/^GUARULHOS [1-5]$/.test(normalized)) return 'GRU';
+  if (altoTieteRegions.has(normalized)) return 'ALTO_TIETE';
+  return 'SP';
 }
 
 export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea = 'ALL'): IgpMetrics {
