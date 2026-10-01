@@ -1,3 +1,5 @@
+Última implementação: telas de chamados exibem 100 registros por página, com navegação anterior/próxima.
+- [x] Listagens de chamados Supabase paginadas no cliente em blocos de 100, com navegação sem renderizar milhares de linhas simultaneamente.
 # ROADMAP DO PROJETO
 
 ## 1. VISÃO GERAL
@@ -14,7 +16,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: paginação da listagem Supabase para carregar históricos acima de 1.000 chamados.
+Última implementação: listas de chamados renderizam 100 por página e o cliente Supabase busca o histórico completo em páginas de 500.
 Agente responsável pela última alteração: GitHub Copilot
 
 Próxima ação: implantar a paginação Supabase, validar os 3.722 chamados na listagem e então retomar a importação histórica em produção.
@@ -331,6 +333,34 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Paginação visual das listas de chamados
+
+### Objetivo
+
+Evitar travamento do navegador ao renderizar milhares de chamados importados.
+
+### Alterações realizadas
+
+- todas as instâncias de `CallsPage` mostram no máximo 100 linhas por página;
+- navegação Anterior/Próxima informa o intervalo atual e o total filtrado;
+- busca, status, região, bairro e período retornam à página 1;
+- a cópia PNG usa as linhas da página visível;
+- a paginação Supabase no backend continua buscando o histórico completo em páginas de 500.
+
+### Arquivos modificados
+
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [frontend/src/calls-layout.css](frontend/src/calls-layout.css)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npm.cmd run build --workspace frontend` passou; permanece o aviso conhecido de bundle acima de 500 kB. Browser com 201 chamados simulados confirmou páginas de 100, 100 e 1 linha; busca reduziu a lista a 1 e voltou para a página 1.
+
+### Próximo passo
+
+Implantar frontend/backend e confirmar na lista de produção os 3.722 chamados históricos.
 
 ## 2026-10-01 — Paginação completa de chamados no Supabase
 
@@ -1466,6 +1496,10 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Paginação visual de chamados
+
+`CallsPage` agora renderiza 100 linhas por página com intervalo, Anterior/Próxima e reset para página 1 ao mudar busca/filtros. A cópia PNG usa somente a página atual. Build frontend e teste browser passaram com 201 registros simulados (100/100/1); a busca filtrada mostrou 1 resultado. Nenhuma alteração de banco.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Paginação Supabase acima de 1.000
 

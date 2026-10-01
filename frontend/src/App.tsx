@@ -64,6 +64,7 @@ const operationalRegions = [
   "RIO GRANDE DA SERRA", "SÃO MATEUS", "SÃO MIGUEL PAULISTA", "SÃO RAFAEL", "SUZANO", "PIRAPORINHA", "CAEMA", "SERRARIA", "VITORIA", "DIADEMA",
   "SÃO BERNARDO DOS CAMPOS", "SÃO PAULO",
 ];
+const CALLS_PAGE_SIZE = 100;
 
 const navItems = [
   {
@@ -1990,6 +1991,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
   const [bulkDeleteMessage, setBulkDeleteMessage] = useState("");
   const [canDeleteAllCalls, setCanDeleteAllCalls] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
+  const [callsPage, setCallsPage] = useState(1);
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
@@ -2019,6 +2021,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
     try {
       const result = await api.deleteAllCalls();
       setCalls([]);
+      setCallsPage(1);
       setBulkDeleteMessage(`${result.deleted} chamado(s) apagado(s).`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nao foi possivel apagar os chamados.');
@@ -2215,6 +2218,12 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
     (regionFilter === "Todas" || call.region === regionFilter) &&
     (neighborhoodFilter === "Todos" || call.bairro === neighborhoodFilter),
   ).map((call) => ["Finalizado", "Cancelado"].includes(call.status) ? call : { ...call, executedAt: null });
+    const totalPages = Math.max(1, Math.ceil(visibleCalls.length / CALLS_PAGE_SIZE));
+    const pagedCalls = visibleCalls.slice((callsPage - 1) * CALLS_PAGE_SIZE, callsPage * CALLS_PAGE_SIZE);
+    const firstVisibleCall = visibleCalls.length ? (callsPage - 1) * CALLS_PAGE_SIZE + 1 : 0;
+    const lastVisibleCall = Math.min(callsPage * CALLS_PAGE_SIZE, visibleCalls.length);
+    useEffect(() => { setCallsPage(1); }, [query, statusFilter, regionFilter, neighborhoodFilter, dateRange.from, dateRange.to]);
+    useEffect(() => { if (callsPage > totalPages) setCallsPage(totalPages); }, [callsPage, totalPages]);
   const regions = [...new Set(calls.map((call) => call.region))];
   const neighborhoods = [...new Set(calls.map((call) => call.bairro).filter((item): item is string => Boolean(item)))];
   return (
@@ -2275,7 +2284,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
               </tr>
             </thead>
             <tbody>
-              {visibleCalls.map((call) => (
+              {pagedCalls.map((call) => (
                 <tr
                   key={call.id}
                   onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)}
@@ -2287,6 +2296,14 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
           </table>
           </div>
         )}
+        {!error && <div className="calls-pagination">
+          <span>{firstVisibleCall.toLocaleString("pt-BR")}–{lastVisibleCall.toLocaleString("pt-BR")} de {visibleCalls.length.toLocaleString("pt-BR")} chamados</span>
+          <div className="calls-pagination-controls">
+            <button className="secondary-button compact" type="button" onClick={() => setCallsPage((page) => Math.max(1, page - 1))} disabled={callsPage <= 1} aria-label="Página anterior">Anterior</button>
+            <span aria-live="polite">Página {callsPage.toLocaleString("pt-BR")} de {totalPages.toLocaleString("pt-BR")}</span>
+            <button className="secondary-button compact" type="button" onClick={() => setCallsPage((page) => Math.min(totalPages, page + 1))} disabled={callsPage >= totalPages} aria-label="Próxima página">Próxima</button>
+          </div>
+        </div>}
       </section>
     </>
   );

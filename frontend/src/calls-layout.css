@@ -1,6 +1,11 @@
 .calls-table.table-panel{display:flex;flex-direction:column;min-height:max(360px,calc(100vh - 270px));overflow:hidden}.calls-table.table-panel>.table-scroll-container{flex:1 0 auto;min-height:240px;max-height:none;overflow-x:auto;overflow-y:visible}.calls-table.attendance-table.table-panel>.table-scroll-container{max-height:none;overflow-y:visible}@media(max-width:900px){.calls-table.table-panel{min-height:max(340px,calc(100vh - 245px))}}@media(max-height:600px){.calls-table.table-panel{min-height:360px}}
 
 .calls-table.attendance-table .table-scroll-container{display:block;text-align:left}
+.calls-pagination{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border-top:1px solid #e5ebf3;background:#fff;color:#475569;font-size:12px}
+.calls-pagination-controls{display:flex;align-items:center;gap:10px}
+.calls-pagination-controls>span{min-width:100px;color:#334155;text-align:center;font-weight:700}
+.calls-pagination button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:600px){.calls-pagination{align-items:flex-start;flex-direction:column}.calls-pagination-controls{width:100%;justify-content:space-between}}
 .calls-table.attendance-table .table-scroll-container table{width:1602px;min-width:1602px;max-width:none;table-layout:fixed;margin-left:0}
 .calls-table.attendance-table th,.calls-table.attendance-table td{box-sizing:border-box}
 .calls-table.attendance-table th:nth-child(1),.calls-table.attendance-table td:nth-child(1){width:105px;min-width:105px;max-width:105px;white-space:nowrap}
