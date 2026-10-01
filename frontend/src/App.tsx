@@ -3318,9 +3318,11 @@ function SettingsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [oltRegions, setOltRegions] = useState<OltRegionMapping[]>([]);
+  const [customRegions, setCustomRegions] = useState<string[]>([]);
   const [searchOlt, setSearchOlt] = useState("");
   const [newOlt, setNewOlt] = useState("");
   const [newOltRegion, setNewOltRegion] = useState(operationalRegions[0]);
+  const [newRegion, setNewRegion] = useState("");
   const [mappingMessage, setMappingMessage] = useState("");
   const [mappingError, setMappingError] = useState("");
   const [mappingLoading, setMappingLoading] = useState(true);
@@ -3330,6 +3332,7 @@ function SettingsPage() {
   const [oltRequestActionId, setOltRequestActionId] = useState<string | null>(null);
   useEffect(() => { api.settings().then((data) => setSettings(data.settings)).catch((err) => setError(err.message)); }, []);
   useEffect(() => { api.oltRegionMappings().then((data) => setOltRegions(data.mappings)).catch((err) => setMappingError(err.message)).finally(() => setMappingLoading(false)); }, []);
+  useEffect(() => { api.customOperationalRegions().then((data) => setCustomRegions(data.regions)).catch((err) => setMappingError(err.message)); }, []);
   useEffect(() => { api.oltRegionRequests().then((data) => setOltRequests(data.requests)).catch((err) => setMappingError(err.message)); }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -3393,7 +3396,25 @@ function SettingsPage() {
     setMappingError("");
     setMappingMessage("");
   }
+  async function addRegion() {
+    setMappingError("");
+    setMappingMessage("");
+    if (operationalRegions.some((region) => region.localeCompare(newRegion.trim(), "pt-BR", { sensitivity: "base" }) === 0)) {
+      setMappingError("Esta região já está disponível.");
+      return;
+    }
+    try {
+      const result = await api.addCustomOperationalRegion(newRegion);
+      setCustomRegions((current) => [...current, result.region].sort((left, right) => left.localeCompare(right)));
+      setNewOltRegion(result.region);
+      setNewRegion("");
+      setMappingMessage(`Região ${result.region} adicionada.`);
+    } catch (err) {
+      setMappingError(err instanceof Error ? err.message : "Não foi possível adicionar a região.");
+    }
+  }
   const filteredOltRegions = oltRegions.filter((mapping) => `${mapping.olt} ${mapping.region}`.toLowerCase().includes(searchOlt.toLowerCase()));
+  const availableRegions = [...new Set([...operationalRegions, ...customRegions, ...oltRegions.map((mapping) => mapping.region)])].sort((left, right) => left.localeCompare(right));
   return (
     <>
       <div className="page-heading">
@@ -3427,16 +3448,17 @@ function SettingsPage() {
           <div className="settings-olt-requests-heading"><div><h3 id="settings-olt-requests-title">Solicitações de OLT desconhecidas</h3><p>Novas OLTs aguardam sua decisão; elas não entram no mapa automaticamente.</p></div><span>{oltRequests.length} pendentes</span></div>
           {oltRequests.length > 0 ? <div className="settings-olt-request-list">{oltRequests.map((request) => <div className="settings-olt-request-row" key={request.id}>
             <div className="settings-olt-request-details"><strong>{request.olt}</strong><small>{request.source} · {request.occurrences} ocorrência(s) · vista por último {new Date(request.lastSeenAt).toLocaleString("pt-BR")}</small></div>
-            <label className="settings-olt-request-region"><span>Região para adicionar</span><select aria-label={`Região para ${request.olt}`} value={oltRequestRegions[request.id] || ""} onChange={(event) => setOltRequestRegions((current) => ({ ...current, [request.id]: event.target.value }))}><option value="">Selecione uma região</option>{operationalRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></label>
+            <label className="settings-olt-request-region"><span>Região para adicionar</span><select aria-label={`Região para ${request.olt}`} value={oltRequestRegions[request.id] || ""} onChange={(event) => setOltRequestRegions((current) => ({ ...current, [request.id]: event.target.value }))}><option value="">Selecione uma região</option>{availableRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></label>
             <div className="settings-olt-request-actions"><button className="primary-button compact" type="button" onClick={() => void addOltRequest(request)} disabled={oltRequestActionId === request.id || !oltRequestRegions[request.id]}><Plus size={14}/>{oltRequestActionId === request.id ? "Salvando..." : "Adicionar"}</button><button className="secondary-button compact settings-olt-ignore" type="button" onClick={() => void ignoreOltRequest(request)} disabled={oltRequestActionId === request.id}>Ignorar</button></div>
           </div>)}</div> : <div className="settings-olt-requests-empty">Nenhuma OLT desconhecida aguardando revisão.</div>}
         </section>
         <div className="settings-olt-add">
           <label>Nova OLT<input value={newOlt} onChange={(event) => setNewOlt(event.target.value)} placeholder="Ex.: VIP-OLT-SPO-01" maxLength={120}/></label>
-          <label>Região<select value={newOltRegion} onChange={(event) => setNewOltRegion(event.target.value)}>{operationalRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></label>
+          <label>Região<select value={newOltRegion} onChange={(event) => setNewOltRegion(event.target.value)}>{availableRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></label>
           <button className="secondary-button compact" type="button" onClick={addOlt}><Plus size={15}/> Adicionar OLT</button>
         </div>
-        <div className="settings-olt-table-wrap"><table className="settings-olt-table"><thead><tr><th>OLT</th><th>Região</th><th>Origem</th><th>Ação</th></tr></thead><tbody>{filteredOltRegions.map((mapping) => <tr key={mapping.olt}><td><strong>{mapping.olt}</strong></td><td><select aria-label={`Região da OLT ${mapping.olt}`} value={mapping.region} onChange={(event) => setOltRegions((current) => current.map((item) => item.olt === mapping.olt ? { ...item, region: event.target.value } : item))}>{mapping.region && !operationalRegions.includes(mapping.region) && <option value={mapping.region}>{mapping.region}</option>}{operationalRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></td><td>{mapping.defaultRegion ? "Padrão" : "Personalizada"}</td><td>{!mapping.defaultRegion && <button className="icon-button settings-olt-remove" type="button" aria-label={`Remover OLT ${mapping.olt}`} title="Remover OLT personalizada" onClick={() => setOltRegions((current) => current.filter((item) => item.olt !== mapping.olt))}><Trash2 size={15}/></button>}</td></tr>)}</tbody></table>{mappingLoading && <div className="empty-state">Carregando mapeamentos...</div>}{!mappingLoading && !filteredOltRegions.length && <div className="empty-state">Nenhuma OLT encontrada.</div>}</div>
+        <div className="settings-olt-add-region"><label>Nova região<input value={newRegion} onChange={(event) => setNewRegion(event.target.value)} placeholder="Ex.: JARDIM NOVO" maxLength={160}/></label><button className="secondary-button compact" type="button" onClick={() => void addRegion()} disabled={!newRegion.trim()}><Plus size={15}/> Adicionar região</button></div>
+        <div className="settings-olt-table-wrap"><table className="settings-olt-table"><thead><tr><th>OLT</th><th>Região</th><th>Origem</th><th>Ação</th></tr></thead><tbody>{filteredOltRegions.map((mapping) => <tr key={mapping.olt}><td><strong>{mapping.olt}</strong></td><td><select aria-label={`Região da OLT ${mapping.olt}`} value={mapping.region} onChange={(event) => setOltRegions((current) => current.map((item) => item.olt === mapping.olt ? { ...item, region: event.target.value } : item))}>{availableRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></td><td>{mapping.defaultRegion ? "Padrão" : "Personalizada"}</td><td>{!mapping.defaultRegion && <button className="icon-button settings-olt-remove" type="button" aria-label={`Remover OLT ${mapping.olt}`} title="Remover OLT personalizada" onClick={() => setOltRegions((current) => current.filter((item) => item.olt !== mapping.olt))}><Trash2 size={15}/></button>}</td></tr>)}</tbody></table>{mappingLoading && <div className="empty-state">Carregando mapeamentos...</div>}{!mappingLoading && !filteredOltRegions.length && <div className="empty-state">Nenhuma OLT encontrada.</div>}</div>
         {mappingMessage && <div className="save-message">{mappingMessage}</div>}{mappingError && <div className="form-error">{mappingError}</div>}
       </form>
     </>

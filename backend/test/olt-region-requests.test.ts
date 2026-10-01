@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { acceptOltRegionRequest, captureUnknownOltRequests, ignoreOltRegionRequest, listOltRegionMappings, listOltRegionRequests } from '../src/store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, captureUnknownOltRequests, ignoreOltRegionRequest, listCustomOperationalRegions, listOltRegionMappings, listOltRegionRequests } from '../src/store.js';
 
 function makeUnknownOlt(label: string) {
   const token = crypto.randomUUID().slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, '').padEnd(4, 'X');
@@ -63,5 +63,15 @@ test('accepted OLT request adds a manual mapping and leaves the pending queue', 
 
     assert.equal((await listOltRegionMappings()).find((item) => item.olt === olt)?.region, 'GUARULHOS 3');
     assert.equal((await listOltRegionRequests()).some((item) => item.olt === olt), false);
+  });
+});
+
+test('custom operational regions can be added and listed independently of OLT mappings', async () => {
+  await withDemoRuntime(async () => {
+    const region = `REGIAO TESTE ${crypto.randomUUID().slice(0, 8)}`;
+
+    assert.equal(await addCustomOperationalRegion(region.toLowerCase()), region.toUpperCase());
+    assert.ok((await listCustomOperationalRegions()).includes(region.toUpperCase()));
+    await assert.rejects(() => addCustomOperationalRegion(region.toLowerCase()), /ja esta cadastrada/);
   });
 });

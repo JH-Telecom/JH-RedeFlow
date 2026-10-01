@@ -17,3 +17,8 @@
 .settings-olt-ignore{color:#475569}
 .settings-olt-requests-empty{padding:14px 4px;color:#64748b;font-size:12px}
 @media(max-width:760px){.settings-olt-request-row{grid-template-columns:minmax(0,1fr) auto}.settings-olt-request-region{grid-column:1/-1}.settings-olt-request-actions{grid-column:1/-1;justify-content:flex-end}}
+.settings-olt-add-region{display:grid;grid-template-columns:minmax(220px,1fr) auto;align-items:end;gap:12px;padding:0 0 16px;border-bottom:1px solid var(--line)}
+.settings-olt-add-region label{display:grid;gap:7px;color:#66748a;font-size:11px;font-weight:700}
+.settings-olt-add-region input{width:100%;min-width:0;border:1px solid #dce4ef;border-radius:7px;padding:9px 10px;background:#fff;color:var(--ink);font:inherit;font-size:12px}
+.settings-olt-add-region button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:680px){.settings-olt-add-region{grid-template-columns:1fr}}

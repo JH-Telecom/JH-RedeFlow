@@ -75,6 +75,7 @@ const activations = new Map<string, Activation>([
 ]);
 const imports = new Map<string, ImportRecord>();
 const oltRegionRequests = new Map<string, OltRegionRequest>();
+const customOperationalRegions = new Map<string, string>();
 const d0BaseRows: Array<{ fileName: string; rowNumber: number; payload: D0Row; uploadedBy: string; importedAt: string }> = [];
 const manualDailyBases = new Map<string, ManualDailyBase>();
 const settings: SystemSettings = { autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: 'Todas' };
@@ -434,6 +435,40 @@ export function getSettings(): SystemSettings { return { ...settings }; }
 export function updateSettings(input: Partial<SystemSettings>): SystemSettings { Object.assign(settings, input); return getSettings(); }
 export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
 export type OltRegionRequest = { id: string; olt: string; source: string; status: 'Pendente' | 'Adicionada' | 'Ignorada'; occurrences: number; firstSeenAt: string; lastSeenAt: string; region?: string };
+
+export async function listCustomOperationalRegions(): Promise<string[]> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('operational_regions').select('region').order('region', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data || []).map((row) => row.region);
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ region: string }>('SELECT region FROM operational_regions ORDER BY region ASC');
+    return result.rows.map((row) => row.region);
+  }
+  return [...customOperationalRegions.values()].sort((left, right) => left.localeCompare(right));
+}
+
+export async function addCustomOperationalRegion(value: string): Promise<string> {
+  const region = value.trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-BR');
+  if (!region || region.length > 160) throw new Error('Informe uma regiao com ate 160 caracteres.');
+  const existing = await listCustomOperationalRegions();
+  if (existing.some((item) => item.localeCompare(region, 'pt-BR', { sensitivity: 'accent' }) === 0)) {
+    throw new Error('Esta regiao ja esta cadastrada.');
+  }
+
+  if (isSupabaseConfigured()) {
+    const { error } = await getSupabaseAdmin().from('operational_regions').insert({ region });
+    if (error) throw new Error(error.message);
+  } else if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query('INSERT INTO operational_regions (region) VALUES ($1)', [region]);
+  } else {
+    customOperationalRegions.set(region, region);
+  }
+  return region;
+}
 
 async function readManualOltRegionMap(): Promise<Record<string, string>> {
   if (isSupabaseConfigured()) {
