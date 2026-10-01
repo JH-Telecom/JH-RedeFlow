@@ -1,5 +1,5 @@
-Última implementação: importação de planilha de chamados atuais com prévia, deduplicação e preservação dos status Aberto, Finalizado e Baixar.
-- [x] Importação de XLSX de chamados atuais pela aba Importações, com bloqueio de gravação em demo e prévia dos registros antes da confirmação.
+Última implementação: coluna de vínculo empregatício dos técnicos (Trabalhando/Demitido), com filtro padrão em Trabalhando.
+- [x] Cadastro e filtro de vínculo empregatício de técnicos, separado da disponibilidade operacional e com bloqueio de atribuição a demitidos.
 # ROADMAP DO PROJETO
 
 ## 1. VISÃO GERAL
@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: conclusão do fluxo de importação de chamados atuais iniciado no commit `f8b78ce`, incluindo prévia, deduplicação, persistência dos status da planilha e filtro de encerrados.
+Última implementação: vínculo empregatício persistente dos técnicos separado da disponibilidade por escala.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: executar uma prévia com a planilha operacional no ambiente conectado ao banco de destino, revisar duplicatas/técnicos e só então confirmar a importação.
+Próxima ação: aplicar a migration 015 local ou Supabase 202610010003 no ambiente usado, depois conferir a coluna/filtro e cadastrar vínculos reais.
 
 ---
 
@@ -31,6 +31,7 @@ Próxima ação: executar uma prévia com a planilha operacional no ambiente con
 - Base D-0: snapshot da última planilha armazenado em `d0_base_records`; o campo `calls.ofs_status` mantém o estado nativo OFS sem substituir `calls.status`.
 - Painel diário: exportação OFS detalhada é preservada no JSON existente e conciliada com Região dos chamados por Ordem de Serviço; Guarulhos fica separado e demais ordens são exibidas em SP.
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
+- Técnicos: `employment_status` registra Trabalhando/Demitido independentemente de `active` e `current_status`; `active` continua representando disponibilidade pela escala/sobrescrita operacional.
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
 - APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
 - Infraestrutura: runtime local com variáveis de ambiente, fallback demo e configs de produção.
@@ -47,6 +48,7 @@ Próxima ação: executar uma prévia com a planilha operacional no ambiente con
 - [x] Healthcheck e validação de bootstrap da API.
 - [x] Runtime local separado do Supabase oficial por ambiente.
 - [x] Fluxos de técnicos, supervisores e relacionamento entre equipes.
+- [x] Vínculo empregatício dos técnicos Trabalhando/Demitido, com filtro padrão para Trabalhando e bloqueio de atribuição a demitidos.
 - [x] Chamados, fila operacional, detalhe e atribuição.
 - [x] Listagem de chamados Supabase paginada em blocos para superar o limite padrão de 1.000 linhas.
 - [x] Tela de chamados finalizados e cancelados com busca, filtros e tabela operacional reutilizada.
@@ -94,6 +96,22 @@ Próxima ação: executar uma prévia com a planilha operacional no ambiente con
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Vínculo empregatício dos técnicos — implementado em 2026-10-01
+
+- a coluna `employment_status` tem os valores `Trabalhando` e `Demitido`, com default `Trabalhando` inclusive para técnicos já cadastrados;
+- vínculo empregatício é independente de `active` (disponibilidade operacional/escala) e de `current_status` (Disponível, Em campo ou Indisponível);
+- a tela Técnicos inclui coluna editável Vínculo, filtro padrão Trabalhando e filtros Demitido/Todos; os cards de contagem não incluem demitidos em Trabalhando/Em campo/Disponíveis;
+- a edição/cadastro permite mudar vínculo; técnicos demitidos não aparecem como opção para atribuir chamado e a API rejeita atribuição direta;
+- migrations criadas: local 015 e Supabase `202610010003`; nenhuma migration foi aplicada a banco real nesta sessão.
+
+Arquivos alterados: [backend/src/types.ts](backend/src/types.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/server.ts](backend/src/server.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx), [database/migrations/015_technician_employment_status.sql](database/migrations/015_technician_employment_status.sql), [supabase/migrations/202610010003_technician_employment_status.sql](supabase/migrations/202610010003_technician_employment_status.sql) e [ROADMAP.md](ROADMAP.md).
+
+Validação: regressões HTTP direcionadas 2/2 passaram; typechecks backend/frontend e build de produção do frontend passaram. A migration não foi aplicada e a validação visual em ambiente implantado continua pendente.
+
+### Próxima ação
+
+Aplicar a migration correspondente ao runtime e validar a coluna/filtro na lista de técnicos antes de cadastrar os vínculos reais.
 
 ### Importação de chamados atuais — fluxo implementado em 2026-10-01
 
@@ -361,6 +379,51 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Vínculo empregatício de técnicos
+
+### Objetivo
+
+Distinguir técnicos trabalhando de técnicos demitidos sem confundir essa situação com disponibilidade calculada por turno.
+
+### Alterações realizadas
+
+- criado `technicians.employment_status`, com valores Trabalhando/Demitido e default Trabalhando para registros existentes e novos;
+- coluna Vínculo editável na tabela, cadastro e detalhe; filtro inicia em Trabalhando e permite Demitido/Todos;
+- cards operacionais ignoram demitidos; atribuição de chamados exclui demitidos no frontend e é bloqueada no backend;
+- `active` e `current_status` permanecem com seus significados atuais.
+
+### Arquivos criados
+
+- [database/migrations/015_technician_employment_status.sql](database/migrations/015_technician_employment_status.sql)
+- [supabase/migrations/202610010003_technician_employment_status.sql](supabase/migrations/202610010003_technician_employment_status.sql)
+
+### Arquivos modificados
+
+- [backend/src/types.ts](backend/src/types.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [backend/test/http.test.ts](backend/test/http.test.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Banco de dados
+
+Adicionar a coluna `employment_status varchar(20) NOT NULL DEFAULT 'Trabalhando'` com CHECK limitado a `Trabalhando`/`Demitido`. Migration não aplicada durante esta implementação.
+
+### Testes
+
+- `node_modules\\.bin\\tsx.cmd --test --test-name-pattern="employment status" backend/test/http.test.ts`: 1 passou, 0 falharam;
+- `node_modules\\.bin\\tsx.cmd --test --test-name-pattern="admin can create technician" backend/test/http.test.ts`: 1 passou, 0 falharam;
+- `node_modules\\.bin\\tsc.cmd -p backend/tsconfig.json --noEmit`: passou;
+- `node_modules\\.bin\\tsc.cmd -p frontend/tsconfig.app.json --noEmit`: passou;
+- `node_modules\\.bin\\vite.cmd build frontend --config frontend/vite.config.ts`: passou, com aviso existente de bundle acima de 500 kB.
+
+### Pendências e próximo passo
+
+Aplicar a migration local 015 ou Supabase `202610010003` no ambiente correspondente; depois conferir a tela e cadastrar os vínculos reais. Nenhuma alteração em produção foi executada.
 
 ## 2026-10-01 — Importação de chamados atuais e suporte ao status Baixar
 
@@ -1453,10 +1516,13 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 | --- | --- | --- |
 | [backend/src/server.ts](backend/src/server.ts) | API, autenticação e endpoints | Ativo |
 | [backend/src/store.ts](backend/src/store.ts) | regras de negócio, dados e permissões | Ativo |
+| [backend/src/types.ts](backend/src/types.ts) | modelos de domínio, incluindo vínculo de técnico | Ativo |
 | [backend/src/imports/current-calls.ts](backend/src/imports/current-calls.ts) | parser de planilhas de chamados atuais | Ativo |
 | [frontend/src/App.tsx](frontend/src/App.tsx) | interface operacional | Ativo |
 | [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts) | integração Supabase | Em manutenção |
 | [backend/src/integrations/wuzapi/client.ts](backend/src/integrations/wuzapi/client.ts) | integração WuzAPI | Ativo |
+| [database/migrations/015_technician_employment_status.sql](database/migrations/015_technician_employment_status.sql) | vínculo empregatício local | A aplicar |
+| [supabase/migrations/202610010003_technician_employment_status.sql](supabase/migrations/202610010003_technician_employment_status.sql) | vínculo empregatício Supabase | A aplicar |
 | [database/migrations](database/migrations) | schema SQL principal | Ativo |
 | [supabase/migrations](supabase/migrations) | schema Supabase | Em validação |
 | [docs/official-data-mapping.md](docs/official-data-mapping.md) | mapeamento de dados oficiais | Ativo |
@@ -1467,7 +1533,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 
 O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). A importação D-0 requer [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) no runtime PostgreSQL local ou [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql) no Supabase. O editor OLT→Região requer [database/migrations/011_olt_region_overrides.sql](database/migrations/011_olt_region_overrides.sql) ou [supabase/migrations/202609290013_olt_region_overrides.sql](supabase/migrations/202609290013_olt_region_overrides.sql). Os anexos de observação requerem [database/migrations/012_call_observation_attachments.sql](database/migrations/012_call_observation_attachments.sql) ou [supabase/migrations/202609290014_call_observation_attachments.sql](supabase/migrations/202609290014_call_observation_attachments.sql). Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
 
-Importação de chamados atuais não exige migration nova; o writer usa as colunas `calls.status` e metadados de origem já presentes no schema da migration 008.
+Vínculo empregatício requer aplicar [database/migrations/015_technician_employment_status.sql](database/migrations/015_technician_employment_status.sql) no PostgreSQL local ou [supabase/migrations/202610010003_technician_employment_status.sql](supabase/migrations/202610010003_technician_employment_status.sql) no Supabase antes de ler/editar técnicos nessa versão. Importação de chamados atuais não exige migration; ela usa colunas existentes.
 
 ---
 
@@ -1497,6 +1563,12 @@ Portas e serviços:
 ---
 
 ## 12. TESTES
+
+### Teste
+
+Vínculo empregatício e bloqueio de atribuição a demitidos.
+
+Resultado: ✅ testes HTTP direcionados 2/2, typechecks backend/frontend e build de produção frontend passaram. A migration ainda precisa ser aplicada no banco do ambiente implantado.
 
 ### Teste
 
@@ -1582,6 +1654,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ### 🟠 IMPORTANTE
 
+- aplicar migration 015 local ou Supabase 202610010003 antes de usar a coluna Vínculo no ambiente implantado;
 - sincronizar D-0/D-1 para preencher bairros/cidades ausentes em chamados FIELD existentes;
 - editar/reprocessar chamado existente cujo bairro ainda contém letra de bloco;
 - sincronizar D-0/D-1 para preencher o nome em chamados FIELD existentes;
@@ -1601,13 +1674,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. executar a prévia da planilha de chamados atuais no ambiente conectado ao banco de destino e revisar status, duplicatas e técnicos não mapeados;
-2. confirmar a importação somente após a revisão e conferir os chamados na tela, incluindo Baixar na lista de encerrados;
-3. acompanhar as validações já pendentes: paginação Supabase em produção, revisão das linhas históricas 3332/3333 e migrations de anexos/D-0/OLT.
+1. aplicar a migration 015 local ou Supabase 202610010003 no runtime utilizado;
+2. validar a coluna Vínculo, o filtro padrão Trabalhando e o filtro Demitido/Todos na tela de técnicos;
+3. preencher vínculos reais com a equipe e depois retomar as validações já pendentes de importação histórica, paginação e migrations de anexos/D-0/OLT.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Vínculo empregatício dos técnicos
+
+Implementado `employment_status` separado de `active`/`current_status`, com coluna editável Trabalhando/Demitido, filtro padrão Trabalhando e exclusão de demitidos das opções de atribuição; a API também bloqueia a atribuição. Migration local 015 e Supabase `202610010003` criadas, ainda não aplicadas. Testes HTTP direcionados 2/2, typechecks backend/frontend e build frontend passaram (aviso conhecido de bundle >500 kB). Próximo passo: aplicar a migration do ambiente e validar a tela antes de preencher os vínculos reais.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Continuação do commit “Acionamentos na Tela”
 

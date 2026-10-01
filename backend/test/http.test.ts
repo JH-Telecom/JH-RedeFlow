@@ -337,11 +337,48 @@ test('admin can create technician with blank region and temporary shift', async 
     headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
     body: JSON.stringify({ name: 'Tecnico sem regiao', registration: 'TEC-EMPTY-REGION', region: '', shift: 'A definir' }),
   });
-  const body = await response.json() as { technician: { region: string; shift: string } };
+  const body = await response.json() as { technician: { region: string; shift: string; employmentStatus: string } };
 
   assert.equal(response.status, 201);
   assert.equal(body.technician.region, '');
   assert.equal(body.technician.shift, 'A definir');
+  assert.equal(body.technician.employmentStatus, 'Trabalhando');
+});
+
+test('employment status is independent from availability and dismissed technicians cannot be assigned', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const createResponse = await fetch(`${baseUrl}/api/tecnicos`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ name: 'Tecnico desligado', registration: 'TEC-DISMISSED-01', region: 'Leste', shift: 'A definir', currentStatus: 'Disponivel', active: true, employmentStatus: 'Demitido' }),
+  });
+  const created = await createResponse.json() as { technician: { id: string; active: boolean; employmentStatus: string } };
+  assert.equal(createResponse.status, 201);
+  assert.equal(created.technician.active, true);
+  assert.equal(created.technician.employmentStatus, 'Demitido');
+
+  const assignmentResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ technicianId: created.technician.id }),
+  });
+  assert.equal(assignmentResponse.status, 422);
+
+  const updateResponse = await fetch(`${baseUrl}/api/tecnicos/${created.technician.id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ employmentStatus: 'Trabalhando' }),
+  });
+  const updated = await updateResponse.json() as { technician: { active: boolean; employmentStatus: string } };
+  assert.equal(updateResponse.status, 200);
+  assert.equal(updated.technician.active, true);
+  assert.equal(updated.technician.employmentStatus, 'Trabalhando');
 });
 
 test('admin can edit technician profile fields', async () => {

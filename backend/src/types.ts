@@ -62,6 +62,8 @@ export type Supervisor = {
   technicianCount: number;
 };
 
+export type TechnicianEmploymentStatus = 'Trabalhando' | 'Demitido';
+
 export type Technician = {
   id: string;
   supervisorId?: string;
@@ -72,6 +74,7 @@ export type Technician = {
   shift: string;
   currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel';
   active: boolean;
+  employmentStatus?: TechnicianEmploymentStatus;
   activeOverride?: boolean;
   teamRole: 'Tecnico' | 'Auxiliar';
   leadTechnicianId?: string | null;
