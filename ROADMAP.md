@@ -1,5 +1,5 @@
-Última implementação: sincronização do Drive aceita `ACIONAMENTO FIELD`, atualiza Endereço/Bairro e mostra os contadores de reconciliação.
-- [x] Sincronização Drive processa `ACIONAMENTO FIELD` e reconhece Bairro separado no CSV.
+Última implementação: importação D-0 otimizada para atualizar chamados em lotes, sem leituras completas do histórico por registro.
+- [x] D-0 cruza uma vez a base e atualiza chamados em lotes concorrentes de 10; mutações Supabase são pontuais por ID.
 # ROADMAP DO PROJETO
 
 ## 1. VISÃO GERAL
@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: correção do filtro de elegibilidade na sincronização do Google Drive para linhas `ACIONAMENTO FIELD`.
+Última implementação: otimização do processamento e atualização dos chamados durante importação D-0.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: executar a sincronização no ambiente Google Drive real, conferir novos contadores e validar a OS `12529279` com Endereço/Bairro preenchidos.
+Próxima ação: executar o upload D-0 no ambiente conectado e conferir matched/updated/unmatched e a OS atualizada; medir duração no banco real.
 
 ---
 
@@ -30,6 +30,7 @@ Próxima ação: executar a sincronização no ambiente Google Drive real, confe
 - Banco de dados: PostgreSQL com migrations em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations).
 - Detalhe de chamado: busca por ID no PostgreSQL/Supabase, em vez de paginar todas as chamadas; aplica escopo de supervisor e intervalo de datas na consulta.
 - Base D-0: snapshot da última planilha armazenado em `d0_base_records`; o campo `calls.ofs_status` mantém o estado nativo OFS sem substituir `calls.status`.
+- Sincronização D-0: matching em memória após carregar chamados uma vez; mutações por lotes limitados a 10 e logs Supabase em inserção agrupada por chamado.
 - Painel diário: exportação OFS detalhada é preservada no JSON existente e conciliada com Região dos chamados por Ordem de Serviço; Guarulhos fica separado e demais ordens são exibidas em SP.
 - Google Drive: a sincronização histórica aceita os tipos de atividade documentados, incluindo `ACIONAMENTO FIELD`; extrai endereço e bairro inferido ou fornecido em coluna própria.
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
@@ -98,6 +99,22 @@ Próxima ação: executar a sincronização no ambiente Google Drive real, confe
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Lentidão na importação D-0 — otimização implementada em 2026-10-01
+
+- causa: o loop de D-0 atualizava cada match em sequência; no Supabase, cada update carregava todas as páginas de chamados antes e depois e inseria um log por campo;
+- atualização Supabase agora lê o chamado apenas por ID, agrupa todos os logs da chamada em uma inserção e retorna o objeto atualizado sem reler o histórico;
+- os matches D-0 são aplicados em lotes de 10 para evitar milhares de requisições sequenciais sem sobrecarregar o banco com concorrência irrestrita;
+- a tela diferencia “Lendo arquivo...” de “Atualizando chamados...” e informa que o cruzamento está em andamento;
+- sem migration ou alteração de schema. A latência e os contadores ainda precisam ser conferidos no banco real.
+
+Arquivos alterados: [backend/src/store.ts](backend/src/store.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/d0-import.test.ts](backend/test/d0-import.test.ts), [frontend/src/App.tsx](frontend/src/App.tsx) e [ROADMAP.md](ROADMAP.md).
+
+Validação: D-0 7/7, store/supervisor 12/12, typechecks backend/frontend e build frontend passaram. Não foi executado contra Supabase/produção.
+
+### Próxima ação
+
+Subir a versão e reenviar a planilha D-0 no ambiente conectado. Conferir quantidade de linhas cruzadas, alteradas e não correspondidas e validar Endereço/Bairro na OS do relato.
 
 ### Sincronização Drive da OS 12529279 — correção implementada em 2026-10-01
 
@@ -411,6 +428,41 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Lotes e consultas pontuais para importação D-0
+
+### Objetivo
+
+Reduzir a demora no upload D-0 quando há milhares de chamados e impedir que a tela fique em “Processando...” sem atualizar os registros.
+
+### Alterações realizadas
+
+- `updateSupabaseCall` deixou de carregar todas as páginas de chamados antes/depois; agora lê somente o ID e monta a resposta atualizada sem reler a tabela;
+- logs de auditoria dos campos alterados no Supabase são enviados em uma única inserção por chamado;
+- `replaceD0Base` atualiza matches em lotes de 10, mantendo matching, campos e contadores atuais;
+- interface mostra a fase de leitura e a fase de cruzamento/atualização.
+
+### Arquivos modificados
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [backend/test/d0-import.test.ts](backend/test/d0-import.test.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Banco de dados
+
+Nenhuma alteração de banco ou migration realizada.
+
+### Testes
+
+- `node_modules\\.bin\\tsx.cmd --test backend/test/d0-import.test.ts`: 7 passaram, 0 falharam;
+- `node_modules\\.bin\\tsx.cmd --test backend/test/supervisor-scoping.test.ts`: 12 passaram, 0 falharam;
+- typechecks backend/frontend e build frontend passaram; permanece aviso conhecido de bundle acima de 500 kB.
+
+### Pendência e próximo passo
+
+Sem credencial/conexão ao banco real neste workspace. Após deploy, reenviar D-0 e verificar contadores e uma chamada atualizada; comparar o tempo total com a execução anterior.
 
 ## 2026-10-01 — Drive atualiza linhas ACIONAMENTO FIELD e bairros explícitos
 
@@ -1666,6 +1718,12 @@ Portas e serviços:
 
 ### Teste
 
+Atualização em lotes na importação D-0.
+
+Resultado: ✅ 7 testes D-0 e 12 testes store/supervisor passaram; typechecks backend/frontend e build frontend passaram. Validação com volume de produção pendente.
+
+### Teste
+
 Reconciliação Google Drive para ACIONAMENTO FIELD.
 
 Resultado: ✅ testes Google Drive 3/3; suite store/supervisor 12/12; typechecks backend/frontend passaram. Validação com Drive ativo pendente.
@@ -1766,6 +1824,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ### 🟠 IMPORTANTE
 
+- reenviar a planilha D-0 no backend conectado, conferir `matchedCalls`, `updatedCalls`, `unmatchedRows` e medir duração com a importação em lotes;
 - executar a sincronização real do Google Drive e confirmar atualização de Endereço/Bairro da OS `12529279`; verificar contadores de ignorados e sem correspondência;
 - aplicar migration 015 local ou Supabase 202610010003 antes de usar a coluna Vínculo no ambiente implantado;
 - sincronizar D-0/D-1 para preencher bairros/cidades ausentes em chamados FIELD existentes;
@@ -1787,13 +1846,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. executar a sincronização Google Drive no ambiente real e verificar a OS `12529279`, Endereço, Bairro e contadores de linhas ignoradas/não correspondidas;
-2. aplicar a migration 015 local ou Supabase 202610010003 e validar vínculo dos técnicos no ambiente implantado;
-3. medir a abertura do detalhe de chamado no banco real após implantar a consulta por ID.
+1. reenviar a base D-0 no ambiente conectado e conferir `matchedCalls`, `updatedCalls`, `unmatchedRows`, o tempo e os campos Endereço/Bairro da OS reportada;
+2. executar a sincronização Google Drive no ambiente real e verificar a OS `12529279` e seus contadores;
+3. retomar as pendências de migration de vínculo de técnicos e medição da consulta de detalhe no banco real.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Importação D-0 em lotes
+
+Removido o custo de ler todo o histórico duas vezes por chamado: atualização Supabase busca por ID, agrupa auditorias por chamado e retorna sem novo fetch geral; matches D-0 são atualizados em lotes de 10. A tela exibe “Lendo arquivo...” e “Atualizando chamados...”. D-0 7/7, store/supervisor 12/12, typechecks e build frontend passaram. Nenhuma alteração de schema. Próximo passo: reenviar em ambiente real, revisar matched/updated/unmatched e medir duração.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Correção do sync Drive ACIONAMENTO FIELD
 

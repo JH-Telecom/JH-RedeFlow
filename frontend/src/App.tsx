@@ -1832,6 +1832,7 @@ function D0ImportPanel() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [processingStage, setProcessingStage] = useState<"reading" | "syncing" | null>(null);
   useEffect(() => { api.d0Base().then((result) => setBase(result.base)).catch((err) => setError(err.message)); }, []);
 
   async function upload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -1840,6 +1841,7 @@ function D0ImportPanel() {
     if (!file) return;
     if (base.rowCount && !window.confirm(`A base atual (${base.fileName}) será substituída. Os dados já sincronizados nos chamados serão mantidos. Continuar?`)) return;
     setBusy(true);
+    setProcessingStage("reading");
     setError("");
     setMessage("");
     try {
@@ -1849,6 +1851,8 @@ function D0ImportPanel() {
         reader.onerror = () => reject(new Error("Nao foi possivel ler o arquivo."));
         reader.readAsDataURL(file);
       });
+      setProcessingStage("syncing");
+      setMessage("Cruzando chamados e aplicando atualizações em lotes...");
       const result = await api.importD0(file.name, content);
       setBase(result.base);
       setMessage(`Base atualizada: ${result.sync.rows} linha(s), ${result.sync.matchedCalls} chamado(s) cruzado(s), ${result.sync.updatedCalls} atualizado(s), ${result.sync.unmatchedRows} sem correspondência.`);
@@ -1856,6 +1860,7 @@ function D0ImportPanel() {
       setError(err instanceof Error ? err.message : "Nao foi possivel sincronizar a base D-0.");
     } finally {
       setBusy(false);
+      setProcessingStage(null);
     }
   }
 
@@ -1875,7 +1880,7 @@ function D0ImportPanel() {
     }
   }
 
-  return <section className="panel d0-import-panel"><div className="panel-heading"><div><span className="section-kicker">BASE OPERACIONAL DO DIA</span><h2>Importar base D-0</h2><p>{base.rowCount ? `${base.fileName} · ${base.rowCount} linhas · enviada por ${base.uploadedBy || "Sistema"}${base.uploadedAt ? ` · ${new Date(base.uploadedAt).toLocaleString("pt-BR")}` : ""}` : "Nenhuma base D-0 armazenada."}</p></div><div className="page-actions"><label className="primary-button compact file-button"><ClipboardList size={16}/>{busy ? "Processando..." : "Enviar D-0"}<input type="file" accept=".csv,.xlsx,.xls" onChange={(event) => void upload(event)} disabled={busy}/></label><button className="secondary-button compact" type="button" onClick={() => void clear()} disabled={busy || !base.rowCount}><Trash2 size={15}/> Limpar base</button></div></div>{error && <div className="form-error import-error">{error}</div>}{message && <div className="save-message import-message">{message}</div>}</section>;
+  return <section className="panel d0-import-panel"><div className="panel-heading"><div><span className="section-kicker">BASE OPERACIONAL DO DIA</span><h2>Importar base D-0</h2><p>{base.rowCount ? `${base.fileName} · ${base.rowCount} linhas · enviada por ${base.uploadedBy || "Sistema"}${base.uploadedAt ? ` · ${new Date(base.uploadedAt).toLocaleString("pt-BR")}` : ""}` : "Nenhuma base D-0 armazenada."}</p></div><div className="page-actions"><label className="primary-button compact file-button"><ClipboardList size={16}/>{processingStage === "reading" ? "Lendo arquivo..." : processingStage === "syncing" ? "Atualizando chamados..." : "Enviar D-0"}<input type="file" accept=".csv,.xlsx,.xls" onChange={(event) => void upload(event)} disabled={busy}/></label><button className="secondary-button compact" type="button" onClick={() => void clear()} disabled={busy || !base.rowCount}><Trash2 size={15}/> Limpar base</button></div></div>{error && <div className="form-error import-error">{error}</div>}{message && <div className="save-message import-message">{message}</div>}</section>;
 }
 function ActivationsPage() {
   const [activations, setActivations] = useState<Activation[]>([]);

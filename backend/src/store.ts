@@ -1733,11 +1733,16 @@ export async function replaceD0Base(fileName: string, uploadedBy: string, rows: 
   const callsById = new Map(currentCalls.map((call) => [call.id, call]));
   const actor: User = { id: 'system-d0-import', name: 'Importacao D-0', email: 'system-d0@jhtelecom.com', roleId: 'system', active: true, createdAt: importedAt };
   let updatedCalls = 0;
-  for (const match of matches) {
-    const current = callsById.get(match.callId);
-    const changed = current && Object.entries(match.fields).some(([field, value]) => String(current[field as keyof Call] ?? '') !== String(value ?? ''));
-    const updated = await updateCall(match.callId, match.fields, actor);
-    if (updated && changed) updatedCalls += 1;
+  const batchSize = 10;
+  for (let offset = 0; offset < matches.length; offset += batchSize) {
+    const batch = matches.slice(offset, offset + batchSize);
+    const updateResults = await Promise.all(batch.map(async (match) => {
+      const current = callsById.get(match.callId);
+      const changed = current && Object.entries(match.fields).some(([field, value]) => String(current[field as keyof Call] ?? '') !== String(value ?? ''));
+      const updated = await updateCall(match.callId, match.fields, actor);
+      return updated && changed ? 1 : 0;
+    }));
+    updatedCalls += updateResults.reduce<number>((total, count) => total + count, 0);
   }
   return { rows: rows.length, matchedCalls: matches.length, updatedCalls, unmatchedRows };
 }
