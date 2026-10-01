@@ -24,7 +24,7 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 - Todos os arquivos CSV da pasta configurada sao lidos com paginação da API do Drive.
 - Registros repetidos em varios arquivos nao geram duplicidade: a sincronizacao usa identidade operacional e fingerprint do payload; a versao do arquivo mais recentemente modificado prevalece.
 - Uma linha elegivel sem chamado correspondente cria um chamado com origem Google Drive e passa a aparecer na listagem e nos indicadores.
-- Sao processados os tipos `Manutencao Corretiva de Rede`, `Manutencao de Rede Field` e `Reparo Corretivo`.
+- Sao processados os tipos `Manutencao Corretiva de Rede`, `Manutencao de Rede Field`, `Reparo Corretivo` e `ACIONAMENTO FIELD`.
 - Linhas com status `pendente` e motivo contendo `nao cumprimento` sao ignoradas.
 - Identificadores operacionais sao avaliados em ordem de preferencia: ordem de servico, BDESK, Office Track, OS Casa Cliente, contrato e numero do cliente.
 - `Data` e `Fim` formam `executed_at`, preservando a data real da conclusao.

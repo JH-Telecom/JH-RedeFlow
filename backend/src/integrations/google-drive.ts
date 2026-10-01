@@ -6,7 +6,7 @@ import { parseImport } from '../imports/parser.js';
 import { inferNeighborhood, resolveOltRegion } from './wuzapi/noc-consolidation.js';
 
 const defaultFolderId = '1m9m2atkUrxwb2v9xzTLgqebOQ4GQJue-';
-const validActivityTypes = new Set(['manutencao corretiva de rede', 'manutencao de rede field', 'reparo corretivo']);
+const validActivityTypes = new Set(['manutencao corretiva de rede', 'manutencao de rede field', 'reparo corretivo', 'acionamento field']);
 const systemActor: User = { id: 'system-google-drive', name: 'Google Drive - Base histórica operacional', email: 'system@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date(0).toISOString() };
 
 type DriveRow = Record<string, string>;
@@ -108,7 +108,8 @@ function parseDriveLocation(row: DriveRow) {
   const suffix = address.match(/,\s*([^,]+?)\s*-\s*([A-Z]{2})\s*$/i);
   const normalizedCity = normalize(city);
   if ((!city || ['nao informada', 'nao informado', 'n/a', 'na'].includes(normalizedCity)) && suffix) city = suffix[1].trim();
-  if (!address || !city) return { address, bairro: '', city };
+  const explicitNeighborhood = normalizeNeighborhood(value(row, 'Bairro', 'Bairro do Cliente', 'Bairro Cliente', 'Neighborhood', 'District'), city);
+  if (!address || !city) return { address, bairro: explicitNeighborhood, city };
 
   const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
   const normalizedCityName = normalizeOrder(city);
@@ -124,7 +125,7 @@ function parseDriveLocation(row: DriveRow) {
   }
   if (cityIndex < 1) return { address, bairro: '', city };
 
-  const neighborhood = normalizeNeighborhood(parts[cityIndex - 1], city) || inferNeighborhood(address) || '';
+  const neighborhood = explicitNeighborhood || normalizeNeighborhood(parts[cityIndex - 1], city) || inferNeighborhood(address) || '';
   return { address, bairro: neighborhood, city };
 }
 
@@ -135,6 +136,13 @@ function normalizeDriveStatus(valueText: string) {
   if (['cancelado', 'cancelada', 'canceled'].includes(status)) return 'cancelado';
   if (['pendente', 'aberto', 'ativo', 'em andamento', 'em progresso'].includes(status)) return 'aberto';
   return status;
+}
+
+export function isDriveRowEligible(row: DriveRow) {
+  const statusText = normalize(value(row, 'Status da Atividade', 'Status'));
+  const activityType = normalize(value(row, 'Tipo de Atividade', 'Tipo'));
+  const reason = normalize(value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo'));
+  return validActivityTypes.has(activityType) && statusText !== 'pendente' && !reason.includes('nao cumprimento');
 }
 
 export function buildDriveCall(row: DriveRow): Call | undefined {
@@ -305,10 +313,7 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
 
   const calls = await listCalls();
   for (const { row, fileId, fileName } of stagedRows.values()) {
-    const statusText = normalize(value(row, 'Status da Atividade', 'Status'));
-    const activityType = normalize(value(row, 'Tipo de Atividade', 'Tipo'));
-    const reason = normalize(value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo'));
-    if (!validActivityTypes.has(activityType) || statusText === 'pendente' || reason.includes('nao cumprimento')) {
+    if (!isDriveRowEligible(row)) {
       result.skipped += 1;
       continue;
     }

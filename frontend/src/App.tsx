@@ -1818,7 +1818,7 @@ function ImportsPage() {
       if (summary.errors.length > 0) {
         setError(summary.errors.join(" · "));
       }
-      setMessage(`Sincronização concluída: ${summary.updated} chamados atualizados em ${summary.files} arquivo(s). ${summary.skipped} registros ignorados.`);
+      setMessage(`Sincronização concluída: ${summary.updated} atualizados, ${summary.newRecords} novos, ${summary.unchanged} inalterados, ${summary.skipped} ignorados e ${summary.unmatched} sem correspondência (${summary.rows} linhas em ${summary.files} arquivo(s)).`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nao foi possivel sincronizar o Google Drive.");
     } finally {

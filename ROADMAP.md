@@ -1,5 +1,5 @@
-Última implementação: consulta de detalhe do chamado por ID, evitando baixar o histórico completo para abrir uma ordem.
-- [x] Detalhe de chamado busca uma única ordem por ID no Supabase/PostgreSQL, mantendo os filtros de data e equipe.
+Última implementação: sincronização do Drive aceita `ACIONAMENTO FIELD`, atualiza Endereço/Bairro e mostra os contadores de reconciliação.
+- [x] Sincronização Drive processa `ACIONAMENTO FIELD` e reconhece Bairro separado no CSV.
 # ROADMAP DO PROJETO
 
 ## 1. VISÃO GERAL
@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: otimização da consulta do detalhe para não carregar todas as páginas de chamados.
+Última implementação: correção do filtro de elegibilidade na sincronização do Google Drive para linhas `ACIONAMENTO FIELD`.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: implantar e medir o tempo de abertura do detalhe no banco real; confirmar também que o escopo de supervisor segue correto.
+Próxima ação: executar a sincronização no ambiente Google Drive real, conferir novos contadores e validar a OS `12529279` com Endereço/Bairro preenchidos.
 
 ---
 
@@ -31,6 +31,7 @@ Próxima ação: implantar e medir o tempo de abertura do detalhe no banco real;
 - Detalhe de chamado: busca por ID no PostgreSQL/Supabase, em vez de paginar todas as chamadas; aplica escopo de supervisor e intervalo de datas na consulta.
 - Base D-0: snapshot da última planilha armazenado em `d0_base_records`; o campo `calls.ofs_status` mantém o estado nativo OFS sem substituir `calls.status`.
 - Painel diário: exportação OFS detalhada é preservada no JSON existente e conciliada com Região dos chamados por Ordem de Serviço; Guarulhos fica separado e demais ordens são exibidas em SP.
+- Google Drive: a sincronização histórica aceita os tipos de atividade documentados, incluindo `ACIONAMENTO FIELD`; extrai endereço e bairro inferido ou fornecido em coluna própria.
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
 - Técnicos: `employment_status` registra Trabalhando/Demitido independentemente de `active` e `current_status`; `active` continua representando disponibilidade pela escala/sobrescrita operacional.
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
@@ -97,6 +98,22 @@ Próxima ação: implantar e medir o tempo de abertura do detalhe no banco real;
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Sincronização Drive da OS 12529279 — correção implementada em 2026-10-01
+
+- a linha mostrada tinha tipo `ACIONAMENTO FIELD`, que não estava na whitelist da sincronização e era incrementada como `skipped` antes de matching e atualização;
+- o tipo foi incluído de forma explícita; o parser de localização também lê colunas `Bairro`, `Bairro do Cliente`, `Bairro Cliente`, `Neighborhood` e `District`, usando o endereço como fallback;
+- a mensagem de resultado da tela Importações agora informa atualizados, novos, inalterados, ignorados, sem correspondência, linhas e arquivos, facilitando diagnosticar a próxima execução;
+- regressões reproduzem a OS 12529279, endereço/bairro extraídos do endereço e bairro explícito sem endereço;
+- nenhuma alteração de banco ou migration. Sincronização com credenciais/dados reais não foi executada nesta sessão.
+
+Arquivos alterados: [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx), [docs/google-drive-d1-sync.md](docs/google-drive-d1-sync.md) e [ROADMAP.md](ROADMAP.md).
+
+Validação: testes Google Drive 3/3 e store/supervisor 12/12 passaram; typechecks backend e frontend passaram. A confirmação final depende de rodar a sincronização no ambiente real e conferir a OS `12529279`.
+
+### Próxima ação
+
+Sincronizar Drive no ambiente conectado, conferir os contadores `updated/skipped/unmatched` e abrir a OS `12529279` para validar Endereço e Bairro.
 
 ### Lentidão ao abrir detalhe de chamado — otimização implementada em 2026-10-01
 
@@ -394,6 +411,41 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Drive atualiza linhas ACIONAMENTO FIELD e bairros explícitos
+
+### Objetivo
+
+Corrigir a sincronização que ignorava a OS `12529279` e não preenchia localização em chamados importados de planilha atual.
+
+### Alterações realizadas
+
+- incluído `ACIONAMENTO FIELD` na whitelist de tipos que o Drive processa; antes, essas linhas eram ignoradas antes do matching;
+- parser reconhece colunas de Bairro explícito e mantém a inferência baseada no endereço como fallback;
+- resumo da sincronização exibe novos/atualizados/inalterados/ignorados/sem correspondência, linhas e arquivos.
+
+### Arquivos modificados
+
+- [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [docs/google-drive-d1-sync.md](docs/google-drive-d1-sync.md)
+- [ROADMAP.md](ROADMAP.md)
+
+### Banco de dados
+
+Nenhuma alteração de banco ou migration realizada.
+
+### Testes
+
+- testes Google Drive: 3/3 passaram, incluindo elegibilidade ACIONAMENTO FIELD, endereço/bairro derivados e Bairro explícito sem endereço;
+- `node_modules\\.bin\\tsx.cmd --test backend/test/supervisor-scoping.test.ts`: 12 passaram, 0 falharam;
+- typechecks backend/frontend passaram.
+
+### Pendência e próximo passo
+
+Não há credenciais/conexão de Drive real neste workspace. Executar sincronização no ambiente implantado e conferir que a OS `12529279` foi atualizada; nenhuma sincronização de produção foi executada nesta tarefa.
 
 ## 2026-10-01 — Consulta pontual do detalhe de chamado
 
@@ -1614,6 +1666,12 @@ Portas e serviços:
 
 ### Teste
 
+Reconciliação Google Drive para ACIONAMENTO FIELD.
+
+Resultado: ✅ testes Google Drive 3/3; suite store/supervisor 12/12; typechecks backend/frontend passaram. Validação com Drive ativo pendente.
+
+### Teste
+
 Consulta pontual do detalhe por ID.
 
 Resultado: ✅ store/supervisor 10/10; teste HTTP do detalhe 1/1; typecheck backend passou. A medição de latência no banco real depende de deploy.
@@ -1708,6 +1766,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ### 🟠 IMPORTANTE
 
+- executar a sincronização real do Google Drive e confirmar atualização de Endereço/Bairro da OS `12529279`; verificar contadores de ignorados e sem correspondência;
 - aplicar migration 015 local ou Supabase 202610010003 antes de usar a coluna Vínculo no ambiente implantado;
 - sincronizar D-0/D-1 para preencher bairros/cidades ausentes em chamados FIELD existentes;
 - editar/reprocessar chamado existente cujo bairro ainda contém letra de bloco;
@@ -1728,13 +1787,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. implantar a busca pontual de detalhe e medir a abertura de chamado com o histórico completo;
-2. confirmar que o request de detalhe filtra por ID e ainda respeita supervisor/data;
-3. aplicar a migration 015 local ou Supabase 202610010003 e retomar as outras validações pendentes.
+1. executar a sincronização Google Drive no ambiente real e verificar a OS `12529279`, Endereço, Bairro e contadores de linhas ignoradas/não correspondidas;
+2. aplicar a migration 015 local ou Supabase 202610010003 e validar vínculo dos técnicos no ambiente implantado;
+3. medir a abertura do detalhe de chamado no banco real após implantar a consulta por ID.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Correção do sync Drive ACIONAMENTO FIELD
+
+A OS mostrada na evidência era do tipo `ACIONAMENTO FIELD`, ausente da whitelist do Drive; essas linhas eram descartadas antes do matching. O tipo agora é elegível, o parser aceita Bairro em coluna explícita ou infere pelo endereço, e a tela mostra contadores de updated/new/unchanged/skipped/unmatched. Testes Google Drive 3/3 e store/supervisor 12/12; typechecks backend/frontend passaram. Nenhuma migration nem sync real executada. Próximo passo: sincronizar no ambiente Drive ativo e validar OS `12529279`.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Detalhe de chamado por ID
 

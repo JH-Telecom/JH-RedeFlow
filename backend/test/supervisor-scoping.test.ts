@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getCall, getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
-import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange } from '../src/integrations/google-drive.js';
+import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange, isDriveRowEligible } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
 import { calculateIgpMetrics, classifyIgpArea } from '../src/igp.js';
@@ -20,6 +20,41 @@ test('Google Drive preserves the OFS activity status separately from internal ca
   assert.equal(update.status, 'Finalizado');
   assert.equal(update.ofsStatus, 'Concluída');
   assert.equal(hasMeaningfulCallChange(existing, update), true);
+});
+
+test('Google Drive sync accepts ACIONAMENTO FIELD and fills address and neighborhood', () => {
+  const row = {
+    'Ordem de Serviço': '12529279',
+    'Office Track': '12529279',
+    'Tipo de Atividade': 'ACIONAMENTO FIELD',
+    'Status da Atividade': 'Finalizado',
+    'Endereço': 'RUA DO FUTURO (DJ RUYCE), 152, JARDIM MUTINGA, GUARULHOS - SP',
+    Cidade: 'GUARULHOS',
+  };
+  const imported = buildDriveCall(row);
+
+  assert.equal(isDriveRowEligible(row), true);
+  assert.equal(imported?.address, row['Endereço']);
+  assert.equal(imported?.bairro, 'JARDIM MUTINGA');
+
+  const existing = { ...imported!, address: '', bairro: '' };
+  const update = buildDriveUpdate(row, existing);
+  assert.equal(update.address, row['Endereço']);
+  assert.equal(update.bairro, 'JARDIM MUTINGA');
+  assert.equal(hasMeaningfulCallChange(existing, update), true);
+});
+
+test('Google Drive preserves an explicit neighborhood when address is absent', () => {
+  const imported = buildDriveCall({
+    'Ordem de Serviço': '12529280',
+    'Tipo de Atividade': 'ACIONAMENTO FIELD',
+    'Status da Atividade': 'Pendente',
+    Cidade: 'GUARULHOS',
+    Bairro: 'JARDIM MUTINGA',
+  });
+
+  assert.equal(imported?.address, '');
+  assert.equal(imported?.bairro, 'JARDIM MUTINGA');
 });
 
 test('IGP calculates weighted monthly indicators for Access and Backbone', () => {
