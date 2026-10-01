@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: sincronização Google Drive preenche `ofsStatus` e aceita aliases de ordem/datas compatíveis com D-0.
+Última implementação: ajustes dos fixtures de OLT para seguir o formato aceito pela normalização e manter o ciclo de Adicionar/Ignorar validado.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: implantar a paginação Supabase, validar os 3.722 chamados na listagem e então retomar a importação histórica em produção.
+Próxima ação: validar o fluxo de solicitações de OLT em demo e confirmar que as regras de mapeamento/ignorar continuam estáveis.
 
 ---
 
@@ -93,6 +93,15 @@ Próxima ação: implantar a paginação Supabase, validar os 3.722 chamados na 
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Ajuste de fixtures de OLT — concluído em 2026-10-01
+
+- a normalização exige códigos no formato OLT compatível com `VIP-...`/`OLT-...`, com letras, números e separadores em maiúsculas e sem caracteres inválidos;
+- os fixtures do teste de Adicionar/Ignorar foram trocados para códigos genéricos desconhecidos, mas válidos, evitando que o fluxo fosse confundido com um mapeamento real;
+- o ciclo de captura, ignorar e aceitar continua funcionando sem alterar a regra de negócio da aplicação;
+- validação: teste focado de solicitações de OLT passou em demo.
+
+Arquivos alterados: [backend/test/olt-region-requests.test.ts](backend/test/olt-region-requests.test.ts) e [ROADMAP.md](ROADMAP.md).
 
 ### Anexos nas observações de chamados — implementado em 2026-09-29
 
