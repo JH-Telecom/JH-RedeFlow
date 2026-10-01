@@ -153,13 +153,14 @@ export async function deleteSupabaseTechnician(id: string) {
   return true;
 }
 
-export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filters: { from?: string; to?: string; supervisorId?: string } = {}): Promise<Call[]> {
+export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filters: { from?: string; to?: string; supervisorId?: string; id?: string } = {}): Promise<Call[]> {
   const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
   const pageSize = 500;
   const calls: Call[] = [];
   for (let from = 0; ; from += pageSize) {
     let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false }).order('id', { ascending: true });
     if (status) query = query.in('status', Array.isArray(status) ? status : [status]);
+    if (filters.id) query = query.eq('id', filters.id);
   if (filters.from || filters.to) {
     const from = filters.from ? `${filters.from}T00:00:00.000Z` : undefined;
     const upperBound = filters.to ? new Date(Date.parse(`${filters.to}T00:00:00.000Z`) + 86400000).toISOString() : undefined;

@@ -1,5 +1,5 @@
-Última implementação: coluna de vínculo empregatício dos técnicos (Trabalhando/Demitido), com filtro padrão em Trabalhando.
-- [x] Cadastro e filtro de vínculo empregatício de técnicos, separado da disponibilidade operacional e com bloqueio de atribuição a demitidos.
+Última implementação: consulta de detalhe do chamado por ID, evitando baixar o histórico completo para abrir uma ordem.
+- [x] Detalhe de chamado busca uma única ordem por ID no Supabase/PostgreSQL, mantendo os filtros de data e equipe.
 # ROADMAP DO PROJETO
 
 ## 1. VISÃO GERAL
@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: vínculo empregatício persistente dos técnicos separado da disponibilidade por escala.
+Última implementação: otimização da consulta do detalhe para não carregar todas as páginas de chamados.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar a migration 015 local ou Supabase 202610010003 no ambiente usado, depois conferir a coluna/filtro e cadastrar vínculos reais.
+Próxima ação: implantar e medir o tempo de abertura do detalhe no banco real; confirmar também que o escopo de supervisor segue correto.
 
 ---
 
@@ -28,6 +28,7 @@ Próxima ação: aplicar a migration 015 local ou Supabase 202610010003 no ambie
 - Frontend: aplicação em React + Vite, em [frontend/src](frontend/src).
 - Backend: API Express em [backend/src/server.ts](backend/src/server.ts) com regras de negócio em [backend/src/store.ts](backend/src/store.ts).
 - Banco de dados: PostgreSQL com migrations em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations).
+- Detalhe de chamado: busca por ID no PostgreSQL/Supabase, em vez de paginar todas as chamadas; aplica escopo de supervisor e intervalo de datas na consulta.
 - Base D-0: snapshot da última planilha armazenado em `d0_base_records`; o campo `calls.ofs_status` mantém o estado nativo OFS sem substituir `calls.status`.
 - Painel diário: exportação OFS detalhada é preservada no JSON existente e conciliada com Região dos chamados por Ordem de Serviço; Guarulhos fica separado e demais ordens são exibidas em SP.
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
@@ -96,6 +97,20 @@ Próxima ação: aplicar a migration 015 local ou Supabase 202610010003 no ambie
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Lentidão ao abrir detalhe de chamado — otimização implementada em 2026-10-01
+
+- causa: `getCall(id)` carregava todas as páginas de `calls` no Supabase/PostgreSQL e só depois procurava o ID;
+- a consulta por ID agora é aplicada no servidor do banco, mantendo filtros de supervisor e período; IDs que não são UUID retornam como inexistentes sem erro de cast nos bancos;
+- o runtime em memória também respeita o filtro por ID; nenhuma migration ou alteração de schema.
+
+Arquivos alterados: [backend/src/store.ts](backend/src/store.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts) e [ROADMAP.md](ROADMAP.md).
+
+Validação: store/supervisor 10/10, teste HTTP de detalhe 1/1 e typecheck backend passaram. Latência real não foi medida porque este ambiente não está ligado ao banco implantado.
+
+### Próxima ação
+
+Implantar e medir o detalhe em um banco com histórico grande; verificar pelo Network que a carga do detalhe faz uma consulta por ID, sem percorrer todas as páginas.
 
 ### Vínculo empregatício dos técnicos — implementado em 2026-10-01
 
@@ -379,6 +394,39 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Consulta pontual do detalhe de chamado
+
+### Objetivo
+
+Reduzir a espera ao abrir chamados quando o banco contém milhares de registros.
+
+### Alterações realizadas
+
+- antes, `getCall(id)` chamava a listagem completa paginada e só então procurava o identificador;
+- a listagem aceita filtro opcional `id`, aplicado com igualdade no Supabase e `WHERE c.id = ...` no PostgreSQL local;
+- filtros de período, equipe de supervisor e regras de 404 permanecem aplicados; IDs malformados não causam erro de cast para UUID.
+
+### Arquivos modificados
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Banco de dados
+
+Nenhuma alteração de banco ou migration realizada.
+
+### Testes
+
+- `node_modules\\.bin\\tsx.cmd --test backend/test/supervisor-scoping.test.ts`: 10 passaram, 0 falharam, incluindo ID inexistente e escopo de supervisor;
+- `node_modules\\.bin\\tsx.cmd --test --test-name-pattern="admin can delete a test call" backend/test/http.test.ts`: 1 passou, 0 falharam;
+- `node_modules\\.bin\\tsc.cmd -p backend/tsconfig.json --noEmit`: passou.
+
+### Pendência e próximo passo
+
+Medir a latência em ambiente com volume de produção após implantação; esse workspace não tem conexão ao banco real.
 
 ## 2026-10-01 — Vínculo empregatício de técnicos
 
@@ -1566,6 +1614,12 @@ Portas e serviços:
 
 ### Teste
 
+Consulta pontual do detalhe por ID.
+
+Resultado: ✅ store/supervisor 10/10; teste HTTP do detalhe 1/1; typecheck backend passou. A medição de latência no banco real depende de deploy.
+
+### Teste
+
 Vínculo empregatício e bloqueio de atribuição a demitidos.
 
 Resultado: ✅ testes HTTP direcionados 2/2, typechecks backend/frontend e build de produção frontend passaram. A migration ainda precisa ser aplicada no banco do ambiente implantado.
@@ -1674,13 +1728,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. aplicar a migration 015 local ou Supabase 202610010003 no runtime utilizado;
-2. validar a coluna Vínculo, o filtro padrão Trabalhando e o filtro Demitido/Todos na tela de técnicos;
-3. preencher vínculos reais com a equipe e depois retomar as validações já pendentes de importação histórica, paginação e migrations de anexos/D-0/OLT.
+1. implantar a busca pontual de detalhe e medir a abertura de chamado com o histórico completo;
+2. confirmar que o request de detalhe filtra por ID e ainda respeita supervisor/data;
+3. aplicar a migration 015 local ou Supabase 202610010003 e retomar as outras validações pendentes.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Detalhe de chamado por ID
+
+O detalhe deixou de buscar todas as páginas de chamados: `getCall(id)` usa agora igualdade por ID no Supabase/PostgreSQL e mantém escopo/período; IDs inválidos são tratados como não encontrados. Nenhuma migration. Store/supervisor 10/10, teste HTTP de detalhe 1/1 e typecheck backend passaram. Falta implantar e medir latência no banco real.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Vínculo empregatício dos técnicos
 

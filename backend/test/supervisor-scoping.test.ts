@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
+import { getCall, getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
 import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
@@ -109,6 +109,38 @@ test('supervisor users resolve to their own team and can only see their calls', 
     assert.ok(calls.some((call) => call.id === 'call-240917-01'));
     assert.ok(!calls.some((call) => call.id === 'call-240916-01'));
     assert.ok(calls.every((call) => !call.technicianId || call.supervisorName === 'Joao da Silva'));
+  } finally {
+    if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
+    if (previousDemoData === undefined) delete process.env.REDEFLOW_DEMO_DATA; else process.env.REDEFLOW_DEMO_DATA = previousDemoData;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = previousSupabaseUrl;
+    if (previousSupabaseAnon === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = previousSupabaseAnon;
+    if (previousSupabaseServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = previousSupabaseServiceRole;
+  }
+});
+
+test('call detail lookup returns only the requested ID', async () => {
+  const previousRuntime = process.env.REDEFLOW_RUNTIME;
+  const previousDemoData = process.env.REDEFLOW_DEMO_DATA;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+  const previousSupabaseAnon = process.env.SUPABASE_ANON_KEY;
+  const previousSupabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  try {
+    process.env.REDEFLOW_RUNTIME = 'local';
+    process.env.REDEFLOW_DEMO_DATA = 'true';
+    process.env.SUPABASE_URL = '';
+    process.env.SUPABASE_ANON_KEY = '';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = '';
+
+    const call = await getCall('call-240918-01');
+    const filtered = await listCalls(undefined, { id: 'call-240918-01' });
+    const missing = await getCall('call-does-not-exist');
+    const outsideSupervisorScope = await getCall('call-240916-01', { supervisorId: 'supervisor-joao' });
+
+    assert.equal(call?.id, 'call-240918-01');
+    assert.deepEqual(filtered.map((item) => item.id), ['call-240918-01']);
+    assert.equal(missing, undefined);
+    assert.equal(outsideSupervisorScope, undefined);
   } finally {
     if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
     if (previousDemoData === undefined) delete process.env.REDEFLOW_DEMO_DATA; else process.env.REDEFLOW_DEMO_DATA = previousDemoData;
