@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import XLSX from 'xlsx';
-import { parseHistoricalActivationWorkbook } from '../src/imports/historical-activations.js';
+import { findHistoricalTechnician, parseHistoricalActivationWorkbook } from '../src/imports/historical-activations.js';
 
 const headers = ['Tecnico', 'Data Abertura', 'Data Acionamento', 'Data-Fim', 'ACIONAMENTO'];
 
@@ -97,4 +97,14 @@ test('reads the finalized historical workbook when columns use the newer naming 
   assert.equal(parsed.candidates[0].call.technicianName, 'Técnico A');
   assert.equal(parsed.candidates[0].call.openedAt, openedAt.toISOString());
   assert.equal(parsed.candidates[0].call.executedAt, executedAt.toISOString());
+});
+
+test('matches workbook technician names to one registered technician, ignoring accents and case', () => {
+  const technicians = [
+    { id: 'tech-jose', name: 'José da Silva', registration: 'TEC-001', region: '', shift: '', currentStatus: 'Disponivel' as const, active: true, teamRole: 'Tecnico' as const },
+    { id: 'assistant-jose', name: 'Jose da Silva', registration: 'AUX-001', region: '', shift: '', currentStatus: 'Disponivel' as const, active: true, teamRole: 'Auxiliar' as const },
+  ];
+
+  assert.equal(findHistoricalTechnician('  JOSE   DA SILVA ', technicians)?.id, 'tech-jose');
+  assert.equal(findHistoricalTechnician('Técnico inexistente', technicians), undefined);
 });

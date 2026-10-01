@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import XLSX from 'xlsx';
 import { parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
 
 let port = 3433;
@@ -97,6 +98,38 @@ test('call list searches by OLT and filters without collapsing OLT options', asy
   assert.ok(filtered.calls.length > 0);
   assert.ok(filtered.calls.every((call) => call.olt === 'VIP-GZ1-SPO-OHW-02'));
   assert.ok(filtered.olts.includes('VIP-CT1-SPO-OHW-01'));
+});
+
+test('historical import preview links the spreadsheet technician to a registered technician', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['Técnico', 'Data de Abertura', 'Data do Acionamento', 'Data de Fim', 'Mensagem de Acionamento'],
+    ['carlos mendes', new Date('2026-06-18T17:03:26.000Z'), new Date('2026-06-18T17:15:00.000Z'), new Date('2026-06-24T16:42:28.000Z'), [
+      'ACIONAMENTO FIELD',
+      '- TÉCNICO: Outro nome no texto',
+      '- MOTIVO: CAIXA SEM SINAL',
+      '- OS OT: 19996885',
+      '- OLT: VIP-GRU-3-SPO-ONK-01',
+      '- PLACA/PON: SLOT: 3 | PON: 12',
+    ].join('\n')],
+  ]), 'Planilha1');
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  const response = await fetch(`${baseUrl}/api/importacoes/acionamentos-historicos/preview`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+    body: JSON.stringify({ fileName: 'historico-tecnicos.xlsx', contentBase64: buffer.toString('base64') }),
+  });
+  const body = await response.json() as { unmatchedTechnicians: string[]; sample: Array<{ technicianName?: string }> };
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.unmatchedTechnicians, []);
+  assert.equal(body.sample[0]?.technicianName, 'Carlos Mendes');
 });
 
 test('prefers Supabase whenever credentials are configured, even if runtime is local', async () => {

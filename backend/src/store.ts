@@ -953,6 +953,7 @@ export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<nu
         city: call.city || null,
         address: call.address || null,
         bairro: call.bairro || null,
+        technician_id: call.technicianId || null,
         olt: call.olt || null,
         slot_pon: call.slotPon || null,
         status: 'Finalizado',
@@ -976,8 +977,8 @@ export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<nu
       await client.query('BEGIN');
       for (let from = 0; from < historicalCalls.length; from += 150) {
         const batch = historicalCalls.slice(from, from + 150);
-        const columns = ['id', 'order_number', 'bdesk', 'office_track', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'olt', 'slot_pon', 'status', 'opened_at', 'assigned_at', 'executed_at', 'result', 'notes', 'cancellation_reason'];
-        const values = batch.flatMap((call) => [call.id, call.orderNumber, call.bdesk || null, call.officeTrack || null, call.client || 'Cliente nao identificado', call.type, call.reason, call.region, call.city || null, call.address || null, call.bairro || null, call.olt || null, call.slotPon || null, 'Finalizado', call.openedAt, call.assignedAt || null, call.executedAt || null, call.result || null, call.notes, null]);
+        const columns = ['id', 'order_number', 'bdesk', 'office_track', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'technician_id', 'olt', 'slot_pon', 'status', 'opened_at', 'assigned_at', 'executed_at', 'result', 'notes', 'cancellation_reason'];
+        const values = batch.flatMap((call) => [call.id, call.orderNumber, call.bdesk || null, call.officeTrack || null, call.client || 'Cliente nao identificado', call.type, call.reason, call.region, call.city || null, call.address || null, call.bairro || null, call.technicianId || null, call.olt || null, call.slotPon || null, 'Finalizado', call.openedAt, call.assignedAt || null, call.executedAt || null, call.result || null, call.notes, null]);
         const tuples = batch.map((_, rowIndex) => `(${columns.map((__, columnIndex) => `$${rowIndex * columns.length + columnIndex + 1}`).join(', ')})`).join(', ');
         const result = await client.query(`INSERT INTO calls (${columns.join(', ')}) VALUES ${tuples} ON CONFLICT (id) DO NOTHING`, values);
         inserted += result.rowCount || 0;

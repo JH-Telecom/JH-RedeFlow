@@ -7,7 +7,7 @@ import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, add
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
-import { normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
+import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
@@ -543,6 +543,17 @@ app.post('/api/importacoes/acionamentos-historicos/preview', auth, requirePermis
     const allIdentifiers = result.candidates.flatMap((candidate) => candidate.identifiers);
     const existingIdentifiers = await findExistingCallIdentifiers();
     const candidates = result.candidates.filter((candidate) => !candidate.identifiers.some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier))));
+    const registeredTechnicians = await listTechnicians();
+    const unmatchedTechnicians = new Set<string>();
+    for (const candidate of candidates) {
+      const name = candidate.call.technicianName;
+      if (!name) continue;
+      const technician = findHistoricalTechnician(name, registeredTechnicians);
+      if (technician) {
+        candidate.call.technicianId = technician.id;
+        candidate.call.technicianName = technician.name;
+      } else unmatchedTechnicians.add(name);
+    }
     const alreadyInSystem = result.candidates.length - candidates.length;
     const previewId = crypto.randomUUID();
     const expiresAt = Date.now() + 30 * 60 * 1000;
@@ -569,10 +580,11 @@ app.post('/api/importacoes/acionamentos-historicos/preview', auth, requirePermis
       missingReason: result.missingReason,
       missingOlt: result.missingOlt,
       missingTechnician: result.missingTechnician,
+      unmatchedTechnicians: [...unmatchedTechnicians].sort((left, right) => left.localeCompare(right)),
       omittedLongNeighborhood: result.omittedLongNeighborhood,
       omittedLongSlotPon: result.omittedLongSlotPon,
       byType: result.byType,
-      sample: candidates.slice(0, 12).map(({ rowNumber, call }) => ({ rowNumber, orderNumber: call.orderNumber, type: call.type, status: call.status, openedAt: call.openedAt, executedAt: call.executedAt, region: call.region })),
+      sample: candidates.slice(0, 12).map(({ rowNumber, call }) => ({ rowNumber, orderNumber: call.orderNumber, type: call.type, status: call.status, openedAt: call.openedAt, executedAt: call.executedAt, region: call.region, technicianName: call.technicianName })),
       expiresAt: new Date(expiresAt).toISOString(),
     });
   } catch (error) {
@@ -586,6 +598,8 @@ app.post('/api/importacoes/acionamentos-historicos/:previewId/confirmar', auth, 
     return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
   }
   if (!isSupabaseConfigured() && !shouldUseLocalDatabase()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no sistema conectado ao banco de producao.' });
+  const unmatchedTechnicians = [...new Set(pending.candidates.filter((candidate) => candidate.call.technicianName && !candidate.call.technicianId).map((candidate) => candidate.call.technicianName!))];
+  if (unmatchedTechnicians.length) return response.status(409).json({ message: `Cadastre ou corrija os tecnicos antes de confirmar a importacao: ${unmatchedTechnicians.join(', ')}.` });
   try {
     const existingIdentifiers = await findExistingCallIdentifiers();
     const toInsert = pending.candidates.map((candidate) => candidate.call).filter((call) => ![call.orderNumber, call.officeTrack, call.bdesk].filter(Boolean).some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier))));

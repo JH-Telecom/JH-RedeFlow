@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import XLSX from 'xlsx';
-import type { Call } from '../types.js';
+import type { Call, Technician } from '../types.js';
 import { extractOperationalData } from '../integrations/wuzapi/client.js';
 import { analyzeOperationalMessage } from '../integrations/wuzapi/semantic.js';
 import { resolveOltRegion } from '../integrations/wuzapi/noc-consolidation.js';
@@ -49,6 +49,16 @@ function resolveHeaderIndex(headers: string[], aliases: readonly string[]) {
 
 export function normalizeHistoricalIdentifier(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function normalizeTechnicianName(value: string) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+export function findHistoricalTechnician(name: string, technicians: Technician[]) {
+  const normalizedName = normalizeTechnicianName(name);
+  const matches = technicians.filter((technician) => technician.teamRole === 'Tecnico' && normalizeTechnicianName(technician.name) === normalizedName);
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function parseWorkbookDate(value: unknown): string | undefined {
