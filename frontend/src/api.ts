@@ -14,6 +14,7 @@ export type CallAuditLog = { id: string; callId: string; userId: string; userNam
 export type Activation = { id: string; source: string; originalMessage: string; receivedAt: string; status: 'Pendente' | 'Processando' | 'Aceito' | 'Recusado'; extractedData: Record<string, string>; analysis?: Record<string, unknown>; decisionBy?: string; decisionAt?: string; createdCallId?: string; rejectionReason?: string };
 export type ImportRecord = { id: string; fileName: string; fileType: 'csv' | 'xlsx'; sheetName: string; columns: string[]; preview: Record<string, string>[]; totalRows: number; validRows: number; errors: string[]; status: 'Previsualizada' | 'Confirmada' | 'Falhou'; importedBy: string; createdAt: string };
 export type HistoricalActivationImportPreview = { previewId: string; fileName: string; sheetName: string; target: string; canWrite: boolean; totalRows: number; parsedRows: number; importableRows: number; alreadyInSystem: number; duplicatesWithinFile: number; conflictingOrderRows: number; conflicts: { orderNumber: string; rows: { rowNumber: number; openedAt: string; assignedAt?: string; executedAt: string }[] }[]; missingOpeningDate: number; missingFinishedDate: number; missingOrder: number; missingReason: number; missingOlt: number; missingTechnician: number; unmatchedTechnicians: string[]; omittedLongNeighborhood: number; omittedLongSlotPon: number; byType: Record<string, number>; sample: { rowNumber: number; orderNumber: string; type: string; status: CallStatus; openedAt: string; executedAt?: string; region: string; technicianName?: string }[] };
+export type CurrentCallsImportPreview = { previewId: string; fileName: string; sheetName: string; target: string; canWrite: boolean; totalRows: number; parsedRows: number; importableRows: number; alreadyInSystem: number; duplicateRows: number; invalidRows: number[]; missingFinishRows: number[]; ignoredFinishRows: number[]; unmatchedTechnicians: string[]; byStatus: Partial<Record<CallStatus, number>>; sample: { rowNumber: number; orderNumber: string; status: CallStatus; openedAt: string; executedAt?: string; region: string; technicianName?: string }[] };
 export type D0BaseSummary = { fileName?: string; rowCount: number; uploadedBy?: string; uploadedAt?: string };
 export type DashboardMetrics = { receivedToday: number; open: number; unassigned: number; inProgress: number; finished: number; cancelled: number; pendingActivations: number; byStatus: { label: string; value: number }[]; byRegion: { label: string; value: number }[]; byNeighborhood: { label: string; value: number }[]; byTechnician: { label: string; value: number }[]; byType: { label: string; value: number }[] };
 export type ManualProductionRecord = { activityType: string; technician: string; status: string; order: string; inicio: string; tempo: string };
@@ -75,9 +76,9 @@ export const api = {
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
   updateSupervisor: (id: string, data: { userId?: string | null; name?: string; region?: string; active?: boolean }) => request<{ supervisor: Supervisor }>(`/api/supervisores/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  calls: (status?: CallStatus, filters: CallListQuery = {}) => {
+  calls: (status?: CallStatus | CallStatus[], filters: CallListQuery = {}) => {
     const params = new URLSearchParams();
-    if (status) params.set('status', status);
+    if (status) params.set('status', Array.isArray(status) ? status.join(',') : status);
     if (filters.from) params.set('from', filters.from);
     if (filters.to) params.set('to', filters.to);
     if (filters.teamScope) params.set('teamScope', 'true');
@@ -114,6 +115,8 @@ export const api = {
   syncGoogleDrive: () => request<{ sync: { files: number; rows: number; updated: number; skipped: number; errors: string[] } }>('/api/integrations/google-drive/sync', { method: 'POST' }),
   previewHistoricalActivationImport: (fileName: string, contentBase64: string) => request<HistoricalActivationImportPreview>('/api/importacoes/acionamentos-historicos/preview', { method: 'POST', body: JSON.stringify({ fileName, contentBase64 }) }),
   confirmHistoricalActivationImport: (previewId: string) => request<{ imported: number; skippedAlreadyPresent: number; fileName: string }>(`/api/importacoes/acionamentos-historicos/${encodeURIComponent(previewId)}/confirmar`, { method: 'POST' }),
+  previewCurrentCallsImport: (fileName: string, contentBase64: string) => request<CurrentCallsImportPreview>('/api/importacoes/chamados-atuais/preview', { method: 'POST', body: JSON.stringify({ fileName, contentBase64 }) }),
+  confirmCurrentCallsImport: (previewId: string) => request<{ imported: number; skippedAlreadyPresent: number; fileName: string }>(`/api/importacoes/chamados-atuais/${encodeURIComponent(previewId)}/confirmar`, { method: 'POST' }),
   createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUser: (id: string, data: { name?: string; email?: string; roleId?: string; active?: boolean; password?: string }) => request<{ user: User }>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteUser: (id: string) => request<{ deleted: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),

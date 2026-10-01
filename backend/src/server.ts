@@ -3,12 +3,13 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, listActivations, listAuditLogs, listCalls, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics } from './igp.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
+import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
@@ -26,6 +27,8 @@ const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://1
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 type PendingHistoricalImport = { userId: string; fileName: string; candidates: HistoricalActivationCandidate[]; expiresAt: number };
 const pendingHistoricalImports = new Map<string, PendingHistoricalImport>();
+type PendingCurrentCallsImport = { userId: string; fileName: string; candidates: CurrentCallsCandidate[]; expiresAt: number };
+const pendingCurrentCallsImports = new Map<string, PendingCurrentCallsImport>();
 const processedWebhookMessages = new Map<string, { activationId: string; expiresAt: number }>();
 const webhookDeduplicationWindowMs = 24 * 60 * 60 * 1000;
 const loginAttemptWindowMs = 15 * 60 * 1000;
@@ -356,9 +359,10 @@ app.patch('/api/supervisores/:id', auth, requirePermission('supervisors.edit'), 
   return response.json({ supervisor });
 });
 app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
-  const status = request.query.status;
+  const rawStatus = request.query.status;
   const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar'];
-  if (status && !validStatuses.includes(String(status) as CallStatus)) return response.status(400).json({ message: 'Status de chamado invalido.' });
+  const statuses = (Array.isArray(rawStatus) ? rawStatus.flatMap((value) => String(value).split(',')) : typeof rawStatus === 'string' ? rawStatus.split(',') : []).map((value) => value.trim()).filter(Boolean);
+  if (statuses.some((status) => !validStatuses.includes(status as CallStatus))) return response.status(400).json({ message: 'Status de chamado invalido.' });
   const page = Math.max(1, Number(request.query.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Number(request.query.pageSize ?? 50)));
   const search = typeof request.query.search === 'string' ? request.query.search.trim() : undefined;
@@ -377,7 +381,7 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
     : 'desc';
   try {
     const scopedQuery = await getScopedCallQuery(request, request.query.teamScope === 'true');
-    const matchingCalls = await listCalls(status as CallStatus | undefined, { ...scopedQuery, search, region, neighborhood, sort, direction });
+    const matchingCalls = await listCalls(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, search, region, neighborhood, sort, direction });
     const olts = [...new Set(matchingCalls.map((call) => call.olt.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
     const filteredCalls = olt ? matchingCalls.filter((call) => call.olt.trim().toLocaleUpperCase() === olt.toLocaleUpperCase()) : matchingCalls;
     const total = filteredCalls.length;
@@ -549,6 +553,87 @@ app.post('/api/importacoes/d0', auth, requirePermission('imports.create'), async
 app.delete('/api/importacoes/d0', auth, requirePermission('imports.create'), async (_request, response) => {
   try { return response.json({ deleted: await clearD0Base(), base: await getD0BaseSummary() }); }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel limpar a base D-0.' }); }
+});
+app.post('/api/importacoes/chamados-atuais/preview', auth, requirePermission('imports.create'), requirePermission('calls.create'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ fileName: z.string().trim().min(1).max(255), contentBase64: z.string().min(1) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie uma planilha de chamados atuais valida.' });
+  try {
+    const buffer = Buffer.from(parsed.data.contentBase64, 'base64');
+    if (!buffer.length || buffer.length > 10 * 1024 * 1024) return response.status(413).json({ message: 'A planilha deve ter ate 10 MB.' });
+    const result = parseCurrentCallsWorkbook(parsed.data.fileName, buffer);
+    const groups = new Map<string, CurrentCallsCandidate[]>();
+    for (const candidate of result.candidates) {
+      const key = normalizeHistoricalIdentifier(candidate.call.orderNumber);
+      const group = groups.get(key) || [];
+      group.push(candidate);
+      groups.set(key, group);
+    }
+    const duplicateRows = [...groups.values()].filter((group) => group.length > 1).reduce((total, group) => total + group.length, 0);
+    const uniqueCandidates = [...groups.values()].filter((group) => group.length === 1).map((group) => group[0]);
+    const existingIdentifiers = await findExistingCallIdentifiers();
+    const candidates = uniqueCandidates.filter((candidate) => !candidate.identifiers.some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier))));
+    const registeredTechnicians = await listTechnicians();
+    const unmatchedTechnicians = new Set<string>();
+    for (const candidate of candidates) {
+      const name = candidate.call.technicianName;
+      if (!name) continue;
+      const technician = findHistoricalTechnician(name, registeredTechnicians);
+      if (technician) {
+        candidate.call.technicianId = technician.id;
+        candidate.call.technicianName = technician.name;
+      } else unmatchedTechnicians.add(name);
+    }
+    const alreadyInSystem = uniqueCandidates.length - candidates.length;
+    const previewId = crypto.randomUUID();
+    const expiresAt = Date.now() + 30 * 60 * 1000;
+    for (const [id, pending] of pendingCurrentCallsImports) if (pending.expiresAt < Date.now()) pendingCurrentCallsImports.delete(id);
+    pendingCurrentCallsImports.set(previewId, { userId: request.authUser!.id, fileName: parsed.data.fileName, candidates, expiresAt });
+    const canWrite = isSupabaseConfigured() || shouldUseLocalDatabase();
+    const target = isSupabaseConfigured() ? 'Supabase ativo' : shouldUseLocalDatabase() ? 'PostgreSQL local' : 'Demo em memoria';
+    const byStatus: Record<string, number> = {};
+    candidates.forEach(({ call }) => { byStatus[call.status] = (byStatus[call.status] || 0) + 1; });
+    return response.json({
+      previewId,
+      fileName: parsed.data.fileName,
+      sheetName: result.sheetName,
+      target,
+      canWrite,
+      totalRows: result.totalRows,
+      parsedRows: result.candidates.length,
+      importableRows: candidates.length,
+      alreadyInSystem,
+      duplicateRows,
+      invalidRows: result.invalidRows,
+      missingFinishRows: result.missingFinishRows,
+      ignoredFinishRows: result.ignoredFinishRows,
+      unmatchedTechnicians: [...unmatchedTechnicians].sort((left, right) => left.localeCompare(right)),
+      byStatus,
+      sample: candidates.slice(0, 12).map(({ rowNumber, call }) => ({ rowNumber, orderNumber: call.orderNumber, status: call.status, openedAt: call.openedAt, executedAt: call.executedAt, region: call.region, technicianName: call.technicianName })),
+      expiresAt: new Date(expiresAt).toISOString(),
+    });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel analisar a planilha de chamados atuais.' });
+  }
+});
+app.post('/api/importacoes/chamados-atuais/:previewId/confirmar', auth, requirePermission('imports.create'), requirePermission('calls.create'), async (request: AuthRequest, response) => {
+  const previewId = String(request.params.previewId);
+  const pending = pendingCurrentCallsImports.get(previewId);
+  if (!pending || pending.userId !== request.authUser!.id || pending.expiresAt < Date.now()) {
+    pendingCurrentCallsImports.delete(previewId);
+    return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
+  }
+  if (!isSupabaseConfigured() && !shouldUseLocalDatabase()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no ambiente conectado ao banco de destino.' });
+  const unmatchedTechnicians = [...new Set(pending.candidates.filter((candidate) => candidate.call.technicianName && !candidate.call.technicianId).map((candidate) => candidate.call.technicianName!))];
+  if (unmatchedTechnicians.length) return response.status(409).json({ message: `Cadastre ou corrija os tecnicos antes de confirmar a importacao: ${unmatchedTechnicians.join(', ')}.` });
+  try {
+    const existingIdentifiers = await findExistingCallIdentifiers();
+    const toInsert = pending.candidates.filter((candidate) => !candidate.identifiers.some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier)))).map((candidate) => candidate.call);
+    const imported = await insertWorkbookCalls(toInsert, 'Importacao de chamados atuais');
+    pendingCurrentCallsImports.delete(previewId);
+    return response.json({ imported, skippedAlreadyPresent: pending.candidates.length - imported, fileName: pending.fileName });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel importar os chamados atuais.' });
+  }
 });
 app.post('/api/importacoes/acionamentos-historicos/preview', auth, requirePermission('imports.create'), requirePermission('calls.create'), async (request: AuthRequest, response) => {
   const parsed = z.object({ fileName: z.string().trim().min(1).max(255), contentBase64: z.string().min(1) }).safeParse(request.body);

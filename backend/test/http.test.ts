@@ -100,6 +100,57 @@ test('call list searches by OLT and filters without collapsing OLT options', asy
   assert.ok(filtered.olts.includes('VIP-CT1-SPO-OHW-01'));
 });
 
+test('call list filters a status set before paginating', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { authorization: `Bearer ${session.token}` };
+  const allResponse = await fetch(`${baseUrl}/api/chamados?pageSize=100`, { headers });
+  const all = await allResponse.json() as { calls: Array<{ id: string; status: string }> };
+  const closedResponse = await fetch(`${baseUrl}/api/chamados?status=Finalizado,Cancelado,Baixar&pageSize=100`, { headers });
+  const closed = await closedResponse.json() as { calls: Array<{ id: string; status: string }> };
+
+  assert.equal(closedResponse.status, 200);
+  assert.ok(closed.calls.every((call) => ['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)));
+  assert.deepEqual(closed.calls.map((call) => call.id), all.calls.filter((call) => ['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)).map((call) => call.id));
+});
+
+test('current-call workbook preview maps statuses and blocks demo confirmation', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['STATUS', 'ORDEM', 'TÉCNICO', 'DATA EVENTO', 'ACIONAMENTO', 'EQUIPAMENTO', 'AREA', 'DATA FIM', 'PLACA', 'PON'],
+    ['Finalizado', 'OS-CURRENT-1', 'carlos mendes', '01/10/2026 08:30', '', 'VIP-GRU-3-SPO-ONK-01', 'GUARULHOS', '01/10/2026 10:00', 'PLACA-1', '3'],
+    ['Pendente', 'OS-CURRENT-2', '', '01/10/2026 09:00', '', '', 'SÃO PAULO', '01/10/2026 11:00', '', ''],
+    ['Baixar', 'OS-CURRENT-3', '', '01/10/2026 10:00', '', '', 'SÃO PAULO', '', '', ''],
+  ]), 'Planilha1');
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const previewResponse = await fetch(`${baseUrl}/api/importacoes/chamados-atuais/preview`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ fileName: 'chamados-atuais.xlsx', contentBase64: buffer.toString('base64') }),
+  });
+  const preview = await previewResponse.json() as { previewId: string; canWrite: boolean; importableRows: number; byStatus: Record<string, number>; unmatchedTechnicians: string[]; sample: Array<{ technicianName?: string }> };
+  assert.equal(previewResponse.status, 200);
+  assert.equal(preview.canWrite, false);
+  assert.equal(preview.importableRows, 3);
+  assert.deepEqual(preview.byStatus, { Finalizado: 1, Aberto: 1, Baixar: 1 });
+  assert.deepEqual(preview.unmatchedTechnicians, []);
+  assert.equal(preview.sample[0]?.technicianName, 'Carlos Mendes');
+
+  const confirmResponse = await fetch(`${baseUrl}/api/importacoes/chamados-atuais/${preview.previewId}/confirmar`, { method: 'POST', headers });
+  assert.equal(confirmResponse.status, 409);
+});
+
 test('historical import preview links the spreadsheet technician to a registered technician', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

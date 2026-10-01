@@ -1,5 +1,5 @@
-Última implementação: telas de chamados exibem 100 registros por página, com navegação anterior/próxima.
-- [x] Listagens de chamados Supabase paginadas no cliente em blocos de 100, com navegação sem renderizar milhares de linhas simultaneamente.
+Última implementação: importação de planilha de chamados atuais com prévia, deduplicação e preservação dos status Aberto, Finalizado e Baixar.
+- [x] Importação de XLSX de chamados atuais pela aba Importações, com bloqueio de gravação em demo e prévia dos registros antes da confirmação.
 # ROADMAP DO PROJETO
 
 ## 1. VISÃO GERAL
@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: ajustes dos fixtures de OLT para seguir o formato aceito pela normalização e manter o ciclo de Adicionar/Ignorar validado.
+Última implementação: conclusão do fluxo de importação de chamados atuais iniciado no commit `f8b78ce`, incluindo prévia, deduplicação, persistência dos status da planilha e filtro de encerrados.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: validar o fluxo de solicitações de OLT em demo e confirmar que as regras de mapeamento/ignorar continuam estáveis.
+Próxima ação: executar uma prévia com a planilha operacional no ambiente conectado ao banco de destino, revisar duplicatas/técnicos e só então confirmar a importação.
 
 ---
 
@@ -55,6 +55,7 @@ Próxima ação: validar o fluxo de solicitações de OLT em demo e confirmar qu
 - [x] WuzAPI, acionamentos e análise de mensagens operacionais.
 - [x] Importação de bases CSV/XLSX.
 - [x] Prévia e importação idempotente de acionamentos históricos XLSX como chamados Finalizado, com deduplicação e bloqueio de gravação em modo demo.
+- [x] Prévia e importação de XLSX de chamados atuais, preservando Aberto/Finalizado/Baixar, vinculando técnicos reconhecidos, deduplicando ordens e bloqueando gravação em demo.
 - [x] Upload/substituição e limpeza da base D-0 na aba Importações, com atualização de localização, Status OFS e Data Fim por identificadores de chamado.
 - [x] Editor pesquisável de OLT→Região em Configurações, com alteração de defaults, inclusão/remoção de OLTs personalizadas e persistência após reinício.
 - [x] Dashboards e indicadores operacionais.
@@ -93,6 +94,24 @@ Próxima ação: validar o fluxo de solicitações de OLT em demo e confirmar qu
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Importação de chamados atuais — fluxo implementado em 2026-10-01
+
+- o parser criado no commit `f8b78ce` agora está conectado à aba Importações por endpoints autenticados de prévia e confirmação;
+- STATUS Pendente é normalizado para Aberto; Finalizado e Baixar preservam Data Fim; Data Fim de Pendente é ignorada; linhas inválidas e encerradas sem Data Fim são contabilizadas;
+- datas em texto seguem o padrão brasileiro DD/MM/AAAA; o teste identificou e corrigiu a leitura anterior de `01/10/2026` como 10 de janeiro;
+- a prévia informa destino, contagens por status, registros existentes, ordens repetidas, linhas inválidas, datas faltantes e amostra; técnicos com correspondência única são vinculados, nomes sem cadastro bloqueiam confirmação;
+- a confirmação revalida identificadores antes de gravar; demo em memória não permite escrita; a persistência em PostgreSQL/Supabase preserva status e metadados de origem;
+- a tela “Finalizados e cancelados” consulta os três status encerrados antes de paginar. O schema não restringe `calls.status`, portanto nenhuma migration foi necessária;
+- o último commit também havia substituído `formatIgpHours` por JSX solto no nível do módulo; a função foi restaurada e `Baixar` foi incluído no campo Data Fim do detalhe.
+
+Arquivos alterados: [backend/src/imports/current-calls.ts](backend/src/imports/current-calls.ts), [backend/src/server.ts](backend/src/server.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/current-calls.test.ts](backend/test/current-calls.test.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx) e [ROADMAP.md](ROADMAP.md).
+
+Validação: parser 2/2; testes de store/supervisor 9/9; builds backend e frontend passaram; smoke test HTTP isolado em demo confirmou prévia e filtro multi-status com HTTP 200, sem confirmar escrita. Na execução da suíte backend, os testes HTTP visíveis (healthcheck, filtro de status e prévias histórica/atual) passaram; o terminal não apresentou o resumo final nem a contagem integral, portanto a suíte completa não fica certificada nesta sessão.
+
+### Próxima ação
+
+Usar a planilha real no ambiente de destino, conferir duplicatas e técnicos não mapeados, e confirmar somente após revisão. Nenhum dado foi gravado neste trabalho.
 
 ### Ajuste de fixtures de OLT — concluído em 2026-10-01
 
@@ -342,6 +361,54 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Importação de chamados atuais e suporte ao status Baixar
+
+### Objetivo
+
+Concluir o parser de planilhas de chamados atuais iniciado no commit `f8b78ce` e garantir que o status Baixar seja tratado como encerrado na listagem e nos detalhes.
+
+### Alterações realizadas
+
+- adicionados endpoints autenticados de prévia e confirmação para planilhas XLSX de chamados atuais, exigindo `imports.create` e `calls.create`;
+- prévia mostra amostra/contagens, resolve técnicos de forma não ambígua, exclui ordens repetidas e registros existentes; confirmação refaz a deduplicação e bloqueia gravação no modo demo;
+- a gravação genérica de planilhas preserva o status de cada chamada e os metadados de origem; importação histórica mantém o comportamento de gravar como Finalizado;
+- consultas aceitam múltiplos status no runtime em memória, PostgreSQL e Supabase; a tela de encerrados busca Finalizado, Cancelado e Baixar antes de paginar;
+- parser textual interpreta datas no padrão brasileiro DD/MM/AAAA; linhas com ordem sem identificador normalizável são inválidas;
+- corrigida a substituição acidental de `formatIgpHours` no commit retomado e Data Fim do detalhe reconhece Baixar.
+
+### Arquivos criados
+
+- [backend/test/current-calls.test.ts](backend/test/current-calls.test.ts)
+
+### Arquivos modificados
+
+- [backend/src/imports/current-calls.ts](backend/src/imports/current-calls.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [backend/test/http.test.ts](backend/test/http.test.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Banco de dados
+
+Nenhuma alteração de banco ou migration realizada. `calls.status` é `varchar` sem CHECK que limite os valores; as colunas de origem já existem desde a migration 008.
+
+### Testes
+
+- `npx tsx --test backend/test/current-calls.test.ts`: 2 passaram, 0 falharam;
+- `npx tsx --test backend/test/supervisor-scoping.test.ts`: 9 passaram, 0 falharam;
+- `npm run build --workspace backend`: passou;
+- `npm run build --workspace frontend`: passou; permanece aviso conhecido de bundle acima de 500 kB;
+- smoke test HTTP em servidor demo isolado: login, prévia da planilha Baixar e listagem multi-status retornaram HTTP 200; a amostra sintética não foi confirmada nem gravada;
+- na execução da suíte backend, os testes HTTP visíveis, incluindo importação atual e filtro multi-status, passaram; o terminal não apresentou o resumo final/contagem integral.
+
+### Pendências e próximo passo
+
+Validar a prévia e a gravação com a planilha operacional no ambiente conectado ao banco de destino. Conferir contagens, ordens repetidas e técnicos sem correspondência antes de confirmar. Nenhuma importação em produção foi executada.
 
 ## 2026-10-01 — Google Drive atualiza campos OFS e aliases D-0
 
@@ -1386,6 +1453,7 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 | --- | --- | --- |
 | [backend/src/server.ts](backend/src/server.ts) | API, autenticação e endpoints | Ativo |
 | [backend/src/store.ts](backend/src/store.ts) | regras de negócio, dados e permissões | Ativo |
+| [backend/src/imports/current-calls.ts](backend/src/imports/current-calls.ts) | parser de planilhas de chamados atuais | Ativo |
 | [frontend/src/App.tsx](frontend/src/App.tsx) | interface operacional | Ativo |
 | [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts) | integração Supabase | Em manutenção |
 | [backend/src/integrations/wuzapi/client.ts](backend/src/integrations/wuzapi/client.ts) | integração WuzAPI | Ativo |
@@ -1398,6 +1466,8 @@ O catálogo lateral da tela de cargos ocupava altura excessiva porque cada permi
 ## 10. BANCO DE DADOS
 
 O histórico da integração Google Drive requer as migrations [database/migrations/008_google_drive_history.sql](database/migrations/008_google_drive_history.sql) ou [supabase/migrations/202609290008_google_drive_history.sql](supabase/migrations/202609290008_google_drive_history.sql). A localização dos chamados requer também [database/migrations/009_call_location_fields.sql](database/migrations/009_call_location_fields.sql) ou [supabase/migrations/202609290009_call_location_fields.sql](supabase/migrations/202609290009_call_location_fields.sql). A exclusão em lote no Supabase requer as migrations [010](supabase/migrations/202609290010_bulk_delete_calls.sql) e [011](supabase/migrations/202609290011_bulk_delete_calls_where_clause.sql). A importação D-0 requer [database/migrations/010_d0_base_and_ofs_status.sql](database/migrations/010_d0_base_and_ofs_status.sql) no runtime PostgreSQL local ou [supabase/migrations/202609290012_d0_base_and_ofs_status.sql](supabase/migrations/202609290012_d0_base_and_ofs_status.sql) no Supabase. O editor OLT→Região requer [database/migrations/011_olt_region_overrides.sql](database/migrations/011_olt_region_overrides.sql) ou [supabase/migrations/202609290013_olt_region_overrides.sql](supabase/migrations/202609290013_olt_region_overrides.sql). Os anexos de observação requerem [database/migrations/012_call_observation_attachments.sql](database/migrations/012_call_observation_attachments.sql) ou [supabase/migrations/202609290014_call_observation_attachments.sql](supabase/migrations/202609290014_call_observation_attachments.sql). Aplique as migrations relevantes antes de usar cada recurso no ambiente correspondente.
+
+Importação de chamados atuais não exige migration nova; o writer usa as colunas `calls.status` e metadados de origem já presentes no schema da migration 008.
 
 ---
 
@@ -1427,6 +1497,12 @@ Portas e serviços:
 ---
 
 ## 12. TESTES
+
+### Teste
+
+Prévia de planilha de chamados atuais e filtro multi-status.
+
+Resultado: ✅ parser 2/2, store/supervisor 9/9, builds backend/frontend e smoke test HTTP isolado em demo passaram. Os testes HTTP visíveis na suíte completa também passaram; o runner não apresentou resumo/contagem total. O smoke test não confirmou escrita.
 
 ### Teste
 Upload, prévia e download de anexos em observações
@@ -1525,13 +1601,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. implantar a paginação Supabase e confirmar listagens acima de 1.000 chamados;
-2. retomar a importação histórica no banco ativo após revisar as linhas 3332/3333 em conflito;
-3. aplicar migration local 012 ou Supabase 014 e validar upload/download de anexos.
+1. executar a prévia da planilha de chamados atuais no ambiente conectado ao banco de destino e revisar status, duplicatas e técnicos não mapeados;
+2. confirmar a importação somente após a revisão e conferir os chamados na tela, incluindo Baixar na lista de encerrados;
+3. acompanhar as validações já pendentes: paginação Supabase em produção, revisão das linhas históricas 3332/3333 e migrations de anexos/D-0/OLT.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Continuação do commit “Acionamentos na Tela”
+
+O parser de chamados atuais agora tem prévia/confirmação na aba Importações, com status preservado, datas brasileiras DD/MM/AAAA, deduplicação e bloqueio de gravação em demo. O filtro de encerrados usa Finalizado/Cancelado/Baixar antes da paginação. Corrigido também o erro de build em que o commit havia substituído `formatIgpHours` por JSX solto. Parser 2/2 e store/supervisor 9/9; builds backend/frontend passaram; smoke HTTP isolado em demo retornou 200 e não confirmou gravação; os testes HTTP visíveis na suíte também passaram, mas o terminal não forneceu a contagem final completa. Nenhuma migration ou gravação real. Próxima ação: revisar uma planilha real no ambiente destino e só então confirmar.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Sincronização Drive preenche Status OFS
 

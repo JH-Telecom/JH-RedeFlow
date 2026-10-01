@@ -55,6 +55,7 @@ import {
   type IgpMetrics,
   type ImportRecord,
   type HistoricalActivationImportPreview,
+  type CurrentCallsImportPreview,
   type D0BaseSummary,
   type OltRegionMapping,
   type OltRegionRequest,
@@ -443,7 +444,7 @@ function Shell({
             <Route path="/acionamentos" element={<ActivationsPage />} />
             <Route path="/painel-diario" element={<ManualProductionDashboard />} />
             <Route path="/igp" element={<IGPPage />} />
-            <Route path="/importacoes" element={<><D0ImportPanel /><HistoricalActivationImportPanel /><ImportsPage /></>} />
+            <Route path="/importacoes" element={<><D0ImportPanel /><CurrentCallsImportPanel /><HistoricalActivationImportPanel /><ImportsPage /></>} />
             <Route path="/chamados/:id" element={<CallDetailRoute />} />
             <Route path="/tecnicos" element={<TechniciansPage />} />
             <Route path="/supervisores" element={<SupervisorsPage user={user} />} />
@@ -467,7 +468,7 @@ function formatIgpPercent(value: number | null) {
   return value === null ? "-" : `${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
-            <DetailItem label="Data Fim" value={( ["Finalizado", "Cancelado", "Baixar"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
+function formatIgpHours(value: number | null) {
   return value === null ? "-" : `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h`;
 }
 
@@ -1644,6 +1645,81 @@ function ManualProductionDashboard() {
   );
 }
 
+function CurrentCallsImportPanel() {
+  const [preview, setPreview] = useState<CurrentCallsImportPreview | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [importedMessage, setImportedMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function selectCurrentCallsFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setPreview(null);
+    setImportedMessage("");
+    setError("");
+    try {
+      const contentBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+        reader.onerror = () => reject(new Error("Nao foi possivel ler o arquivo."));
+        reader.readAsDataURL(file);
+      });
+      setPreview(await api.previewCurrentCallsImport(file.name, contentBase64));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel preparar a previa.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmCurrentCallsImport() {
+    if (!preview?.canWrite || !preview.importableRows || preview.unmatchedTechnicians.length) return;
+    const accepted = window.confirm(`Importar ${preview.importableRows.toLocaleString("pt-BR")} chamados com os status da planilha em ${preview.target}? Os registros ja existentes e as ordens repetidas serao ignorados.`);
+    if (!accepted) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api.confirmCurrentCallsImport(preview.previewId);
+      setImportedMessage(`${result.imported.toLocaleString("pt-BR")} chamados importados; ${result.skippedAlreadyPresent.toLocaleString("pt-BR")} ja existiam ou foram ignorados.`);
+      setPreview(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel importar os chamados.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="panel historical-import-panel">
+    <div className="panel-heading">
+      <div><span className="section-kicker">BASE OPERACIONAL</span><h2>Importar chamados atuais</h2><p>Pré-visualize a planilha antes de inserir os chamados e seus status.</p></div>
+      <label className={`primary-button compact file-button ${busy ? "is-disabled" : ""}`}><ClipboardList size={15}/>{busy ? "Analisando..." : "Selecionar XLSX"}<input type="file" accept=".xlsx,.xls" onChange={(event) => void selectCurrentCallsFile(event)} disabled={busy}/></label>
+    </div>
+    {error && <div className="form-error import-error">{error}</div>}
+    {importedMessage && <div className="save-message import-message">{importedMessage}</div>}
+    {preview && <div className="historical-import-review">
+      <div className={`historical-import-target ${preview.canWrite ? "is-ready" : "is-demo"}`}><strong>Destino: {preview.target}</strong><span>{preview.canWrite ? "A confirmação gravará os chamados neste banco." : "Esta instância não grava no banco ativo; use o ambiente conectado ao banco de destino."}</span></div>
+      <div className="historical-import-stats">
+        <span><b>{preview.totalRows.toLocaleString("pt-BR")}</b> linhas na planilha</span>
+        <span><b>{preview.importableRows.toLocaleString("pt-BR")}</b> novas</span>
+        <span><b>{preview.alreadyInSystem.toLocaleString("pt-BR")}</b> já existentes</span>
+        <span><b>{preview.duplicateRows.toLocaleString("pt-BR")}</b> em ordens repetidas</span>
+        <span><b>{preview.invalidRows.length.toLocaleString("pt-BR")}</b> inválidas</span>
+        <span><b>{preview.missingFinishRows.length.toLocaleString("pt-BR")}</b> sem data fim</span>
+      </div>
+      <p className="historical-import-note">Status importados: {Object.entries(preview.byStatus).map(([status, count]) => `${status} ${count}`).join(" · ") || "nenhum"}. Pendente vira Aberto; Data Fim de chamados abertos é ignorada.</p>
+      {preview.invalidRows.length > 0 && <p className="historical-import-warning">Linhas inválidas ignoradas: {preview.invalidRows.slice(0, 20).join(", ")}{preview.invalidRows.length > 20 ? "…" : ""}.</p>}
+      {preview.missingFinishRows.length > 0 && <p className="historical-import-warning">Chamados Finalizado/Baixar sem Data Fim: {preview.missingFinishRows.slice(0, 20).join(", ")}{preview.missingFinishRows.length > 20 ? "…" : ""}. Eles serão importados sem Data Fim.</p>}
+      {preview.ignoredFinishRows.length > 0 && <p className="historical-import-note">Data Fim ignorada para chamados Pendente nas linhas {preview.ignoredFinishRows.slice(0, 20).join(", ")}{preview.ignoredFinishRows.length > 20 ? "…" : ""}.</p>}
+      {preview.unmatchedTechnicians.length > 0 && <p className="historical-import-warning">Técnicos não cadastrados: {preview.unmatchedTechnicians.join(", ")}. Cadastre-os ou corrija os nomes antes de importar.</p>}
+      {preview.duplicateRows > 0 && <p className="historical-import-warning">Todas as linhas de ordens repetidas dentro da planilha foram excluídas para evitar importação ambígua.</p>}
+      <div className="historical-import-table import-table-wrap"><table><thead><tr><th>Linha</th><th>Ordem</th><th>Status</th><th>Abertura</th><th>Data Fim</th><th>Técnico</th><th>Região</th></tr></thead><tbody>{preview.sample.map((item) => <tr key={`${item.rowNumber}-${item.orderNumber}`}><td>{item.rowNumber}</td><td>{item.orderNumber}</td><td>{item.status}</td><td>{new Date(item.openedAt).toLocaleString("pt-BR")}</td><td>{item.executedAt ? new Date(item.executedAt).toLocaleString("pt-BR") : "-"}</td><td>{item.technicianName || "-"}</td><td>{item.region}</td></tr>)}</tbody></table></div>
+      <button className="primary-button compact confirm-import" type="button" onClick={() => void confirmCurrentCallsImport()} disabled={busy || !preview.canWrite || !preview.importableRows || preview.unmatchedTechnicians.length > 0}>{busy ? "Importando..." : `Importar ${preview.importableRows.toLocaleString("pt-BR")} chamados`}<ChevronRight size={16}/></button>
+    </div>}
+  </section>;
+}
+
 function HistoricalActivationImportPanel() {
   const [preview, setPreview] = useState<HistoricalActivationImportPreview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -2317,7 +2393,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
   async function refreshCalls() {
     setLoading(true);
     try {
-      const requestStatus = statusFilter === "Todos" ? (closedOnly ? undefined : status) : statusFilter;
+      const requestStatus = statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : status) : statusFilter;
       const data = await api.calls(requestStatus, {
         from: dateRange.from,
         to: dateRange.to,
@@ -2343,7 +2419,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
 
   useEffect(() => {
     let active = true;
-    const requestStatus = statusFilter === "Todos" ? (closedOnly ? undefined : status) : statusFilter;
+    const requestStatus = statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : status) : statusFilter;
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
@@ -2611,7 +2687,7 @@ function CallDetailBase() {
             <DetailItem label="Abertura" value={new Date(call.openedAt).toLocaleString("pt-BR")} />
             <DetailItem label="Status interno" value={status} />
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
-            <DetailItem label="Data Fim" value={(["Finalizado", "Cancelado"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
+            <DetailItem label="Data Fim" value={( ["Finalizado", "Cancelado", "Baixar"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
           </div>
           <label className="detail-label">
             Observacoes

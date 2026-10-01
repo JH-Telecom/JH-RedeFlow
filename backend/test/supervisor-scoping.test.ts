@@ -118,6 +118,35 @@ test('supervisor users resolve to their own team and can only see their calls', 
   }
 });
 
+test('call listing accepts a set of statuses without including open calls', async () => {
+  const previousRuntime = process.env.REDEFLOW_RUNTIME;
+  const previousDemoData = process.env.REDEFLOW_DEMO_DATA;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+  const previousSupabaseAnon = process.env.SUPABASE_ANON_KEY;
+  const previousSupabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  try {
+    process.env.REDEFLOW_RUNTIME = 'local';
+    process.env.REDEFLOW_DEMO_DATA = 'true';
+    process.env.SUPABASE_URL = '';
+    process.env.SUPABASE_ANON_KEY = '';
+    process.env.SUPABASE_SERVICE_ROLE_KEY = '';
+
+    const allCalls = await listCalls();
+    const closedStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
+    const closedCalls = await listCalls([...closedStatuses]);
+
+    assert.ok(allCalls.some((call) => !closedStatuses.includes(call.status as typeof closedStatuses[number])));
+    assert.deepEqual(closedCalls.map((call) => call.id), allCalls.filter((call) => closedStatuses.includes(call.status as typeof closedStatuses[number])).map((call) => call.id));
+  } finally {
+    if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;
+    if (previousDemoData === undefined) delete process.env.REDEFLOW_DEMO_DATA; else process.env.REDEFLOW_DEMO_DATA = previousDemoData;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = previousSupabaseUrl;
+    if (previousSupabaseAnon === undefined) delete process.env.SUPABASE_ANON_KEY; else process.env.SUPABASE_ANON_KEY = previousSupabaseAnon;
+    if (previousSupabaseServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = previousSupabaseServiceRole;
+  }
+});
+
 test('historical date filters use execution date for finished calls and dashboard metrics', async () => {
   const previousRuntime = process.env.REDEFLOW_RUNTIME;
   const previousDemoData = process.env.REDEFLOW_DEMO_DATA;

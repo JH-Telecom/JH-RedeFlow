@@ -819,7 +819,10 @@ export async function updateSupervisor(id: string, input: { userId?: string | nu
   supervisors.set(id, updated);
   return updated;
 }
-export type CallQuery = { from?: string; to?: string; supervisorId?: string; status?: CallStatus; search?: string; region?: string; neighborhood?: string; olt?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
+export type CallQuery = { from?: string; to?: string; supervisorId?: string; status?: CallStatus | CallStatus[]; search?: string; region?: string; neighborhood?: string; olt?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
+function matchesCallStatus(status: CallStatus, filter?: CallStatus | CallStatus[]) {
+  return !filter || (Array.isArray(filter) ? filter : [filter]).includes(status);
+}
 function callReferenceDate(call: Call) {
   return (['Finalizado', 'Cancelado', 'Baixar'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt).slice(0, 10);
 }
@@ -857,13 +860,13 @@ export async function getSupervisorIdForUser(userId: string): Promise<string | u
   }
   return [...supervisors.values()].find((item) => item.userId === userId)?.id;
 }
-export async function listCalls(status?: CallStatus, query: CallQuery = {}): Promise<Call[]> {
+export async function listCalls(status?: CallStatus | CallStatus[], query: CallQuery = {}): Promise<Call[]> {
   ensureDemoData();
   const baseStatus = status ?? query.status;
   const baseQuery = { ...query, status: baseStatus };
   if (isSupabaseConfigured()) {
     const rows = await listSupabaseCalls(baseStatus, { from: baseQuery.from, to: baseQuery.to, supervisorId: baseQuery.supervisorId });
-    return sortCalls(rows.filter((call) => matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && (!baseQuery.status || call.status === baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
+    return sortCalls(rows.filter((call) => matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -871,17 +874,17 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
       `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.address, c.bairro, c.ofs_status, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, c.source, c.source_identity, c.source_identifiers, c.source_file_id, c.source_file_name, c.source_reference_date, c.source_fingerprint, c.source_processed_at, latest_observation.created_at AS last_observation_at
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
        LEFT JOIN LATERAL (SELECT created_at FROM call_observations WHERE call_id = c.id ORDER BY created_at DESC LIMIT 1) latest_observation ON true
-      WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
-      [baseStatus ?? null, baseQuery.from ?? null, baseQuery.to ?? null, baseQuery.supervisorId ?? null],
+      WHERE ($1::text[] IS NULL OR c.status = ANY($1::text[])) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
+      [baseStatus ? (Array.isArray(baseStatus) ? baseStatus : [baseStatus]) : null, baseQuery.from ?? null, baseQuery.to ?? null, baseQuery.supervisorId ?? null],
     );
     const rows = result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', ofsStatus: row.ofs_status ?? undefined, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
-    return sortCalls(rows.filter((call) => matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && (!baseQuery.status || call.status === baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
+    return sortCalls(rows.filter((call) => matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
   const rows = [...calls.values()].map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
     return { ...call, lastObservationAt };
   }).filter((call) => {
-    if (baseStatus && call.status !== baseStatus) return false;
+    if (!matchesCallStatus(call.status, baseStatus)) return false;
     if (!isCallInDateRange(call, baseQuery)) return false;
     if (baseQuery.region && call.region !== baseQuery.region) return false;
     if (baseQuery.neighborhood && call.bairro !== baseQuery.neighborhood) return false;
@@ -935,13 +938,13 @@ export async function findExistingCallIdentifiers(): Promise<Set<string>> {
   return identifiers;
 }
 
-export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<number> {
-  if (!historicalCalls.length) return 0;
-  await captureUnknownOltRequests(historicalCalls.map((call) => call.olt), 'Importacao historica');
+export async function insertWorkbookCalls(importedCalls: Call[], sourceLabel: string): Promise<number> {
+  if (!importedCalls.length) return 0;
+  await captureUnknownOltRequests(importedCalls.map((call) => call.olt), sourceLabel);
   if (isSupabaseConfigured()) {
     let inserted = 0;
-    for (let from = 0; from < historicalCalls.length; from += 250) {
-      const batch = historicalCalls.slice(from, from + 250).map((call) => ({
+    for (let from = 0; from < importedCalls.length; from += 250) {
+      const batch = importedCalls.slice(from, from + 250).map((call) => ({
         id: call.id,
         order_number: call.orderNumber,
         bdesk: call.bdesk || null,
@@ -956,13 +959,20 @@ export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<nu
         technician_id: call.technicianId || null,
         olt: call.olt || null,
         slot_pon: call.slotPon || null,
-        status: 'Finalizado',
+        status: call.status,
         opened_at: call.openedAt,
         assigned_at: call.assignedAt || null,
         executed_at: call.executedAt || null,
         result: call.result || null,
         notes: call.notes,
         cancellation_reason: null,
+        source: call.source || null,
+        source_identity: call.sourceIdentity || null,
+        source_identifiers: call.sourceIdentifiers || [],
+        source_file_name: call.sourceFileName || null,
+        source_reference_date: call.sourceReferenceDate || null,
+        source_fingerprint: call.sourceFingerprint || null,
+        source_processed_at: call.sourceProcessedAt || null,
       }));
       const { data, error } = await getSupabaseAdmin().from('calls').upsert(batch, { onConflict: 'id', ignoreDuplicates: true }).select('id');
       if (error) throw new Error(error.message || 'Nao foi possivel importar chamados historicos.');
@@ -975,10 +985,10 @@ export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<nu
     let inserted = 0;
     try {
       await client.query('BEGIN');
-      for (let from = 0; from < historicalCalls.length; from += 150) {
-        const batch = historicalCalls.slice(from, from + 150);
-        const columns = ['id', 'order_number', 'bdesk', 'office_track', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'technician_id', 'olt', 'slot_pon', 'status', 'opened_at', 'assigned_at', 'executed_at', 'result', 'notes', 'cancellation_reason'];
-        const values = batch.flatMap((call) => [call.id, call.orderNumber, call.bdesk || null, call.officeTrack || null, call.client || 'Cliente nao identificado', call.type, call.reason, call.region, call.city || null, call.address || null, call.bairro || null, call.technicianId || null, call.olt || null, call.slotPon || null, 'Finalizado', call.openedAt, call.assignedAt || null, call.executedAt || null, call.result || null, call.notes, null]);
+      for (let from = 0; from < importedCalls.length; from += 150) {
+        const batch = importedCalls.slice(from, from + 150);
+        const columns = ['id', 'order_number', 'bdesk', 'office_track', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'technician_id', 'olt', 'slot_pon', 'status', 'opened_at', 'assigned_at', 'executed_at', 'result', 'notes', 'cancellation_reason', 'source', 'source_identity', 'source_identifiers', 'source_file_name', 'source_reference_date', 'source_fingerprint', 'source_processed_at'];
+        const values = batch.flatMap((call) => [call.id, call.orderNumber, call.bdesk || null, call.officeTrack || null, call.client || 'Cliente nao identificado', call.type, call.reason, call.region, call.city || null, call.address || null, call.bairro || null, call.technicianId || null, call.olt || null, call.slotPon || null, call.status, call.openedAt, call.assignedAt || null, call.executedAt || null, call.result || null, call.notes, null, call.source || null, call.sourceIdentity || null, JSON.stringify(call.sourceIdentifiers || []), call.sourceFileName || null, call.sourceReferenceDate || null, call.sourceFingerprint || null, call.sourceProcessedAt || null]);
         const tuples = batch.map((_, rowIndex) => `(${columns.map((__, columnIndex) => `$${rowIndex * columns.length + columnIndex + 1}`).join(', ')})`).join(', ');
         const result = await client.query(`INSERT INTO calls (${columns.join(', ')}) VALUES ${tuples} ON CONFLICT (id) DO NOTHING`, values);
         inserted += result.rowCount || 0;
@@ -992,12 +1002,16 @@ export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<nu
   }
   ensureDemoData();
   let inserted = 0;
-  historicalCalls.forEach((call) => {
+  importedCalls.forEach((call) => {
     if (calls.has(call.id)) return;
-    calls.set(call.id, { ...call, status: 'Finalizado' });
+    calls.set(call.id, call);
     inserted += 1;
   });
   return inserted;
+}
+
+export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<number> {
+  return insertWorkbookCalls(historicalCalls.map((call) => ({ ...call, status: 'Finalizado' })), 'Importacao historica');
 }
 
 export type DriveCallSource = { identity: string; identifiers: string[]; fileId: string; fileName: string; referenceDate?: string; fingerprint: string; payload: Record<string, string> };

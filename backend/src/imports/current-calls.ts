@@ -37,8 +37,8 @@ function parseWorkbookDate(value: unknown): string | undefined {
   const second = Number(match[2]);
   const yearValue = Number(match[3]);
   const year = yearValue < 100 ? (yearValue >= 70 ? 1900 + yearValue : 2000 + yearValue) : yearValue;
-  const month = first > 12 ? second : first;
-  const day = first > 12 ? first : second;
+  const month = second;
+  const day = first;
   const date = new Date(Date.UTC(year, month - 1, day, Number(match[4] || 0) + 3, Number(match[5] || 0), Number(match[6] || 0)));
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined;
   return date.toISOString();
@@ -92,7 +92,7 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
     const rawOrder = getCell(row, indexes, 'ORDEM');
     const orderNumber = typeof rawOrder === 'number' && Number.isSafeInteger(rawOrder) ? String(rawOrder) : String(rawOrder ?? '').trim();
     const openedAt = parseWorkbookDate(getCell(row, indexes, 'DATA EVENTO', 'DATA DE ABERTURA'));
-    if (!status || !orderNumber || !openedAt) {
+    if (!status || !orderNumber || !normalizeIdentifier(orderNumber) || !openedAt) {
       invalidRows.push(rowNumber);
       return;
     }
