@@ -30,6 +30,8 @@ export type HistoricalActivationPreview = {
   missingReason: number;
   missingOlt: number;
   missingTechnician: number;
+  omittedLongNeighborhood: number;
+  omittedLongSlotPon: number;
   byType: Record<string, number>;
 };
 
@@ -97,7 +99,7 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
   const messageColumn = column('acionamento');
   const totalRows = rows.slice(headerIndex + 1).filter((row) => String(row[messageColumn] ?? '').trim()).length;
   const groups = new Map<string, HistoricalActivationCandidate[]>();
-  const missing = { missingOpeningDate: 0, missingFinishedDate: 0, missingOrder: 0, missingReason: 0, missingOlt: 0, missingTechnician: 0 };
+  const missing = { missingOpeningDate: 0, missingFinishedDate: 0, missingOrder: 0, missingReason: 0, missingOlt: 0, missingTechnician: 0, omittedLongNeighborhood: 0, omittedLongSlotPon: 0 };
   const byType: Record<string, number> = {};
 
   rows.slice(headerIndex + 1).forEach((row, index) => {
@@ -129,6 +131,12 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
     const identifiers = [...new Set([analysis.os_ot, analysis.office_track, analysis.os_casa_cliente, analysis.bdesk, analysis.ticket, analysis.contrato, orderNumber]
       .filter((item): item is string => Boolean(item?.trim())))];
     const olt = analysis.olt || legacy.olt || '';
+    const extractedBairro = analysis.bairro_principal || '';
+    const extractedSlotPon = analysis.slot_pon?.join(', ') || legacy.slotPon || '';
+    const bairro = extractedBairro.length <= 160 ? extractedBairro : '';
+    const slotPon = extractedSlotPon.length <= 255 ? extractedSlotPon : '';
+    if (extractedBairro.length > 160) missing.omittedLongNeighborhood += 1;
+    if (extractedSlotPon.length > 255) missing.omittedLongSlotPon += 1;
     const identity = `legacy-activation:${orderKey}`;
     const rowNumber = headerIndex + index + 2;
     const rowFingerprint = fingerprint([message.replace(/\s+/g, ' ').trim(), openedAt, executedAt]);
@@ -143,9 +151,9 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
       region: resolveOltRegion(olt).region || legacy.region || 'Nao informada',
       city: legacy.city || '',
       address: analysis.endereco_principal || '',
-      bairro: analysis.bairro_principal || '',
+      bairro,
       olt,
-      slotPon: analysis.slot_pon?.join(', ') || legacy.slotPon || '',
+      slotPon,
       status: 'Finalizado',
       openedAt,
       assignedAt: parseWorkbookDate(activationColumn >= 0 ? row[activationColumn] : undefined),

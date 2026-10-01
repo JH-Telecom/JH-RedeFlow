@@ -344,6 +344,7 @@ Adicionar chamados antigos da planilha de acionamentos finalizados ao sistema at
 - os chamados são preparados como `Finalizado`; abertura, acionamento e fim são preservados, O.S. OT vira a chave primária e OLT é mapeada para Região quando possível;
 - a tela Importações fornece prévia agregada, amostra segura, contagem de chamadas existentes, duplicatas internas/conflitos, campos faltantes e ambiente de destino;
 - confirmação exige permissões de importação e criação de chamados, revalida duplicatas, usa IDs determinísticos e só grava em PostgreSQL/Supabase configurado; demo em memória bloqueia gravação;
+- valores derivados de Bairro acima de `varchar(160)` e Slot/PON acima de `varchar(255)` não são enviados aos campos curtos; a mensagem operacional original permanece nas observações e as omissões aparecem na prévia;
 - a planilha atualizada, aba Planilha1: 3.724 linhas; todas com Data Abertura/Data-Fim/O.S. OT; 3.722 candidatas; duas linhas da O.S. `602156053150102` divergem em abertura/acionamento e são excluídas até revisão (linhas 3332/3333); faltam 75 motivos e 211 OLTs;
 - a prévia no workspace demo mostra 3.722 importáveis, zero existentes no dataset demo e as duas linhas conflitantes com suas datas; o botão de gravação fica desabilitado em demo;
 - o workspace não tem conexão ao banco ativo. Nenhum chamado foi gravado em produção e nenhuma migration nova foi criada.
@@ -365,6 +366,7 @@ Adicionar chamados antigos da planilha de acionamentos finalizados ao sistema at
 - `npx.cmd tsx --test backend/test/historical-activations.test.ts`: 4 passaram, 0 falharam;
 - build backend e frontend passaram; build mantém aviso conhecido de bundle > 500 kB;
 - teste browser da planilha atualizada mostrou destino `Demo em memória`, 3.722 novas, 0 existentes no conjunto demo e botão de gravação desabilitado;
+- inspeção dos 3.724 candidatos encontrou 7 bairros >160 e 14 Slot/PON >255; a proteção foi adicionada para impedir falhas de insert sem truncar silenciosamente o texto original;
 - conflito das linhas 3332/3333 agora é exibido na prévia com O.S. e datas, sem mostrar mensagem, telefone ou outros dados pessoais;
 - importação em produção ainda não foi executada: é necessário publicar/conectar o backend ao banco ativo.
 
@@ -1439,7 +1441,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Importação histórica de chamados
 
-O importador está implementado em **Importações**, mas nenhum chamado foi gravado: o workspace não tem conexão de produção e o runtime demo bloqueia confirmação. A prévia do XLSX atualizado mostrou 3.724 linhas, 3.722 candidatas, 0 já existentes no dataset demo, 2 linhas conflitantes da O.S. `602156053150102` (3332/3333; abertura/acionamento diferentes), nenhuma data/O.S. obrigatória ausente, 75 sem motivo e 211 sem OLT. Quatro testes do parser e builds backend/frontend passaram. Publicar/configurar produção, revisar a exceção, conferir a deduplicação no banco ativo e só então confirmar.
+O importador está implementado em **Importações**, mas nenhum chamado foi gravado: o workspace não tem conexão de produção e o runtime demo bloqueia confirmação. A prévia do XLSX atualizado mostrou 3.724 linhas, 3.722 candidatas, 0 já existentes no dataset demo, 2 linhas conflitantes da O.S. `602156053150102` (3332/3333; abertura/acionamento diferentes), nenhuma data/O.S. obrigatória ausente, 75 sem motivo e 211 sem OLT. Sete bairros ultrapassam `varchar(160)` e 14 Slot/PON ultrapassam `varchar(255)`; esses campos ficam vazios no registro estruturado e o texto original é mantido em notes. Quatro testes do parser e builds backend/frontend passaram. Publicar/configurar produção, revisar a exceção, conferir a deduplicação no banco ativo e só então confirmar.
 
 O teste da rota usou a sessão e o dataset demo em memória; backend foi reiniciado depois e a base de teste foi descartada. Nenhuma alteração de banco/schema.
 

@@ -516,6 +516,8 @@ app.post('/api/importacoes/acionamentos-historicos/preview', auth, requirePermis
       missingReason: result.missingReason,
       missingOlt: result.missingOlt,
       missingTechnician: result.missingTechnician,
+      omittedLongNeighborhood: result.omittedLongNeighborhood,
+      omittedLongSlotPon: result.omittedLongSlotPon,
       byType: result.byType,
       sample: candidates.slice(0, 12).map(({ rowNumber, call }) => ({ rowNumber, orderNumber: call.orderNumber, type: call.type, status: call.status, openedAt: call.openedAt, executedAt: call.executedAt, region: call.region })),
       expiresAt: new Date(expiresAt).toISOString(),
