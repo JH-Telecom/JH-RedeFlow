@@ -821,7 +821,7 @@ export async function updateSupervisor(id: string, input: { userId?: string | nu
 }
 export type CallQuery = { from?: string; to?: string; supervisorId?: string; status?: CallStatus; search?: string; region?: string; neighborhood?: string; olt?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 function callReferenceDate(call: Call) {
-  return (['Finalizado', 'Cancelado'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt).slice(0, 10);
+  return (['Finalizado', 'Cancelado', 'Baixar'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt).slice(0, 10);
 }
 function isCallInDateRange(call: Call, query: CallQuery) {
   const referenceDate = callReferenceDate(call);
@@ -871,7 +871,7 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
       `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.address, c.bairro, c.ofs_status, c.olt, c.slot_pon, c.status, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, c.source, c.source_identity, c.source_identifiers, c.source_file_id, c.source_file_name, c.source_reference_date, c.source_fingerprint, c.source_processed_at, latest_observation.created_at AS last_observation_at
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
        LEFT JOIN LATERAL (SELECT created_at FROM call_observations WHERE call_id = c.id ORDER BY created_at DESC LIMIT 1) latest_observation ON true
-      WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
+      WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
       [baseStatus ?? null, baseQuery.from ?? null, baseQuery.to ?? null, baseQuery.supervisorId ?? null],
     );
     const rows = result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', ofsStatus: row.ofs_status ?? undefined, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
@@ -1195,7 +1195,7 @@ export async function listNotifications(includeOperational = true) {
   const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string }[];
   if (includeOperational) {
     const currentCalls = isSupabaseConfigured() || shouldUseLocalDatabase() ? await listCalls() : [...calls.values()];
-    const unassigned = currentCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status));
+    const unassigned = currentCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado', 'Baixar'].includes(call.status));
     if (unassigned.length) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned.length} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos' });
   }
   const currentActivations = isSupabaseConfigured() || shouldUseLocalDatabase() ? await listActivations() : [...activations.values()];
@@ -1228,7 +1228,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
     if (!current) return undefined;
-    if (['Finalizado', 'Cancelado'].includes(current.status) && actor.roleId !== 'system') return undefined;
+    if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system') return undefined;
     input = prepareCallUpdate(current, input);
     const client = await getDatabaseClient();
     const sets: string[] = [];
@@ -1533,7 +1533,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
   if (isSupabaseConfigured()) {
     const current = await getCall(id);
     if (!current) return { missing: ['Chamado nao encontrado'] };
-    if (['Finalizado', 'Cancelado'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
+    if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
     const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
     if (missing.length) return { missing };
     const call = await finishSupabaseCall(id, input, actor);
@@ -1542,13 +1542,13 @@ export async function finishCall(id: string, input: { result: string; executedAt
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
     if (!current) return { missing: ['Chamado nao encontrado'] };
-    if (['Finalizado', 'Cancelado'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
+    if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
     const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
     if (missing.length) return { missing };
     const client = await getDatabaseClient();
     try {
       await client.query('BEGIN');
-      const result = await client.query<{ id: string }>(`UPDATE calls SET result = $1, executed_at = $2, notes = $3, status = 'Finalizado', updated_at = now() WHERE id = $4 AND status NOT IN ('Finalizado', 'Cancelado') RETURNING id`, [input.result, input.executedAt, input.notes, id]);
+      const result = await client.query<{ id: string }>(`UPDATE calls SET result = $1, executed_at = $2, notes = $3, status = 'Finalizado', updated_at = now() WHERE id = $4 AND status NOT IN ('Finalizado', 'Cancelado', 'Baixar') RETURNING id`, [input.result, input.executedAt, input.notes, id]);
       if (!result.rows[0]) { await client.query('ROLLBACK'); return { missing: ['Chamado ja encerrado'] }; }
       const updated = await getCall(id);
       if (!updated) { await client.query('ROLLBACK'); return { missing: ['Chamado nao encontrado'] }; }
@@ -1566,7 +1566,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
   }
   const current = calls.get(id);
   if (!current) return { missing: ['Chamado nao encontrado'] };
-  if (['Finalizado', 'Cancelado'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
+  if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
   const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
   if (missing.length) return { missing };
   const updated = { ...current, ...input, status: 'Finalizado' as const };
@@ -1585,11 +1585,11 @@ export async function cancelCall(id: string, reason: string, actor: User): Promi
   if (isSupabaseConfigured()) return await cancelSupabaseCall(id, reason, actor);
   if (shouldUseLocalDatabase()) {
     const current = await getCall(id);
-    if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+    if (!current || ['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
     const client = await getDatabaseClient();
     try {
       await client.query('BEGIN');
-      const result = await client.query<{ id: string }>(`UPDATE calls SET status = 'Cancelado', cancellation_reason = $1, updated_at = now() WHERE id = $2 AND status NOT IN ('Finalizado', 'Cancelado') RETURNING id`, [reason, id]);
+      const result = await client.query<{ id: string }>(`UPDATE calls SET status = 'Cancelado', cancellation_reason = $1, updated_at = now() WHERE id = $2 AND status NOT IN ('Finalizado', 'Cancelado', 'Baixar') RETURNING id`, [reason, id]);
       if (!result.rows[0]) { await client.query('ROLLBACK'); return undefined; }
       const updated = await getCall(id);
       if (!updated) { await client.query('ROLLBACK'); return undefined; }
@@ -1603,7 +1603,7 @@ export async function cancelCall(id: string, reason: string, actor: User): Promi
   }
   const current = calls.get(id);
   if (!current) return undefined;
-  if (['Finalizado', 'Cancelado'].includes(current.status) && actor.roleId !== 'system') return undefined;
+  if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system') return undefined;
   const updated = { ...current, status: 'Cancelado' as const, cancellationReason: reason };
   calls.set(id, updated);
   const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado cancelado', field: 'cancellationReason', previousValue: '', newValue: reason, createdAt: new Date().toISOString() };
@@ -1613,7 +1613,7 @@ export async function cancelCall(id: string, reason: string, actor: User): Promi
 export async function reopenCall(id: string, actor: User): Promise<Call | undefined> {
   if (isSupabaseConfigured()) return await reopenSupabaseCall(id, actor);
   const current = calls.get(id);
-  if (!current || !['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
+  if (!current || !['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
   const updated = { ...current, status: 'Aberto' as const, result: undefined, executedAt: undefined, cancellationReason: undefined };
   calls.set(id, updated);
   const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado reaberto', field: 'status', previousValue: current.status, newValue: 'Aberto', createdAt: new Date().toISOString() };

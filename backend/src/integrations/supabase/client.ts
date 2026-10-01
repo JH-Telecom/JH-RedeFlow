@@ -163,9 +163,9 @@ export async function listSupabaseCalls(status?: CallStatus, filters: { from?: s
     const from = filters.from ? `${filters.from}T00:00:00.000Z` : undefined;
     const upperBound = filters.to ? new Date(Date.parse(`${filters.to}T00:00:00.000Z`) + 86400000).toISOString() : undefined;
     const bounds = (column: string) => [from ? `${column}.gte.${from}` : '', upperBound ? `${column}.lt.${upperBound}` : ''].filter(Boolean);
-    const closedExecution = ['status.in.(Finalizado,Cancelado)', ...bounds('executed_at')];
-    const closedOpeningFallback = ['status.in.(Finalizado,Cancelado)', 'executed_at.is.null', ...bounds('opened_at')];
-    const activeOpening = ['status.not.in.(Finalizado,Cancelado)', ...bounds('opened_at')];
+    const closedExecution = ['status.in.(Finalizado,Cancelado,Baixar)', ...bounds('executed_at')];
+    const closedOpeningFallback = ['status.in.(Finalizado,Cancelado,Baixar)', 'executed_at.is.null', ...bounds('opened_at')];
+    const activeOpening = ['status.not.in.(Finalizado,Cancelado,Baixar)', ...bounds('opened_at')];
     query = query.or([closedExecution, closedOpeningFallback, activeOpening].map((terms) => `and(${terms.join(',')})`).join(','));
   }
   if (filters.supervisorId) query = query.eq('technicians.supervisor_id', filters.supervisorId);
@@ -185,8 +185,8 @@ export async function listSupabaseCalls(status?: CallStatus, filters: { from?: s
 
 export async function finishSupabaseCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
-  if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
-  const { data, error } = await getSupabaseAdmin().from('calls').update({ result: input.result, executed_at: input.executedAt, notes: input.notes, status: 'Finalizado', updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
+  if (!current || ['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
+  const { data, error } = await getSupabaseAdmin().from('calls').update({ result: input.result, executed_at: input.executedAt, notes: input.notes, status: 'Finalizado', updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado,Baixar)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const labels: Record<string, string> = { status: 'Status', result: 'Resultado', executedAt: 'Data de execucao', notes: 'Observacoes' };
@@ -199,8 +199,8 @@ export async function finishSupabaseCall(id: string, input: { result: string; ex
 
 export async function cancelSupabaseCall(id: string, reason: string, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
-  if (!current || ['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
-  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Cancelado', cancellation_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado)').select('id').maybeSingle();
+  if (!current || ['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
+  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Cancelado', cancellation_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado,Baixar)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Motivo de cancelamento alterado', field: 'cancellationReason', previous_value: current.cancellationReason || '', new_value: reason });
@@ -210,8 +210,8 @@ export async function cancelSupabaseCall(id: string, reason: string, actor: { id
 
 export async function reopenSupabaseCall(id: string, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
-  if (!current || !['Finalizado', 'Cancelado'].includes(current.status)) return undefined;
-  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Aberto', cancellation_reason: null, result: null, executed_at: null, updated_at: new Date().toISOString() }).eq('id', id).in('status', ['Finalizado', 'Cancelado']).select('id').maybeSingle();
+  if (!current || !['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
+  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Aberto', cancellation_reason: null, result: null, executed_at: null, updated_at: new Date().toISOString() }).eq('id', id).in('status', ['Finalizado', 'Cancelado', 'Baixar']).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Status alterado', field: 'status', previous_value: current.status, new_value: 'Aberto' });
@@ -221,7 +221,7 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
 
 export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; executedAt?: string | null; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
   const current = (await listSupabaseCalls()).find((call) => call.id === id);
-  if (!current || (['Finalizado', 'Cancelado'].includes(current.status) && actor.roleId !== 'system')) return undefined;
+  if (!current || (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system')) return undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
   for (const field of Object.keys(databaseFields)) {

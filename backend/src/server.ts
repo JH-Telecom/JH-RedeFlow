@@ -357,7 +357,7 @@ app.patch('/api/supervisores/:id', auth, requirePermission('supervisors.edit'), 
 });
 app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const status = request.query.status;
-  const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado'];
+  const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar'];
   if (status && !validStatuses.includes(String(status) as CallStatus)) return response.status(400).json({ message: 'Status de chamado invalido.' });
   const page = Math.max(1, Number(request.query.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Number(request.query.pageSize ?? 50)));
@@ -394,7 +394,7 @@ app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (reque
 });
 app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
   const optionalText = (max: number, min = 0) => z.preprocess((value) => value == null ? undefined : String(value), z.string().trim().min(min).max(max).optional());
-  const parsed = z.object({ orderNumber: optionalText(100, 1), bdesk: optionalText(100), officeTrack: optionalText(100), client: optionalText(180), type: optionalText(100), reason: optionalText(5000), region: optionalText(100), city: optionalText(100), address: optionalText(5000), bairro: optionalText(160), olt: optionalText(120), slotPon: optionalText(10000), status: z.preprocess((value) => value == null ? undefined : String(value), z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado']).optional()), technicianId: z.preprocess((value) => value == null || value === '' ? null : String(value), z.string().nullable().optional()), executedAt: z.preprocess((value) => value == null ? undefined : String(value), z.string().datetime().optional()), result: optionalText(255), notes: optionalText(5000) }).safeParse(request.body);
+  const parsed = z.object({ orderNumber: optionalText(100, 1), bdesk: optionalText(100), officeTrack: optionalText(100), client: optionalText(180), type: optionalText(100), reason: optionalText(5000), region: optionalText(100), city: optionalText(100), address: optionalText(5000), bairro: optionalText(160), olt: optionalText(120), slotPon: optionalText(10000), status: z.preprocess((value) => value == null ? undefined : String(value), z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar']).optional()), technicianId: z.preprocess((value) => value == null || value === '' ? null : String(value), z.string().nullable().optional()), executedAt: z.preprocess((value) => value == null ? undefined : String(value), z.string().datetime().optional()), result: optionalText(255), notes: optionalText(5000) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: `Dados de chamado invalidos: ${parsed.error.issues.map((issue) => issue.path.join('.') || 'payload').join(', ')}.` });
   const technicians = await listTechnicians();
   if (parsed.data.technicianId && !technicians.some((technician) => technician.id === parsed.data.technicianId && technician.teamRole === 'Tecnico' && technician.active)) return response.status(422).json({ message: 'Somente tecnicos ativos podem receber chamados.' });
@@ -430,7 +430,7 @@ app.delete('/api/chamados/:id', auth, requirePermission('calls.delete'), async (
 });
 app.post('/api/chamados/:id/reabrir', auth, requirePermission('calls.reopen'), async (request: AuthRequest, response) => {
   const call = await reopenCall(String(request.params.id), request.authUser!);
-  if (!call) return response.status(409).json({ message: 'Somente chamados finalizados ou cancelados podem ser reabertos.' });
+  if (!call) return response.status(409).json({ message: 'Somente chamados finalizados, cancelados ou marcados para baixar podem ser reabertos.' });
   return response.json({ call });
 });
 app.get('/api/chamados/:id/observacoes', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
@@ -458,7 +458,7 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
   if (totalBytes > 10 * 1024 * 1024) return response.status(413).json({ message: 'O total de anexos por observacao nao pode ultrapassar 10 MB.' });
   const existing = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
   if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
-  if (['Finalizado', 'Cancelado'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
+  if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
   return response.status(201).json({ observation: await addObservation(String(request.params.id), request.authUser!, parsed.data.text, decodedAttachments) });
 });
 app.get('/api/chamados/:id/observacoes/:observationId/anexos/:attachmentId', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {

@@ -65,7 +65,7 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   const region = value(row, 'Região', 'Regiao', 'Região Operacional', 'Regiao Operacional');
   const olt = value(row, 'OLT', 'OLT de atendimento');
   const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
-  const isClosed = call.status === 'Finalizado' || call.status === 'Cancelado';
+  const isClosed = call.status === 'Finalizado' || call.status === 'Cancelado' || call.status === 'Baixar';
   const clientName = call.type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('field') ? value(row, 'Nome', 'Nome do Cliente', 'Cliente') : '';
   const executedAt = isClosed ? parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) : null;
   if (address) fields.address = address;

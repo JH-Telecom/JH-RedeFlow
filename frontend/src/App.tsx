@@ -467,7 +467,7 @@ function formatIgpPercent(value: number | null) {
   return value === null ? "-" : `${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
-function formatIgpHours(value: number | null) {
+            <DetailItem label="Data Fim" value={( ["Finalizado", "Cancelado", "Baixar"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
   return value === null ? "-" : `${value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h`;
 }
 
@@ -2392,7 +2392,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
     return () => { active = false; };
   }, [status, assignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage]);
 
-  const currentCalls = calls.map((call) => (["Finalizado", "Cancelado"].includes(call.status) ? call : { ...call, executedAt: null }));
+  const currentCalls = calls.map((call) => (["Finalizado", "Cancelado", "Baixar"].includes(call.status) ? call : { ...call, executedAt: null }));
   const firstVisibleCall = totalCalls ? (callsPage - 1) * CALLS_PAGE_SIZE + 1 : 0;
   const lastVisibleCall = totalCalls ? Math.min(callsPage * CALLS_PAGE_SIZE, totalCalls) : 0;
   const regions = [...new Set(calls.map((call) => call.region).filter(Boolean))];
@@ -2443,7 +2443,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
             <span className="result-count">{totalCalls} resultados</span>
           </div>
         </div>
-        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option></> : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><select className="toolbar-select" value={oltFilter} onChange={(event) => setOltFilter(event.target.value)}><option value="Todas">Todas as OLTs</option>{[...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])].map((olt) => <option key={olt} value={olt}>{olt}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
+        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></> : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><select className="toolbar-select" value={oltFilter} onChange={(event) => setOltFilter(event.target.value)}><option value="Todas">Todas as OLTs</option>{[...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])].map((olt) => <option key={olt} value={olt}>{olt}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
@@ -2948,7 +2948,7 @@ function CallOutcomeActions() {
       setSaving(false);
     }
   }
-  const closed = call ? ["Finalizado", "Cancelado"].includes(call.status) : false;
+  const closed = call ? ["Finalizado", "Cancelado", "Baixar"].includes(call.status) : false;
   return (
     <section className="panel outcome-panel">
       <div className="panel-heading">
