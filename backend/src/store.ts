@@ -714,14 +714,23 @@ export async function addTechnician(input: Omit<Technician, 'id' | 'supervisorNa
   technicians.set(technician.id, technician);
   return { ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined };
 }
-export async function updateTechnician(id: string, input: { supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null }): Promise<Technician | undefined> {
+export async function updateTechnician(id: string, input: { name?: string; registration?: string; region?: string; shift?: string; supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null }): Promise<Technician | undefined> {
   ensureDemoData();
+  if (input.registration !== undefined) {
+    const registration = input.registration.trim().toLocaleUpperCase();
+    const duplicate = (await listTechnicians()).find((technician) => technician.id !== id && technician.registration.trim().toLocaleUpperCase() === registration);
+    if (duplicate) throw new Error('Esta matricula ja esta cadastrada.');
+  }
   if (isSupabaseConfigured()) return await updateSupabaseTechnician(id, input);
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
+    if (input.name !== undefined) { sets.push(`name = $${index++}`); values.push(input.name); }
+    if (input.registration !== undefined) { sets.push(`registration = $${index++}`); values.push(input.registration); }
+    if (input.region !== undefined) { sets.push(`region = $${index++}`); values.push(input.region); }
+    if (input.shift !== undefined) { sets.push(`shift = $${index++}`); values.push(input.shift); }
     if (input.supervisorId !== undefined) { sets.push(`supervisor_id = $${index++}`); values.push(input.supervisorId || null); }
     if (input.currentStatus) { sets.push(`current_status = $${index++}`); values.push(input.currentStatus); }
     if (input.active !== undefined) { sets.push(`active = $${index++}`); values.push(input.active); sets.push(`active_override = true`); }

@@ -207,6 +207,35 @@ test('only active technicians can receive calls and their status can change', as
   assert.equal(saveResponse.status, 200);
 });
 
+test('admin can edit technician profile fields', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const response = await fetch(`${baseUrl}/api/tecnicos/tech-bruno`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+    body: JSON.stringify({ name: 'Bruno Lima Atualizado', registration: 'TEC-1171-EDIT', region: 'Oeste', shift: '08:00 - 17:00' }),
+  });
+  const body = await response.json() as { technician: { name: string; registration: string; region: string; shift: string } };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.technician.name, 'Bruno Lima Atualizado');
+  assert.equal(body.technician.registration, 'TEC-1171-EDIT');
+  assert.equal(body.technician.region, 'Oeste');
+  assert.equal(body.technician.shift, '08:00 - 17:00');
+
+  const duplicateResponse = await fetch(`${baseUrl}/api/tecnicos/tech-bruno`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+    body: JSON.stringify({ registration: 'TEC-1042' }),
+  });
+  assert.equal(duplicateResponse.status, 422);
+  assert.match((await duplicateResponse.json() as { message: string }).message, /matricula ja esta cadastrada/i);
+});
+
 test('shares, replaces and clears the daily dashboard base', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

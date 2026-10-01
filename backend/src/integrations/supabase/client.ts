@@ -124,8 +124,12 @@ export async function createSupabaseTechnician(input: { supervisorId?: string; l
   return { id: data.id, supervisorId: data.supervisor_id || undefined, leadTechnicianId: data.lead_technician_id ?? undefined, name: data.name, registration: data.registration, supervisorName: supervisor?.name || undefined, region: data.region || '', shift: data.shift || '', currentStatus: data.current_status as 'Disponivel' | 'Em campo' | 'Indisponivel', active: data.active, activeOverride: data.active_override ?? false, teamRole: data.team_role as 'Tecnico' | 'Auxiliar' };
 }
 
-export async function updateSupabaseTechnician(id: string, input: { supervisorId?: string; currentStatus?: string; active?: boolean; teamRole?: string; leadTechnicianId?: string | null }) {
+export async function updateSupabaseTechnician(id: string, input: { name?: string; registration?: string; region?: string; shift?: string; supervisorId?: string; currentStatus?: string; active?: boolean; teamRole?: string; leadTechnicianId?: string | null }) {
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.name !== undefined) changes.name = input.name;
+  if (input.registration !== undefined) changes.registration = input.registration;
+  if (input.region !== undefined) changes.region = input.region;
+  if (input.shift !== undefined) changes.shift = input.shift;
   if (input.supervisorId !== undefined) changes.supervisor_id = input.supervisorId || null;
   if (input.currentStatus !== undefined) changes.current_status = input.currentStatus;
   if (input.active !== undefined) { changes.active = input.active; changes.active_override = true; }

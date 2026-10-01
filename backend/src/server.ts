@@ -310,11 +310,15 @@ app.post('/api/tecnicos', auth, requirePermission('technicians.create'), async (
   return response.status(201).json({ technician: await addTechnician(parsed.data) });
 });
 app.patch('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), async (request, response) => {
-  const parsed = z.object({ supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).optional(), leadTechnicianId: z.string().nullable().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
+  const parsed = z.object({ name: z.string().trim().min(2).max(160).optional(), registration: z.string().trim().min(2).max(80).optional(), region: z.string().trim().min(2).max(100).optional(), shift: z.string().trim().min(2).max(80).optional(), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).optional(), leadTechnicianId: z.string().nullable().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
-  const technician = await updateTechnician(String(request.params.id), parsed.data);
-  if (!technician) return response.status(404).json({ message: 'Tecnico nao encontrado.' });
-  return response.json({ technician });
+  try {
+    const technician = await updateTechnician(String(request.params.id), parsed.data);
+    if (!technician) return response.status(404).json({ message: 'Tecnico nao encontrado.' });
+    return response.json({ technician });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel atualizar o tecnico.' });
+  }
 });
 app.delete('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), async (request, response) => {
   const deleted = await deleteTechnician(String(request.params.id));
