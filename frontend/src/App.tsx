@@ -54,6 +54,7 @@ import {
   type HistoricalActivationImportPreview,
   type D0BaseSummary,
   type OltRegionMapping,
+  type OltRegionRequest,
 } from "./api";
 
 const operationalRegions = [
@@ -3238,8 +3239,12 @@ function SettingsPage() {
   const [mappingError, setMappingError] = useState("");
   const [mappingLoading, setMappingLoading] = useState(true);
   const [mappingSaving, setMappingSaving] = useState(false);
+  const [oltRequests, setOltRequests] = useState<OltRegionRequest[]>([]);
+  const [oltRequestRegions, setOltRequestRegions] = useState<Record<string, string>>({});
+  const [oltRequestActionId, setOltRequestActionId] = useState<string | null>(null);
   useEffect(() => { api.settings().then((data) => setSettings(data.settings)).catch((err) => setError(err.message)); }, []);
   useEffect(() => { api.oltRegionMappings().then((data) => setOltRegions(data.mappings)).catch((err) => setMappingError(err.message)).finally(() => setMappingLoading(false)); }, []);
+  useEffect(() => { api.oltRegionRequests().then((data) => setOltRequests(data.requests)).catch((err) => setMappingError(err.message)); }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
     try { const result = await api.updateSettings(settings); setSettings(result.settings); setMessage("Configuracoes salvas."); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar configuracoes."); }
@@ -3257,6 +3262,38 @@ function SettingsPage() {
       setMappingError(err instanceof Error ? err.message : "Nao foi possivel salvar o mapa de OLTs.");
     } finally {
       setMappingSaving(false);
+    }
+  }
+  async function addOltRequest(request: OltRegionRequest) {
+    const region = oltRequestRegions[request.id];
+    if (!region) return;
+    setOltRequestActionId(request.id);
+    setMappingError("");
+    setMappingMessage("");
+    try {
+      await api.acceptOltRegionRequest(request.id, region);
+      setOltRegions((current) => [...current.filter((item) => item.olt !== request.olt), { olt: request.olt, region }].sort((left, right) => left.olt.localeCompare(right.olt)));
+      setOltRequests((current) => current.filter((item) => item.id !== request.id));
+      setOltRequestRegions((current) => { const next = { ...current }; delete next[request.id]; return next; });
+      setMappingMessage(`OLT ${request.olt} adicionada ao mapa em ${region}.`);
+    } catch (err) {
+      setMappingError(err instanceof Error ? err.message : "Nao foi possivel adicionar a OLT.");
+    } finally {
+      setOltRequestActionId(null);
+    }
+  }
+  async function ignoreOltRequest(request: OltRegionRequest) {
+    setOltRequestActionId(request.id);
+    setMappingError("");
+    setMappingMessage("");
+    try {
+      await api.ignoreOltRegionRequest(request.id);
+      setOltRequests((current) => current.filter((item) => item.id !== request.id));
+      setMappingMessage(`Solicitação da OLT ${request.olt} ignorada.`);
+    } catch (err) {
+      setMappingError(err instanceof Error ? err.message : "Nao foi possivel ignorar a OLT.");
+    } finally {
+      setOltRequestActionId(null);
     }
   }
   function addOlt() {
@@ -3300,6 +3337,14 @@ function SettingsPage() {
           <button className="primary-button compact" type="submit" disabled={mappingSaving || mappingLoading}><Settings size={15}/>{mappingSaving ? "Salvando..." : "Salvar mapa"}</button>
         </div>
         <div className="settings-olt-toolbar"><label className="search-field"><Search size={16}/><input value={searchOlt} onChange={(event) => setSearchOlt(event.target.value)} placeholder="Buscar OLT ou Região" /></label><span>{filteredOltRegions.length} de {oltRegions.length} OLTs</span></div>
+        <section className="settings-olt-requests" aria-labelledby="settings-olt-requests-title">
+          <div className="settings-olt-requests-heading"><div><h3 id="settings-olt-requests-title">Solicitações de OLT desconhecidas</h3><p>Novas OLTs aguardam sua decisão; elas não entram no mapa automaticamente.</p></div><span>{oltRequests.length} pendentes</span></div>
+          {oltRequests.length > 0 ? <div className="settings-olt-request-list">{oltRequests.map((request) => <div className="settings-olt-request-row" key={request.id}>
+            <div className="settings-olt-request-details"><strong>{request.olt}</strong><small>{request.source} · {request.occurrences} ocorrência(s) · vista por último {new Date(request.lastSeenAt).toLocaleString("pt-BR")}</small></div>
+            <label className="settings-olt-request-region"><span>Região para adicionar</span><select aria-label={`Região para ${request.olt}`} value={oltRequestRegions[request.id] || ""} onChange={(event) => setOltRequestRegions((current) => ({ ...current, [request.id]: event.target.value }))}><option value="">Selecione uma região</option>{operationalRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></label>
+            <div className="settings-olt-request-actions"><button className="primary-button compact" type="button" onClick={() => void addOltRequest(request)} disabled={oltRequestActionId === request.id || !oltRequestRegions[request.id]}><Plus size={14}/>{oltRequestActionId === request.id ? "Salvando..." : "Adicionar"}</button><button className="secondary-button compact settings-olt-ignore" type="button" onClick={() => void ignoreOltRequest(request)} disabled={oltRequestActionId === request.id}>Ignorar</button></div>
+          </div>)}</div> : <div className="settings-olt-requests-empty">Nenhuma OLT desconhecida aguardando revisão.</div>}
+        </section>
         <div className="settings-olt-add">
           <label>Nova OLT<input value={newOlt} onChange={(event) => setNewOlt(event.target.value)} placeholder="Ex.: VIP-OLT-SPO-01" maxLength={120}/></label>
           <label>Região<select value={newOltRegion} onChange={(event) => setNewOltRegion(event.target.value)}>{operationalRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></label>

@@ -74,6 +74,7 @@ const activations = new Map<string, Activation>([
   ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
 ]);
 const imports = new Map<string, ImportRecord>();
+const oltRegionRequests = new Map<string, OltRegionRequest>();
 const d0BaseRows: Array<{ fileName: string; rowNumber: number; payload: D0Row; uploadedBy: string; importedAt: string }> = [];
 const manualDailyBases = new Map<string, ManualDailyBase>();
 const settings: SystemSettings = { autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: 'Todas' };
@@ -93,12 +94,13 @@ function ensureDemoData() {
     auditLogs.clear();
     activations.clear();
     imports.clear();
+    oltRegionRequests.clear();
     d0BaseRows.length = 0;
     manualDailyBases.clear();
     return;
   }
 
-  if (users.size > 0 || supervisors.size > 0 || technicians.size > 0 || calls.size > 0 || observations.size > 0 || auditLogs.size > 0 || activations.size > 0 || imports.size > 0 || manualDailyBases.size > 0) {
+  if (users.size > 0 || supervisors.size > 0 || technicians.size > 0 || calls.size > 0 || observations.size > 0 || auditLogs.size > 0 || activations.size > 0 || imports.size > 0 || oltRegionRequests.size > 0 || manualDailyBases.size > 0) {
     return;
   }
 
@@ -431,6 +433,7 @@ export async function updateRole(id: string, input: { name?: string; description
 export function getSettings(): SystemSettings { return { ...settings }; }
 export function updateSettings(input: Partial<SystemSettings>): SystemSettings { Object.assign(settings, input); return getSettings(); }
 export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
+export type OltRegionRequest = { id: string; olt: string; source: string; status: 'Pendente' | 'Adicionada' | 'Ignorada'; occurrences: number; firstSeenAt: string; lastSeenAt: string; region?: string };
 
 async function readManualOltRegionMap(): Promise<Record<string, string>> {
   if (isSupabaseConfigured()) {
@@ -452,6 +455,128 @@ export async function listOltRegionMappings(): Promise<OltRegionMapping[]> {
   replaceManualOltRegionMap(overrides);
   const merged = { ...defaults, ...overrides };
   return Object.entries(merged).map(([olt, region]) => ({ olt, region, defaultRegion: defaults[olt] })).sort((left, right) => left.olt.localeCompare(right.olt));
+}
+
+function mapOltRegionRequest(row: { id: string; olt: string; source: string; status: string; occurrences: number; first_seen_at: string; last_seen_at: string; region?: string | null }): OltRegionRequest {
+  return { id: row.id, olt: row.olt, source: row.source, status: row.status as OltRegionRequest['status'], occurrences: row.occurrences, firstSeenAt: row.first_seen_at, lastSeenAt: row.last_seen_at, region: row.region || undefined };
+}
+
+export async function recordUnknownOltRequests(olts: Array<string | null | undefined>, source: string) {
+  const unknown = [...new Set(olts.map((value) => normalizeOltCode(value)).filter((olt): olt is string => Boolean(olt) && !resolveOltRegion(olt).region))];
+  if (!unknown.length) return 0;
+  const now = new Date().toISOString();
+  let recorded = 0;
+
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    for (const olt of unknown) {
+      const { data: existing, error: readError } = await admin.from('olt_region_requests').select('id, status, occurrences').eq('olt', olt).maybeSingle();
+      if (readError) throw new Error(readError.message);
+      if (existing?.status === 'Pendente') {
+        const { error } = await admin.from('olt_region_requests').update({ occurrences: Number(existing.occurrences || 1) + 1, last_seen_at: now, source }).eq('id', existing.id);
+        if (error) throw new Error(error.message);
+        recorded += 1;
+      } else if (!existing) {
+        const { error } = await admin.from('olt_region_requests').insert({ olt, source, status: 'Pendente', occurrences: 1, first_seen_at: now, last_seen_at: now });
+        if (error && error.code !== '23505') throw new Error(error.message);
+        if (!error) recorded += 1;
+      }
+    }
+    return recorded;
+  }
+
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    for (const olt of unknown) {
+      const result = await client.query<{ id: string }>(`INSERT INTO olt_region_requests (olt, source, status, occurrences, first_seen_at, last_seen_at) VALUES ($1, $2, 'Pendente', 1, $3, $3) ON CONFLICT (olt) DO UPDATE SET occurrences = olt_region_requests.occurrences + 1, last_seen_at = EXCLUDED.last_seen_at, source = EXCLUDED.source WHERE olt_region_requests.status = 'Pendente' RETURNING id`, [olt, source, now]);
+      recorded += result.rowCount || 0;
+    }
+    return recorded;
+  }
+
+  ensureDemoData();
+  for (const olt of unknown) {
+    const existing = oltRegionRequests.get(olt);
+    if (existing?.status === 'Ignorada' || existing?.status === 'Adicionada') continue;
+    if (existing) {
+      oltRegionRequests.set(olt, { ...existing, source, occurrences: existing.occurrences + 1, lastSeenAt: now });
+    } else {
+      oltRegionRequests.set(olt, { id: `olt-request-${crypto.randomUUID()}`, olt, source, status: 'Pendente', occurrences: 1, firstSeenAt: now, lastSeenAt: now });
+    }
+    recorded += 1;
+  }
+  return recorded;
+}
+
+export async function captureUnknownOltRequestsFromCalls() {
+  try {
+    const currentCalls = await listCalls();
+    return await captureUnknownOltRequests(currentCalls.map((call) => call.olt), 'Chamados existentes');
+  } catch (error) {
+    console.error('[OLT] nao foi possivel procurar OLTs desconhecidas nos chamados:', error);
+    return 0;
+  }
+}
+
+export async function captureUnknownOltRequests(olts: Array<string | null | undefined>, source: string) {
+  try {
+    return await recordUnknownOltRequests(olts, source);
+  } catch (error) {
+    console.error(`[OLT] nao foi possivel registrar solicitacoes (${source}):`, error);
+    return 0;
+  }
+}
+
+export async function listOltRegionRequests(): Promise<OltRegionRequest[]> {
+  let requests: OltRegionRequest[];
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('olt_region_requests').select('id, olt, source, status, occurrences, first_seen_at, last_seen_at, region').eq('status', 'Pendente').order('last_seen_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    requests = (data || []).map(mapOltRegionRequest);
+  } else if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ id: string; olt: string; source: string; status: string; occurrences: number; first_seen_at: string; last_seen_at: string; region: string | null }>(`SELECT id, olt, source, status, occurrences, first_seen_at, last_seen_at, region FROM olt_region_requests WHERE status = 'Pendente' ORDER BY last_seen_at DESC`);
+    requests = result.rows.map(mapOltRegionRequest);
+  } else {
+    ensureDemoData();
+    requests = [...oltRegionRequests.values()].filter((request) => request.status === 'Pendente').sort((left, right) => right.lastSeenAt.localeCompare(left.lastSeenAt));
+  }
+  return requests.filter((request) => !resolveOltRegion(request.olt).region);
+}
+
+export async function acceptOltRegionRequest(id: string, region: string) {
+  const pending = (await listOltRegionRequests()).find((request) => request.id === id);
+  if (!pending) throw new Error('A solicitação de OLT não está mais pendente.');
+  const currentMappings = await listOltRegionMappings();
+  const mappings = currentMappings.filter((mapping) => normalizeOltCode(mapping.olt) !== pending.olt);
+  await saveOltRegionMappings([...mappings, { olt: pending.olt, region }]);
+  const resolvedAt = new Date().toISOString();
+  if (isSupabaseConfigured()) {
+    const { error } = await getSupabaseAdmin().from('olt_region_requests').update({ status: 'Adicionada', region: region.trim(), resolved_at: resolvedAt }).eq('id', id).eq('status', 'Pendente');
+    if (error) throw new Error(error.message);
+  } else if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query(`UPDATE olt_region_requests SET status = 'Adicionada', region = $1, resolved_at = $2 WHERE id = $3 AND status = 'Pendente'`, [region.trim(), resolvedAt, id]);
+  } else {
+    oltRegionRequests.set(pending.olt, { ...pending, status: 'Adicionada', region: region.trim(), lastSeenAt: resolvedAt });
+  }
+  return { olt: pending.olt, region: region.trim() };
+}
+
+export async function ignoreOltRegionRequest(id: string) {
+  const pending = (await listOltRegionRequests()).find((request) => request.id === id);
+  if (!pending) throw new Error('A solicitação de OLT não está mais pendente.');
+  const ignoredAt = new Date().toISOString();
+  if (isSupabaseConfigured()) {
+    const { error } = await getSupabaseAdmin().from('olt_region_requests').update({ status: 'Ignorada', resolved_at: ignoredAt }).eq('id', id).eq('status', 'Pendente');
+    if (error) throw new Error(error.message);
+  } else if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query(`UPDATE olt_region_requests SET status = 'Ignorada', resolved_at = $1 WHERE id = $2 AND status = 'Pendente'`, [ignoredAt, id]);
+  } else {
+    oltRegionRequests.set(pending.olt, { ...pending, status: 'Ignorada', lastSeenAt: ignoredAt });
+  }
+  return { ignored: true, olt: pending.olt };
 }
 
 export async function saveOltRegionMappings(mappings: Array<{ olt: string; region: string }>): Promise<OltRegionMapping[]> {
@@ -737,6 +862,7 @@ export async function findExistingCallIdentifiers(): Promise<Set<string>> {
 
 export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<number> {
   if (!historicalCalls.length) return 0;
+  await captureUnknownOltRequests(historicalCalls.map((call) => call.olt), 'Importacao historica');
   if (isSupabaseConfigured()) {
     let inserted = 0;
     for (let from = 0; from < historicalCalls.length; from += 250) {
@@ -801,6 +927,7 @@ export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<nu
 export type DriveCallSource = { identity: string; identifiers: string[]; fileId: string; fileName: string; referenceDate?: string; fingerprint: string; payload: Record<string, string> };
 const driveSyncRuns: Array<{ startedAt: string; result: Record<string, unknown> }> = [];
 export async function createDriveCall(call: Call, sourceData: DriveCallSource): Promise<{ call: Call; created: boolean }> {
+  await captureUnknownOltRequests([call.olt], 'Google Drive');
   const processedAt = new Date().toISOString();
   const sourcedCall: Call = { ...call, source: 'google-drive', sourceIdentity: sourceData.identity, sourceIdentifiers: sourceData.identifiers, sourceFileId: sourceData.fileId, sourceFileName: sourceData.fileName, sourceReferenceDate: sourceData.referenceDate, sourceFingerprint: sourceData.fingerprint, sourceProcessedAt: processedAt };
   if (isSupabaseConfigured()) {
@@ -1016,6 +1143,7 @@ function prepareCallUpdate(current: Call, input: Partial<EditableCallFields>): P
 }
 export async function updateCall(id: string, input: Partial<EditableCallFields>, actor: User): Promise<Call | undefined> {
   ensureDemoData();
+  if (input.olt) await captureUnknownOltRequests([input.olt], 'Edicao manual');
   if (isSupabaseConfigured()) {
     const current = await getCall(id);
     if (!current) return undefined;
@@ -1245,6 +1373,7 @@ export async function listActivations(status?: ActivationStatus): Promise<Activa
   return [...activations.values()].filter((item) => !status || item.status === status).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
 }
 export async function receiveActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string>; analysis?: ActivationAnalysis }): Promise<Activation> {
+  await captureUnknownOltRequests([input.extractedData.olt, input.analysis?.olt], 'WuzAPI');
   if (isSupabaseConfigured()) return await createSupabaseActivation(input);
   const comparable = (value: string | undefined) => value?.trim().toLowerCase() || '';
   const incomingKeys = [input.originalMessage, input.extractedData.bdesk, input.extractedData.officeTrack, input.extractedData.orderNumber].map(comparable).filter(Boolean);
@@ -1468,6 +1597,11 @@ export async function getD0BaseSummary(): Promise<D0BaseSummary> {
 
 export async function replaceD0Base(fileName: string, uploadedBy: string, rows: D0Row[]): Promise<D0SyncResult> {
   if (!rows.length) throw new Error('A base D-0 nao possui linhas para importar.');
+  const d0Olts = rows.flatMap((row) => {
+    const entry = Object.entries(row).find(([key, value]) => ['olt', 'olt de atendimento'].includes(key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()) && value.trim());
+    return entry ? [entry[1]] : [];
+  });
+  await captureUnknownOltRequests(d0Olts, 'Importacao D-0');
   const importedAt = new Date().toISOString();
   const records = rows.map((payload, index) => ({ fileName, rowNumber: index + 2, payload, uploadedBy, importedAt }));
 

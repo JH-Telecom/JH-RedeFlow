@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, insertHistoricalCalls, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listOltRegionMappings, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, listActivations, listAuditLogs, listCalls, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { parseImport } from './imports/parser.js';
@@ -278,6 +278,20 @@ app.put('/api/configuracoes/olt-regioes', auth, requirePermission('settings.mana
   if (new Set(normalizedOlts).size !== normalizedOlts.length) return response.status(400).json({ message: 'Cada OLT deve aparecer apenas uma vez.' });
   try { return response.json({ mappings: await saveOltRegionMappings(parsed.data.mappings) }); }
   catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o mapa de OLTs.' }); }
+});
+app.get('/api/configuracoes/olt-regioes/solicitacoes', auth, requirePermission('settings.manage'), async (_request, response) => {
+  try { return response.json({ requests: await listOltRegionRequests() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar as solicitacoes de OLT.' }); }
+});
+app.post('/api/configuracoes/olt-regioes/solicitacoes/:id/adicionar', auth, requirePermission('settings.manage'), async (request, response) => {
+  const parsed = z.object({ region: z.string().trim().min(1).max(160) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Selecione uma regiao para esta OLT.' });
+  try { return response.json(await acceptOltRegionRequest(String(request.params.id), parsed.data.region)); }
+  catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel adicionar a OLT.' }); }
+});
+app.post('/api/configuracoes/olt-regioes/solicitacoes/:id/ignorar', auth, requirePermission('settings.manage'), async (request, response) => {
+  try { return response.json(await ignoreOltRegionRequest(String(request.params.id))); }
+  catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel ignorar a solicitacao.' }); }
 });
 app.get('/api/tecnicos', auth, requirePermission('technicians.view'), async (_request, response) => response.json({ technicians: await listTechnicians() }));
 app.post('/api/tecnicos', auth, requirePermission('technicians.create'), async (request, response) => {
@@ -586,6 +600,7 @@ startDriveSchedule();
 async function startServer() {
   try { await listOltRegionMappings(); }
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }
+  await captureUnknownOltRequestsFromCalls();
   app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
 }
 void startServer();

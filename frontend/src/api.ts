@@ -21,6 +21,7 @@ export type ManualProductionData = { activities: { type: string; pending: number
 export type ManualDailyBase = { businessDate: string; fileName: string; data: ManualProductionData; uploadedBy: string; updatedAt: string };
 export type SystemSettings = { autoRefresh: boolean; refreshIntervalSeconds: number; slaAlertHours: number; defaultRegion: string };
 export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
+export type OltRegionRequest = { id: string; olt: string; source: string; status: 'Pendente' | 'Adicionada' | 'Ignorada'; occurrences: number; firstSeenAt: string; lastSeenAt: string; region?: string };
 export type AppNotification = { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string };
 export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -100,5 +101,8 @@ export const api = {
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
   updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) }),
   oltRegionMappings: () => request<{ mappings: OltRegionMapping[] }>('/api/configuracoes/olt-regioes'),
-  saveOltRegionMappings: (mappings: Array<Pick<OltRegionMapping, 'olt' | 'region'>>) => request<{ mappings: OltRegionMapping[] }>('/api/configuracoes/olt-regioes', { method: 'PUT', body: JSON.stringify({ mappings }) })
+  saveOltRegionMappings: (mappings: Array<Pick<OltRegionMapping, 'olt' | 'region'>>) => request<{ mappings: OltRegionMapping[] }>('/api/configuracoes/olt-regioes', { method: 'PUT', body: JSON.stringify({ mappings }) }),
+  oltRegionRequests: () => request<{ requests: OltRegionRequest[] }>('/api/configuracoes/olt-regioes/solicitacoes'),
+  acceptOltRegionRequest: (id: string, region: string) => request<{ olt: string; region: string }>(`/api/configuracoes/olt-regioes/solicitacoes/${encodeURIComponent(id)}/adicionar`, { method: 'POST', body: JSON.stringify({ region }) }),
+  ignoreOltRegionRequest: (id: string) => request<{ ignored: boolean; olt: string }>(`/api/configuracoes/olt-regioes/solicitacoes/${encodeURIComponent(id)}/ignorar`, { method: 'POST' })
 };
