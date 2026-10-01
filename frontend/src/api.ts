@@ -23,6 +23,8 @@ export type SystemSettings = { autoRefresh: boolean; refreshIntervalSeconds: num
 export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
 export type OltRegionRequest = { id: string; olt: string; source: string; status: 'Pendente' | 'Adicionada' | 'Ignorada'; occurrences: number; firstSeenAt: string; lastSeenAt: string; region?: string };
 export type AppNotification = { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string };
+export type CallListQuery = { from?: string; to?: string; teamScope?: boolean; search?: string; region?: string; neighborhood?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
+export type CallListResult = { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number };
 export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
@@ -69,7 +71,21 @@ export const api = {
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
   updateSupervisor: (id: string, data: { userId?: string | null; name?: string; region?: string; active?: boolean }) => request<{ supervisor: Supervisor }>(`/api/supervisores/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  calls: (status?: CallStatus, filters?: { from?: string; to?: string; teamScope?: boolean }) => { const params = new URLSearchParams(); if (status) params.set('status', status); if (filters?.from) params.set('from', filters.from); if (filters?.to) params.set('to', filters.to); if (filters?.teamScope) params.set('teamScope', 'true'); return request<{ calls: Call[] }>(`/api/chamados${params.toString() ? `?${params}` : ''}`); },
+  calls: (status?: CallStatus, filters: CallListQuery = {}) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (filters.from) params.set('from', filters.from);
+    if (filters.to) params.set('to', filters.to);
+    if (filters.teamScope) params.set('teamScope', 'true');
+    if (filters.search) params.set('search', filters.search.trim());
+    if (filters.region) params.set('region', filters.region);
+    if (filters.neighborhood) params.set('neighborhood', filters.neighborhood);
+    if (filters.page) params.set('page', String(filters.page));
+    if (filters.pageSize) params.set('pageSize', String(Math.min(Math.max(filters.pageSize, 1), 100)));
+    if (filters.sort) params.set('sort', filters.sort);
+    if (filters.direction) params.set('direction', filters.direction);
+    return request<CallListResult>(`/api/chamados${params.toString() ? `?${params}` : ''}`);
+  },
   call: (id: string, filters?: { teamScope?: boolean }) => request<{ call: Call }>(`/api/chamados/${id}${filters?.teamScope ? '?teamScope=true' : ''}`),
   updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'notes'>> & { technicianId?: string | null }) => request<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => request<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),

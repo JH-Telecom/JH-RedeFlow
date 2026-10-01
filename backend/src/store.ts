@@ -775,13 +775,33 @@ export async function updateSupervisor(id: string, input: { userId?: string | nu
   supervisors.set(id, updated);
   return updated;
 }
-export type CallQuery = { from?: string; to?: string; supervisorId?: string };
+export type CallQuery = { from?: string; to?: string; supervisorId?: string; status?: CallStatus; search?: string; region?: string; neighborhood?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 function callReferenceDate(call: Call) {
   return (['Finalizado', 'Cancelado'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt).slice(0, 10);
 }
 function isCallInDateRange(call: Call, query: CallQuery) {
   const referenceDate = callReferenceDate(call);
   return (!query.from || referenceDate >= query.from) && (!query.to || referenceDate <= query.to);
+}
+function normalizeQueryText(value: string | undefined) {
+  return value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() ?? '';
+}
+function matchesCallSearch(call: Call, search: string | undefined) {
+  if (!search) return true;
+  const haystack = [call.orderNumber, call.client, call.bdesk, call.region, call.city, call.bairro, call.address, call.type, call.technicianName, call.supervisorName].join(' ').toLowerCase();
+  return haystack.includes(search.toLowerCase());
+}
+function sortCalls(calls: Call[], query: CallQuery) {
+  const direction = query.direction === 'asc' ? 1 : -1;
+  const key = query.sort ?? 'openedAt';
+  const values = [...calls];
+  values.sort((left, right) => {
+    const leftValue = key === 'openedAt' ? new Date(left.openedAt).getTime() : key === 'status' ? left.status : key === 'region' ? left.region : key === 'technicianName' ? (left.technicianName || '').toLowerCase() : key === 'client' ? left.client.toLowerCase() : left.orderNumber.toLowerCase();
+    const rightValue = key === 'openedAt' ? new Date(right.openedAt).getTime() : key === 'status' ? right.status : key === 'region' ? right.region : key === 'technicianName' ? (right.technicianName || '').toLowerCase() : key === 'client' ? right.client.toLowerCase() : right.orderNumber.toLowerCase();
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') return (leftValue - rightValue) * direction;
+    return String(leftValue).localeCompare(String(rightValue)) * direction;
+  });
+  return values;
 }
 export async function getSupervisorIdForUser(userId: string): Promise<string | undefined> {
   ensureDemoData();
@@ -795,7 +815,12 @@ export async function getSupervisorIdForUser(userId: string): Promise<string | u
 }
 export async function listCalls(status?: CallStatus, query: CallQuery = {}): Promise<Call[]> {
   ensureDemoData();
-  if (isSupabaseConfigured()) return await listSupabaseCalls(status, query);
+  const baseStatus = status ?? query.status;
+  const baseQuery = { ...query, status: baseStatus };
+  if (isSupabaseConfigured()) {
+    const rows = await listSupabaseCalls(baseStatus, { from: baseQuery.from, to: baseQuery.to, supervisorId: baseQuery.supervisorId });
+    return sortCalls(rows.filter((call) => matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && (!baseQuery.status || call.status === baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
+  }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ id: string; order_number: string; bdesk: string; office_track: string; client: string; type: string; reason: string; region: string; city: string; address: string | null; bairro: string | null; ofs_status: string | null; olt: string; slot_pon: string; status: string; technician_id: string | null; technician_name: string | null; supervisor_name: string | null; opened_at: string; assigned_at: string | null; executed_at: string | null; result: string | null; cancellation_reason: string | null; notes: string; source: string | null; source_identity: string | null; source_identifiers: string[] | null; source_file_id: string | null; source_file_name: string | null; source_reference_date: string | null; source_fingerprint: string | null; source_processed_at: string | null; last_observation_at: string | null }>(
@@ -803,27 +828,32 @@ export async function listCalls(status?: CallStatus, query: CallQuery = {}): Pro
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
        LEFT JOIN LATERAL (SELECT created_at FROM call_observations WHERE call_id = c.id ORDER BY created_at DESC LIMIT 1) latest_observation ON true
       WHERE ($1::text IS NULL OR c.status = $1) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) ORDER BY c.opened_at DESC`,
-      [status ?? null, query.from ?? null, query.to ?? null, query.supervisorId ?? null],
+      [baseStatus ?? null, baseQuery.from ?? null, baseQuery.to ?? null, baseQuery.supervisorId ?? null],
     );
-    return result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', ofsStatus: row.ofs_status ?? undefined, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
+    const rows = result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', ofsStatus: row.ofs_status ?? undefined, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
+    return sortCalls(rows.filter((call) => matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && (!baseQuery.status || call.status === baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
-  return [...calls.values()].map((call) => {
+  const rows = [...calls.values()].map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
     return { ...call, lastObservationAt };
   }).filter((call) => {
-    if (status && call.status !== status) return false;
-    if (!isCallInDateRange(call, query)) return false;
-    if (!query.supervisorId) return true;
+    if (baseStatus && call.status !== baseStatus) return false;
+    if (!isCallInDateRange(call, baseQuery)) return false;
+    if (baseQuery.region && call.region !== baseQuery.region) return false;
+    if (baseQuery.neighborhood && call.bairro !== baseQuery.neighborhood) return false;
+    if (!matchesCallSearch(call, baseQuery.search)) return false;
+    if (!baseQuery.supervisorId) return true;
     if (call.technicianId) {
       const technician = technicians.get(call.technicianId);
-      return technician?.supervisorId === query.supervisorId;
+      return technician?.supervisorId === baseQuery.supervisorId;
     }
     if (call.supervisorName) {
-      const target = supervisors.get(query.supervisorId);
+      const target = supervisors.get(baseQuery.supervisorId);
       return target?.name === call.supervisorName;
     }
     return false;
   });
+  return sortCalls(rows, baseQuery);
 }
 
 function normalizeExternalCallIdentifier(value: string) {

@@ -1979,30 +1979,62 @@ function SupervisorOrdersPage({ user }: { user: User & { role: Role } }) {
   return <CallsPage title="Ordens dos meus tecnicos" teamScoped />;
 }
 
+const callsPageStateCookieName = "jh-redeflow-calls-page-state";
+const callsPageCache = new Map<string, { expiresAt: number; result: { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number } }>();
+
+function readCallsPageState(pageKey: string) {
+  const fallback = { query: "", statusFilter: "Todos" as CallStatus | "Todos", regionFilter: "Todas", neighborhoodFilter: "Todos", dateRange: { from: "", to: "" }, showFilters: false, callsPage: 1 };
+  try {
+    const raw = document.cookie
+      .split('; ')
+      .find((entry) => entry.startsWith(`${callsPageStateCookieName}=`));
+    const cookieValue = raw ? decodeURIComponent(raw.slice(`${callsPageStateCookieName}=`.length)) : "";
+    const parsed = cookieValue ? JSON.parse(cookieValue) : {};
+    const state = parsed?.[pageKey] ?? {};
+    return { ...fallback, ...state };
+  } catch {
+    return fallback;
+  }
+}
+
+function writeCallsPageState(pageKey: string, state: Record<string, unknown>) {
+  try {
+    const raw = document.cookie
+      .split('; ')
+      .find((entry) => entry.startsWith(`${callsPageStateCookieName}=`));
+    const existing = raw ? JSON.parse(decodeURIComponent(raw.slice(`${callsPageStateCookieName}=`.length))) : {};
+    const next = { ...existing, [pageKey]: state };
+    document.cookie = `${callsPageStateCookieName}=${encodeURIComponent(JSON.stringify(next))}; path=/; max-age=${60 * 60 * 24 * 30}`;
+  } catch {
+    // Ignore cookie write failures silently to keep the UI responsive.
+  }
+}
+
 function CallsPage({ status, title, assignedOnly = false, teamScoped = false, closedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; teamScoped?: boolean; closedOnly?: boolean }) {
+  const pageKey = `${teamScoped ? 'team' : 'global'}:${closedOnly ? 'closed' : assignedOnly ? 'assigned' : status ?? 'all'}:${title}`;
+  const initialState = readCallsPageState(pageKey);
   const [calls, setCalls] = useState<Call[]>([]);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialState.query ?? "");
   const [loading, setLoading] = useState(false);
-  const [regionFilter, setRegionFilter] = useState("Todas");
-  const [neighborhoodFilter, setNeighborhoodFilter] = useState("Todos");
-  const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">("Todos");
-  const [dateRange, setDateRange] = useState({ from: "", to: "" });
-  const [showFilters, setShowFilters] = useState(false);
+  const [regionFilter, setRegionFilter] = useState(initialState.regionFilter ?? "Todas");
+  const [neighborhoodFilter, setNeighborhoodFilter] = useState(initialState.neighborhoodFilter ?? "Todos");
+  const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(initialState.statusFilter ?? "Todos");
+  const [dateRange, setDateRange] = useState(initialState.dateRange ?? { from: "", to: "" });
+  const [showFilters, setShowFilters] = useState(Boolean(initialState.showFilters));
   const [error, setError] = useState("");
   const [bulkDeleteMessage, setBulkDeleteMessage] = useState("");
   const [canDeleteAllCalls, setCanDeleteAllCalls] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
-  const [callsPage, setCallsPage] = useState(1);
+  const [callsPage, setCallsPage] = useState(initialState.callsPage ?? 1);
+  const [totalCalls, setTotalCalls] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
+
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
-  useEffect(() => {
-    api
-      .calls(closedOnly ? undefined : status, { ...dateRange, teamScope: teamScoped })
-      .then((data) => setCalls(data.calls))
-      .catch((err) => setError(err.message));
-  }, [status, closedOnly, dateRange.from, dateRange.to]);
+  useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, dateRange, showFilters, callsPage }); }, [pageKey, query, statusFilter, regionFilter, neighborhoodFilter, dateRange, showFilters, callsPage]);
+  useEffect(() => { setCallsPage(1); }, [query, statusFilter, regionFilter, neighborhoodFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
   useEffect(() => {
     try {
       const raw = localStorage.getItem('jh-redeflow-session');
@@ -2206,26 +2238,80 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
 
   async function refreshCalls() {
     setLoading(true);
-    try { setCalls((await api.calls(closedOnly ? undefined : status, { ...dateRange, teamScope: teamScoped })).calls); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados."); } finally { setLoading(false); }
+    try {
+      const requestStatus = statusFilter === "Todos" ? (closedOnly ? undefined : status) : statusFilter;
+      const data = await api.calls(requestStatus, {
+        from: dateRange.from,
+        to: dateRange.to,
+        teamScope: teamScoped,
+        search: query.trim(),
+        region: regionFilter === "Todas" ? undefined : regionFilter,
+        neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
+        page: callsPage,
+        pageSize: CALLS_PAGE_SIZE,
+      });
+      setCalls(data.calls);
+      setTotalCalls(data.total);
+      setTotalPages(data.totalPages);
+      callsPageCache.clear();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados.");
+    } finally {
+      setLoading(false);
+    }
   }
-  const visibleCalls = calls.filter((call) =>
-    (!closedOnly || call.status === "Finalizado" || call.status === "Cancelado") &&
-    (!assignedOnly || Boolean(call.technicianId || call.technicianName)) &&
-    [call.orderNumber, call.client, call.bdesk, call.region, call.city, call.bairro, call.address]
-      .join(" ")
-      .toLowerCase()
-      .includes(query.toLowerCase()) &&
-    (statusFilter === "Todos" || call.status === statusFilter) &&
-    (regionFilter === "Todas" || call.region === regionFilter) &&
-    (neighborhoodFilter === "Todos" || call.bairro === neighborhoodFilter),
-  ).map((call) => ["Finalizado", "Cancelado"].includes(call.status) ? call : { ...call, executedAt: null });
-    const totalPages = Math.max(1, Math.ceil(visibleCalls.length / CALLS_PAGE_SIZE));
-    const pagedCalls = visibleCalls.slice((callsPage - 1) * CALLS_PAGE_SIZE, callsPage * CALLS_PAGE_SIZE);
-    const firstVisibleCall = visibleCalls.length ? (callsPage - 1) * CALLS_PAGE_SIZE + 1 : 0;
-    const lastVisibleCall = Math.min(callsPage * CALLS_PAGE_SIZE, visibleCalls.length);
-    useEffect(() => { setCallsPage(1); }, [query, statusFilter, regionFilter, neighborhoodFilter, dateRange.from, dateRange.to]);
-    useEffect(() => { if (callsPage > totalPages) setCallsPage(totalPages); }, [callsPage, totalPages]);
-  const regions = [...new Set(calls.map((call) => call.region))];
+
+  useEffect(() => {
+    let active = true;
+    const requestStatus = statusFilter === "Todos" ? (closedOnly ? undefined : status) : statusFilter;
+    const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
+    const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
+    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, neighborhood: requestNeighborhood, page: callsPage, pageSize: CALLS_PAGE_SIZE, closedOnly, assignedOnly });
+    const cached = callsPageCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      if (active) {
+        setCalls(cached.result.calls);
+        setTotalCalls(cached.result.total);
+        setTotalPages(cached.result.totalPages);
+      }
+      return () => { active = false; };
+    }
+
+    setLoading(true);
+    setError('');
+    api
+      .calls(requestStatus, {
+        from: dateRange.from,
+        to: dateRange.to,
+        teamScope: teamScoped,
+        search: query.trim(),
+        region: requestRegion,
+        neighborhood: requestNeighborhood,
+        page: callsPage,
+        pageSize: CALLS_PAGE_SIZE,
+      })
+      .then((data) => {
+        if (!active) return;
+        setCalls(data.calls);
+        setTotalCalls(data.total);
+        setTotalPages(data.totalPages);
+        callsPageCache.set(cacheKey, { expiresAt: Date.now() + 15000, result: data });
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Nao foi possivel carregar os chamados.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [status, assignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, neighborhoodFilter, dateRange.from, dateRange.to, callsPage]);
+
+  const currentCalls = calls.map((call) => (["Finalizado", "Cancelado"].includes(call.status) ? call : { ...call, executedAt: null }));
+  const firstVisibleCall = totalCalls ? (callsPage - 1) * CALLS_PAGE_SIZE + 1 : 0;
+  const lastVisibleCall = totalCalls ? Math.min(callsPage * CALLS_PAGE_SIZE, totalCalls) : 0;
+  const regions = [...new Set(calls.map((call) => call.region).filter(Boolean))];
   const neighborhoods = [...new Set(calls.map((call) => call.bairro).filter((item): item is string => Boolean(item)))];
   return (
     <>
@@ -2234,7 +2320,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
           <span className="section-kicker">OPERACAO</span>
           <h1>{title}</h1>
           <p>
-            {visibleCalls.length} chamados na fila atual. Clique em uma linha
+            {totalCalls} chamados na fila atual. Clique em uma linha
             para abrir o atendimento.
           </p>
         </div>
@@ -2270,7 +2356,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
               <Copy size={15} />
               {copyState === "copied" ? "Imagem copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao exportar" : "Copiar imagem"}
             </button>
-            <span className="result-count">{visibleCalls.length} resultados</span>
+            <span className="result-count">{totalCalls} resultados</span>
           </div>
         </div>
         {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option></> : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
@@ -2285,7 +2371,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
               </tr>
             </thead>
             <tbody>
-              {pagedCalls.map((call) => (
+              {currentCalls.map((call) => (
                 <tr
                   key={call.id}
                   onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)}
@@ -2298,11 +2384,11 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
           </div>
         )}
         {!error && <div className="calls-pagination">
-          <span>{firstVisibleCall.toLocaleString("pt-BR")}–{lastVisibleCall.toLocaleString("pt-BR")} de {visibleCalls.length.toLocaleString("pt-BR")} chamados</span>
+          <span>{firstVisibleCall.toLocaleString("pt-BR")}–{lastVisibleCall.toLocaleString("pt-BR")} de {totalCalls.toLocaleString("pt-BR")} chamados</span>
           <div className="calls-pagination-controls">
-            <button className="secondary-button compact" type="button" onClick={() => setCallsPage((page) => Math.max(1, page - 1))} disabled={callsPage <= 1} aria-label="Página anterior">Anterior</button>
+            <button className="secondary-button compact" type="button" onClick={() => setCallsPage((page: number) => Math.max(1, page - 1))} disabled={callsPage <= 1} aria-label="Página anterior">Anterior</button>
             <span aria-live="polite">Página {callsPage.toLocaleString("pt-BR")} de {totalPages.toLocaleString("pt-BR")}</span>
-            <button className="secondary-button compact" type="button" onClick={() => setCallsPage((page) => Math.min(totalPages, page + 1))} disabled={callsPage >= totalPages} aria-label="Próxima página">Próxima</button>
+            <button className="secondary-button compact" type="button" onClick={() => setCallsPage((page: number) => Math.min(totalPages, page + 1))} disabled={callsPage >= totalPages} aria-label="Próxima página">Próxima</button>
           </div>
         </div>}
       </section>

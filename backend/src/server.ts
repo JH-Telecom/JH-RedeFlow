@@ -328,8 +328,22 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
   const status = request.query.status;
   const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado'];
   if (status && !validStatuses.includes(String(status) as CallStatus)) return response.status(400).json({ message: 'Status de chamado invalido.' });
-  try { return response.json({ calls: await listCalls(status as CallStatus | undefined, await getScopedCallQuery(request, request.query.teamScope === 'true')) }); }
-  catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
+  const page = Math.max(1, Number(request.query.page ?? 1));
+  const pageSize = Math.min(100, Math.max(1, Number(request.query.pageSize ?? 50)));
+  const search = typeof request.query.search === 'string' ? request.query.search.trim() : undefined;
+  const region = typeof request.query.region === 'string' && request.query.region.trim() ? request.query.region.trim() : undefined;
+  const neighborhood = typeof request.query.neighborhood === 'string' && request.query.neighborhood.trim() ? request.query.neighborhood.trim() : undefined;
+  const sort = typeof request.query.sort === 'string' && ['openedAt', 'status', 'region', 'technicianName', 'client', 'orderNumber'].includes(request.query.sort) ? request.query.sort : 'openedAt';
+  const direction = typeof request.query.direction === 'string' && ['asc', 'desc'].includes(request.query.direction) ? request.query.direction : 'desc';
+  try {
+    const scopedQuery = await getScopedCallQuery(request, request.query.teamScope === 'true');
+    const filteredCalls = await listCalls(status as CallStatus | undefined, { ...scopedQuery, search, region, neighborhood, sort, direction });
+    const total = filteredCalls.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const start = (currentPage - 1) * pageSize;
+    return response.json({ calls: filteredCalls.slice(start, start + pageSize), total, page: currentPage, pageSize, totalPages });
+  } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
 });
 app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (request, response) => {
   const call = await getCall(String(request.params.id), await getScopedCallQuery(request as AuthRequest, request.query.teamScope === 'true'));
