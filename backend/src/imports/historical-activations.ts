@@ -110,6 +110,7 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
 
     const legacy = extractOperationalData(message);
     const analysis = analyzeOperationalMessage(message);
+    const workbookTechnician = technicianColumn >= 0 ? String(row[technicianColumn] ?? '').trim() : '';
     const orderLabelPattern = /^[\t ]*[-*]?[\t ]*(?:O\.?S\.?[\t ]*OT|OFFICE[\t ]*TRACK|OFFICETRACK)[\t ]*[:=-][\t ]*(.*?)[\t ]*$/i;
     const orderLabel = message.split(/\r?\n/).find((line) => orderLabelPattern.test(line));
     const explicitOrder = orderLabel?.match(orderLabelPattern)?.[1]?.trim() || '';
@@ -117,7 +118,7 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
     if (!orderNumber) missing.missingOrder += 1;
     if (!analysis.motivo && !legacy.reason) missing.missingReason += 1;
     if (!analysis.olt && !legacy.olt) missing.missingOlt += 1;
-    if (!analysis.tecnico_rede && !analysis.tecnico && !legacy.technician && technicianColumn < 0) missing.missingTechnician += 1;
+    if (!analysis.tecnico_rede && !analysis.tecnico && !legacy.technician && !workbookTechnician) missing.missingTechnician += 1;
 
     const type = analysis.tipo_registro || legacy.type || 'NOC ACESSO';
     byType[type] = (byType[type] || 0) + 1;
@@ -149,8 +150,9 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
       openedAt,
       assignedAt: parseWorkbookDate(activationColumn >= 0 ? row[activationColumn] : undefined),
       executedAt,
+      technicianName: analysis.tecnico_rede || analysis.tecnico || legacy.technician || workbookTechnician || undefined,
       result: analysis.tratativa_realizada || undefined,
-      notes: `Importado do histórico ${fileName}, linha ${rowNumber}.`,
+      notes: `Importado do histórico ${fileName}, linha ${rowNumber}.\n\n${message}`,
       source: 'legacy-activation',
       sourceIdentity: identity,
       sourceIdentifiers: identifiers.map(normalizeHistoricalIdentifier),

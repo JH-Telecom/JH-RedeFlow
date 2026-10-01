@@ -66,3 +66,15 @@ test('counts missing opening, finish and service order fields instead of inventi
   assert.equal(parsed.missingFinishedDate, 1);
   assert.equal(parsed.missingOrder, 1);
 });
+
+test('uses the workbook technician column when the message does not contain one and retains the source message', () => {
+  const openedAt = new Date('2026-06-18T17:03:26.000Z');
+  const executedAt = new Date('2026-06-24T16:42:28.000Z');
+  const message = fieldMessage('12096885').replace('- TÉCNICO: Técnico de teste\n', '');
+  const parsed = parseHistoricalActivationWorkbook('historico.xlsx', workbookBuffer([
+    ['Técnico da planilha', openedAt, openedAt, executedAt, message],
+  ]));
+
+  assert.equal(parsed.candidates[0].call.technicianName, 'Técnico da planilha');
+  assert.ok(parsed.candidates[0].call.notes.includes(message));
+});

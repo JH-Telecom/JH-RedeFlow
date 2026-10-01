@@ -12,7 +12,7 @@ Principais usuários: operadores, supervisores, administradores, mesários e usu
 
 Status geral: EM DESENVOLVIMENTO
 
-Última atualização: 2026-09-30
+Última atualização: 2026-10-01
 
 Última implementação: prévia e confirmação protegida para importar chamados finalizados de Acionamentos_Finalizados_Antigos.xlsx.
 
@@ -344,8 +344,9 @@ Adicionar chamados antigos da planilha de acionamentos finalizados ao sistema at
 - os chamados são preparados como `Finalizado`; abertura, acionamento e fim são preservados, O.S. OT vira a chave primária e OLT é mapeada para Região quando possível;
 - a tela Importações fornece prévia agregada, amostra segura, contagem de chamadas existentes, duplicatas internas/conflitos, campos faltantes e ambiente de destino;
 - confirmação exige permissões de importação e criação de chamados, revalida duplicatas, usa IDs determinísticos e só grava em PostgreSQL/Supabase configurado; demo em memória bloqueia gravação;
-- a planilha atual, aba Planilha1: 3.724 linhas, todas com Data Abertura/Data-Fim/O.S. OT; 3.722 candidatas; duas linhas de uma mesma O.S. têm conteúdo operacional conflitante e são excluídas para revisão; faltam 75 motivos e 211 OLTs; nenhuma migration nova;
-- o workspace atual está sem conexão ao banco ativo. A importação completa não foi gravada; a base real continua intocada.
+- a planilha atualizada, aba Planilha1: 3.724 linhas; todas com Data Abertura/Data-Fim/O.S. OT; 3.722 candidatas; duas linhas da O.S. `602156053150102` divergem em abertura/acionamento e são excluídas até revisão (linhas 3332/3333); faltam 75 motivos e 211 OLTs;
+- a prévia no workspace demo mostra 3.722 importáveis, zero existentes no dataset demo e as duas linhas conflitantes com suas datas; o botão de gravação fica desabilitado em demo;
+- o workspace não tem conexão ao banco ativo. Nenhum chamado foi gravado em produção e nenhuma migration nova foi criada.
 
 ### Arquivos modificados/criados
 
@@ -361,14 +362,15 @@ Adicionar chamados antigos da planilha de acionamentos finalizados ao sistema at
 
 ### Testes
 
-- `npx.cmd tsx --test backend/test/historical-activations.test.ts`: 3 passaram, 0 falharam;
+- `npx.cmd tsx --test backend/test/historical-activations.test.ts`: 4 passaram, 0 falharam;
 - build backend e frontend passaram; build mantém aviso conhecido de bundle > 500 kB;
-- teste browser da planilha real mostrou destino `Demo em memória`, 3.722 novas, 0 existentes no conjunto demo e botão de gravação desabilitado;
-- duplicata exata não havia na versão atual; duas linhas com a mesma O.S. e datas de abertura/acionamento divergentes foram omitidas como conflito.
+- teste browser da planilha atualizada mostrou destino `Demo em memória`, 3.722 novas, 0 existentes no conjunto demo e botão de gravação desabilitado;
+- conflito das linhas 3332/3333 agora é exibido na prévia com O.S. e datas, sem mostrar mensagem, telefone ou outros dados pessoais;
+- importação em produção ainda não foi executada: é necessário publicar/conectar o backend ao banco ativo.
 
 ### Próximo passo
 
-Implantar esta versão conectada ao banco ativo; na prévia de produção, rever as duas linhas conflitantes e deduplicar contra os chamados existentes antes de confirmar.
+Implantar esta versão conectada ao banco ativo; revisar/excluir as linhas 3332/3333 em conflito, conferir a contagem de já existentes em produção e só então confirmar.
 
 ## 2026-09-30 — Segmentação regional do Painel diário pelo OFS
 
@@ -1435,9 +1437,9 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 15. CHECKPOINT DE CONTINUIDADE
 
-## 🔖 CHECKPOINT — 2026-09-30 — Importação histórica de chamados
+## 🔖 CHECKPOINT — 2026-10-01 — Importação histórica de chamados
 
-O importador está implementado em **Importações**, mas não foi gravado nenhum chamado: o workspace não tem conexão de produção e o runtime demo bloqueia confirmação. A prévia do `Acionamentos_Finalizados_Antigos_Atualizados.xlsx` mostrou 3.724 linhas, 3.722 candidatas, 2 registros em conflito (mesma O.S., diferentes timestamps de abertura/acionamento), 0 datas/chaves obrigatórias ausentes, 75 sem motivo e 211 sem OLT. Deduplicação interna/idempotência por O.S. e contra banco ativo está implementada. Reimportar/rever no backend de produção, conferir duplicatas existentes e então confirmar.
+O importador está implementado em **Importações**, mas nenhum chamado foi gravado: o workspace não tem conexão de produção e o runtime demo bloqueia confirmação. A prévia do XLSX atualizado mostrou 3.724 linhas, 3.722 candidatas, 0 já existentes no dataset demo, 2 linhas conflitantes da O.S. `602156053150102` (3332/3333; abertura/acionamento diferentes), nenhuma data/O.S. obrigatória ausente, 75 sem motivo e 211 sem OLT. Quatro testes do parser e builds backend/frontend passaram. Publicar/configurar produção, revisar a exceção, conferir a deduplicação no banco ativo e só então confirmar.
 
 O teste da rota usou a sessão e o dataset demo em memória; backend foi reiniciado depois e a base de teste foi descartada. Nenhuma alteração de banco/schema.
 

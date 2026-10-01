@@ -1628,7 +1628,7 @@ function HistoricalActivationImportPanel() {
         <span><b>{preview.alreadyInSystem.toLocaleString("pt-BR")}</b> já existentes</span>
         <span><b>{preview.duplicatesWithinFile.toLocaleString("pt-BR")}</b> duplicadas idênticas</span>
         <span><b>{preview.conflictingOrderRows.toLocaleString("pt-BR")}</b> em O.S. conflitante</span>
-        <span><b>{(preview.missingOpeningDate + preview.missingFinishedDate + preview.missingOrder).toLocaleString("pt-BR")}</b> sem abertura/fim/O.S.</span>
+        <span><b>{(preview.missingOpeningDate + preview.missingFinishedDate + preview.missingOrder).toLocaleString("pt-BR")}</b> campos obrigatórios ausentes</span>
       </div>
       <p className="historical-import-note">Data Abertura e Data-Fim são preservadas. Linhas sem esses dados ou sem O.S. não entram; Data-Fim define Finalizado. Motivo/OLT ausentes: {preview.missingReason}/{preview.missingOlt}. Sem técnico identificado: {preview.missingTechnician}.</p>
       {preview.conflictingOrderRows > 0 && <p className="historical-import-warning">Linhas com a mesma O.S. e conteúdo diferente foram excluídas da confirmação para revisão manual.</p>}
