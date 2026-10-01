@@ -1,0 +1,19 @@
+.igp-month-picker{display:grid;gap:6px;min-width:180px;color:var(--muted);font-size:11px;font-weight:700}
+.igp-month-picker input{min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);font:inherit;font-size:13px}
+.igp-summary{margin-bottom:18px}
+.igp-panel{display:grid;gap:18px}
+.igp-table-wrap{width:100%;overflow-x:auto}
+.igp-table{width:100%;min-width:850px;border-collapse:collapse;text-align:left}
+.igp-table th,.igp-table td{padding:14px 12px;border-bottom:1px solid var(--line);font-size:12px;white-space:nowrap}
+.igp-table thead th{background:#f5f7fb;color:#718097;font-size:10px;text-transform:uppercase;vertical-align:bottom}
+.igp-table thead th small{display:block;margin-top:5px;color:#9aa6b5;font-size:10px;font-weight:500;text-transform:none}
+.igp-table tbody th{color:var(--ink);font-size:13px}
+.igp-table td{color:#526179}
+.igp-goal{display:inline-flex;padding:5px 8px;border-radius:5px;font-size:10px;font-weight:700}
+.igp-goal.hit{background:#eaf7f0;color:#18744e}
+.igp-goal.minimum{background:#fff5df;color:#8a6200}
+.igp-goal.miss{background:#fff0f0;color:#a83b43}
+.igp-goal.empty{background:#f0f3f7;color:#718097}
+.igp-methodology{padding:16px 18px;background:#f3f6fb;color:#44536a;font-size:12px;line-height:1.7}
+.igp-methodology span{color:#168051;font-weight:600}
+@media(max-width:560px){.igp-table th,.igp-table td{padding:11px 9px}.igp-methodology{padding:13px;font-size:11px}}

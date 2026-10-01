@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, listActivations, listAuditLogs, listCalls, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
+import { calculateIgpMetrics } from './igp.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { hasD0Identifiers } from './imports/d0.js';
@@ -200,6 +201,20 @@ app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json(
 app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   try { return response.json({ metrics: await getDashboardMetrics(await getScopedCallQuery(request)) }); }
   catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o dashboard.' }); }
+});
+app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  const parsed = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).safeParse(request.query.month);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe um mes valido no formato AAAA-MM.' });
+  const [year, monthNumber] = parsed.data.split('-').map(Number);
+  const from = `${parsed.data}-01`;
+  const to = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+  try {
+    const scopedQuery = await getScopedCallQuery(request, true);
+    const calls = await listCalls('Finalizado', { ...scopedQuery, from, to });
+    return response.json({ igp: calculateIgpMetrics(calls, parsed.data) });
+  } catch (error) {
+    return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular o IGP.' });
+  }
 });
 app.get('/api/dashboards/painel-diario/base', auth, requirePermission('dashboard.view'), async (request, response) => {
   return response.json({ base: await getManualDailyBase(typeof request.query.date === 'string' ? request.query.date : undefined) });

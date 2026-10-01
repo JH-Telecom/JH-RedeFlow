@@ -4,6 +4,7 @@ import { getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, 
 import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
+import { calculateIgpMetrics } from '../src/igp.js';
 
 test('Google Drive preserves the OFS activity status separately from internal call status', () => {
   const row = { 'Número da Ordem': '12517410', 'Tipo de Atividade': 'Manutencao de Rede Field', 'Status da Atividade': 'Concluido', 'Status OFS': 'Concluída', 'Data Abertura': '29/09/2026 13:12', 'Data-Fim': '29/09/2026 18:08', 'Nome do Cliente': 'Cliente de teste' };
@@ -19,6 +20,47 @@ test('Google Drive preserves the OFS activity status separately from internal ca
   assert.equal(update.status, 'Finalizado');
   assert.equal(update.ofsStatus, 'Concluída');
   assert.equal(hasMeaningfulCallChange(existing, update), true);
+});
+
+test('IGP calculates weighted monthly indicators for Access and Backbone', () => {
+  const createCall = (id: string, type: string, status: Call['status'], openedAt: string, executedAt?: string): Call => ({
+    id,
+    orderNumber: id,
+    bdesk: '',
+    officeTrack: '',
+    client: '',
+    type,
+    reason: '',
+    region: '',
+    city: '',
+    olt: '',
+    slotPon: '',
+    status,
+    openedAt,
+    executedAt,
+    notes: '',
+  });
+  const metrics = calculateIgpMetrics([
+    createCall('access-on-time', 'NOC ACESSO', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T08:00:00.000Z'),
+    createCall('access-outlier', 'ACIONAMENTO FIELD', 'Finalizado', '2026-09-03T00:00:00.000Z', '2026-09-03T11:00:00.000Z'),
+    createCall('backbone-late', 'NOC TX', 'Finalizado', '2026-09-04T00:00:00.000Z', '2026-09-04T09:00:00.000Z'),
+    createCall('unknown-type', 'BAIXA TECNICA', 'Finalizado', '2026-09-05T00:00:00.000Z', '2026-09-05T04:00:00.000Z'),
+    createCall('open-call', 'NOC TX', 'Aberto', '2026-09-05T00:00:00.000Z'),
+    createCall('other-month', 'NOC TX', 'Finalizado', '2026-10-01T00:00:00.000Z', '2026-10-01T02:00:00.000Z'),
+  ], '2026-09');
+
+  assert.equal(metrics.access.orders, 2);
+  assert.equal(metrics.access.outlierPercent, 50);
+  assert.equal(metrics.access.onTimePercent, 50);
+  assert.equal(metrics.access.mttrHours, 9.5);
+  assert.equal(metrics.backbone.orders, 1);
+  assert.equal(metrics.backbone.outlierPercent, 0);
+  assert.equal(metrics.backbone.onTimePercent, 0);
+  assert.equal(metrics.total.orders, 3);
+  assert.ok(Math.abs(metrics.total.outlierPercent! - 100 / 3) < 1e-10);
+  assert.ok(Math.abs(metrics.total.onTimePercent! - 100 / 3) < 1e-10);
+  assert.equal(metrics.total.mttrHours, 28 / 3);
+  assert.equal(metrics.excludedOrders, 1);
 });
 
 test('supervisor users resolve to their own team and can only see their calls', async () => {

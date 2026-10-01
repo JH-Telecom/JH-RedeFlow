@@ -16,6 +16,7 @@ import './activation-overrides.css';
 import './call-detail-overrides.css';
 import './imports.css';
 import './dashboard.css';
+import './igp.css';
 import './manual-dashboard.css';
 import './sidebar.css';
 import './admin.css';

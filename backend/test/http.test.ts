@@ -132,6 +132,33 @@ test('historical import preview links the spreadsheet technician to a registered
   assert.equal(body.sample[0]?.technicianName, 'Carlos Mendes');
 });
 
+test('IGP endpoint groups finalized orders by execution month', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const finishResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ status: 'Finalizado', executedAt: '2026-10-02T08:00:00.000Z' }),
+  });
+  assert.equal(finishResponse.status, 200);
+
+  const response = await fetch(`${baseUrl}/api/dashboards/igp?month=2026-10`, { headers });
+  const body = await response.json() as { igp: { month: string; access: { orders: number; outlierPercent: number }; backbone: { orders: number }; total: { orders: number; outlierPercent: number } } };
+
+  assert.equal(response.status, 200);
+  assert.equal(body.igp.month, '2026-10');
+  assert.equal(body.igp.access.orders, 1);
+  assert.equal(body.igp.access.outlierPercent, 100);
+  assert.equal(body.igp.backbone.orders, 0);
+  assert.equal(body.igp.total.orders, 1);
+  assert.equal(body.igp.total.outlierPercent, 100);
+});
+
 test('prefers Supabase whenever credentials are configured, even if runtime is local', async () => {
   const previousRuntime = process.env.REDEFLOW_RUNTIME;
   const previousUrl = process.env.SUPABASE_URL;
