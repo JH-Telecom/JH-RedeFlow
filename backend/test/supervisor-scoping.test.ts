@@ -4,7 +4,7 @@ import { getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, 
 import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
-import { calculateIgpMetrics } from '../src/igp.js';
+import { calculateIgpMetrics, classifyIgpArea } from '../src/igp.js';
 
 test('Google Drive preserves the OFS activity status separately from internal call status', () => {
   const row = { 'Número da Ordem': '12517410', 'Tipo de Atividade': 'Manutencao de Rede Field', 'Status da Atividade': 'Concluido', 'Status OFS': 'Concluída', 'Data Abertura': '29/09/2026 13:12', 'Data-Fim': '29/09/2026 18:08', 'Nome do Cliente': 'Cliente de teste' };
@@ -23,6 +23,13 @@ test('Google Drive preserves the OFS activity status separately from internal ca
 });
 
 test('IGP calculates weighted monthly indicators for Access and Backbone', () => {
+  for (const region of ['GUARULHOS 1', 'GUARULHOS 2', 'GUARULHOS 3', 'GUARULHOS 4', 'GUARULHOS 5']) {
+    assert.equal(classifyIgpArea(region), 'GRU');
+  }
+  for (const region of ['GUARULHOS', 'GUARULHOS 6', 'GUAIANASES 1', 'DIADEMA']) {
+    assert.equal(classifyIgpArea(region), 'SP');
+  }
+
   const createCall = (id: string, type: string, status: Call['status'], openedAt: string, executedAt?: string, region = 'SÃO PAULO'): Call => ({
     id,
     orderNumber: id,

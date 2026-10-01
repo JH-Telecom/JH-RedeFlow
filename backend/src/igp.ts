@@ -43,8 +43,8 @@ function classifyIgpGroup(type: string): IgpGroupKey | undefined {
 }
 
 export function classifyIgpArea(region: string): Exclude<IgpArea, 'ALL'> {
-  const normalized = region.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  return normalized.includes('guarulhos') ? 'GRU' : 'SP';
+  const normalized = region.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+  return /^GUARULHOS [1-5]$/.test(normalized) ? 'GRU' : 'SP';
 }
 
 export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea = 'ALL'): IgpMetrics {
