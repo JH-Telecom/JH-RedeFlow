@@ -5,6 +5,22 @@ import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange } from '../sr
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
 
+test('Google Drive preserves the OFS activity status separately from internal call status', () => {
+  const row = { 'Número da Ordem': '12517410', 'Tipo de Atividade': 'Manutencao de Rede Field', 'Status da Atividade': 'Concluido', 'Status OFS': 'Concluída', 'Data Abertura': '29/09/2026 13:12', 'Data-Fim': '29/09/2026 18:08', 'Nome do Cliente': 'Cliente de teste' };
+  const imported = buildDriveCall(row);
+
+  assert.ok(imported);
+  assert.equal(imported.orderNumber, '12517410');
+  assert.equal(imported.status, 'Finalizado');
+  assert.equal(imported.ofsStatus, 'Concluída');
+
+  const existing = { ...imported, ofsStatus: undefined };
+  const update = buildDriveUpdate(row, existing);
+  assert.equal(update.status, 'Finalizado');
+  assert.equal(update.ofsStatus, 'Concluída');
+  assert.equal(hasMeaningfulCallChange(existing, update), true);
+});
+
 test('supervisor users resolve to their own team and can only see their calls', async () => {
   const previousRuntime = process.env.REDEFLOW_RUNTIME;
   const previousDemoData = process.env.REDEFLOW_DEMO_DATA;

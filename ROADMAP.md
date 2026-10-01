@@ -16,7 +16,7 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: listas de chamados renderizam 100 por página e o cliente Supabase busca o histórico completo em páginas de 500.
+Última implementação: sincronização Google Drive preenche `ofsStatus` e aceita aliases de ordem/datas compatíveis com D-0.
 Agente responsável pela última alteração: GitHub Copilot
 
 Próxima ação: implantar a paginação Supabase, validar os 3.722 chamados na listagem e então retomar a importação histórica em produção.
@@ -333,6 +333,33 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Google Drive atualiza campos OFS e aliases D-0
+
+### Objetivo
+
+Fazer a sincronização Drive preencher informações faltantes do chamado, mantendo a distinção entre status interno e status da fonte OFS.
+
+### Alterações realizadas
+
+- `Status da Atividade` e aliases são gravados em `calls.ofs_status`; a comparação de mudanças agora inclui esse campo;
+- builders de criação/atualização aceitam aliases adicionais de ordem, OfficeTrack, endereço/cidade, região e datas finais do D-0;
+- nenhuma migration ou alteração de schema.
+
+### Arquivos modificados
+
+- [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts)
+- [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts)
+- [docs/google-drive-d1-sync.md](docs/google-drive-d1-sync.md)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+`npx.cmd tsx --test backend/test/supervisor-scoping.test.ts`: 7 passaram, 0 falharam. Teste do builder confirma que uma alteração somente em `ofsStatus` é significativa sem substituir o status interno. Validação com Drive real depende das credenciais/folder ID do ambiente implantado.
+
+### Próximo passo
+
+Implantar e executar a sincronização Drive; conferir campos preenchidos e contadores antes de considerar a validação operacional concluída.
 
 ## 2026-10-01 — Paginação visual das listas de chamados
 
@@ -1496,6 +1523,10 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Sincronização Drive preenche Status OFS
+
+Drive agora mapeia `Status da Atividade`/aliases para `calls.ofs_status` e detecta mudança apenas nesse campo; também amplia aliases de ordem/endereço/datas para paridade com D-0. Não sobrescreve `calls.status` por causa do novo campo OFS. Sete testes Google Drive/supervisor passaram. Nenhuma migration; testar no Drive ativo após deploy.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Paginação visual de chamados
 

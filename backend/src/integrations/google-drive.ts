@@ -57,7 +57,7 @@ function getDriveClient() {
 
 function buildRowIdentifiers(row: DriveRow) {
   return [
-    ['os', value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS')],
+    ['os', value(row, 'Ordem de Serviço', 'Ordem de Servico', 'Número da Ordem', 'Numero da Ordem', 'OS', 'Ordem', 'Nº OS', 'Número OS', 'Numero OS')],
     ['bdesk', value(row, 'BDESK', 'BDesk')],
     ['office-track', value(row, 'Office Track', 'OS OT', 'OT')],
     ['os-casa-cliente', value(row, 'OS Casa Cliente')],
@@ -98,13 +98,13 @@ function normalizeNeighborhood(valueText: string, city: string) {
 }
 
 function parseDriveLocation(row: DriveRow) {
-  const rawAddress = value(row, 'Endereço', 'Endereco', 'Endereço do Cliente', 'Endereco do Cliente', 'Endereço de Instalação', 'Endereco de Instalacao');
+  const rawAddress = value(row, 'Endereço', 'Endereco', 'Endereço do Cliente', 'Endereco do Cliente', 'Endereço de Instalação', 'Endereco de Instalacao', 'Endereco da OS', 'Endereço OS');
   let address = rawAddress.replace(/^CLT[_\s-]*/i, '').replace(/\s+/g, ' ').trim();
   const duplicateStreetPrefix = /^(RUA|AVENIDA|AV\.?|ALAMEDA|TRAVESSA|ESTRADA|RODOVIA)\s+\1\b/i;
   while (duplicateStreetPrefix.test(address)) address = address.replace(duplicateStreetPrefix, '$1').trim();
 
-  let city = value(row, 'Cidade', 'Municipio', 'Município');
-  const state = value(row, 'Estado', 'UF');
+  let city = value(row, 'Cidade', 'Municipio', 'Município', 'City');
+  const state = value(row, 'Estado', 'UF', 'Estado UF');
   const suffix = address.match(/,\s*([^,]+?)\s*-\s*([A-Z]{2})\s*$/i);
   const normalizedCity = normalize(city);
   if ((!city || ['nao informada', 'nao informado', 'n/a', 'na'].includes(normalizedCity)) && suffix) city = suffix[1].trim();
@@ -145,27 +145,29 @@ export function buildDriveCall(row: DriveRow): Call | undefined {
   const status: Call['status'] | undefined = statusText === 'finalizado' ? 'Finalizado' : statusText === 'cancelado' ? 'Cancelado' : statusText === 'aberto' ? 'Aberto' : undefined;
   if (!status) return undefined;
 
-  const order = value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS');
+  const order = value(row, 'Ordem de Serviço', 'Ordem de Servico', 'Número da Ordem', 'Numero da Ordem', 'OS', 'Ordem', 'Nº OS', 'Número OS', 'Numero OS');
   const bdesk = value(row, 'BDESK', 'BDesk');
-  const officeTrack = value(row, 'Office Track', 'OS OT', 'OT');
+  const officeTrack = value(row, 'Office Track', 'OfficeTrack', 'OS OT', 'OT');
   const orderNumber = order || (bdesk ? `BDESK-${bdesk}` : '') || officeTrack || primary.raw;
   const type = value(row, 'Tipo de Atividade', 'Tipo');
   const isField = normalize(type).includes('field');
   const location = parseDriveLocation(row);
   const olt = value(row, 'OLT');
-  const referenceDate = parseReferenceDate(value(row, 'Data'));
+  const referenceDate = parseReferenceDate(value(row, 'Data Abertura', 'Data de Abertura', 'Data'));
+  const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
   const result = value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo');
-  const executedAt = parseFinishedAt(value(row, 'Data'), value(row, 'Fim'));
+  const executedAt = parseFinishedAt(value(row, 'Data', 'Data-Fim', 'Data Fim', 'Data de Finalizacao', 'Data de Finalização'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim'));
 
   return {
     id: randomUUID(), orderNumber, bdesk, officeTrack,
     client: isField ? value(row, 'Nome', 'Nome do Cliente', 'Cliente', 'Assinante') : value(row, 'Nome do Cliente', 'Cliente', 'Assinante'),
     type,
     reason: value(row, 'Motivo', 'Motivo de Encerramento das atividades', 'Motivo de Encerramento'),
-    region: resolveOltRegion(olt).region || value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual'),
+    region: resolveOltRegion(olt).region || value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual', 'Regiao Operacional', 'Região Operacional'),
     city: location.city,
     address: location.address, bairro: location.bairro,
-    olt, slotPon: value(row, 'Slot/PON', 'Slot PON', 'PON'),
+    ofsStatus: ofsStatus || undefined,
+    olt, slotPon: value(row, 'Slot/PON', 'Slot PON', 'Placa/PON', 'Placa PON', 'PON'),
     status, openedAt: referenceDate ? `${referenceDate}T00:00:00-03:00` : new Date().toISOString(),
     executedAt, result: result || undefined, cancellationReason: status === 'Cancelado' ? result || undefined : undefined,
     notes: result || 'Importado da base historica do Google Drive.',
@@ -189,13 +191,14 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
   const statusText = normalizeDriveStatus(value(row, 'Status da Atividade', 'Status'));
   const activityType = value(row, 'Tipo de Atividade', 'Tipo');
   const resultValue = value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo');
-  const rawRegion = value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual');
+  const rawRegion = value(row, 'Regiao', 'Região', 'Regiao Atual', 'Região Atual', 'Regiao Operacional', 'Região Operacional');
   const location = parseDriveLocation(row);
-  const rawCity = location.city || value(row, 'Cidade', 'Municipio', 'Município');
+  const rawCity = location.city || value(row, 'Cidade', 'Municipio', 'Município', 'City');
   const olt = value(row, 'OLT') || existing.olt;
+  const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
   const rawType = activityType || existing.type;
   const nextStatus: 'Aberto' | 'Finalizado' | 'Cancelado' | undefined = statusText === 'finalizado' ? 'Finalizado' : statusText === 'cancelado' ? 'Cancelado' : statusText === 'aberto' ? 'Aberto' : undefined;
-  const executedAt = parseFinishedAt(value(row, 'Data'), value(row, 'Fim')) || existing.executedAt;
+  const executedAt = parseFinishedAt(value(row, 'Data', 'Data-Fim', 'Data Fim', 'Data de Finalizacao', 'Data de Finalização'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) || existing.executedAt;
   const notes = (() => {
     if (!resultValue) return existing.notes;
     const normalizedResult = resultValue.trim();
@@ -211,8 +214,9 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
     city: rawCity || existing.city,
     address: location.address || existing.address || '',
     bairro: location.bairro || existing.bairro || '',
+    ofsStatus: ofsStatus || existing.ofsStatus,
     olt,
-    slotPon: value(row, 'Slot/PON', 'Slot PON', 'PON') || existing.slotPon,
+    slotPon: value(row, 'Slot/PON', 'Slot PON', 'Placa/PON', 'Placa PON', 'PON') || existing.slotPon,
     notes,
   };
 
@@ -227,9 +231,9 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
   if (nextStatus === 'Cancelado') changes.cancellationReason = resultValue || value(row, 'Motivo de Cancelamento', 'Motivo Cancelamento');
   else if (nextStatus) changes.cancellationReason = null;
 
-  const order = value(row, 'Ordem de Serviço', 'OS', 'Ordem', 'Nº OS', 'Numero OS');
+  const order = value(row, 'Ordem de Serviço', 'Ordem de Servico', 'Número da Ordem', 'Numero da Ordem', 'OS', 'Ordem', 'Nº OS', 'Número OS', 'Numero OS');
   const bdesk = value(row, 'BDESK', 'BDesk');
-  const officeTrack = value(row, 'Office Track', 'OS OT', 'OT');
+  const officeTrack = value(row, 'Office Track', 'OfficeTrack', 'OS OT', 'OT');
   if (order) changes.orderNumber = order;
   if (bdesk) changes.bdesk = bdesk;
   if (officeTrack) changes.officeTrack = officeTrack;
@@ -238,7 +242,7 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
 }
 
 export function hasMeaningfulCallChange(existing: Call, candidate: Partial<EditableCallFields>) {
-  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
+  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'ofsStatus', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
   for (const field of fieldsToCompare) {
     const current = String(existing[field] ?? '');
     const next = String(candidate[field] ?? '');

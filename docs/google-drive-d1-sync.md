@@ -31,6 +31,8 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 - Nos filtros historicos de chamados e indicadores, registros finalizados/cancelados usam `executed_at`; chamados ativos usam `opened_at`.
 - Para atividades com endereço, o backend remove prefixos duplicados como `RUA RUA` e extrai `bairro` somente quando consegue separar o logradouro do trecho de cidade; endereço sem contexto suficiente não gera bairro.
 - `bairro` e `address` são campos do chamado compartilhados por NOC, FIELD e demais origens; uma atualização vazia mantém um valor válido já persistido.
+- `Status da Atividade` (ou `Status OFS`, `OFS Status`, `Status da Atividade OFS`) é persistido em `calls.ofs_status`; ele não substitui o status interno do chamado.
+- O matching também reconhece aliases de ordem do D-0 (`Número da Ordem`, `Número OS`, `Ordem de Serviço` e variantes sem acento), e as datas reconhecem `Data Abertura`/`Data-Fim` e aliases de hora de encerramento.
 - A região é recalculada pelo mapeamento OLT→Região existente, inclusive em atualizações/reprocessamentos; OLT sem correspondência mantém a região disponível.
 - O motivo de encerramento vira o resultado e tambem fica registrado nas observacoes quando houver valor.
 - Cada alteracao efetiva gera log e snapshot com arquivo, identificador, payload e horario; cada execucao grava contadores em `google_drive_sync_runs`.
