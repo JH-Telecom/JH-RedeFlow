@@ -34,7 +34,28 @@ BEGIN
       ('Robson Jose da Silva Oliveira', ARRAY['Micael Feitosa freita']),
       ('Maicon Torres dos Santos', ARRAY['Guilherme Lopes Dias']),
       ('Carlos Roberto Oliveira Filho', ARRAY['Nelson Quaitti leopoudo']),
-      ('Leandro da Silva Costa', ARRAY[]::text[])
+      ('Leandro da Silva Costa', ARRAY[]::text[]),
+      ('Guilherme Lima Oliveira Santos', ARRAY[]::text[]),
+      ('Vinícius Guedes Balbino', ARRAY[]::text[]),
+      ('Ricardo Mendes de souza', ARRAY[]::text[]),
+      ('Ronaldo Rodrigues da Silva', ARRAY[]::text[]),
+      ('Geraldo celestino da Silva Junior', ARRAY[]::text[]),
+      ('Josafa Leme da Silva', ARRAY[]::text[]),
+      ('Jose Leidson da Silva Barbosa', ARRAY[]::text[]),
+      ('Lucas Riquelme Barret de Souza', ARRAY[]::text[]),
+      ('Eric Eduardo Batista de Barros', ARRAY[]::text[]),
+      ('JH Telecom', ARRAY[]::text[]),
+      ('Erik Roberto Santos Ribeiro', ARRAY[]::text[]),
+      ('Edivaldo Marques', ARRAY[]::text[]),
+      ('Felipe Cassio', ARRAY[]::text[]),
+      ('George Pereira santana', ARRAY[]::text[]),
+      ('Kauan Felipe Ribeiro Da Silva', ARRAY[]::text[]),
+      ('Rogério Alves Ferreira', ARRAY[]::text[]),
+      ('Lucas Oliveira Santos', ARRAY[]::text[]),
+      ('Amilton Santos Melo', ARRAY[]::text[]),
+      ('Julio Cesar Linhares da Silva', ARRAY[]::text[]),
+      ('VICTOR', ARRAY[]::text[]),
+      ('Gabriel Oliveira da Silva', ARRAY[]::text[])
     ) AS roster(technician_name, assistant_names)
   LOOP
     SELECT id INTO lead_id
