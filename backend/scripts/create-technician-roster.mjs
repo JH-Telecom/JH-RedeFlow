@@ -37,29 +37,75 @@ if (process.argv.includes('--dry-run')) {
   process.exit(0);
 }
 
-const [{ isSupabaseConfigured }, { addTechnician, listTechnicians }, { getDatabaseClient }] = await Promise.all([
-  import('../src/integrations/supabase/client.ts'),
-  import('../src/store.ts'),
-  import('../src/db.ts'),
-]);
-
-if (!isSupabaseConfigured() && process.env.DATABASE_URL) process.env.REDEFLOW_RUNTIME = 'local';
-if (!isSupabaseConfigured() && !(process.env.REDEFLOW_RUNTIME === 'local' && process.env.DATABASE_URL)) {
-  throw new Error('Sem banco persistente configurado. Configure Supabase ou DATABASE_URL antes da importação.');
-}
-
 function normalizeName(value) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
 }
 
-const isSupabase = isSupabaseConfigured();
+const remote = process.argv.includes('--remote');
+let loadTechnicians;
+let createTechnician;
+let closeConnection = async () => {};
+
+if (remote) {
+  const apiUrl = (process.env.REDEFLOW_API_URL || 'https://jh-redeflow-api.onrender.com').replace(/\/+$/, '');
+  const email = process.env.REDEFLOW_ADMIN_EMAIL;
+  const password = process.env.REDEFLOW_ADMIN_PASSWORD;
+  if (!email || !password) {
+    throw new Error('Defina REDEFLOW_ADMIN_EMAIL e REDEFLOW_ADMIN_PASSWORD localmente antes de usar --remote.');
+  }
+
+  const loginResponse = await fetch(`${apiUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const login = await loginResponse.json();
+  if (!loginResponse.ok || !login.token) throw new Error(login.message || 'Login administrativo recusado pela API remota.');
+  const authorization = { authorization: `Bearer ${login.token}` };
+
+  loadTechnicians = async () => {
+    const response = await fetch(`${apiUrl}/api/tecnicos`, { headers: authorization });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message || 'Nao foi possivel consultar tecnicos na API remota.');
+    return body.technicians;
+  };
+  createTechnician = async (data) => {
+    const response = await fetch(`${apiUrl}/api/tecnicos`, {
+      method: 'POST',
+      headers: { ...authorization, 'content-type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.message || `Nao foi possivel cadastrar ${data.name}.`);
+    return body.technician;
+  };
+} else {
+  const [{ isSupabaseConfigured }, store, database] = await Promise.all([
+    import('../src/integrations/supabase/client.ts'),
+    import('../src/store.ts'),
+    import('../src/db.ts'),
+  ]);
+  if (!isSupabaseConfigured() && process.env.DATABASE_URL) process.env.REDEFLOW_RUNTIME = 'local';
+  if (!isSupabaseConfigured() && !(process.env.REDEFLOW_RUNTIME === 'local' && process.env.DATABASE_URL)) {
+    throw new Error('Sem banco persistente configurado. Configure Supabase ou DATABASE_URL ou use --remote.');
+  }
+  loadTechnicians = store.listTechnicians;
+  createTechnician = store.addTechnician;
+  if (!isSupabaseConfigured() && process.env.DATABASE_URL) {
+    closeConnection = async () => {
+      const client = await database.getDatabaseClient();
+      await client.end();
+    };
+  }
+}
+
 let createdTechnicians = 0;
 let createdAssistants = 0;
 let skippedTechnicians = 0;
 let skippedAssistants = 0;
 
 try {
-  const existing = await listTechnicians();
+  const existing = await loadTechnicians();
   const usedRegistrations = new Set(existing.map((item) => item.registration.trim().toLocaleUpperCase()));
   let nextTechnicianNumber = 1;
   let nextAssistantNumber = 1;
@@ -81,7 +127,7 @@ try {
       && (teamRole === 'Tecnico' || item.leadTechnicianId === leadTechnicianId));
     if (matching) return { item: matching, created: false };
 
-    const item = await addTechnician({
+    const item = await createTechnician({
       name,
       registration: allocateRegistration(teamRole === 'Tecnico' ? 'TEC' : 'AUX'),
       teamRole,
@@ -109,8 +155,5 @@ try {
 
   console.log(`Importação concluída: ${createdTechnicians} técnicos e ${createdAssistants} auxiliares criados; ${skippedTechnicians} técnicos e ${skippedAssistants} vínculos já existiam.`);
 } finally {
-  if (!isSupabase && process.env.DATABASE_URL) {
-    const client = await getDatabaseClient();
-    await client.end();
-  }
+  await closeConnection();
 }
