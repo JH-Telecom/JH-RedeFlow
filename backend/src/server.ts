@@ -333,8 +333,16 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
   const search = typeof request.query.search === 'string' ? request.query.search.trim() : undefined;
   const region = typeof request.query.region === 'string' && request.query.region.trim() ? request.query.region.trim() : undefined;
   const neighborhood = typeof request.query.neighborhood === 'string' && request.query.neighborhood.trim() ? request.query.neighborhood.trim() : undefined;
-  const sort = typeof request.query.sort === 'string' && ['openedAt', 'status', 'region', 'technicianName', 'client', 'orderNumber'].includes(request.query.sort) ? request.query.sort : 'openedAt';
-  const direction = typeof request.query.direction === 'string' && ['asc', 'desc'].includes(request.query.direction) ? request.query.direction : 'desc';
+  const sortOptions = ['openedAt', 'status', 'region', 'technicianName', 'client', 'orderNumber'] as const;
+  type CallSortKey = typeof sortOptions[number];
+  const sort: CallSortKey = typeof request.query.sort === 'string' && (sortOptions as readonly string[]).includes(request.query.sort)
+    ? request.query.sort as CallSortKey
+    : 'openedAt';
+  const directionOptions = ['asc', 'desc'] as const;
+  type CallSortDirection = typeof directionOptions[number];
+  const direction: CallSortDirection = typeof request.query.direction === 'string' && (directionOptions as readonly string[]).includes(request.query.direction)
+    ? request.query.direction as CallSortDirection
+    : 'desc';
   try {
     const scopedQuery = await getScopedCallQuery(request, request.query.teamScope === 'true');
     const filteredCalls = await listCalls(status as CallStatus | undefined, { ...scopedQuery, search, region, neighborhood, sort, direction });
