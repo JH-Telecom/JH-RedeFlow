@@ -39,6 +39,14 @@ function normalizeHeader(value: unknown) {
   return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+function matchHeaderValue(header: string, aliases: readonly string[]) {
+  return aliases.includes(header);
+}
+
+function resolveHeaderIndex(headers: string[], aliases: readonly string[]) {
+  return headers.findIndex((header) => matchHeaderValue(header, aliases));
+}
+
 export function normalizeHistoricalIdentifier(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
@@ -86,17 +94,24 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
   const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: '', raw: true });
   const headerIndex = rows.findIndex((row) => {
     const headers = row.map(normalizeHeader);
-    return headers.includes('data abertura') && headers.includes('data fim') && headers.includes('acionamento');
+    const hasOpening = resolveHeaderIndex(headers, ['data abertura', 'data de abertura', 'dt abertura', 'abertura']) >= 0;
+    const hasFinished = resolveHeaderIndex(headers, ['data fim', 'data de fim', 'data final', 'data finalizacao', 'data de finalizacao', 'dt fim', 'fim']) >= 0;
+    const hasMessage = resolveHeaderIndex(headers, ['acionamento', 'mensagem de acionamento', 'mensagem acionamento', 'mensagem', 'texto acionamento']) >= 0;
+    return hasOpening && hasFinished && hasMessage;
   });
   if (headerIndex < 0) throw new Error('Não encontrei as colunas Data Abertura, Data-Fim e Acionamento.');
 
   const headers = rows[headerIndex].map(normalizeHeader);
-  const column = (...names: string[]) => headers.findIndex((header) => names.includes(header));
-  const technicianColumn = column('tecnico', 'técnico');
-  const openingColumn = column('data abertura');
-  const activationColumn = column('data acionamento');
-  const finishedColumn = column('data fim');
-  const messageColumn = column('acionamento');
+  const technicianAliases = ['tecnico', 'tecnico rede', 'responsavel', 'responsavel tecnico', 'nome tecnico'];
+  const openingAliases = ['data abertura', 'data de abertura', 'dt abertura', 'abertura'];
+  const activationAliases = ['data acionamento', 'data de acionamento', 'data do acionamento', 'dt acionamento', 'acionamento'];
+  const finishedAliases = ['data fim', 'data de fim', 'data final', 'data finalizacao', 'data de finalizacao', 'dt fim', 'fim'];
+  const messageAliases = ['acionamento', 'mensagem de acionamento', 'mensagem acionamento', 'mensagem', 'texto acionamento'];
+  const technicianColumn = resolveHeaderIndex(headers, technicianAliases);
+  const openingColumn = resolveHeaderIndex(headers, openingAliases);
+  const activationColumn = resolveHeaderIndex(headers, activationAliases);
+  const finishedColumn = resolveHeaderIndex(headers, finishedAliases);
+  const messageColumn = resolveHeaderIndex(headers, messageAliases);
   const totalRows = rows.slice(headerIndex + 1).filter((row) => String(row[messageColumn] ?? '').trim()).length;
   const groups = new Map<string, HistoricalActivationCandidate[]>();
   const missing = { missingOpeningDate: 0, missingFinishedDate: 0, missingOrder: 0, missingReason: 0, missingOlt: 0, missingTechnician: 0, omittedLongNeighborhood: 0, omittedLongSlotPon: 0 };
@@ -158,7 +173,7 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
       openedAt,
       assignedAt: parseWorkbookDate(activationColumn >= 0 ? row[activationColumn] : undefined),
       executedAt,
-      technicianName: analysis.tecnico_rede || analysis.tecnico || legacy.technician || workbookTechnician || undefined,
+      technicianName: workbookTechnician || analysis.tecnico_rede || analysis.tecnico || legacy.technician || undefined,
       result: analysis.tratativa_realizada || undefined,
       notes: `Importado do histórico ${fileName}, linha ${rowNumber}.\n\n${message}`,
       source: 'legacy-activation',

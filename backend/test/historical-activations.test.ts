@@ -78,3 +78,23 @@ test('uses the workbook technician column when the message does not contain one 
   assert.equal(parsed.candidates[0].call.technicianName, 'Técnico da planilha');
   assert.ok(parsed.candidates[0].call.notes.includes(message));
 });
+
+test('reads the finalized historical workbook when columns use the newer naming variants', () => {
+  const openedAt = new Date('2026-06-18T17:03:26.000Z');
+  const activatedAt = new Date('2026-06-18T17:15:00.000Z');
+  const executedAt = new Date('2026-06-24T16:42:28.000Z');
+  const message = fieldMessage('12096886');
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['Técnico', 'Data de Abertura', 'Data do Acionamento', 'Data de Fim', 'Mensagem de Acionamento'],
+    ['Técnico A', openedAt, activatedAt, executedAt, message],
+  ]), 'Planilha1');
+
+  const parsed = parseHistoricalActivationWorkbook('historico-novo.xlsx', XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer);
+
+  assert.equal(parsed.candidates.length, 1);
+  assert.equal(parsed.candidates[0].call.orderNumber, '12096886');
+  assert.equal(parsed.candidates[0].call.technicianName, 'Técnico A');
+  assert.equal(parsed.candidates[0].call.openedAt, openedAt.toISOString());
+  assert.equal(parsed.candidates[0].call.executedAt, executedAt.toISOString());
+});
