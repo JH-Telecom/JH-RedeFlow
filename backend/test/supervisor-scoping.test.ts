@@ -23,7 +23,7 @@ test('Google Drive preserves the OFS activity status separately from internal ca
 });
 
 test('IGP calculates weighted monthly indicators for Access and Backbone', () => {
-  const createCall = (id: string, type: string, status: Call['status'], openedAt: string, executedAt?: string): Call => ({
+  const createCall = (id: string, type: string, status: Call['status'], openedAt: string, executedAt?: string, region = 'SÃO PAULO'): Call => ({
     id,
     orderNumber: id,
     bdesk: '',
@@ -31,7 +31,7 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
     client: '',
     type,
     reason: '',
-    region: '',
+    region,
     city: '',
     olt: '',
     slotPon: '',
@@ -61,6 +61,15 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   assert.ok(Math.abs(metrics.total.onTimePercent! - 100 / 3) < 1e-10);
   assert.equal(metrics.total.mttrHours, 28 / 3);
   assert.equal(metrics.excludedOrders, 1);
+
+  const guarulhosMetrics = calculateIgpMetrics([
+    createCall('gru-call', 'NOC ACESSO', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T04:00:00.000Z', 'GUARULHOS 3'),
+    createCall('sp-call', 'NOC TX', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T04:00:00.000Z', 'DIADEMA'),
+  ], '2026-09', 'GRU');
+  assert.equal(guarulhosMetrics.area, 'GRU');
+  assert.equal(guarulhosMetrics.total.orders, 1);
+  assert.equal(guarulhosMetrics.access.orders, 1);
+  assert.equal(guarulhosMetrics.backbone.orders, 0);
 });
 
 test('supervisor users resolve to their own team and can only see their calls', async () => {

@@ -12,12 +12,14 @@ export type IgpGroup = {
 
 export type IgpMetrics = {
   month: string;
+  area: IgpArea;
   access: IgpGroup;
   backbone: IgpGroup;
   total: IgpGroup;
   excludedOrders: number;
 };
 
+export type IgpArea = 'ALL' | 'SP' | 'GRU';
 type IgpGroupKey = 'access' | 'backbone';
 
 function createGroup(): IgpGroup {
@@ -40,13 +42,19 @@ function classifyIgpGroup(type: string): IgpGroupKey | undefined {
   return undefined;
 }
 
-export function calculateIgpMetrics(calls: Call[], month: string): IgpMetrics {
+export function classifyIgpArea(region: string): Exclude<IgpArea, 'ALL'> {
+  const normalized = region.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return normalized.includes('guarulhos') ? 'GRU' : 'SP';
+}
+
+export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea = 'ALL'): IgpMetrics {
   const groups = { access: createGroup(), backbone: createGroup() };
   const total = createGroup();
   let excludedOrders = 0;
 
   for (const call of calls) {
     if (call.status !== 'Finalizado' || !call.executedAt || call.executedAt.slice(0, 7) !== month) continue;
+    if (area !== 'ALL' && classifyIgpArea(call.region) !== area) continue;
     const groupKey = classifyIgpGroup(call.type);
     const openedAt = Date.parse(call.openedAt);
     const executedAt = Date.parse(call.executedAt);
@@ -68,6 +76,7 @@ export function calculateIgpMetrics(calls: Call[], month: string): IgpMetrics {
 
   return {
     month,
+    area,
     access: finalizeGroup(groups.access),
     backbone: finalizeGroup(groups.backbone),
     total: finalizeGroup(total),

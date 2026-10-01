@@ -140,14 +140,16 @@ test('IGP endpoint groups finalized orders by execution month', async () => {
   });
   const session = await loginResponse.json() as { token: string };
   const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
-  const finishResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, {
+  const finishResponse = await fetch(`${baseUrl}/api/chamados/call-240918-02`, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ status: 'Finalizado', executedAt: '2026-10-02T08:00:00.000Z' }),
+    body: JSON.stringify({ olt: 'VIP-GRU-3-SPO-ONK-01', status: 'Finalizado', executedAt: '2026-10-02T08:00:00.000Z' }),
   });
   assert.equal(finishResponse.status, 200);
+  const finishedCall = await finishResponse.json() as { call: { region: string } };
+  assert.match(finishedCall.call.region, /GUARULHOS/);
 
-  const response = await fetch(`${baseUrl}/api/dashboards/igp?month=2026-10`, { headers });
+  const response = await fetch(`${baseUrl}/api/dashboards/igp?month=2026-10&area=GRU`, { headers });
   const body = await response.json() as { igp: { month: string; access: { orders: number; outlierPercent: number }; backbone: { orders: number }; total: { orders: number; outlierPercent: number } } };
 
   assert.equal(response.status, 200);
@@ -157,6 +159,11 @@ test('IGP endpoint groups finalized orders by execution month', async () => {
   assert.equal(body.igp.backbone.orders, 0);
   assert.equal(body.igp.total.orders, 1);
   assert.equal(body.igp.total.outlierPercent, 100);
+
+  const spResponse = await fetch(`${baseUrl}/api/dashboards/igp?month=2026-10&area=SP`, { headers });
+  const spBody = await spResponse.json() as { igp: { total: { orders: number } } };
+  assert.equal(spResponse.status, 200);
+  assert.equal(spBody.igp.total.orders, 0);
 });
 
 test('prefers Supabase whenever credentials are configured, even if runtime is local', async () => {
