@@ -207,6 +207,25 @@ test('only active technicians can receive calls and their status can change', as
   assert.equal(saveResponse.status, 200);
 });
 
+test('admin can create technician with blank region and temporary shift', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const response = await fetch(`${baseUrl}/api/tecnicos`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+    body: JSON.stringify({ name: 'Tecnico sem regiao', registration: 'TEC-EMPTY-REGION', region: '', shift: 'A definir' }),
+  });
+  const body = await response.json() as { technician: { region: string; shift: string } };
+
+  assert.equal(response.status, 201);
+  assert.equal(body.technician.region, '');
+  assert.equal(body.technician.shift, 'A definir');
+});
+
 test('admin can edit technician profile fields', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

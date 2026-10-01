@@ -305,12 +305,12 @@ app.post('/api/configuracoes/olt-regioes/solicitacoes/:id/ignorar', auth, requir
 });
 app.get('/api/tecnicos', auth, requirePermission('technicians.view'), async (_request, response) => response.json({ technicians: await listTechnicians() }));
 app.post('/api/tecnicos', auth, requirePermission('technicians.create'), async (request, response) => {
-  const parsed = z.object({ name: z.string().min(2), registration: z.string().min(2), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).default('Tecnico'), leadTechnicianId: z.string().optional(), region: z.string().min(2), shift: z.string().min(2), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).default('Disponivel'), active: z.boolean().default(true) }).safeParse(request.body);
+  const parsed = z.object({ name: z.string().trim().min(2).max(160), registration: z.string().trim().min(2).max(80), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).default('Tecnico'), leadTechnicianId: z.string().optional(), region: z.string().trim().max(100).default(''), shift: z.string().trim().min(2).max(80), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).default('Disponivel'), active: z.boolean().default(true) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
   return response.status(201).json({ technician: await addTechnician(parsed.data) });
 });
 app.patch('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), async (request, response) => {
-  const parsed = z.object({ name: z.string().trim().min(2).max(160).optional(), registration: z.string().trim().min(2).max(80).optional(), region: z.string().trim().min(2).max(100).optional(), shift: z.string().trim().min(2).max(80).optional(), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).optional(), leadTechnicianId: z.string().nullable().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
+  const parsed = z.object({ name: z.string().trim().min(2).max(160).optional(), registration: z.string().trim().min(2).max(80).optional(), region: z.string().trim().max(100).optional(), shift: z.string().trim().min(2).max(80).optional(), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).optional(), leadTechnicianId: z.string().nullable().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
   try {
     const technician = await updateTechnician(String(request.params.id), parsed.data);
