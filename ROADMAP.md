@@ -14,11 +14,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: prévia e confirmação protegida para importar chamados finalizados de Acionamentos_Finalizados_Antigos.xlsx.
-
+Última implementação: paginação da listagem Supabase para carregar históricos acima de 1.000 chamados.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: implantar a versão com banco ativo configurado e executar a importação confirmada após revisar as duas O.S. conflitantes.
+Próxima ação: implantar a paginação Supabase, validar os 3.722 chamados na listagem e então retomar a importação histórica em produção.
 
 ---
 
@@ -47,6 +46,7 @@ Próxima ação: implantar a versão com banco ativo configurado e executar a im
 - [x] Runtime local separado do Supabase oficial por ambiente.
 - [x] Fluxos de técnicos, supervisores e relacionamento entre equipes.
 - [x] Chamados, fila operacional, detalhe e atribuição.
+- [x] Listagem de chamados Supabase paginada em blocos para superar o limite padrão de 1.000 linhas.
 - [x] Tela de chamados finalizados e cancelados com busca, filtros e tabela operacional reutilizada.
 - [x] Observações e auditoria de chamados.
 - [x] Finalização, cancelamento e regras de status.
@@ -331,6 +331,33 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-01 — Paginação completa de chamados no Supabase
+
+### Objetivo
+
+Corrigir a listagem que mostrava exatamente 1.000 chamados mesmo havendo mais registros no banco.
+
+### Alterações realizadas
+
+- `listSupabaseCalls` consulta em páginas de 500 linhas até obter uma página incompleta;
+- ordenação determinística por `opened_at` descendente e `id` ascendente evita resultados instáveis entre páginas;
+- status, período e escopo de supervisor são reaplicados em cada consulta;
+- consumidores da função (filas, dashboards, busca e deduplicação histórica) recebem o conjunto completo;
+- nenhuma alteração de banco ou migration.
+
+### Arquivos modificados
+
+- [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts)
+- [ROADMAP.md](ROADMAP.md)
+
+### Testes
+
+Build/typecheck backend passou. Não foi possível consultar o Supabase ativo neste workspace.
+
+### Próximo passo
+
+Implantar e confirmar que a tela retorna os 3.722 históricos, sem truncar listagens ou dashboards acima de 1.000.
 
 ## 2026-09-30 — Importação de acionamentos históricos finalizados
 
@@ -1403,6 +1430,7 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ### 🔴 CRÍTICO
 
+- implantar a paginação no backend Supabase ativo e conferir contagens acima de 1.000 chamados;
 - configurar/implantar o endpoint de importação histórica no backend conectado ao banco ativo; rever as duas O.S. conflitantes na prévia antes da confirmação;
 - aplicar migration de anexos 012 local ou 014 Supabase antes de usar o novo fluxo;
 - aplicar a migration D-0 no banco do runtime antes do primeiro upload;
@@ -1431,13 +1459,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. aplicar migration local 012 ou Supabase 014 no ambiente ativo;
-2. testar anexos no chamado: imagem em prévia, arquivo genérico por download e usuário sem acesso;
-3. sincronizar D-0/D-1 e conferir Bairro/Cidade em chamados FIELD que estavam sem esses valores.
+1. implantar a paginação Supabase e confirmar listagens acima de 1.000 chamados;
+2. retomar a importação histórica no banco ativo após revisar as linhas 3332/3333 em conflito;
+3. aplicar migration local 012 ou Supabase 014 e validar upload/download de anexos.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-01 — Paginação Supabase acima de 1.000
+
+`listSupabaseCalls` agora busca páginas de 500 com ordenação estável; status, período e escopo de supervisor permanecem aplicados em todas as páginas. Corrige listas, dashboards e dedupe de importações que usam a função. Build backend passou; validação contra Supabase ativo ainda depende de deploy. Próximo passo: confirmar os 3.722 chamados após publicar. Nenhuma migration.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Importação histórica de chamados
 

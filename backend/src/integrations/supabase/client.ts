@@ -150,8 +150,11 @@ export async function deleteSupabaseTechnician(id: string) {
 
 export async function listSupabaseCalls(status?: CallStatus, filters: { from?: string; to?: string; supervisorId?: string } = {}): Promise<Call[]> {
   const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
-  let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false });
-  if (status) query = query.eq('status', status);
+  const pageSize = 500;
+  const calls: Call[] = [];
+  for (let from = 0; ; from += pageSize) {
+    let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false }).order('id', { ascending: true });
+    if (status) query = query.eq('status', status);
   if (filters.from || filters.to) {
     const from = filters.from ? `${filters.from}T00:00:00.000Z` : undefined;
     const upperBound = filters.to ? new Date(Date.parse(`${filters.to}T00:00:00.000Z`) + 86400000).toISOString() : undefined;
@@ -162,15 +165,18 @@ export async function listSupabaseCalls(status?: CallStatus, filters: { from?: s
     query = query.or([closedExecution, closedOpeningFallback, activeOpening].map((terms) => `and(${terms.join(',')})`).join(','));
   }
   if (filters.supervisorId) query = query.eq('technicians.supervisor_id', filters.supervisorId);
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return (data || []).map((row) => {
-    const technician = Array.isArray(row.technicians) ? row.technicians[0] : row.technicians;
-    const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
-    const observationRows = Array.isArray((row as any).call_observations) ? (row as any).call_observations : [];
-    const lastObservationAt = observationRows.map((observation: { created_at?: string }) => observation.created_at).filter(Boolean).sort().pop();
-    return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', address: row.address || '', bairro: row.bairro || '', ofsStatus: row.ofs_status || undefined, olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
-  });
+    const { data, error } = await query.range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const page = (data || []).map((row) => {
+      const technician = Array.isArray(row.technicians) ? row.technicians[0] : row.technicians;
+      const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
+      const observationRows = Array.isArray((row as any).call_observations) ? (row as any).call_observations : [];
+      const lastObservationAt = observationRows.map((observation: { created_at?: string }) => observation.created_at).filter(Boolean).sort().pop();
+      return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', address: row.address || '', bairro: row.bairro || '', ofsStatus: row.ofs_status || undefined, olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
+    });
+    calls.push(...page);
+    if (page.length < pageSize) return calls;
+  }
 }
 
 export async function finishSupabaseCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: { id: string; name: string }) {
