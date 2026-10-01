@@ -77,6 +77,28 @@ test('healthcheck exposes security headers', async () => {
   assert.equal(response.headers.get('access-control-allow-origin'), 'http://127.0.0.1:5173');
 });
 
+test('call list searches by OLT and filters without collapsing OLT options', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { authorization: `Bearer ${session.token}` };
+
+  const searchedResponse = await fetch(`${baseUrl}/api/chamados?search=vip-gz1-spo-ohw-02`, { headers });
+  const searched = await searchedResponse.json() as { calls: Array<{ olt: string }> };
+  assert.equal(searchedResponse.status, 200);
+  assert.ok(searched.calls.some((call) => call.olt === 'VIP-GZ1-SPO-OHW-02'));
+
+  const filteredResponse = await fetch(`${baseUrl}/api/chamados?olt=VIP-GZ1-SPO-OHW-02`, { headers });
+  const filtered = await filteredResponse.json() as { calls: Array<{ olt: string }>; olts: string[] };
+  assert.equal(filteredResponse.status, 200);
+  assert.ok(filtered.calls.length > 0);
+  assert.ok(filtered.calls.every((call) => call.olt === 'VIP-GZ1-SPO-OHW-02'));
+  assert.ok(filtered.olts.includes('VIP-CT1-SPO-OHW-01'));
+});
+
 test('prefers Supabase whenever credentials are configured, even if runtime is local', async () => {
   const previousRuntime = process.env.REDEFLOW_RUNTIME;
   const previousUrl = process.env.SUPABASE_URL;

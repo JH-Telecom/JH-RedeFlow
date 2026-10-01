@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { acceptOltRegionRequest, addCustomOperationalRegion, captureUnknownOltRequests, ignoreOltRegionRequest, listCustomOperationalRegions, listOltRegionMappings, listOltRegionRequests } from '../src/store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, captureUnknownOltRequests, ignoreOltRegionRequest, listCalls, listCustomOperationalRegions, listOltRegionMappings, listOltRegionRequests } from '../src/store.js';
 
 function makeUnknownOlt(label: string) {
   const token = crypto.randomUUID().slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, '').padEnd(4, 'X');
@@ -73,5 +73,16 @@ test('custom operational regions can be added and listed independently of OLT ma
     assert.equal(await addCustomOperationalRegion(region.toLowerCase()), region.toUpperCase());
     assert.ok((await listCustomOperationalRegions()).includes(region.toUpperCase()));
     await assert.rejects(() => addCustomOperationalRegion(region.toLowerCase()), /ja esta cadastrada/);
+  });
+});
+
+test('call search and filter both match OLT codes', async () => {
+  await withDemoRuntime(async () => {
+    const searched = await listCalls(undefined, { search: 'vip-gz1-spo-ohw-02' });
+    const filtered = await listCalls(undefined, { olt: 'VIP-GZ1-SPO-OHW-02' });
+
+    assert.ok(searched.some((call) => call.id === 'call-240918-02'));
+    assert.ok(filtered.length > 0);
+    assert.ok(filtered.every((call) => call.olt === 'VIP-GZ1-SPO-OHW-02'));
   });
 });

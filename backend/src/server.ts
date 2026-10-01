@@ -343,6 +343,7 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
   const search = typeof request.query.search === 'string' ? request.query.search.trim() : undefined;
   const region = typeof request.query.region === 'string' && request.query.region.trim() ? request.query.region.trim() : undefined;
   const neighborhood = typeof request.query.neighborhood === 'string' && request.query.neighborhood.trim() ? request.query.neighborhood.trim() : undefined;
+  const olt = typeof request.query.olt === 'string' && request.query.olt.trim() ? request.query.olt.trim() : undefined;
   const sortOptions = ['openedAt', 'status', 'region', 'technicianName', 'client', 'orderNumber'] as const;
   type CallSortKey = typeof sortOptions[number];
   const sort: CallSortKey = typeof request.query.sort === 'string' && (sortOptions as readonly string[]).includes(request.query.sort)
@@ -355,12 +356,14 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
     : 'desc';
   try {
     const scopedQuery = await getScopedCallQuery(request, request.query.teamScope === 'true');
-    const filteredCalls = await listCalls(status as CallStatus | undefined, { ...scopedQuery, search, region, neighborhood, sort, direction });
+    const matchingCalls = await listCalls(status as CallStatus | undefined, { ...scopedQuery, search, region, neighborhood, sort, direction });
+    const olts = [...new Set(matchingCalls.map((call) => call.olt.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+    const filteredCalls = olt ? matchingCalls.filter((call) => call.olt.trim().toLocaleUpperCase() === olt.toLocaleUpperCase()) : matchingCalls;
     const total = filteredCalls.length;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const currentPage = Math.min(page, totalPages);
     const start = (currentPage - 1) * pageSize;
-    return response.json({ calls: filteredCalls.slice(start, start + pageSize), total, page: currentPage, pageSize, totalPages });
+    return response.json({ calls: filteredCalls.slice(start, start + pageSize), total, page: currentPage, pageSize, totalPages, olts });
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
 });
 app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (request, response) => {

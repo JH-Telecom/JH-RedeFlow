@@ -1980,10 +1980,10 @@ function SupervisorOrdersPage({ user }: { user: User & { role: Role } }) {
 }
 
 const callsPageStateCookieName = "jh-redeflow-calls-page-state";
-const callsPageCache = new Map<string, { expiresAt: number; result: { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number } }>();
+const callsPageCache = new Map<string, { expiresAt: number; result: { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] } }>();
 
 function readCallsPageState(pageKey: string) {
-  const fallback = { query: "", statusFilter: "Todos" as CallStatus | "Todos", regionFilter: "Todas", neighborhoodFilter: "Todos", dateRange: { from: "", to: "" }, showFilters: false, callsPage: 1 };
+  const fallback = { query: "", statusFilter: "Todos" as CallStatus | "Todos", regionFilter: "Todas", neighborhoodFilter: "Todos", oltFilter: "Todas", dateRange: { from: "", to: "" }, showFilters: false, callsPage: 1 };
   try {
     const raw = document.cookie
       .split('; ')
@@ -2018,6 +2018,8 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
   const [loading, setLoading] = useState(false);
   const [regionFilter, setRegionFilter] = useState(initialState.regionFilter ?? "Todas");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState(initialState.neighborhoodFilter ?? "Todos");
+  const [oltFilter, setOltFilter] = useState(initialState.oltFilter ?? "Todas");
+  const [availableOlts, setAvailableOlts] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(initialState.statusFilter ?? "Todos");
   const [dateRange, setDateRange] = useState(initialState.dateRange ?? { from: "", to: "" });
   const [showFilters, setShowFilters] = useState(Boolean(initialState.showFilters));
@@ -2033,8 +2035,8 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
   const navigate = useNavigate();
 
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
-  useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, dateRange, showFilters, callsPage }); }, [pageKey, query, statusFilter, regionFilter, neighborhoodFilter, dateRange, showFilters, callsPage]);
-  useEffect(() => { setCallsPage(1); }, [query, statusFilter, regionFilter, neighborhoodFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
+  useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage }); }, [pageKey, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
+  useEffect(() => { setCallsPage(1); }, [query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
   useEffect(() => {
     try {
       const raw = localStorage.getItem('jh-redeflow-session');
@@ -2247,12 +2249,14 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
         search: query.trim(),
         region: regionFilter === "Todas" ? undefined : regionFilter,
         neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
+        olt: oltFilter === "Todas" ? undefined : oltFilter,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
       });
       setCalls(data.calls);
       setTotalCalls(data.total);
       setTotalPages(data.totalPages);
+      setAvailableOlts(data.olts);
       callsPageCache.clear();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nao foi possivel atualizar chamados.");
@@ -2266,13 +2270,15 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
     const requestStatus = statusFilter === "Todos" ? (closedOnly ? undefined : status) : statusFilter;
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
-    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, neighborhood: requestNeighborhood, page: callsPage, pageSize: CALLS_PAGE_SIZE, closedOnly, assignedOnly });
+    const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
+    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, neighborhood: requestNeighborhood, olt: requestOlt, page: callsPage, pageSize: CALLS_PAGE_SIZE, closedOnly, assignedOnly });
     const cached = callsPageCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       if (active) {
         setCalls(cached.result.calls);
         setTotalCalls(cached.result.total);
         setTotalPages(cached.result.totalPages);
+        setAvailableOlts(cached.result.olts);
       }
       return () => { active = false; };
     }
@@ -2287,6 +2293,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
         search: query.trim(),
         region: requestRegion,
         neighborhood: requestNeighborhood,
+        olt: requestOlt,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
       })
@@ -2295,6 +2302,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
         setCalls(data.calls);
         setTotalCalls(data.total);
         setTotalPages(data.totalPages);
+        setAvailableOlts(data.olts);
         callsPageCache.set(cacheKey, { expiresAt: Date.now() + 15000, result: data });
       })
       .catch((err) => {
@@ -2306,7 +2314,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
       });
 
     return () => { active = false; };
-  }, [status, assignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, neighborhoodFilter, dateRange.from, dateRange.to, callsPage]);
+  }, [status, assignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage]);
 
   const currentCalls = calls.map((call) => (["Finalizado", "Cancelado"].includes(call.status) ? call : { ...call, executedAt: null }));
   const firstVisibleCall = totalCalls ? (callsPage - 1) * CALLS_PAGE_SIZE + 1 : 0;
@@ -2345,7 +2353,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar ordem, cliente/técnico, BDESK ou região"
+              placeholder="Buscar ordem, cliente/técnico, BDESK, região ou OLT"
             />
           </div>
           <div className="table-toolbar-actions">
@@ -2359,7 +2367,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
             <span className="result-count">{totalCalls} resultados</span>
           </div>
         </div>
-        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option></> : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
+        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option></> : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><select className="toolbar-select" value={oltFilter} onChange={(event) => setOltFilter(event.target.value)}><option value="Todas">Todas as OLTs</option>{[...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])].map((olt) => <option key={olt} value={olt}>{olt}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
