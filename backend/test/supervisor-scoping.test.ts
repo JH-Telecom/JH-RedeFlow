@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getCall, getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
-import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange, isDriveRowEligible } from '../src/integrations/google-drive.js';
+import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange, isDriveRowEligible, shouldSkipDriveUpdate } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
 import { calculateIgpMetrics, classifyIgpArea } from '../src/igp.js';
@@ -56,6 +56,21 @@ test('Google Drive sync accepts NOC access and backbone rows so finalized calls 
     assert.equal(update.status, 'Finalizado');
     assert.equal(hasMeaningfulCallChange(existing, update), true);
   }
+});
+
+test('Google Drive reconciles a call drifted from an unchanged source fingerprint', () => {
+  const row = { 'Ordem de Serviço': 'OS-DRIFT-1', 'Tipo de Atividade': 'NOC ACESSO', 'Status da Atividade': 'Finalizado', 'Data Abertura': '01/10/2026', 'Data-Fim': '02/10/2026', Fim: '10:30' };
+  const imported = buildDriveCall(row);
+  assert.ok(imported);
+  const staleCall = { ...imported, source: 'google-drive', sourceFingerprint: 'same-fingerprint', status: 'Aberto' as const, openedAt: '2026-09-01T00:00:00-03:00', executedAt: undefined };
+  const update = buildDriveUpdate(row, staleCall);
+
+  assert.equal(shouldSkipDriveUpdate(staleCall, 'same-fingerprint', update), false);
+  assert.equal(update.status, 'Finalizado');
+  assert.equal(update.openedAt, '2026-10-01T00:00:00-03:00');
+
+  const reconciledCall = { ...staleCall, status: 'Finalizado' as const, openedAt: update.openedAt || staleCall.openedAt, executedAt: update.executedAt };
+  assert.equal(shouldSkipDriveUpdate(reconciledCall, 'same-fingerprint', buildDriveUpdate(row, reconciledCall)), true);
 });
 
 test('Google Drive preserves an explicit neighborhood when address is absent', () => {

@@ -22,7 +22,7 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 
 - A pasta do Drive e tratada como base historica operacional, nao como base D-1 isolada.
 - Arquivos CSV, XLSX, XLS e planilhas Google da pasta configurada sao lidos com paginação da API do Drive; planilhas Google sao exportadas como CSV antes do parse.
-- Registros repetidos em varios arquivos nao geram duplicidade: a sincronizacao usa identidade operacional e fingerprint do payload; a versao do arquivo mais recentemente modificado prevalece.
+- Registros repetidos em varios arquivos nao geram duplicidade: a sincronizacao usa identidade operacional e a versao do arquivo mais recentemente modificado prevalece. Fingerprint igual so permite pular a linha depois de confirmar que os campos atuais do chamado ainda correspondem ao Drive.
 - Uma linha elegivel sem chamado correspondente cria um chamado com origem Google Drive e passa a aparecer na listagem e nos indicadores.
 - Sao processados os tipos `Manutencao Corretiva de Rede`, `Manutencao de Rede Field`, `Reparo Corretivo`, `ACIONAMENTO FIELD`, `NOC ACESSO`, `NOC ACCESS`, `NOC TX` e `NOC BACKBONE`.
 - Linhas com status `pendente` e motivo contendo `nao cumprimento` sao ignoradas.

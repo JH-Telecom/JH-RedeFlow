@@ -204,6 +204,7 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
   const rawCity = location.city || value(row, 'Cidade', 'Municipio', 'Município', 'City');
   const olt = value(row, 'OLT') || existing.olt;
   const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
+  const openingDate = parseReferenceDate(value(row, 'Data Abertura', 'Data de Abertura'));
   const rawType = activityType || existing.type;
   const nextStatus: 'Aberto' | 'Finalizado' | 'Cancelado' | undefined = statusText === 'finalizado' ? 'Finalizado' : statusText === 'cancelado' ? 'Cancelado' : statusText === 'aberto' ? 'Aberto' : undefined;
   const executedAt = parseFinishedAt(value(row, 'Data', 'Data-Fim', 'Data Fim', 'Data de Finalizacao', 'Data de Finalização'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) || existing.executedAt;
@@ -228,6 +229,8 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
     notes,
   };
 
+  if (openingDate) changes.openedAt = `${openingDate}T00:00:00-03:00`;
+
   if (normalize(rawType).includes('field')) {
     const clientName = value(row, 'Nome', 'Nome do Cliente', 'Cliente', 'Assinante');
     if (clientName) changes.client = clientName;
@@ -250,13 +253,19 @@ export function buildDriveUpdate(row: DriveRow, existing: Call) {
 }
 
 export function hasMeaningfulCallChange(existing: Call, candidate: Partial<EditableCallFields>) {
-  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'ofsStatus', 'olt', 'slotPon', 'status', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
+  const fieldsToCompare = ['orderNumber', 'bdesk', 'officeTrack', 'client', 'type', 'reason', 'region', 'city', 'address', 'bairro', 'ofsStatus', 'olt', 'slotPon', 'status', 'openedAt', 'executedAt', 'result', 'cancellationReason', 'notes'] as const;
   for (const field of fieldsToCompare) {
     const current = String(existing[field] ?? '');
     const next = String(candidate[field] ?? '');
     if (current !== next) return true;
   }
   return false;
+}
+
+export function shouldSkipDriveUpdate(existing: Call, fingerprint: string, candidate: Partial<EditableCallFields>) {
+  return existing.source === 'google-drive'
+    && existing.sourceFingerprint === fingerprint
+    && !hasMeaningfulCallChange(existing, candidate);
 }
 
 export type DriveSyncResult = {
@@ -304,9 +313,6 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
           result.unmatched += 1;
           continue;
         }
-        if (stagedRows.has(identity)) {
-          result.unchanged += 1;
-        }
         stagedRows.set(identity, { row, fileId: file.id, fileName: file.name });
       }
     } catch (error) {
@@ -341,15 +347,16 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
       }
     }
 
-    if (matchingCall.source === 'google-drive' && matchingCall.sourceFingerprint === sourceData.fingerprint) {
+    const update = buildDriveUpdate(row, matchingCall);
+    if (shouldSkipDriveUpdate(matchingCall, sourceData.fingerprint, update)) {
       result.unchanged += 1;
       continue;
     }
 
-    const update = buildDriveUpdate(row, matchingCall);
     const previousStatus = matchingCall.status;
+    const hasCallChanges = hasMeaningfulCallChange(matchingCall, update);
     let updatedCall = matchingCall;
-    if (hasMeaningfulCallChange(matchingCall, update)) {
+    if (hasCallChanges) {
       const persistedCall = await updateCall(matchingCall.id, update, systemActor);
       if (!persistedCall) {
         result.skipped += 1;
@@ -363,7 +370,8 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
     if (callIndex >= 0) calls[callIndex] = sourcedCall;
 
     result.processed += 1;
-    result.updated += 1;
+    if (hasCallChanges) result.updated += 1;
+    else result.unchanged += 1;
     if (previousStatus !== 'Finalizado' && sourcedCall.status === 'Finalizado') result.finalised += 1;
     if (previousStatus !== 'Cancelado' && sourcedCall.status === 'Cancelado') result.cancelled += 1;
   }
