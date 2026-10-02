@@ -23,7 +23,7 @@ const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || (!isProduction ? 
 const activationGroupId = process.env.WUZAPI_ACTIVATION_GROUP_ID?.trim();
 const wuzapiDebug = process.env.WUZAPI_DEBUG === 'true';
 const skipWuzapiGroupFilter = process.env.WUZAPI_SKIP_GROUP_FILTER === 'true';
-const corsOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean);
+const corsOrigins = [...new Set(['https://jh-rede.vercel.app', ...(process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean)])];
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 type PendingHistoricalImport = { userId: string; fileName: string; candidates: HistoricalActivationCandidate[]; expiresAt: number };
 const pendingHistoricalImports = new Map<string, PendingHistoricalImport>();

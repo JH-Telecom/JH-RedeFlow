@@ -1,4 +1,5 @@
-const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
+const isVercelDeployment = import.meta.env.PROD && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
+const API_URL = (isVercelDeployment ? '' : import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
 export type Permission = { code: string; description: string };
 export type Role = { id: string; name: string; description: string; permissions: string[] };
 export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; mustChangePassword?: boolean; role?: Role };

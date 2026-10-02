@@ -53,6 +53,7 @@ async function startServer() {
       SUPABASE_URL: '',
       SUPABASE_ANON_KEY: '',
       SUPABASE_SERVICE_ROLE_KEY: '',
+      CORS_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173,https://jh-rede.vercel.app',
     },
     stdio: 'ignore',
   });
@@ -76,6 +77,18 @@ test('healthcheck exposes security headers', async () => {
   assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
   assert.equal(response.headers.get('x-powered-by'), null);
   assert.equal(response.headers.get('access-control-allow-origin'), 'http://127.0.0.1:5173');
+
+  const preflight = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'OPTIONS',
+    headers: {
+      origin: 'https://jh-rede.vercel.app',
+      'access-control-request-method': 'POST',
+      'access-control-request-headers': 'content-type',
+    },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://jh-rede.vercel.app');
+  assert.match(preflight.headers.get('access-control-allow-methods') || '', /POST/);
 });
 
 test('new users must change their password once before using the API', async () => {

@@ -43,8 +43,9 @@ SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 WUZAPI_WEBHOOK_TOKEN
 WUZAPI_ACTIVATION_GROUP_ID
-CORS_ORIGINS
 ```
+
+O `render.yaml` autoriza a origem `https://jh-rede.vercel.app` por padrao. Se usar outro dominio Vercel ou dominio proprio, configure `CORS_ORIGINS` no Render com a lista de origens separadas por virgula, sem barra final.
 
 Depois do deploy, teste `https://SEU-SERVICO.onrender.com/health` e configure no WuzAPI:
 
