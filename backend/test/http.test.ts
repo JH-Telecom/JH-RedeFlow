@@ -448,6 +448,32 @@ test('only active technicians can receive calls and their status can change', as
   assert.equal(saveResponse.status, 200);
 });
 
+test('admin can edit a call opening date and invalid dates are rejected', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const openedAt = '2026-09-20T12:45:00.000Z';
+  const updateResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ openedAt }),
+  });
+  const updated = await updateResponse.json() as { call: { openedAt: string } };
+  assert.equal(updateResponse.status, 200);
+  assert.equal(updated.call.openedAt, openedAt);
+
+  const invalidResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ openedAt: 'not-a-date' }),
+  });
+  assert.equal(invalidResponse.status, 400);
+});
+
 test('admin can create technician with blank region and temporary shift', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

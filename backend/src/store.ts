@@ -1356,7 +1356,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
     const sets: string[] = [];
     const values: unknown[] = [];
     let index = 1;
-    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
+    const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', openedAt: 'opened_at', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
     for (const field of Object.keys(databaseFields)) {
       const value = input[field as keyof typeof input];
       if (value !== undefined) { sets.push(`${databaseFields[field]} = $${index++}`); values.push(value); }
@@ -1377,7 +1377,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
       if (!result.rows[0]) { await client.query('ROLLBACK'); return undefined; }
       const updated = await getCall(id);
       if (!updated) { await client.query('ROLLBACK'); return undefined; }
-        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
+        const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', openedAt: 'Data de abertura', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
       for (const field of Object.keys(input)) {
         const previousValue = String(current[field as keyof Call] ?? '');
         const newValue = String(updated[field as keyof Call] ?? '');
@@ -1396,7 +1396,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   const technician = input.technicianId ? technicians.get(input.technicianId) : undefined;
   const updated = { ...current, ...input, cancellationReason: input.cancellationReason === null ? undefined : input.cancellationReason ?? current.cancellationReason, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
   calls.set(id, updated);
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', openedAt: 'Data de abertura', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
   Object.keys(input).forEach((field) => {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(updated[field as keyof Call] ?? '');

@@ -120,7 +120,7 @@ export type Call = {
   sourceProcessedAt?: string;
 };
 
-export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
+export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'openedAt' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
 
 export type CallObservationAttachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; createdAt: string };
 export type CallObservationAttachmentInput = Omit<CallObservationAttachment, 'id' | 'createdAt'> & { contentBase64: string };

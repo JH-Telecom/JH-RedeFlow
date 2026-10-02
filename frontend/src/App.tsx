@@ -2707,6 +2707,11 @@ function formatWaiting(openedAt: string) {
     ? `${Math.floor(minutes / 60)}h ${minutes % 60}min`
     : `${minutes}min`;
 }
+function toLocalDateTimeInput(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
 function CallDetailBase() {
   const { pathname, search } = useLocation();
   const id = pathname.split("/").pop()!;
@@ -2730,6 +2735,7 @@ function CallDetailBase() {
   const [bairro, setBairro] = useState("");
   const [olt, setOlt] = useState("");
   const [slotPon, setSlotPon] = useState("");
+  const [openedAt, setOpenedAt] = useState("");
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {
@@ -2739,6 +2745,7 @@ function CallDetailBase() {
         setStatus(callData.call.status);
         setTechnicianId(callData.call.technicianId || "");
         setNotes(callData.call.notes);
+        setOpenedAt(toLocalDateTimeInput(callData.call.openedAt));
         setOrderNumber(callData.call.orderNumber); setBdesk(callData.call.bdesk); setOfficeTrack(callData.call.officeTrack); setClient(callData.call.client); setType(callData.call.type); setReason(callData.call.reason); setRegion(callData.call.region); setCity(callData.call.city); setAddress(callData.call.address || ""); setBairro(callData.call.bairro || ""); setOlt(callData.call.olt); setSlotPon(callData.call.slotPon);
         setTechnicians(technicianData.technicians);
       },
@@ -2746,9 +2753,14 @@ function CallDetailBase() {
   }, [id]);
   if (!call) return <div className="empty-state">Carregando chamado...</div>;
   async function save() {
+    const openingDate = new Date(openedAt);
+    if (!openedAt || Number.isNaN(openingDate.getTime())) {
+      setMessage("Informe uma data e hora de abertura validas.");
+      return;
+    }
     setSaving(true);
     try {
-      const data = await api.updateCall(id, { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, status, technicianId: technicianId || null, notes });
+      const data = await api.updateCall(id, { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, status, technicianId: technicianId || null, openedAt: openingDate.toISOString(), notes });
       setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || "");
       setMessage("Chamado atualizado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar alteracoes."); }
@@ -2794,7 +2806,7 @@ function CallDetailBase() {
             <EditableDetailItem label="Endereço" value={address} onChange={setAddress} />
             <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
-            <DetailItem label="Abertura" value={new Date(call.openedAt).toLocaleString("pt-BR")} />
+            <label className="detail-item editable-detail-item"><span>Abertura</span><input type="datetime-local" value={openedAt} onChange={(event) => setOpenedAt(event.target.value)} required /></label>
             <DetailItem label="Status interno" value={status} />
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
             <DetailItem label="Data Fim" value={( ["Finalizado", "Cancelado", "Baixar"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />

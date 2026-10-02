@@ -101,7 +101,7 @@ export const api = {
     return request<CallListResult>(`/api/chamados${params.toString() ? `?${params}` : ''}`);
   },
   call: (id: string, filters?: { teamScope?: boolean }) => request<{ call: Call }>(`/api/chamados/${id}${filters?.teamScope ? '?teamScope=true' : ''}`),
-  updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'notes'>> & { technicianId?: string | null }) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'openedAt' | 'notes'>> & { technicianId?: string | null }) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => requestCallMutation<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
   cancelCall: (id: string, reason: string) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}/cancelar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   deleteCall: (id: string) => requestCallMutation<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),

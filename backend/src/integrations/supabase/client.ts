@@ -222,12 +222,12 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
   return (await listSupabaseCalls()).find((call) => call.id === id);
 }
 
-export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; executedAt?: string | null; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
+export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; openedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
   const current = (await listSupabaseCalls(undefined, { id }))[0];
   if (!current || (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system')) return undefined;
   const assignedAt = input.technicianId ? new Date().toISOString() : undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
+  const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', openedAt: 'opened_at', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
   for (const field of Object.keys(databaseFields)) {
     const value = input[field as keyof typeof input];
     if (value !== undefined) changes[databaseFields[field]] = value;
@@ -237,7 +237,7 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
   const { data, error } = await getSupabaseAdmin().from('calls').update(changes).eq('id', id).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', openedAt: 'Data de abertura', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', notes: 'Observacoes' };
   const auditRows = [] as Array<{ call_id: string; user_id: string | null; action: string; field: string; previous_value: string; new_value: string }>;
   for (const field of Object.keys(input)) {
     const previousValue = String(current[field as keyof Call] ?? '');

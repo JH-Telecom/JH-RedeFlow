@@ -102,6 +102,16 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Edição da data de abertura do chamado — implementada em 2026-10-02
+
+- o detalhe agora permite editar data e hora de abertura por controle local de data/hora e converte a entrada para ISO ao salvar;
+- o PATCH valida a data; PostgreSQL local, Supabase e modo demo persistem `openedAt`, com registro de auditoria como Data de abertura;
+- teste HTTP confirma atualização e rejeição de data inválida.
+
+Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/api.ts](frontend/src/api.ts), [backend/src/types.ts](backend/src/types.ts), [backend/src/server.ts](backend/src/server.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/http.test.ts](backend/test/http.test.ts) e [ROADMAP.md](ROADMAP.md).
+
+Validação: teste HTTP focado passou; typecheck do backend e build do frontend passaram. Sem alteração de schema ou migration.
+
 ### Separação de chamados abertos e em atendimento — implementada em 2026-10-02
 
 - Chamados abertos lista somente chamados com status Aberto e sem técnico atribuído;
