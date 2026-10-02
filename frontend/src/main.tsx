@@ -20,6 +20,7 @@ import './dashboard.css';
 import './igp.css';
 import './manual-dashboard.css';
 import './sidebar.css';
+import './profile-photo.css';
 import './admin.css';
 import './settings-olt.css';
 import './observation-attachments.css';

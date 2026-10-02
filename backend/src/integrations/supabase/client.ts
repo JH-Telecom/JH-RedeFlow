@@ -56,6 +56,23 @@ export async function getSupabaseProfile(id: string, createdAt?: string) {
   return { id: profileRecord.id, name: profileRecord.name, email: profileRecord.email, roleId: profileRecord.role_id, active: profileRecord.active, createdAt: createdAt || profileRecord.created_at, mustChangePassword: profileRecord.password_change_required, role: { id: role?.id || profileRecord.role_id, name: role?.name || 'Sem cargo', description: role?.description || '', permissions } };
 }
 
+export async function getSupabaseUserAvatar(userId: string): Promise<string | null> {
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('data_url').eq('user_id', userId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.data_url || null;
+}
+
+export async function saveSupabaseUserAvatar(userId: string, dataUrl: string): Promise<boolean> {
+  const { error } = await getSupabaseAdmin().from('user_avatars').upsert({ user_id: userId, data_url: dataUrl, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+export async function deleteSupabaseUserAvatar(userId: string): Promise<void> {
+  const { error } = await getSupabaseAdmin().from('user_avatars').delete().eq('user_id', userId);
+  if (error) throw new Error(error.message);
+}
+
 export async function listSupabaseUsers() {
   const { data, error } = await getSupabaseAdmin()
     .from('profiles')

@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics } from './igp.js';
@@ -204,6 +204,25 @@ app.post('/api/auth/login', async (request, response) => {
   return response.json({ token, user: getAuthUser(user) });
 });
 app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json({ user: request.authUser }));
+app.get('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
+  try { return response.json({ avatarDataUrl: await getUserAvatar(request.authUser!.id) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar a foto de perfil.' }); }
+});
+app.put('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({ avatarDataUrl: z.string().max(350_000).regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie uma foto JPEG, PNG ou WebP com ate 350 KB depois da compactacao.' });
+  try {
+    const saved = await saveUserAvatar(request.authUser!.id, parsed.data.avatarDataUrl);
+    if (!saved) return response.status(404).json({ message: 'Usuario nao encontrado.' });
+    return response.json({ avatarDataUrl: parsed.data.avatarDataUrl });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar a foto de perfil.' }); }
+});
+app.delete('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
+  try {
+    await deleteUserAvatar(request.authUser!.id);
+    return response.json({ deleted: true });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel remover a foto de perfil.' }); }
+});
 app.post('/api/auth/change-password', auth, async (request: AuthRequest, response) => {
   if (!request.authUser?.mustChangePassword) return response.status(409).json({ message: 'A troca inicial de senha ja foi concluida.' });
   const parsed = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8) }).safeParse(request.body);

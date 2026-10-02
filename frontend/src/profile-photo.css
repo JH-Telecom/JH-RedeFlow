@@ -1,0 +1,61 @@
+.profile-photo-button {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.profile-photo-button:disabled {
+  cursor: wait;
+}
+
+.profile-photo-button img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.profile-photo-camera {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  background: #173a71;
+  color: #fff;
+}
+
+.profile-photo-button:focus-visible {
+  outline: 2px solid #1683ff;
+  outline-offset: 2px;
+}
+
+.profile-photo-button-topbar {
+  position: relative;
+}
+
+.profile-photo-input {
+  display: none;
+}
+
+.profile-photo-error {
+  color: #b42318 !important;
+}
+
+@media (max-width: 900px) {
+  .profile-photo-camera {
+    width: 19px;
+    height: 19px;
+  }
+}

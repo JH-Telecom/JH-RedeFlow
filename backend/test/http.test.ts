@@ -91,6 +91,43 @@ test('healthcheck exposes security headers', async () => {
   assert.match(preflight.headers.get('access-control-allow-methods') || '', /POST/);
 });
 
+test('users can save, read and remove their own profile photo', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const avatarDataUrl = 'data:image/jpeg;base64,/9j/2Q==';
+
+  const initialResponse = await fetch(`${baseUrl}/api/auth/avatar`, { headers });
+  assert.equal(initialResponse.status, 200);
+  assert.equal((await initialResponse.json() as { avatarDataUrl: string | null }).avatarDataUrl, null);
+
+  const saveResponse = await fetch(`${baseUrl}/api/auth/avatar`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ avatarDataUrl }),
+  });
+  assert.equal(saveResponse.status, 200);
+
+  const savedResponse = await fetch(`${baseUrl}/api/auth/avatar`, { headers });
+  assert.equal((await savedResponse.json() as { avatarDataUrl: string | null }).avatarDataUrl, avatarDataUrl);
+
+  const invalidResponse = await fetch(`${baseUrl}/api/auth/avatar`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ avatarDataUrl: 'data:text/html;base64,PHNjcmlwdD4=' }),
+  });
+  assert.equal(invalidResponse.status, 400);
+
+  const deleteResponse = await fetch(`${baseUrl}/api/auth/avatar`, { method: 'DELETE', headers });
+  assert.equal(deleteResponse.status, 200);
+  const deletedResponse = await fetch(`${baseUrl}/api/auth/avatar`, { headers });
+  assert.equal((await deletedResponse.json() as { avatarDataUrl: string | null }).avatarDataUrl, null);
+});
+
 test('new users must change their password once before using the API', async () => {
   const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

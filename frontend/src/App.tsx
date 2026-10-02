@@ -13,6 +13,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  Camera,
   ChevronRight,
   CircleHelp,
   ClipboardList,
@@ -325,6 +326,43 @@ function FirstLoginPasswordChange({
   );
 }
 
+async function resizeProfilePhoto(file: File) {
+  if (!file.type.startsWith("image/")) throw new Error("Selecione um arquivo de imagem.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("A imagem original deve ter no máximo 10 MB.");
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 256 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Não foi possível processar esta imagem.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const avatarDataUrl = canvas.toDataURL("image/jpeg", 0.82);
+  if (avatarDataUrl.length > 350_000) throw new Error("Não foi possível reduzir a imagem para o tamanho permitido.");
+  return avatarDataUrl;
+}
+
+function ProfilePhotoButton({ name, photo, className = "", disabled = false, onClick }: {
+  name: string;
+  photo: string | null;
+  className?: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const initials = name.split(" ").map((part) => part[0]).slice(0, className.includes("topbar") ? 1 : 2).join("");
+  return (
+    <button className={`profile-photo-button ${className}`} type="button" onClick={onClick} disabled={disabled} title="Alterar foto de perfil" aria-label="Alterar foto de perfil">
+      {photo ? <img src={photo} alt="" /> : initials}
+      <span className="profile-photo-camera"><Camera size={12} /></span>
+    </button>
+  );
+}
+
 function Shell({
   user,
   onLogout,
@@ -341,6 +379,10 @@ function Shell({
   const [bellRinging, setBellRinging] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [profilePhotoError, setProfilePhotoError] = useState("");
+  const [savingProfilePhoto, setSavingProfilePhoto] = useState(false);
+  const profilePhotoInput = useRef<HTMLInputElement | null>(null);
   const knownActivationIds = useRef<Set<string> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -374,6 +416,27 @@ function Shell({
           } catch { setNotifications([]); } finally { setNotificationsLoading(false); }
   }
   useEffect(() => { void loadNotifications(); const interval = window.setInterval(() => void loadNotifications(), 15000); return () => window.clearInterval(interval); }, [location.pathname]);
+  useEffect(() => {
+    let active = true;
+    api.profileAvatar().then(({ avatarDataUrl }) => { if (active) setProfilePhoto(avatarDataUrl); }).catch(() => {});
+    return () => { active = false; };
+  }, [user.id]);
+  async function handleProfilePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+    setProfilePhotoError("");
+    setSavingProfilePhoto(true);
+    try {
+      const avatarDataUrl = await resizeProfilePhoto(file);
+      const saved = await api.saveProfileAvatar(avatarDataUrl);
+      setProfilePhoto(saved.avatarDataUrl);
+    } catch (error) {
+      setProfilePhotoError(error instanceof Error ? error.message : "Não foi possível salvar a foto.");
+    } finally {
+      setSavingProfilePhoto(false);
+    }
+  }
   function toggleSidebar() {
     setDesktopCollapsed((current) => {
       const next = !current;
@@ -459,17 +522,12 @@ function Shell({
             <span>Central de ajuda</span>
           </div>
           <div className="profile-mini">
-            <div className="avatar">
-              {user.name
-                .split(" ")
-                .map((part) => part[0])
-                .slice(0, 2)
-                .join("")}
-            </div>
+            <ProfilePhotoButton name={user.name} photo={profilePhoto} className="avatar" disabled={savingProfilePhoto} onClick={() => profilePhotoInput.current?.click()} />
             <div>
               <strong>{user.name}</strong>
-              <small>{user.role.name}</small>
+              <small className={profilePhotoError ? "profile-photo-error" : undefined}>{profilePhotoError || user.role.name}</small>
             </div>
+            <input ref={profilePhotoInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void handleProfilePhotoChange(event)} />
             <button className="icon-button" onClick={onLogout} title="Sair">
               <LogOut size={16} />
             </button>
@@ -501,7 +559,7 @@ function Shell({
               </button>
               {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span></div>{notifications.length ? notifications.map((notification) => <button className="notification-item" key={notification.id} onClick={() => { setNotificationsOpen(false); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
             </div>
-            <div className="topbar-avatar">{user.name.slice(0, 1)}</div>
+            <ProfilePhotoButton name={user.name} photo={profilePhoto} className="topbar-avatar" disabled={savingProfilePhoto} onClick={() => profilePhotoInput.current?.click()} />
           </div>
         </header>
         {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}

@@ -68,6 +68,9 @@ async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
+  profileAvatar: () => request<{ avatarDataUrl: string | null }>('/api/auth/avatar'),
+  saveProfileAvatar: (avatarDataUrl: string) => request<{ avatarDataUrl: string }>('/api/auth/avatar', { method: 'PUT', body: JSON.stringify({ avatarDataUrl }) }),
+  removeProfileAvatar: () => request<{ deleted: boolean }>('/api/auth/avatar', { method: 'DELETE' }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),

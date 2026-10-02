@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { cancelSupabaseCall, changeSupabaseUserPassword, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
+import { cancelSupabaseCall, changeSupabaseUserPassword, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, deleteSupabaseUserAvatar, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, saveSupabaseUserAvatar, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
 import { findAtreladaCallOrder, getDefaultOltRegionMap, getManualOltRegionMap, identifyAtreladas, normalizeOltCode, replaceManualOltRegionMap, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
 import { matchD0Rows, type D0Row } from './imports/d0.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallObservationAttachment, CallObservationAttachmentInput, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, StoredCallObservationAttachment, Supervisor, SystemSettings, Technician, User } from './types.js';
@@ -69,6 +69,7 @@ const calls = new Map<string, Call>([
 ]);
 const observations = new Map<string, CallObservation>();
 const observationAttachments = new Map<string, StoredCallObservationAttachment>();
+const userAvatars = new Map<string, string>();
 const auditLogs = new Map<string, CallAuditLog>();
 const activations = new Map<string, Activation>([
   ['activation-demo-01', { id: 'activation-demo-01', source: 'grupo_acionamentos_rede', originalMessage: 'VALIDAR COM NOC ACESSO\n- ORDEM: RF-240919\n- BDESK: BD-88455\n- MOTIVO: perda de sinal\n- OLT: VIP-CT1-SPO-OHW-01\n- SLOT/PON: 3/7', receivedAt: '2026-09-18T09:10:00-03:00', status: 'Pendente', extractedData: { orderNumber: 'RF-240919', bdesk: 'BD-88455', type: 'NOC ACESSO', reason: 'perda de sinal', olt: 'VIP-CT1-SPO-OHW-01', slotPon: '3/7' } }]
@@ -92,6 +93,7 @@ function ensureDemoData() {
     calls.clear();
     observations.clear();
     observationAttachments.clear();
+    userAvatars.clear();
     auditLogs.clear();
     activations.clear();
     imports.clear();
@@ -298,6 +300,42 @@ export async function updateUser(id: string, input: { name?: string; email?: str
   users.set(id, updated);
   const { passwordHash: _passwordHash, ...safeUser } = updated;
   return { ...safeUser, role: getRole(updated.roleId) };
+}
+export async function getUserAvatar(userId: string): Promise<string | null> {
+  if (isSupabaseConfigured()) return await getSupabaseUserAvatar(userId);
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ data_url: string }>('SELECT data_url FROM user_avatars WHERE user_id = $1', [userId]);
+    return result.rows[0]?.data_url || null;
+  }
+  ensureDemoData();
+  return userAvatars.get(userId) || null;
+}
+export async function saveUserAvatar(userId: string, dataUrl: string): Promise<boolean> {
+  if (isSupabaseConfigured()) return await saveSupabaseUserAvatar(userId, dataUrl);
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query(
+      `INSERT INTO user_avatars (user_id, data_url, updated_at) VALUES ($1, $2, now())
+       ON CONFLICT (user_id) DO UPDATE SET data_url = EXCLUDED.data_url, updated_at = now()`,
+      [userId, dataUrl],
+    );
+    return Boolean(result.rowCount);
+  }
+  ensureDemoData();
+  if (!users.has(userId)) return false;
+  userAvatars.set(userId, dataUrl);
+  return true;
+}
+export async function deleteUserAvatar(userId: string): Promise<void> {
+  if (isSupabaseConfigured()) return await deleteSupabaseUserAvatar(userId);
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query('DELETE FROM user_avatars WHERE user_id = $1', [userId]);
+    return;
+  }
+  ensureDemoData();
+  userAvatars.delete(userId);
 }
 export async function changeUserPassword(id: string, currentPassword: string, newPassword: string): Promise<{ user?: User; error?: 'invalid-current-password' | 'same-password' }> {
   if (isSupabaseConfigured()) return await changeSupabaseUserPassword(id, currentPassword, newPassword);

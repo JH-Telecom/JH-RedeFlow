@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-02
 
-Última implementação: erro de sincronização Drive agora registra a exceção nos logs Render e o frontend mostra status HTTP quando a resposta não fornece mensagem.
+Última implementação: usuários podem enviar e persistir foto de perfil em armazenamento isolado, acessível pelos avatares da sidebar e do topo.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: publicar frontend/backend atualizados e executar novamente Sincronizar Drive; verificar a mensagem HTTP e os logs Render se o POST falhar.
+Próxima ação: aplicar as migrations `020_user_avatars.sql` e `202610020005_user_avatars.sql` ao banco correspondente e publicar frontend/backend.
 
 ---
 
@@ -36,6 +36,7 @@ Próxima ação: publicar frontend/backend atualizados e executar novamente Sinc
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
 - Técnicos: `employment_status` registra Trabalhando/Demitido independentemente de `active` e `current_status`; `active` continua representando disponibilidade pela escala/sobrescrita operacional.
 - Supervisores: exclusão lógica disponível para equipes vazias; a API impede excluir supervisor com técnicos ativos no cadastro.
+- Fotos de perfil: armazenadas por usuário em tabela dedicada; não são incluídas na listagem administrativa de contas.
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
 - APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
 - Infraestrutura: runtime local com variáveis de ambiente, fallback demo e configs de produção.
@@ -101,6 +102,17 @@ Próxima ação: publicar frontend/backend atualizados e executar novamente Sinc
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Foto de perfil por usuário — implementada em 2026-10-02
+
+- usuário seleciona imagem ao clicar no avatar da sidebar ou do topo; navegador reduz a imagem para até 256×256 JPEG antes do envio;
+- API autenticada permite ler, salvar, substituir e remover somente a foto da sessão atual; aceita JPEG/PNG/WebP compactado com limite de 350 KB;
+- dados são persistidos em `user_avatars`, isolados da listagem de usuários, no modo demo, PostgreSQL local e Supabase;
+- migrations criadas: `database/migrations/020_user_avatars.sql` e `supabase/migrations/202610020005_user_avatars.sql`; ainda precisam ser aplicadas ao banco antes de publicar o backend.
+
+Arquivos alterados: [backend/src/store.ts](backend/src/store.ts), [backend/src/server.ts](backend/src/server.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [database/migrations/020_user_avatars.sql](database/migrations/020_user_avatars.sql), [supabase/migrations/202610020005_user_avatars.sql](supabase/migrations/202610020005_user_avatars.sql), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/main.tsx](frontend/src/main.tsx) e [frontend/src/profile-photo.css](frontend/src/profile-photo.css).
+
+Validação: teste HTTP de persistência/autorização/validação passou; build frontend e typecheck backend passaram. Migrations ainda não executadas.
 
 ### CORS do login no domínio Vercel — implementado em 2026-10-02
 
