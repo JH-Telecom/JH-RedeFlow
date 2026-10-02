@@ -102,6 +102,17 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Vínculo Atrelado de acionamentos FIELD — implementado em 2026-10-02
+
+- ao receber acionamento, procura o chamado OFS Pendente mais antigo com mesma OLT e par placa/PON, anterior à data do evento, excluindo a própria ordem;
+- a ordem relacionada aparece no resumo do acionamento, é persistida no chamado aceito e fica disponível na coluna Atrelada das filas Chamados abertos e Em atendimento;
+- o selo roxo Atrelado é complementar ao status operacional existente (Aberto/Atribuído etc.) e não o substitui;
+- aplicar `database/migrations/019_call_atrelada_order.sql` no PostgreSQL local ou `supabase/migrations/202610020004_call_atrelada_order.sql` no Supabase antes de publicar o backend.
+
+Arquivos alterados: [backend/src/integrations/wuzapi/noc-consolidation.ts](backend/src/integrations/wuzapi/noc-consolidation.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/src/types.ts](backend/src/types.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts), [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/calls-layout.css](frontend/src/calls-layout.css), [database/migrations/019_call_atrelada_order.sql](database/migrations/019_call_atrelada_order.sql), [supabase/migrations/202610020004_call_atrelada_order.sql](supabase/migrations/202610020004_call_atrelada_order.sql) e [ROADMAP.md](ROADMAP.md).
+
+Validação: typecheck do backend, build do frontend e suíte `supervisor-scoping` 16/16 passaram. Migrations ainda não foram aplicadas em banco conectado.
+
 ### Sincronização D-0 ao carregar o painel diário — implementada em 2026-10-02
 
 - após salvar a base do Painel diário, o frontend envia o arquivo original ao endpoint D-0 já existente, que cruza ordens, atualiza os chamados correspondentes e atualiza a base D-0;

@@ -1,4 +1,4 @@
-import type { ActivationAnalysis, NocAddressRecord } from '../../types.js';
+import type { ActivationAnalysis, Call, NocAddressRecord } from '../../types.js';
 
 const defaultOltRegionMap: Record<string, string> = Object.freeze({
   'VIP-CT1-SPO-OHW-01': 'CIDADE TIRADENTES 1',
@@ -217,4 +217,55 @@ export function identifyAtreladas(current: Pick<ActivationAnalysis, 'olt' | 'pla
     const addressMatch = compact(current.endereco_principal) && compact(current.endereco_principal) === compact(other.endereco_principal) && compact(current.bairro_principal) === compact(other.bairro_principal);
     return Boolean(technicalMatch || addressMatch);
   }).map((item) => item.id);
+}
+
+function platePonPairs(values: string[]) {
+  const pairs = new Map<string, { plate: string; pon: string }>();
+  const add = (plateValue: string, ponValue: string) => {
+    const plate = String(Number(plateValue));
+    const pon = String(Number(ponValue));
+    if (plate !== 'NaN' && pon !== 'NaN') pairs.set(`${plate}/${pon}`, { plate, pon });
+  };
+  for (const value of values) {
+    const text = String(value || '').toUpperCase();
+    const labeled = /(?:SLOT|PLACA)\s*[:\-]?\s*0*(\d+)\s*(?:\/|\||,|-|\s+)\s*(?:PON\s*[:\-]?)?\s*0*(\d+)/gi;
+    const plain = /0*(\d+)\s*\/\s*0*(\d+)/g;
+    let match: RegExpExecArray | null;
+    while ((match = labeled.exec(text)) !== null) add(match[1], match[2]);
+    while ((match = plain.exec(text)) !== null) add(match[1], match[2]);
+  }
+  return [...pairs.values()];
+}
+
+function parseAtreladaDate(value: string | null | undefined) {
+  const text = String(value || '').trim();
+  if (!text) return undefined;
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (br) {
+    const date = new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]), Number(br[4] || 0), Number(br[5] || 0), Number(br[6] || 0));
+    return Number.isNaN(date.getTime()) ? undefined : date.getTime();
+  }
+  const timestamp = new Date(text).getTime();
+  return Number.isNaN(timestamp) ? undefined : timestamp;
+}
+
+export function findAtreladaCallOrder(current: ActivationAnalysis, existingCalls: Call[], now = Date.now()) {
+  const currentOlt = normalizeOltCode(current.olt);
+  const currentPairs = platePonPairs([current.placa_pon || '', ...(current.slot_pon || []), current.raw_text || '']);
+  if (!currentOlt || !currentPairs.length) return undefined;
+
+  const currentOrder = compact(current.office_track || current.os_ot || '');
+  const eventTime = parseAtreladaDate(current.data_hora_evento) ?? now;
+  const candidates = existingCalls.filter((call) => {
+    if (normalizeText(call.ofsStatus) !== 'PENDENTE') return false;
+    if (normalizeOltCode(call.olt) !== currentOlt) return false;
+    const existingOrder = compact(call.officeTrack || call.orderNumber);
+    if (!existingOrder || (currentOrder && existingOrder === currentOrder)) return false;
+    const openedAt = new Date(call.openedAt).getTime();
+    if (!Number.isFinite(openedAt) || openedAt >= eventTime) return false;
+    const existingPairs = platePonPairs([call.slotPon]);
+    return currentPairs.some((currentPair) => existingPairs.some((existingPair) => currentPair.plate === existingPair.plate && currentPair.pon === existingPair.pon));
+  }).sort((left, right) => new Date(left.openedAt).getTime() - new Date(right.openedAt).getTime());
+
+  return candidates[0]?.orderNumber || candidates[0]?.officeTrack || undefined;
 }

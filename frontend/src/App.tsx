@@ -342,7 +342,12 @@ function Shell({
             const notificationData = await api.notifications();
             setNotifications(notificationData.notifications);
             if (user.role.permissions.includes("activations.view")) {
-              const pending = (await api.activations("Pendente")).activations;
+              const pending = (await api.activations("Pendente")).activations.map((activation) => {
+                const atrelada = activation.analysis?.atrelada;
+                return atrelada
+                  ? { ...activation, extractedData: { ...activation.extractedData, type: `${activation.extractedData.type || "Acionamento"} · Atrelado à ordem ${atrelada}` } }
+                  : activation;
+              });
               const pendingIds = new Set(pending.map((activation) => activation.id));
               setActivationCount(pending.length);
               if (knownActivationIds.current) {
@@ -1966,7 +1971,12 @@ function ActivationsPage() {
   const [processing, setProcessing] = useState(false);
   async function load() {
     try {
-      const pending = (await api.activations("Pendente")).activations;
+      const pending = (await api.activations("Pendente")).activations.map((activation) => {
+        const atrelada = activation.analysis?.atrelada;
+        return typeof atrelada === "string" && atrelada
+          ? { ...activation, extractedData: { ...activation.extractedData, type: `${activation.extractedData.type || "Acionamento"} · Atrelado à OS ${atrelada}` } }
+          : activation;
+      });
       setActivations(pending);
       setSelectedIds((current) => current.filter((id) => pending.some((activation) => activation.id === id)));
       setError("");
@@ -2645,7 +2655,7 @@ function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false
           <table ref={tableRef}>
             <thead>
               <tr>
-                {assignedOnly ? <><th>Protocolo</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Obs.</th><th>Cidade</th><th>Bairro / Endereço</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Timer</th></> : <><th>Ordem</th><th>Tecnico</th><th>Tipo / motivo</th><th>Regiao</th><th>Bairro / Endereço</th><th>Abertura</th><th>Tempo aguardando</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th></>}
+                {assignedOnly ? <><th>Protocolo</th><th>Atrelada</th><th>Tecnico</th><th>SLA</th><th>Prazo</th><th>Afet.</th><th>Tipo de evento</th><th>OLT</th><th>Obs.</th><th>Cidade</th><th>Bairro / Endereço</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th><th>Timer</th></> : <><th>Ordem</th><th>Atrelada</th><th>Tecnico</th><th>Tipo / motivo</th><th>Regiao</th><th>Bairro / Endereço</th><th>Abertura</th><th>Tempo aguardando</th><th>Status interno</th><th>Status OFS</th><th>Data Fim</th></>}
               </tr>
             </thead>
             <tbody>
@@ -2654,7 +2664,7 @@ function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false
                   key={call.id}
                   onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)}
                 >
-                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaDurationCell openedAt={call.openedAt} /></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.ofsStatus || <span className="muted-cell">-</span>}</td><td>{formatCallTimestamp(call.executedAt)}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}<small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span></td><td>{call.ofsStatus || <span className="muted-cell">-</span>}</td><td>{formatCallTimestamp(call.executedAt)}</td></>}
+                  {assignedOnly ? <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.atrelada || <span className="muted-cell">-</span>}</td><td><strong>{call.technicianName || "Sem tecnico"}</strong><small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td><SlaDurationCell openedAt={call.openedAt} /></td><td><SlaCell openedAt={call.openedAt} /></td><td className="muted-cell">-</td><td><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td><td>{call.olt || <span className="muted-cell">-</span>}</td><td className="observation-cell" title={call.notes}>{call.notes || <span className="muted-cell">-</span>}</td><td>{call.city || <span className="muted-cell">-</span>}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span>{call.atrelada && <span className="call-badge atrelado">Atrelado</span>}</td><td>{call.ofsStatus || <span className="muted-cell">-</span>}</td><td>{formatCallTimestamp(call.executedAt)}</td><td><TimerCell lastObservationAt={call.lastObservationAt} /></td></> : <><td><strong>{call.orderNumber}</strong><small className="table-subtext">{call.bdesk}</small></td><td>{call.atrelada || <span className="muted-cell">-</span>}</td><td>{call.technicianName || <span className="unassigned">Sem tecnico</span>}<small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td><td>{call.type}<small className="table-subtext">{call.reason}</small></td><td>{call.region}</td><td><strong>{call.bairro || <span className="muted-cell">-</span>}</strong><small className="table-subtext">{call.address}</small></td><td>{new Date(call.openedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>{formatWaiting(call.openedAt)}</td><td><span className={`call-badge ${call.status.toLowerCase().replace(" ", "-")}`}>{call.status}</span>{call.atrelada && <span className="call-badge atrelado">Atrelado</span>}</td><td>{call.ofsStatus || <span className="muted-cell">-</span>}</td><td>{formatCallTimestamp(call.executedAt)}</td></>}
                 </tr>
               ))}
             </tbody>

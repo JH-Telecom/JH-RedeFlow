@@ -3,6 +3,7 @@ import test from 'node:test';
 import { getCall, getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
 import { buildDriveCall, buildDriveUpdate, driveRowSkipReason, hasMeaningfulCallChange, isDriveRowEligible, shouldSkipDriveUpdate } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
+import { findAtreladaCallOrder } from '../src/integrations/wuzapi/noc-consolidation.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
 import { calculateIgpMetrics, classifyIgpArea } from '../src/igp.js';
 
@@ -20,6 +21,27 @@ test('Google Drive preserves the OFS activity status separately from internal ca
   assert.equal(update.status, 'Finalizado');
   assert.equal(update.ofsStatus, 'Concluída');
   assert.equal(hasMeaningfulCallChange(existing, update), true);
+});
+
+test('FIELD activation is linked to the oldest earlier pending call with same OLT and plate/PON', () => {
+  const current = {
+    olt: 'VIP-CT1-SPO-OHW-01', placa_pon: 'PLACA: 02 | PON: 08', slot_pon: [], office_track: 'OT-NEW',
+    data_hora_evento: '02/10/2026 14:00:00', raw_text: '',
+  } as unknown as ActivationAnalysis;
+  const createCall = (orderNumber: string, openedAt: string, slotPon: string, ofsStatus = 'PENDENTE'): Call => ({
+    id: orderNumber, orderNumber, officeTrack: orderNumber, bdesk: '', client: '', type: 'NOC ACESSO', reason: '', region: '', city: '',
+    olt: 'VIP-CT1-SPO-OHW-01', slotPon, status: 'Aberto', ofsStatus, openedAt, notes: '',
+  });
+  const calls = [
+    createCall('OT-OLD', '2026-10-01T08:00:00-03:00', '2/8'),
+    createCall('OT-LATER', '2026-10-02T10:00:00-03:00', '02/08'),
+    { ...createCall('OT-SAME', '2026-10-01T07:00:00-03:00', '2/8'), officeTrack: 'OT-NEW' },
+    createCall('OT-NONPENDING', '2026-10-01T06:00:00-03:00', '2/8', 'em rota'),
+    { ...createCall('OT-OTHER-PON', '2026-10-01T05:00:00-03:00', '2/9'), olt: 'VIP-GRU-1-SPO-ONK-01' },
+  ];
+
+  assert.equal(findAtreladaCallOrder(current, calls), 'OT-OLD');
+  assert.equal(findAtreladaCallOrder({ ...current, placa_pon: 'PLACA: 9 | PON: 9' }, calls), undefined);
 });
 
 test('Google Drive sync accepts ACIONAMENTO FIELD and fills address and neighborhood', () => {

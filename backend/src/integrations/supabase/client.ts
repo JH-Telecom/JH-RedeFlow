@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
-import { identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
+import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
 
 let adminClient: SupabaseClient | null = null;
 let authClient: SupabaseClient | null = null;
@@ -159,7 +159,7 @@ export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filt
   const pageSize = 500;
   const calls: Call[] = [];
   for (let from = 0; ; from += pageSize) {
-    let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false }).order('id', { ascending: true });
+    let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, atrelada_order, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false }).order('id', { ascending: true });
     if (status) query = query.in('status', Array.isArray(status) ? status : [status]);
     if (filters.id) query = query.eq('id', filters.id);
   if (filters.from || filters.to) {
@@ -179,7 +179,7 @@ export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filt
       const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
       const observationRows = Array.isArray((row as any).call_observations) ? (row as any).call_observations : [];
       const lastObservationAt = observationRows.map((observation: { created_at?: string }) => observation.created_at).filter(Boolean).sort().pop();
-      return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', address: row.address || '', bairro: row.bairro || '', ofsStatus: row.ofs_status || undefined, olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
+      return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', address: row.address || '', bairro: row.bairro || '', ofsStatus: row.ofs_status || undefined, olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, atrelada: row.atrelada_order || undefined, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
     });
     calls.push(...page);
     if (page.length < pageSize) return calls;
@@ -315,7 +315,8 @@ export async function createSupabaseActivation(input: { source: string; original
     const { _analysis: analysis, ...extractedData } = stored;
     return { id: pending.id, source: pending.source, originalMessage: pending.original_message, receivedAt: pending.received_at, status: pending.status as ActivationStatus, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
   }
-  const enrichedAnalysis = input.analysis ? { ...input.analysis, atreladas: identifyAtreladas(input.analysis, existingAnalyses) } : input.analysis;
+  const atreladaOrder = input.analysis ? findAtreladaCallOrder(input.analysis, await listSupabaseCalls()) : undefined;
+  const enrichedAnalysis = input.analysis ? { ...input.analysis, atrelada: atreladaOrder || null, atreladas: identifyAtreladas(input.analysis, existingAnalyses) } : input.analysis;
   const { data: activation, error } = await admin.from('activations').insert({ source: input.source, original_message: input.originalMessage, status: 'Pendente' }).select('id, source, original_message, received_at, status').single();
   if (error || !activation) throw new Error(error?.message || 'Nao foi possivel registrar o acionamento.');
   const extractedData = { ...input.extractedData, _analysis: enrichedAnalysis };
@@ -368,13 +369,14 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
       bairro: structured.bairro_principal || '',
       olt,
       slot_pon: Array.isArray(structured.slot_pon) ? structured.slot_pon.join(', ') : value('slotPon') || '',
+      atrelada_order: structured.atrelada || null,
       status: 'Aberto',
       opened_at: new Date().toISOString(),
       notes: 'Criado a partir de acionamento aceito.',
     };
-    const { data: callRow, error: callError } = await admin.from('calls').insert(callInput).select('id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes').single();
+    const { data: callRow, error: callError } = await admin.from('calls').insert(callInput).select('id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, atrelada_order, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes').single();
     if (callError || !callRow) throw new Error(callError?.message || 'Nao foi possivel criar o chamado.');
-    call = { id: callRow.id, orderNumber: callRow.order_number, bdesk: callRow.bdesk || '', officeTrack: callRow.office_track || '', client: callRow.client || '', type: callRow.type || '', reason: callRow.reason || '', region: callRow.region || '', city: callRow.city || '', address: callRow.address || '', bairro: callRow.bairro || '', olt: callRow.olt || '', slotPon: callRow.slot_pon || '', status: callRow.status as CallStatus, technicianId: callRow.technician_id || undefined, openedAt: callRow.opened_at, assignedAt: callRow.assigned_at || undefined, executedAt: callRow.executed_at || undefined, result: callRow.result || undefined, cancellationReason: callRow.cancellation_reason || undefined, notes: callRow.notes || '' };
+    call = { id: callRow.id, orderNumber: callRow.order_number, bdesk: callRow.bdesk || '', officeTrack: callRow.office_track || '', client: callRow.client || '', type: callRow.type || '', reason: callRow.reason || '', region: callRow.region || '', city: callRow.city || '', address: callRow.address || '', bairro: callRow.bairro || '', olt: callRow.olt || '', slotPon: callRow.slot_pon || '', status: callRow.status as CallStatus, atrelada: callRow.atrelada_order || undefined, technicianId: callRow.technician_id || undefined, openedAt: callRow.opened_at, assignedAt: callRow.assigned_at || undefined, executedAt: callRow.executed_at || undefined, result: callRow.result || undefined, cancellationReason: callRow.cancellation_reason || undefined, notes: callRow.notes || '' };
   }
   const { error: updateError } = await admin.from('activations').update({ status: decision, decision_by: actorId, decision_at: new Date().toISOString(), created_call_id: call?.id || null, rejection_reason: decision === 'Recusado' ? rejectionReason || null : null }).eq('id', id).eq('status', 'Pendente');
   if (updateError) throw new Error(updateError.message);

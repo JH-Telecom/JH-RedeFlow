@@ -100,6 +100,7 @@ export type Call = {
   olt: string;
   slotPon: string;
   status: CallStatus;
+  atrelada?: string;
   technicianId?: string;
   technicianName?: string;
   supervisorName?: string;
@@ -162,6 +163,7 @@ export type ActivationAnalysis = {
   cope_rede: string | null;
   observacoes: string | null;
   raw_text: string;
+  atrelada?: string | null;
   clientes_afetados?: NocAddressRecord[];
   endereco_principal?: string | null;
   bairro_principal?: string | null;
