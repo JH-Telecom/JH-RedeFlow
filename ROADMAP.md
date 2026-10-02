@@ -102,6 +102,16 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Sincronização D-0 ao carregar o painel diário — implementada em 2026-10-02
+
+- após salvar a base do Painel diário, o frontend envia o arquivo original ao endpoint D-0 já existente, que cruza ordens, atualiza os chamados correspondentes e atualiza a base D-0;
+- a tela informa linhas cruzadas, chamadas atualizadas e linhas sem correspondência; se o salvamento do painel funcionar mas a sincronização falhar, apresenta erro específico sem ocultar a base carregada;
+- sem mudanças no mapeador D-0, schema ou migrations.
+
+Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx) e [ROADMAP.md](ROADMAP.md).
+
+Validação: build do frontend passou; testes D-0 7/7 passaram.
+
 ### Sincronização Drive como único fluxo de importação — implementada em 2026-10-02
 
 - a página Importações mostra apenas a ação Sincronizar Drive e o resultado da execução; foram removidos os painéis de D-0, chamados atuais, acionamentos finalizados, seleção de arquivo genérica e histórico de uploads manuais;

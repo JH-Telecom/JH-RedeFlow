@@ -1329,6 +1329,7 @@ function ManualCardCopyButton({ cardKey, state, onCopy }: { cardKey: ManualProdu
 function ManualProductionDashboard() {
   const [data, setData] = useState<ManualProductionData | null>(null);
   const [uploadError, setUploadError] = useState("");
+  const [uploadMessage, setUploadMessage] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
   const [copyStates, setCopyStates] = useState<Record<ManualProductionCardKey, ManualProductionCopyState>>({ activities: "idle", technicians: "idle", orders: "idle" });
   const [technicianQuery, setTechnicianQuery] = useState("");
@@ -1360,6 +1361,7 @@ function ManualProductionDashboard() {
       await api.clearDailyBase();
       setData(null);
       setUploadError("");
+      setUploadMessage("");
       setSelectedFileName("");
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Nao foi possivel limpar a base.");
@@ -1469,6 +1471,8 @@ function ManualProductionDashboard() {
   async function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    setUploadError("");
+    setUploadMessage("");
 
     try {
       const fileName = file.name.toLowerCase();
@@ -1493,6 +1497,19 @@ function ManualProductionDashboard() {
       setSelectedFileName(saved.base.fileName);
       setData(saved.base.data);
       setUploadError("");
+      try {
+        const contentBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+          reader.onerror = () => reject(new Error("Nao foi possivel ler novamente o arquivo para sincronizar os chamados."));
+          reader.readAsDataURL(file);
+        });
+        const result = await api.importD0(file.name, contentBase64);
+        setUploadMessage(`Base diária salva. Chamados D-0: ${result.sync.matchedCalls} cruzados, ${result.sync.updatedCalls} atualizados e ${result.sync.unmatchedRows} sem correspondência.`);
+      } catch (syncError) {
+        const syncMessage = syncError instanceof Error ? syncError.message : "falha desconhecida";
+        setUploadError(`Base diária salva, mas os chamados não foram atualizados: ${syncMessage}`);
+      }
       api.calls().then((result) => { setCallsForArea(result.calls); setAreaCallsReady(true); setAreaLookupError(false); }).catch(() => { setAreaCallsReady(true); setAreaLookupError(true); });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Nao foi possivel carregar o arquivo.";
@@ -1549,6 +1566,7 @@ function ManualProductionDashboard() {
         {data?.records?.length && areaLookupError && <div className="manual-area-message is-error">Não foi possível consultar as Regiões dos chamados. Verifique o acesso de consulta a chamados e tente Atualizar.</div>}
         {areaSegments && <div className="manual-area-note">Região cruzada pela Ordem de Serviço. Ordens sem correspondência são incluídas em SP.</div>}
         {areaSegments?.[areaSegment].unmatchedOrderCount ? <div className="manual-area-caption">{areaSegments[areaSegment].unmatchedOrderCount} Ordem(ns) sem correspondência com os chamados foram consideradas em SP.</div> : null}
+        {uploadMessage && <div className="manual-area-message">{uploadMessage}</div>}
         {uploadError && <div className="form-error import-error">{uploadError}</div>}
       </div>
 
