@@ -225,6 +225,11 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
 export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; openedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
   const current = (await listSupabaseCalls(undefined, { id }))[0];
   if (!current || (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system')) return undefined;
+  const nextStatus = input.status ?? current.status;
+  const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
+  if (terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined) {
+    input = { ...input, executedAt: current.executedAt ?? new Date().toISOString() };
+  }
   const assignedAt = input.technicianId ? new Date().toISOString() : undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', openedAt: 'opened_at', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };

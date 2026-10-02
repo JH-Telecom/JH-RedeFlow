@@ -1332,11 +1332,16 @@ function normalizeTechnicianId(id?: string | null) {
 }
 function prepareCallUpdate(current: Call, input: Partial<EditableCallFields>): Partial<EditableCallFields> {
   const olt = input.olt ?? current.olt;
+  const nextStatus = input.status ?? current.status;
+  const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
+  const shouldSetCompletionDate = terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined;
+
   return {
     ...input,
     region: resolveOltRegion(olt).region || input.region?.trim() || current.region,
     address: input.address?.trim() || current.address || '',
     bairro: input.bairro?.trim() || current.bairro || '',
+    executedAt: shouldSetCompletionDate ? (current.executedAt ?? new Date().toISOString()) : input.executedAt,
   };
 }
 export async function updateCall(id: string, input: Partial<EditableCallFields>, actor: User): Promise<Call | undefined> {

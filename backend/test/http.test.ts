@@ -210,6 +210,32 @@ test('call list filters a status set before paginating', async () => {
   assert.deepEqual(closed.calls.map((call) => call.id), all.calls.filter((call) => ['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)).map((call) => call.id));
 });
 
+test('changing a call to a terminal status also sets the end date automatically', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+
+  const listResponse = await fetch(`${baseUrl}/api/chamados?status=Aberto&pageSize=10`, { headers });
+  const list = await listResponse.json() as { calls: Array<{ id: string; status: string }> };
+  const target = list.calls[0];
+  assert.ok(target, 'deveria haver um chamado aberto para testar');
+
+  const patchResponse = await fetch(`${baseUrl}/api/chamados/${target.id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ status: 'Finalizado' }),
+  });
+  const patched = await patchResponse.json() as { call: { status: string; executedAt?: string | null } };
+
+  assert.equal(patchResponse.status, 200);
+  assert.equal(patched.call.status, 'Finalizado');
+  assert.ok(patched.call.executedAt, 'deveria preencher a data de finalizacao ao encerrar o chamado');
+});
+
 test('open calls split by technician assignment and assigned open calls appear in service queue', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
