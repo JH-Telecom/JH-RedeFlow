@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-02
 
-Última implementação: sincronização do Google Drive tolera cabeçalhos com caixa/acentuação diferentes e variantes descritivas de atividades FIELD.
+Última implementação: API autoriza o preflight CORS da origem Vercel `https://jh-rede.vercel.app` para login.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: publicar/reiniciar o backend atualizado e executar novamente a sincronização Drive; conferir os totais de elegíveis, cruzados e sem identificador.
+Próxima ação: sincronizar o deploy Render com o `render.yaml` atualizado e confirmar login pelo domínio Vercel.
 
 ---
 
@@ -101,6 +101,16 @@ Próxima ação: publicar/reiniciar o backend atualizado e executar novamente a 
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### CORS do login no domínio Vercel — implementado em 2026-10-02
+
+- a API inclui `https://jh-rede.vercel.app` na allowlist CORS mesmo quando `CORS_ORIGINS` não está configurado; origens adicionais continuam aceitas pela variável de ambiente;
+- `render.yaml` define o domínio Vercel como `CORS_ORIGINS` e o README documenta como adicionar domínios alternativos;
+- teste HTTP cobre o preflight `OPTIONS` de `/api/auth/login` e valida `Access-Control-Allow-Origin` e o método `POST`.
+
+Arquivos alterados: [backend/src/server.ts](backend/src/server.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [render.yaml](render.yaml), [README.md](README.md) e [ROADMAP.md](ROADMAP.md).
+
+Validação: suíte HTTP reportou 30/30 testes aprovados e os diagnósticos dos arquivos alterados não apontam erros; o shell misturou a saída do typecheck com comandos anteriores, então o typecheck não foi confirmado isoladamente. Deploy Render ainda precisa receber esta alteração.
 
 ### Correção de sincronização Drive para chamados FIELD — implementada em 2026-10-02
 
