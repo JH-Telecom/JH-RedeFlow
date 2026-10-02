@@ -14,12 +14,12 @@ Principais usuários: operadores, supervisores, administradores, mesários e usu
 
 Status geral: EM DESENVOLVIMENTO
 
-Última atualização: 2026-10-01
+Última atualização: 2026-10-02
 
-Última implementação: ação para excluir supervisores sem técnicos vinculados.
+Última implementação: edição direta do status dos chamados na fila de atendimento, sem sair da tabela.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: implantar e validar a exclusão de supervisores vazios no ambiente conectado; equipes com técnicos devem continuar protegidas.
+Próxima ação: validar a alteração no ambiente conectado e confirmar se os filtros e o fluxo de navegação continuam estáveis após o ajuste do status inline.
 
 ---
 
