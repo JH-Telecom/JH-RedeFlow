@@ -750,7 +750,11 @@ app.post('/api/importacoes/:id/confirmar', auth, requirePermission('imports.crea
 });
 app.post('/api/integrations/google-drive/sync', auth, requirePermission('imports.create'), async (_request, response) => {
   try { return response.json({ sync: await syncCallsFromDrive() }); }
-  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel sincronizar o Google Drive.' }); }
+  catch (error) {
+    console.error('[Google Drive] falha na sincronizacao manual:', error);
+    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Nao foi possivel sincronizar o Google Drive.';
+    return response.status(500).json({ message });
+  }
 });
 
 app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));

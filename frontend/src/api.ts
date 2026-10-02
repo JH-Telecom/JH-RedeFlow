@@ -53,7 +53,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
-    const error = new Error(payload.message || 'Nao foi possivel concluir a operacao.') as Error & { missing?: string[] };
+    const fallbackMessage = `A API respondeu com ${response.status}${response.statusText ? ` ${response.statusText}` : ''}.`;
+    const error = new Error(payload.message || fallbackMessage) as Error & { missing?: string[] };
     error.missing = payload.missing;
     throw error;
   }

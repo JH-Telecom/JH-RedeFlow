@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-02
 
-Última implementação: frontend no domínio Vercel usa o proxy same-origin `/api` para evitar CORS direto no navegador.
+Última implementação: erro de sincronização Drive agora registra a exceção nos logs Render e o frontend mostra status HTTP quando a resposta não fornece mensagem.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: publicar o frontend Vercel e verificar a saúde da API Render; a captura também mostra resposta `502`, que o proxy não consegue corrigir se o backend estiver indisponível.
+Próxima ação: publicar frontend/backend atualizados e executar novamente Sincronizar Drive; verificar a mensagem HTTP e os logs Render se o POST falhar.
 
 ---
 
@@ -113,6 +113,17 @@ Próxima ação: publicar o frontend Vercel e verificar a saúde da API Render; 
 Arquivos alterados: [backend/src/server.ts](backend/src/server.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [render.yaml](render.yaml), [README.md](README.md), [frontend/src/api.ts](frontend/src/api.ts) e [ROADMAP.md](ROADMAP.md).
 
 Validação: build frontend passou; suíte HTTP reportou 30/30 testes aprovados e os diagnósticos dos arquivos alterados não apontam erros; o shell misturou a saída do typecheck com comandos anteriores, então o typecheck não foi confirmado isoladamente. Deploy Vercel/Render ainda precisa receber esta alteração.
+
+### Diagnóstico da falha POST de sincronização Drive — implementado em 2026-10-02
+
+- o healthcheck público do Render respondeu 200 e o preflight OPTIONS da rota de sincronização através do proxy Vercel respondeu 204 com `Access-Control-Allow-Origin`; o erro atual não é CORS nem indisponibilidade geral;
+- a API agora escreve exceções da sincronização manual nos logs do Render e devolve mensagens de erro não-Error quando disponíveis; o frontend exibe status HTTP em respostas sem mensagem;
+- nenhum POST de sincronização foi executado nesta verificação para evitar atualizações de dados operacionais sem confirmação;
+- após publicar esta instrumentação, executar a sincronização e usar a mensagem detalhada ou os logs do Render para identificar falha de credencial/permissão/Drive.
+
+Arquivos alterados: [frontend/src/api.ts](frontend/src/api.ts), [backend/src/server.ts](backend/src/server.ts) e [ROADMAP.md](ROADMAP.md).
+
+Validação: build frontend e typecheck backend passaram; healthcheck 200 e preflight do proxy 204.
 
 ### Correção de sincronização Drive para chamados FIELD — implementada em 2026-10-02
 
