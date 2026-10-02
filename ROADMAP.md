@@ -112,7 +112,7 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 Arquivos alterados: [backend/src/server.ts](backend/src/server.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/types.ts](backend/src/types.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [database/migrations/017_first_login_password_change.sql](database/migrations/017_first_login_password_change.sql), [supabase/migrations/202610020002_first_login_password_change.sql](supabase/migrations/202610020002_first_login_password_change.sql), [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/main.tsx](frontend/src/main.tsx), [frontend/src/password-change.css](frontend/src/password-change.css) e [ROADMAP.md](ROADMAP.md).
 
-Validação: typecheck do backend e build do frontend passaram; o teste HTTP do fluxo de primeiro acesso passou. Suíte HTTP completa ainda pendente. As migrations não foram executadas nesta sessão.
+Validação: typecheck do backend e build do frontend passaram; o teste HTTP do fluxo de primeiro acesso passou; suíte completa passou com 35 testes. As migrations não foram executadas nesta sessão.
 
 ### Próxima ação
 
