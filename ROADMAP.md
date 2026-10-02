@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-02
 
-Última implementação: edição direta do status dos chamados na fila de atendimento, sem sair da tabela.
+Última implementação: relatórios de ordens repetidas e quartil por técnico, com atribuição da repetição ao técnico do chamado original.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: validar a alteração no ambiente conectado e confirmar se os filtros e o fluxo de navegação continuam estáveis após o ajuste do status inline.
+Próxima ação: conferir os relatórios de repetidos contra a base operacional, especialmente os registros sem endereço ou sem OLT/placa/PON.
 
 ---
 
@@ -101,6 +101,19 @@ Próxima ação: validar a alteração no ambiente conectado e confirmar se os f
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Relatórios de ordens repetidas e quartil — implementados em 2026-10-02
+
+- nova página Repetidos com abas Ordens repetidas e Quartil, acessível a usuários com `calls.view`; supervisores consultam apenas chamados da própria equipe;
+- identifica repetição quando endereço + OLT + slot/PON coincidem e o evento anterior ocorreu nos 30 dias anteriores; ignora endereços sem número, dados incompletos e eventos sem data válida;
+- a aba de ordens lista o chamado atual, o chamado anterior mais próximo e os respectivos técnicos; a aba Quartil contabiliza `SERV` pelo técnico do chamado atual e atribui `# REP` ao técnico do chamado original (`TECNICO REP`);
+- técnicos com `# REP` mas sem `SERV` no intervalo permanecem visíveis e exibem IRE/quartil como `-`; repetições sem técnico original também ficam identificadas, sem divisão por zero;
+- `% IRE` é `# REP / SERV`; os limites são até 2%, até 2,5%, até 3% e acima de 3%; o período pode ser filtrado sem remover do cálculo de repetição os chamados anteriores ao início selecionado;
+- os chamados são carregados pela API em páginas de até 100 registros, em lotes de cinco páginas.
+
+Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/main.tsx](frontend/src/main.tsx), [frontend/src/repeated-calls.tsx](frontend/src/repeated-calls.tsx), [frontend/src/repeated-calls.css](frontend/src/repeated-calls.css) e [ROADMAP.md](ROADMAP.md).
+
+Validação: `npm --prefix ../frontend run build` passou após os ajustes; Vite reportou apenas o aviso de bundle principal acima de 500 kB. A conferência dos dados operacionais reais permanece pendente.
 
 ### Vínculo Atrelado de acionamentos FIELD — implementado em 2026-10-02
 
