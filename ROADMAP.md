@@ -112,6 +112,16 @@ Arquivos alterados: [frontend/src/imports.css](frontend/src/imports.css) e [ROAD
 
 Validação: build do frontend foi verificado após o ajuste de layout.
 
+### Ajuste visual global dos cards e headings — implementado em 2026-10-02
+
+- os headings de painel agora usam flex-wrap e área flexível para o texto, deixando botões e títulos alinhados de forma consistente em todos os cards do app;
+- em telas menores, o layout empilha os blocos e aloca a área de ações em largura total para manter legibilidade e evitar desalinhamento;
+- a correção é aplicada no padrão global de cards, sem mexer em regras de negócio ni em fluxos de dados.
+
+Arquivos alterados: [frontend/src/styles.css](frontend/src/styles.css) e [ROADMAP.md](ROADMAP.md).
+
+Validação: build do frontend foi verificado após a correção global de layout.
+
 ### Próxima ação
 
 Conferir a aparência dos cards em telas 1366px e em mobile e ajustar pequenos detalhes visuais caso apareça desalinhamento residual.
