@@ -102,6 +102,20 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Ajuste visual dos cards de importação — implementado em 2026-10-02
+
+- a disposição dos cards da página de importações foi ajustada com flex-wrap e alinhamento melhor do texto e dos botões de ação;
+- títulos e ações agora compartilham melhor o espaço e o layout fica mais estável em larguras médias e pequenas;
+- a mudança foi focada no visual, sem alterar regras de negócio, uploads, preview ou confirmação.
+
+Arquivos alterados: [frontend/src/imports.css](frontend/src/imports.css) e [ROADMAP.md](ROADMAP.md).
+
+Validação: build do frontend foi verificado após o ajuste de layout.
+
+### Próxima ação
+
+Conferir a aparência dos cards em telas 1366px e em mobile e ajustar pequenos detalhes visuais caso apareça desalinhamento residual.
+
 ### Exclusão segura de supervisores — implementada em 2026-10-02
 
 - cards de supervisores agora têm ação de lixeira; fica desabilitada quando há técnicos vinculados e pede confirmação antes de excluir;
