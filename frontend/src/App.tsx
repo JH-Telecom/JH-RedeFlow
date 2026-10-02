@@ -701,7 +701,7 @@ function OperationalDashboard({ user, dateRange, onDateRangeChange }: { user: Us
                   <h2>Chamados por Bairro</h2>
                 </div>
               </div>
-              <div className="rank-list">
+              <div className="rank-list rank-list-scroll">
                 {metrics.byNeighborhood.length ? metrics.byNeighborhood.map((item) => (
                   <div className="rank-row" key={item.label}>
                     <span>{item.label}</span>
