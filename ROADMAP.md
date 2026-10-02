@@ -109,11 +109,12 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 - a filtragem por atribuição ocorre no servidor antes da paginação e da contagem; o filtro de status dos abertos fica restrito a Aberto;
 - na tabela de Chamados abertos, a coluna Técnico ocupa a posição de Cliente / Técnico B2C; a antiga coluna Técnico no fim foi removida para evitar duplicidade;
 - na tabela Em atendimento, a coluna Obs. foi posicionada imediatamente após OLT;
+- o estilo da célula OBS mantém `display: table-cell` e as larguras fixas das demais colunas foram alinhadas com a nova ordem, corrigindo o desalinhamento visual;
 - a tela dedicada a finalizados e cancelados permanece inalterada.
 
 Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/api.ts](frontend/src/api.ts), [backend/src/server.ts](backend/src/server.ts), [backend/src/store.ts](backend/src/store.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [database/migrations/018_calls_assignment_filter.sql](database/migrations/018_calls_assignment_filter.sql), [supabase/migrations/202610020003_calls_assignment_filter.sql](supabase/migrations/202610020003_calls_assignment_filter.sql) e [ROADMAP.md](ROADMAP.md).
 
-Validação: teste HTTP de transferência de chamado aberto para a fila atribuída passou; typecheck do backend e build do frontend passaram. Para PostgreSQL/Supabase conectado, é necessário aplicar a migration correspondente.
+Validação: teste HTTP de transferência de chamado aberto para a fila atribuída passou; typecheck do backend e build do frontend passaram após os ajustes de tabela. Para PostgreSQL/Supabase conectado, é necessário aplicar a migration correspondente.
 
 ### Troca obrigatória de senha no primeiro acesso — implementada em 2026-10-02
 
