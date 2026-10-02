@@ -100,6 +100,36 @@ test('call list searches by OLT and filters without collapsing OLT options', asy
   assert.ok(filtered.olts.includes('VIP-CT1-SPO-OHW-01'));
 });
 
+test('admin can delete an empty supervisor but cannot delete a supervisor with technicians', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+
+  const linkedDelete = await fetch(`${baseUrl}/api/supervisores/supervisor-joao`, { method: 'DELETE', headers });
+  const linkedBody = await linkedDelete.json() as { technicianCount: number };
+  assert.equal(linkedDelete.status, 409);
+  assert.equal(linkedBody.technicianCount, 3);
+
+  const createResponse = await fetch(`${baseUrl}/api/supervisores`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ name: 'Supervisor vazio', region: 'Teste' }),
+  });
+  const created = await createResponse.json() as { supervisor: { id: string } };
+  assert.equal(createResponse.status, 201);
+
+  const deleteResponse = await fetch(`${baseUrl}/api/supervisores/${created.supervisor.id}`, { method: 'DELETE', headers });
+  assert.equal(deleteResponse.status, 200);
+  assert.deepEqual(await deleteResponse.json(), { deleted: true });
+  const listResponse = await fetch(`${baseUrl}/api/supervisores`, { headers });
+  const list = await listResponse.json() as { supervisors: Array<{ id: string }> };
+  assert.ok(!list.supervisors.some((supervisor) => supervisor.id === created.supervisor.id));
+});
+
 test('call list filters a status set before paginating', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

@@ -820,6 +820,37 @@ export async function updateSupervisor(id: string, input: { userId?: string | nu
   supervisors.set(id, updated);
   return updated;
 }
+export async function deleteSupervisor(id: string): Promise<{ deleted: boolean; technicianCount: number }> {
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const { count, error: countError } = await admin.from('technicians').select('id', { count: 'exact', head: true }).eq('supervisor_id', id).is('deleted_at', null);
+    if (countError) throw new Error(countError.message);
+    if (count) return { deleted: false, technicianCount: count };
+    const { data, error } = await admin.from('supervisors').update({ active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null).select('id').maybeSingle();
+    if (error) throw new Error(error.message);
+    return { deleted: Boolean(data), technicianCount: 0 };
+  }
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    await client.query('BEGIN');
+    try {
+      const existing = await client.query<{ id: string }>('SELECT id FROM supervisors WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [id]);
+      if (!existing.rowCount) { await client.query('ROLLBACK'); return { deleted: false, technicianCount: 0 }; }
+      const linked = await client.query<{ count: string }>('SELECT count(*)::text AS count FROM technicians WHERE supervisor_id = $1 AND deleted_at IS NULL', [id]);
+      const technicianCount = Number(linked.rows[0]?.count || 0);
+      if (technicianCount) { await client.query('ROLLBACK'); return { deleted: false, technicianCount }; }
+      const result = await client.query('UPDATE supervisors SET active = false, deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL', [id]);
+      await client.query('COMMIT');
+      return { deleted: Boolean(result.rowCount), technicianCount: 0 };
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+  }
+  const supervisor = supervisors.get(id);
+  if (!supervisor) return { deleted: false, technicianCount: 0 };
+  const technicianCount = [...technicians.values()].filter((technician) => technician.supervisorId === id).length;
+  if (technicianCount) return { deleted: false, technicianCount };
+  supervisors.delete(id);
+  return { deleted: true, technicianCount: 0 };
+}
 export type CallQuery = { id?: string; from?: string; to?: string; supervisorId?: string; status?: CallStatus | CallStatus[]; search?: string; region?: string; neighborhood?: string; olt?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 function matchesCallStatus(status: CallStatus, filter?: CallStatus | CallStatus[]) {
   return !filter || (Array.isArray(filter) ? filter : [filter]).includes(status);

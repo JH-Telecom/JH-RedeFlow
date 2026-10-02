@@ -3344,6 +3344,22 @@ function SupervisorsPage({ user }: { user: User & { role: Role } }) {
     try { await api.createSupervisor({ ...form, userId: form.userId || undefined }); setShowForm(false); setForm({ name: "", region: "", userId: "", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar supervisor."); }
   }
   function openTeam(supervisor: typeof data.supervisors[number]) { setSelectedSupervisor(supervisor); }
+  async function removeSupervisor(supervisor: typeof data.supervisors[number]) {
+    if (supervisor.technicianCount > 0) {
+      setError("Desvincule os tecnicos antes de excluir o supervisor.");
+      return;
+    }
+    if (!window.confirm(`Excluir o supervisor ${supervisor.name}? O cadastro será removido da lista, mas o usuário vinculado não será apagado.`)) return;
+    try {
+      const result = await api.deleteSupervisor(supervisor.id);
+      if (result.deleted) {
+        setError("");
+        await load();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel excluir o supervisor.");
+    }
+  }
   async function assignTechnician(event: React.ChangeEvent<HTMLSelectElement>) {
     const technicianId = event.target.value;
     if (!technicianId || !selectedSupervisor) return;
@@ -3395,6 +3411,9 @@ function SupervisorsPage({ user }: { user: User & { role: Role } }) {
                 <h2>{supervisor.name}</h2>
                 <div className="supervisor-meta"><span>{supervisor.region}</span><strong>{supervisor.technicianCount} tecnicos</strong></div>
               </div>
+              <button className="icon-button" type="button" onClick={() => void removeSupervisor(supervisor)} disabled={supervisor.technicianCount > 0} title={supervisor.technicianCount > 0 ? "Desvincule os tecnicos antes de excluir" : "Excluir supervisor"} aria-label={`Excluir supervisor ${supervisor.name}`}>
+                <Trash2 size={16} />
+              </button>
               <button className="icon-button" type="button" onClick={() => openTeam(supervisor)} title="Abrir equipe">
                 <ChevronRight size={17} />
               </button>

@@ -76,6 +76,7 @@ export const api = {
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
   updateSupervisor: (id: string, data: { userId?: string | null; name?: string; region?: string; active?: boolean }) => request<{ supervisor: Supervisor }>(`/api/supervisores/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteSupervisor: (id: string) => request<{ deleted: boolean }>(`/api/supervisores/${id}`, { method: 'DELETE' }),
   calls: (status?: CallStatus | CallStatus[], filters: CallListQuery = {}) => {
     const params = new URLSearchParams();
     if (status) params.set('status', Array.isArray(status) ? status.join(',') : status);

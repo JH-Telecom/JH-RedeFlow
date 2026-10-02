@@ -1,5 +1,5 @@
-Última implementação: importação D-0 otimizada para atualizar chamados em lotes, sem leituras completas do histórico por registro.
-- [x] D-0 cruza uma vez a base e atualiza chamados em lotes concorrentes de 10; mutações Supabase são pontuais por ID.
+Última implementação: exclusão lógica de supervisores sem equipe, com proteção contra remoção quando há técnicos vinculados.
+- [x] Administradores podem excluir supervisores vazios; equipes ocupadas retornam bloqueio explícito.
 # ROADMAP DO PROJETO
 
 ## 1. VISÃO GERAL
@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-01
 
-Última implementação: otimização do processamento e atualização dos chamados durante importação D-0.
+Última implementação: ação para excluir supervisores sem técnicos vinculados.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: executar o upload D-0 no ambiente conectado e conferir matched/updated/unmatched e a OS atualizada; medir duração no banco real.
+Próxima ação: implantar e validar a exclusão de supervisores vazios no ambiente conectado; equipes com técnicos devem continuar protegidas.
 
 ---
 
@@ -35,6 +35,7 @@ Próxima ação: executar o upload D-0 no ambiente conectado e conferir matched/
 - Google Drive: a sincronização histórica aceita os tipos de atividade documentados, incluindo `ACIONAMENTO FIELD`; extrai endereço e bairro inferido ou fornecido em coluna própria.
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
 - Técnicos: `employment_status` registra Trabalhando/Demitido independentemente de `active` e `current_status`; `active` continua representando disponibilidade pela escala/sobrescrita operacional.
+- Supervisores: exclusão lógica disponível para equipes vazias; a API impede excluir supervisor com técnicos ativos no cadastro.
 - Autenticação: JWT local e integração Supabase configurável por ambiente.
 - APIs: endpoints de auth, usuários, cargos, técnicos, supervisores, chamados, dashboards, importações, notificações e integrações.
 - Infraestrutura: runtime local com variáveis de ambiente, fallback demo e configs de produção.
@@ -52,6 +53,7 @@ Próxima ação: executar o upload D-0 no ambiente conectado e conferir matched/
 - [x] Runtime local separado do Supabase oficial por ambiente.
 - [x] Fluxos de técnicos, supervisores e relacionamento entre equipes.
 - [x] Vínculo empregatício dos técnicos Trabalhando/Demitido, com filtro padrão para Trabalhando e bloqueio de atribuição a demitidos.
+- [x] Exclusão lógica de supervisores sem técnicos vinculados, com ação na tela e bloqueio HTTP para equipes ocupadas.
 - [x] Chamados, fila operacional, detalhe e atribuição.
 - [x] Listagem de chamados Supabase paginada em blocos para superar o limite padrão de 1.000 linhas.
 - [x] Tela de chamados finalizados e cancelados com busca, filtros e tabela operacional reutilizada.
@@ -99,6 +101,21 @@ Próxima ação: executar o upload D-0 no ambiente conectado e conferir matched/
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Exclusão segura de supervisores — implementada em 2026-10-02
+
+- cards de supervisores agora têm ação de lixeira; fica desabilitada quando há técnicos vinculados e pede confirmação antes de excluir;
+- `DELETE /api/supervisores/:id` exige `supervisors.edit`, retorna 409 quando existem técnicos e 404 para IDs ausentes;
+- PostgreSQL e Supabase usam exclusão lógica (`active=false`, `deleted_at` preenchido), preservando o usuário associado; o modo demo remove o registro de sua lista em memória;
+- nenhuma migration necessária; o schema já tem `deleted_at` e `active` em `supervisors`.
+
+Arquivos alterados: [backend/src/store.ts](backend/src/store.ts), [backend/src/server.ts](backend/src/server.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx) e [ROADMAP.md](ROADMAP.md).
+
+Validação: teste HTTP direcionado 1/1 passou; smoke test na API demo confirmou 409 para supervisor com 3 técnicos e 200 para excluir supervisor vazio; typechecks backend/frontend e build frontend passaram.
+
+### Próxima ação
+
+Implantar e conferir a ação na tela. Para supervisores ocupados, desvincular os técnicos primeiro; o backend mantém a validação mesmo se o botão for contornado.
 
 ### Lentidão na importação D-0 — otimização implementada em 2026-10-01
 
@@ -428,6 +445,41 @@ Plano registrado antes da implementação em 2026-09-29.
 ---
 
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
+
+## 2026-10-02 — Exclusão lógica de supervisores vazios
+
+### Objetivo
+
+Permitir remover cadastros de supervisores que não possuem técnicos vinculados, sem perder a proteção de equipes existentes.
+
+### Alterações realizadas
+
+- ação de excluir adicionada aos cards; desabilitada para equipes com técnicos e acompanhada de confirmação;
+- endpoint DELETE protegido por `supervisors.edit`; retorna `409` com contagem quando ainda há técnicos;
+- PostgreSQL e Supabase marcam supervisor como inativo e `deleted_at`; login associado não é excluído.
+
+### Arquivos modificados
+
+- [backend/src/store.ts](backend/src/store.ts)
+- [backend/src/server.ts](backend/src/server.ts)
+- [backend/test/http.test.ts](backend/test/http.test.ts)
+- [frontend/src/api.ts](frontend/src/api.ts)
+- [frontend/src/App.tsx](frontend/src/App.tsx)
+- [ROADMAP.md](ROADMAP.md)
+
+### Banco de dados
+
+Nenhuma alteração de banco ou migration realizada; foram reutilizados `supervisors.active` e `supervisors.deleted_at`.
+
+### Testes
+
+- `node_modules\\.bin\\tsx.cmd --test --test-name-pattern="delete an empty supervisor" backend/test/http.test.ts`: 1 passou, 0 falharam;
+- smoke test HTTP demo confirmou `409` para supervisor com três técnicos e `200` para supervisor vazio;
+- typechecks backend/frontend e build frontend passaram; permanece aviso conhecido de bundle acima de 500 kB.
+
+### Próxima ação
+
+Implantar, verificar a ação visualmente e validar que supervisores vazios desaparecem da lista; equipe ocupada deve continuar bloqueada.
 
 ## 2026-10-01 — Lotes e consultas pontuais para importação D-0
 
@@ -1718,6 +1770,12 @@ Portas e serviços:
 
 ### Teste
 
+Exclusão de supervisor vazio e proteção de equipe ocupada.
+
+Resultado: ✅ teste HTTP direcionado 1/1, smoke test demo, typechecks backend/frontend e build frontend passaram.
+
+### Teste
+
 Atualização em lotes na importação D-0.
 
 Resultado: ✅ 7 testes D-0 e 12 testes store/supervisor passaram; typechecks backend/frontend e build frontend passaram. Validação com volume de produção pendente.
@@ -1846,13 +1904,17 @@ Resultado: ✅ 39 testes relacionados a parsers, D-0/D-1 e supervisor passaram, 
 
 ## 14. PRÓXIMA AÇÃO
 
-1. reenviar a base D-0 no ambiente conectado e conferir `matchedCalls`, `updatedCalls`, `unmatchedRows`, o tempo e os campos Endereço/Bairro da OS reportada;
-2. executar a sincronização Google Drive no ambiente real e verificar a OS `12529279` e seus contadores;
-3. retomar as pendências de migration de vínculo de técnicos e medição da consulta de detalhe no banco real.
+1. implantar e validar na tela a exclusão de supervisores sem equipe;
+2. confirmar que a ação fica bloqueada para supervisor com técnicos e que o DELETE retorna `409`;
+3. retomar as validações pendentes de importação D-0/Drive e das migrations de vínculo de técnicos.
 
 ---
 
 ## 15. CHECKPOINT DE CONTINUIDADE
+
+## 🔖 CHECKPOINT — 2026-10-02 — Exclusão de supervisores
+
+Adicionada lixeira nos cards de supervisores, desabilitada quando há técnicos, com confirmação. Endpoint `DELETE /api/supervisores/:id` usa `supervisors.edit`, aplica soft delete em PostgreSQL/Supabase, preserva usuário vinculado e responde 409 para equipe ocupada. Teste HTTP 1/1, smoke test demo, typechecks e build frontend passaram. Nenhuma migration. Próximo passo: implantar e validar visualmente.
 
 ## 🔖 CHECKPOINT — 2026-10-01 — Importação D-0 em lotes
 
