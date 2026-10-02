@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   RefreshCcw,
+  Repeat2,
   Trash2,
   Users,
   X,
@@ -62,6 +63,7 @@ import {
   type OltRegionMapping,
   type OltRegionRequest,
 } from "./api";
+import { RepeatedCallsPage } from "./repeated-calls";
 
 const operationalRegions = [
   "COLUMBIA", "SERTÃOZINHO", "TURQUESA", "GIULIA", "MAUÁ", "RIBEIRÃO PIRES", "SANTA LUZIA", "CÂMBIO", "CAÇULA",
@@ -96,6 +98,12 @@ const navItems = [
     label: "Finalizados e cancelados",
     to: "/chamados/finalizados",
     icon: Archive,
+    permission: "calls.view",
+  },
+  {
+    label: "Repetidos",
+    to: "/repetidos",
+    icon: Repeat2,
     permission: "calls.view",
   },
   {
@@ -380,6 +388,8 @@ function Shell({
         ? "Chamados abertos"
         : location.pathname === "/chamados/finalizados"
           ? "Finalizados e cancelados"
+          : location.pathname === "/repetidos"
+            ? "Repetidos"
           : location.pathname.includes("/chamados/atendimento")
             ? "Em atendimento"
           : location.pathname === "/supervisor/ordens"
@@ -510,6 +520,7 @@ function Shell({
               path="/chamados/finalizados"
               element={<CallsPage title="Finalizados e cancelados" closedOnly />}
             />
+            <Route path="/repetidos" element={<RepeatedCallsPage teamScoped={user.role.name === "Supervisor"} />} />
             <Route path="/supervisor/ordens" element={<SupervisorOrdersPage user={user} />} />
             <Route path="/acionamentos" element={<ActivationsPage />} />
             <Route path="/painel-diario" element={<ManualProductionDashboard />} />

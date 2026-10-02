@@ -24,6 +24,7 @@ import './admin.css';
 import './settings-olt.css';
 import './observation-attachments.css';
 import './calls-layout.css';
+import './repeated-calls.css';
 import './permissions.css';
 import './filters.css';
 import './refresh.css';
