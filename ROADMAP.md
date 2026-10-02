@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-02
 
-Última implementação: API autoriza o preflight CORS da origem Vercel `https://jh-rede.vercel.app` para login.
+Última implementação: frontend no domínio Vercel usa o proxy same-origin `/api` para evitar CORS direto no navegador.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: sincronizar o deploy Render com o `render.yaml` atualizado e confirmar login pelo domínio Vercel.
+Próxima ação: publicar o frontend Vercel e verificar a saúde da API Render; a captura também mostra resposta `502`, que o proxy não consegue corrigir se o backend estiver indisponível.
 
 ---
 
@@ -107,10 +107,12 @@ Próxima ação: sincronizar o deploy Render com o `render.yaml` atualizado e co
 - a API inclui `https://jh-rede.vercel.app` na allowlist CORS mesmo quando `CORS_ORIGINS` não está configurado; origens adicionais continuam aceitas pela variável de ambiente;
 - `render.yaml` define o domínio Vercel como `CORS_ORIGINS` e o README documenta como adicionar domínios alternativos;
 - teste HTTP cobre o preflight `OPTIONS` de `/api/auth/login` e valida `Access-Control-Allow-Origin` e o método `POST`.
+- no build de produção hospedado em `*.vercel.app`, o frontend agora usa URLs relativas e passa pela rewrite `/api/*` já configurada nos arquivos Vercel; isso remove CORS do browser mesmo quando a API está em outro host;
+- respostas `502` da API continuam sendo indisponibilidade/upstream do Render e exigem verificar o healthcheck/logs do serviço após publicar.
 
-Arquivos alterados: [backend/src/server.ts](backend/src/server.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [render.yaml](render.yaml), [README.md](README.md) e [ROADMAP.md](ROADMAP.md).
+Arquivos alterados: [backend/src/server.ts](backend/src/server.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [render.yaml](render.yaml), [README.md](README.md), [frontend/src/api.ts](frontend/src/api.ts) e [ROADMAP.md](ROADMAP.md).
 
-Validação: suíte HTTP reportou 30/30 testes aprovados e os diagnósticos dos arquivos alterados não apontam erros; o shell misturou a saída do typecheck com comandos anteriores, então o typecheck não foi confirmado isoladamente. Deploy Render ainda precisa receber esta alteração.
+Validação: build frontend passou; suíte HTTP reportou 30/30 testes aprovados e os diagnósticos dos arquivos alterados não apontam erros; o shell misturou a saída do typecheck com comandos anteriores, então o typecheck não foi confirmado isoladamente. Deploy Vercel/Render ainda precisa receber esta alteração.
 
 ### Correção de sincronização Drive para chamados FIELD — implementada em 2026-10-02
 
