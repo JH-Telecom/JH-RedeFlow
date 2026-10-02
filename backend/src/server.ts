@@ -767,13 +767,54 @@ app.post('/api/importacoes/:id/confirmar', auth, requirePermission('imports.crea
   if (record.status !== 'Previsualizada') return response.status(409).json({ message: 'Somente uma importacao previsualizada pode ser confirmada.' });
   return response.json({ import: await saveImport({ ...record, status: 'Confirmada' }) });
 });
-app.post('/api/integrations/google-drive/sync', auth, requirePermission('imports.create'), async (_request, response) => {
-  try { return response.json({ sync: await syncCallsFromDrive() }); }
-  catch (error) {
-    console.error('[Google Drive] falha na sincronizacao manual:', error);
-    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Nao foi possivel sincronizar o Google Drive.';
-    return response.status(500).json({ message });
+type DriveSyncJob = {
+  id: string;
+  status: 'running' | 'completed' | 'failed';
+  startedAt: string;
+  finishedAt?: string;
+  result?: Awaited<ReturnType<typeof syncCallsFromDrive>>;
+  error?: string;
+};
+const driveSyncJobs = new Map<string, DriveSyncJob>();
+let activeDriveSyncJobId: string | null = null;
+function startDriveSyncJob(source: 'manual' | 'scheduled' = 'manual') {
+  const activeJob = activeDriveSyncJobId ? driveSyncJobs.get(activeDriveSyncJobId) : undefined;
+  if (activeJob?.status === 'running') return activeJob;
+
+  const job: DriveSyncJob = { id: crypto.randomUUID(), status: 'running', startedAt: new Date().toISOString() };
+  driveSyncJobs.set(job.id, job);
+  activeDriveSyncJobId = job.id;
+  while (driveSyncJobs.size > 20) {
+    const oldestId = driveSyncJobs.keys().next().value;
+    if (!oldestId || oldestId === activeDriveSyncJobId) break;
+    driveSyncJobs.delete(oldestId);
   }
+
+  void syncCallsFromDrive().then((result) => {
+    job.status = 'completed';
+    job.finishedAt = new Date().toISOString();
+    job.result = result;
+    console.log(`[Google Drive] job ${job.id} concluido:`, JSON.stringify(result));
+  }).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : typeof error === 'string' ? error : 'Nao foi possivel sincronizar o Google Drive.';
+    job.status = 'failed';
+    job.finishedAt = new Date().toISOString();
+    job.error = message;
+    console.error(`[Google Drive] job ${job.id} falhou:`, error);
+    if (source === 'scheduled') lastDriveSyncDate = '';
+  }).finally(() => {
+    if (activeDriveSyncJobId === job.id) activeDriveSyncJobId = null;
+  });
+  return job;
+}
+app.post('/api/integrations/google-drive/sync', auth, requirePermission('imports.create'), async (_request, response) => {
+  const job = startDriveSyncJob();
+  return response.status(202).json({ job });
+});
+app.get('/api/integrations/google-drive/sync/:jobId', auth, requirePermission('imports.create'), (request, response) => {
+  const job = driveSyncJobs.get(String(request.params.jobId));
+  if (!job) return response.status(404).json({ message: 'Execucao de sincronizacao nao encontrada.' });
+  return response.json({ job });
 });
 
 app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));
@@ -788,8 +829,7 @@ function startDriveSchedule() {
     const date = `${get('year')}-${get('month')}-${get('day')}`;
     if (Number(get('hour')) < syncHour || lastDriveSyncDate === date) return;
     lastDriveSyncDate = date;
-    try { console.log('[Google Drive] sincronizacao iniciada:', JSON.stringify(await syncCallsFromDrive())); }
-    catch (error) { console.error('[Google Drive] falha na sincronizacao:', error); lastDriveSyncDate = ''; }
+    startDriveSyncJob('scheduled');
   };
   void check();
   setInterval(() => void check(), 60_000);

@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-02
 
-Última implementação: usuários podem enviar e persistir foto de perfil em armazenamento isolado, acessível pelos avatares da sidebar e do topo.
+Última implementação: sincronização do Google Drive executa como job em segundo plano e o frontend acompanha seu status sem manter o POST aberto.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: aplicar as migrations `020_user_avatars.sql` e `202610020005_user_avatars.sql` ao banco correspondente e publicar frontend/backend.
+Próxima ação: publicar backend/frontend e executar uma sincronização acompanhando os logs/memória do Render; se houver restart ainda com job assíncrono, revisar métricas de memória por arquivo.
 
 ---
 
@@ -33,6 +33,7 @@ Próxima ação: aplicar as migrations `020_user_avatars.sql` e `202610020005_us
 - Sincronização D-0: matching em memória após carregar chamados uma vez; mutações por lotes limitados a 10 e logs Supabase em inserção agrupada por chamado.
 - Painel diário: exportação OFS detalhada é preservada no JSON existente e conciliada com Região dos chamados por Ordem de Serviço; Guarulhos fica separado e demais ordens são exibidas em SP.
 - Google Drive: a sincronização histórica aceita os tipos de atividade documentados, incluindo `ACIONAMENTO FIELD`; extrai endereço e bairro inferido ou fornecido em coluna própria.
+- Sincronização Drive: execução manual/agendada roda como job no backend; `POST` retorna 202 e status/resultado é consultado por ID; apenas um job pode rodar por instância.
 - Regiões por OLT: mapa padrão no código com overrides persistidos em `olt_region_overrides`, carregados no boot e editáveis por usuários com `settings.manage`.
 - Técnicos: `employment_status` registra Trabalhando/Demitido independentemente de `active` e `current_status`; `active` continua representando disponibilidade pela escala/sobrescrita operacional.
 - Supervisores: exclusão lógica disponível para equipes vazias; a API impede excluir supervisor com técnicos ativos no cadastro.
@@ -102,6 +103,18 @@ Próxima ação: aplicar as migrations `020_user_avatars.sql` e `202610020005_us
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Sincronização Google Drive assíncrona — implementada em 2026-10-02
+
+- a rota manual responde `202 Accepted` com ID em vez de manter a conexão HTTP aberta durante a leitura dos arquivos;
+- `GET /api/integrations/google-drive/sync/:jobId` expõe `running`, `completed` ou `failed`, resultado agregado e mensagem de erro; jobs recentes ficam em memória, limitados a 20;
+- botão Importações inicia o job e consulta o estado a cada 2 segundos; ao terminar, mostra o resumo e invalida cache dos chamados;
+- botão manual e agenda diária usam o mesmo runner; a instância evita sincronizações simultâneas;
+- matching trocou buscas lineares para cada linha por índices em `Map` de identificadores e posições, evitando varrer todo o histórico para cada linha importada.
+
+Arquivos alterados: [backend/src/server.ts](backend/src/server.ts), [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/App.tsx](frontend/src/App.tsx) e [ROADMAP.md](ROADMAP.md).
+
+Validação: teste HTTP do job passou; suíte de integração Drive passou (17/17); build frontend e typecheck backend passaram. Healthcheck Render estava 200 antes da alteração; a sincronização real não foi iniciada durante o diagnóstico.
 
 ### Foto de perfil por usuário — implementada em 2026-10-02
 

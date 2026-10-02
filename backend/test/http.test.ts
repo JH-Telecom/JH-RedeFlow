@@ -54,6 +54,7 @@ async function startServer() {
       SUPABASE_ANON_KEY: '',
       SUPABASE_SERVICE_ROLE_KEY: '',
       CORS_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173,https://jh-rede.vercel.app',
+      GOOGLE_SERVICE_ACCOUNT_JSON: '',
     },
     stdio: 'ignore',
   });
@@ -126,6 +127,34 @@ test('users can save, read and remove their own profile photo', async () => {
   assert.equal(deleteResponse.status, 200);
   const deletedResponse = await fetch(`${baseUrl}/api/auth/avatar`, { headers });
   assert.equal((await deletedResponse.json() as { avatarDataUrl: string | null }).avatarDataUrl, null);
+});
+
+test('Google Drive sync starts quickly and exposes its result through the job endpoint', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const startedAt = Date.now();
+
+  const startResponse = await fetch(`${baseUrl}/api/integrations/google-drive/sync`, { method: 'POST', headers });
+  const started = await startResponse.json() as { job: { id: string; status: string } };
+  assert.equal(startResponse.status, 202);
+  assert.equal(started.job.status, 'running');
+  assert.ok(Date.now() - startedAt < 1000, 'a resposta inicial deve ser independente da duração da sincronização');
+
+  let job: { id: string; status: string; error?: string } | undefined;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const statusResponse = await fetch(`${baseUrl}/api/integrations/google-drive/sync/${started.job.id}`, { headers });
+    assert.equal(statusResponse.status, 200);
+    job = (await statusResponse.json() as { job: typeof job }).job;
+    if (job?.status !== 'running') break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.equal(job?.status, 'failed');
+  assert.match(job?.error || '', /GOOGLE_SERVICE_ACCOUNT_JSON/);
 });
 
 test('new users must change their password once before using the API', async () => {

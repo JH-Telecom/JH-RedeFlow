@@ -1960,12 +1960,23 @@ function ImportsPage() {
     setError("");
     setMessage("");
     try {
-      const result = await api.syncGoogleDrive();
-      const summary = result.sync;
+      let job = (await api.syncGoogleDrive()).job;
+      setMessage("Sincronização iniciada. A API continuará processando em segundo plano.");
+      let attempts = 0;
+      while (job.status === "running" && attempts < 180) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        job = (await api.driveSyncJob(job.id)).job;
+        attempts += 1;
+        if (job.status === "running") setMessage(`Sincronização em andamento há ${Math.floor(attempts * 2 / 60)} min ${attempts * 2 % 60} s.`);
+      }
+      if (job.status === "failed") throw new Error(job.error || "A sincronização do Google Drive falhou.");
+      if (job.status !== "completed" || !job.result) throw new Error(`A sincronização continua em andamento. ID: ${job.id}`);
+      const summary = job.result;
       if (summary.errors.length > 0) {
         setError(summary.errors.join(" · "));
       }
       setMessage(`Sincronização concluída: ${summary.updated} atualizados, ${summary.newRecords} novos, ${summary.finalised} finalizados, ${summary.cancelled} cancelados, ${summary.unchanged} inalterados (${summary.eligibleRows} registros elegíveis; ${summary.matchedCalls} chamados cruzados), ${summary.skipped} ignorados e ${summary.unmatched} sem correspondência (${summary.rows} linhas em ${summary.files} arquivo(s); ${summary.duplicateRows} duplicatas). Ignorados: ${summary.skippedByActivityType} tipo não aceito, ${summary.skippedPending} pendentes, ${summary.skippedNonCompliance} não cumprimento. Sem correspondência: ${summary.missingIdentifiers} sem identificador e ${summary.unsupportedStatus} com status não mapeado.`);
+      window.dispatchEvent(new Event("jh-redeflow:calls-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nao foi possivel sincronizar o Google Drive.");
     } finally {

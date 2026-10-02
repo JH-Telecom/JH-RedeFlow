@@ -78,11 +78,38 @@ function buildRowIdentity(row: DriveRow) {
   return primary ? `${primary.kind}:${primary.normalized}` : '';
 }
 
-function matchesCall(call: Call, row: DriveRow) {
-  const keys = buildRowIdentifiers(row).map((entry) => entry.normalized);
-  if (!keys.length) return false;
-  const callKeys = [call.orderNumber, call.bdesk, call.officeTrack, ...(call.sourceIdentifiers || [])].map((candidate) => normalizeOrder(candidate)).filter(Boolean);
-  return keys.some((key) => callKeys.includes(key));
+function getCallIdentifiers(call: Call) {
+  return [call.orderNumber, call.bdesk, call.officeTrack, ...(call.sourceIdentifiers || [])].map((candidate) => normalizeOrder(candidate)).filter(Boolean);
+}
+
+function indexCallIdentifiers(calls: Call[]) {
+  const index = new Map<string, Call>();
+  for (const call of calls) {
+    for (const identifier of getCallIdentifiers(call)) {
+      if (!index.has(identifier)) index.set(identifier, call);
+    }
+  }
+  return index;
+}
+
+function addCallIdentifiers(index: Map<string, Call>, call: Call) {
+  for (const identifier of getCallIdentifiers(call)) {
+    if (!index.has(identifier)) index.set(identifier, call);
+  }
+}
+
+function removeCallIdentifiers(index: Map<string, Call>, call: Call) {
+  for (const identifier of getCallIdentifiers(call)) {
+    if (index.get(identifier)?.id === call.id) index.delete(identifier);
+  }
+}
+
+function findMatchingCall(index: Map<string, Call>, row: DriveRow) {
+  for (const { normalized } of buildRowIdentifiers(row)) {
+    const call = index.get(normalized);
+    if (call) return call;
+  }
+  return undefined;
 }
 
 function parseReferenceDate(dateValue: string) {
@@ -345,6 +372,8 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
   }
 
   const calls = await listCalls();
+  const callsByIdentifier = indexCallIdentifiers(calls);
+  const callPositions = new Map(calls.map((call, index) => [call.id, index]));
   for (const { row, fileId, fileName } of stagedRows.values()) {
     if (!isDriveRowEligible(row)) {
       result.skipped += 1;
@@ -357,7 +386,7 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
     result.eligibleRows += 1;
 
     const sourceData = buildDriveSource(row, fileId, fileName);
-    let matchingCall = calls.find((candidate) => matchesCall(candidate, row));
+    let matchingCall = findMatchingCall(callsByIdentifier, row);
     if (!matchingCall) {
       const importedCall = buildDriveCall(row);
       if (!importedCall) {
@@ -369,6 +398,8 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
       matchingCall = created.call;
       if (created.created) {
         calls.push(matchingCall);
+        callPositions.set(matchingCall.id, calls.length - 1);
+        addCallIdentifiers(callsByIdentifier, matchingCall);
         result.processed += 1;
         result.newRecords += 1;
         if (matchingCall.status === 'Finalizado') result.finalised += 1;
@@ -397,8 +428,12 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
     }
     await recordDriveCallSnapshot(matchingCall.id, sourceData);
     const sourcedCall: Call = { ...updatedCall, source: 'google-drive', sourceIdentity: sourceData.identity, sourceIdentifiers: sourceData.identifiers, sourceFileId: sourceData.fileId, sourceFileName: sourceData.fileName, sourceReferenceDate: sourceData.referenceDate, sourceFingerprint: sourceData.fingerprint, sourceProcessedAt: new Date().toISOString() };
-    const callIndex = calls.findIndex((candidate) => candidate.id === matchingCall!.id);
-    if (callIndex >= 0) calls[callIndex] = sourcedCall;
+    const callIndex = callPositions.get(matchingCall.id);
+    if (callIndex !== undefined) {
+      removeCallIdentifiers(callsByIdentifier, matchingCall);
+      calls[callIndex] = sourcedCall;
+      addCallIdentifiers(callsByIdentifier, sourcedCall);
+    }
 
     result.processed += 1;
     if (hasCallChanges) result.updated += 1;
