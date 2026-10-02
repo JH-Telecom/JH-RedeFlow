@@ -41,6 +41,7 @@ export type User = {
   roleId: string;
   active: boolean;
   createdAt: string;
+  mustChangePassword?: boolean;
   role?: Role;
 };
 

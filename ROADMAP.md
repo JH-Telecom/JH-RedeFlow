@@ -102,6 +102,22 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Troca obrigatória de senha no primeiro acesso — implementada em 2026-10-02
+
+- perfis existentes recebem `password_change_required = true` pelas migrations locais e Supabase; novos usuários cadastrados pelo sistema também precisam trocar a senha inicial;
+- o login informa a flag, a API bloqueia as demais rotas enquanto ela estiver ativa e permite somente consultar a sessão ou concluir a troca;
+- a troca valida a senha atual, exige uma nova senha de pelo menos 8 caracteres e rejeita reutilização; após salvar, a flag é desativada e não volta a ser exigida nos logins seguintes;
+- a interface mantém o usuário numa tela de troca até concluir. Senha e hash não são armazenados no frontend;
+- as migrations precisam ser aplicadas ao banco local e ao Supabase antes de publicar o backend que lê a nova coluna.
+
+Arquivos alterados: [backend/src/server.ts](backend/src/server.ts), [backend/src/store.ts](backend/src/store.ts), [backend/src/types.ts](backend/src/types.ts), [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), [backend/test/http.test.ts](backend/test/http.test.ts), [database/migrations/017_first_login_password_change.sql](database/migrations/017_first_login_password_change.sql), [supabase/migrations/202610020002_first_login_password_change.sql](supabase/migrations/202610020002_first_login_password_change.sql), [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/api.ts](frontend/src/api.ts), [frontend/src/main.tsx](frontend/src/main.tsx), [frontend/src/password-change.css](frontend/src/password-change.css) e [ROADMAP.md](ROADMAP.md).
+
+Validação: typecheck do backend e build do frontend passaram; o teste HTTP do fluxo de primeiro acesso passou. Suíte HTTP completa ainda pendente. As migrations não foram executadas nesta sessão.
+
+### Próxima ação
+
+Aplicar as migrations `017_first_login_password_change.sql` e `202610020002_first_login_password_change.sql` nos bancos correspondentes e publicar o backend/frontend. A migration marca os perfis existentes para troca no próximo acesso.
+
 ### Ajuste visual dos cards de importação — implementado em 2026-10-02
 
 - a disposição dos cards da página de importações foi ajustada com flex-wrap e alinhamento melhor do texto e dos botões de ação;

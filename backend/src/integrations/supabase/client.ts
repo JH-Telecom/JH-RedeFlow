@@ -42,7 +42,7 @@ export async function authenticateSupabaseUser(email: string, password: string) 
 export async function getSupabaseProfile(id: string, createdAt?: string) {
   const { data: profile, error: profileError } = await getSupabaseAdmin()
     .from('profiles')
-    .select('id, name, email, role_id, active, created_at, roles(id, name, description, role_permissions(permissions(code)))')
+    .select('id, name, email, role_id, active, password_change_required, created_at, roles(id, name, description, role_permissions(permissions(code)))')
     .eq('id', id)
     .maybeSingle();
   if (profileError || !profile || profile.active === false) return null;
@@ -53,13 +53,13 @@ export async function getSupabaseProfile(id: string, createdAt?: string) {
     const permissionRows = Array.isArray(item.permissions) ? item.permissions : item.permissions ? [item.permissions] : [];
     return permissionRows.map((permission) => permission.code).filter(Boolean);
   });
-  return { id: profileRecord.id, name: profileRecord.name, email: profileRecord.email, roleId: profileRecord.role_id, active: profileRecord.active, createdAt: createdAt || profileRecord.created_at, role: { id: role?.id || profileRecord.role_id, name: role?.name || 'Sem cargo', description: role?.description || '', permissions } };
+  return { id: profileRecord.id, name: profileRecord.name, email: profileRecord.email, roleId: profileRecord.role_id, active: profileRecord.active, createdAt: createdAt || profileRecord.created_at, mustChangePassword: profileRecord.password_change_required, role: { id: role?.id || profileRecord.role_id, name: role?.name || 'Sem cargo', description: role?.description || '', permissions } };
 }
 
 export async function listSupabaseUsers() {
   const { data, error } = await getSupabaseAdmin()
     .from('profiles')
-    .select('id, name, email, role_id, active, created_at, roles(id, name, description, role_permissions(permissions(code)))')
+    .select('id, name, email, role_id, active, password_change_required, created_at, roles(id, name, description, role_permissions(permissions(code)))')
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
@@ -78,6 +78,7 @@ export async function listSupabaseUsers() {
       roleId: record.role_id,
       active: record.active,
       createdAt: record.created_at,
+      mustChangePassword: record.password_change_required,
       role: record.role_id ? { id: roleRecord?.id || record.role_id, name: roleRecord?.name || 'Sem cargo', description: roleRecord?.description || '', permissions } : undefined,
     };
   });
@@ -395,13 +396,14 @@ export async function createSupabaseUser(input: { name: string; email: string; r
     email: input.email,
     role_id: input.roleId,
     active: true,
+    password_change_required: true,
   }).select('id, name, email, role_id, active, created_at').single();
   if (profileError || !profile) {
     await admin.auth.admin.deleteUser(created.user.id);
     throw new Error(profileError?.message || 'Nao foi possivel criar o perfil no Supabase.');
   }
   const role = await getSupabaseRole(input.roleId);
-  return { id: profile.id, name: profile.name, email: profile.email, roleId: profile.role_id, active: profile.active, createdAt: profile.created_at, role: role || undefined };
+  return { id: profile.id, name: profile.name, email: profile.email, roleId: profile.role_id, active: profile.active, createdAt: profile.created_at, mustChangePassword: true, role: role || undefined };
 }
 
 export async function updateSupabaseUser(id: string, input: { name?: string; email?: string; roleId?: string; active?: boolean; password?: string }) {
@@ -418,10 +420,25 @@ export async function updateSupabaseUser(id: string, input: { name?: string; ema
   if (input.email !== undefined) profileChanges.email = input.email;
   if (input.roleId !== undefined) profileChanges.role_id = input.roleId;
   if (input.active !== undefined) profileChanges.active = input.active;
-  const { data, error } = await admin.from('profiles').update(profileChanges).eq('id', id).is('deleted_at', null).select('id, name, email, role_id, active, created_at').maybeSingle();
+  if (input.password !== undefined) profileChanges.password_change_required = true;
+  const { data, error } = await admin.from('profiles').update(profileChanges).eq('id', id).is('deleted_at', null).select('id, name, email, role_id, active, password_change_required, created_at').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
-  return { id: data.id, name: data.name, email: data.email, roleId: data.role_id, active: data.active, createdAt: data.created_at, role: (await getSupabaseRole(data.role_id)) || undefined };
+  return { id: data.id, name: data.name, email: data.email, roleId: data.role_id, active: data.active, createdAt: data.created_at, mustChangePassword: data.password_change_required, role: (await getSupabaseRole(data.role_id)) || undefined };
+}
+
+export async function changeSupabaseUserPassword(id: string, currentPassword: string, newPassword: string) {
+  const admin = getSupabaseAdmin();
+  const profile = await getSupabaseProfile(id);
+  if (!profile) return {};
+  const { data: authData, error: authError } = await getSupabaseAuthClient().auth.signInWithPassword({ email: profile.email, password: currentPassword });
+  if (authError || authData.user?.id !== id) return { error: 'invalid-current-password' as const };
+  if (currentPassword === newPassword) return { error: 'same-password' as const };
+  const { error: passwordError } = await admin.auth.admin.updateUserById(id, { password: newPassword });
+  if (passwordError) throw new Error(passwordError.message);
+  const { error: profileError } = await admin.from('profiles').update({ password_change_required: false, updated_at: new Date().toISOString() }).eq('id', id);
+  if (profileError) throw new Error(profileError.message);
+  return { user: await getSupabaseProfile(id) || undefined };
 }
 
 export async function checkSupabaseConnection() {

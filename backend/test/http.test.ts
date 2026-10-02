@@ -78,6 +78,68 @@ test('healthcheck exposes security headers', async () => {
   assert.equal(response.headers.get('access-control-allow-origin'), 'http://127.0.0.1:5173');
 });
 
+test('new users must change their password once before using the API', async () => {
+  const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const adminSession = await adminLogin.json() as { token: string };
+  const createResponse = await fetch(`${baseUrl}/api/users`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${adminSession.token}` },
+    body: JSON.stringify({ name: 'Conta de primeiro acesso', email: 'primeiro.acesso@example.com', roleId: 'role-operator', password: 'teste123' }),
+  });
+  assert.equal(createResponse.status, 201);
+
+  const firstLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'primeiro.acesso@example.com', password: 'teste123' }),
+  });
+  const firstSession = await firstLogin.json() as { token: string; user: { mustChangePassword: boolean } };
+  const userHeaders = { 'content-type': 'application/json', authorization: `Bearer ${firstSession.token}` };
+  assert.equal(firstSession.user.mustChangePassword, true);
+
+  const blockedResponse = await fetch(`${baseUrl}/api/chamados`, { headers: userHeaders });
+  assert.equal(blockedResponse.status, 403);
+
+  const wrongPassword = await fetch(`${baseUrl}/api/auth/change-password`, {
+    method: 'POST',
+    headers: userHeaders,
+    body: JSON.stringify({ currentPassword: 'incorreta', newPassword: 'MinhaSenhaSegura2026' }),
+  });
+  assert.equal(wrongPassword.status, 400);
+
+  const samePassword = await fetch(`${baseUrl}/api/auth/change-password`, {
+    method: 'POST',
+    headers: userHeaders,
+    body: JSON.stringify({ currentPassword: 'teste123', newPassword: 'teste123' }),
+  });
+  assert.equal(samePassword.status, 400);
+
+  const changeResponse = await fetch(`${baseUrl}/api/auth/change-password`, {
+    method: 'POST',
+    headers: userHeaders,
+    body: JSON.stringify({ currentPassword: 'teste123', newPassword: 'MinhaSenhaSegura2026' }),
+  });
+  const changed = await changeResponse.json() as { user: { mustChangePassword: boolean } };
+  assert.equal(changeResponse.status, 200);
+  assert.equal(changed.user.mustChangePassword, false);
+
+  const allowedResponse = await fetch(`${baseUrl}/api/chamados`, { headers: userHeaders });
+  assert.equal(allowedResponse.status, 200);
+
+  const nextLogin = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'primeiro.acesso@example.com', password: 'MinhaSenhaSegura2026' }),
+  });
+  const nextSession = await nextLogin.json() as { user: { mustChangePassword: boolean } };
+  assert.equal(nextLogin.status, 200);
+  assert.equal(nextSession.user.mustChangePassword, false);
+});
+
 test('call list searches by OLT and filters without collapsing OLT options', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

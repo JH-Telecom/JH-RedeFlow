@@ -254,6 +254,69 @@ function Login({
   );
 }
 
+function FirstLoginPasswordChange({
+  onComplete,
+  onLogout,
+}: {
+  onComplete: (user: User & { role: Role }) => void;
+  onLogout: () => void;
+}) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    if (newPassword !== confirmation) {
+      setError("As senhas novas nao conferem.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await api.changePassword(currentPassword, newPassword);
+      onComplete(result.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel trocar a senha.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="password-change-page">
+      <section className="password-change-card">
+        <div className="password-change-mark"><LockKeyhole size={20} /></div>
+        <span className="section-kicker">PRIMEIRO ACESSO</span>
+        <h1>Defina sua senha</h1>
+        <p>Para continuar, troque a senha inicial por uma senha pessoal.</p>
+        <form onSubmit={submit} autoComplete="off">
+          <label>
+            Senha atual
+            <input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+          </label>
+          <label>
+            Nova senha
+            <input type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+          </label>
+          <label>
+            Confirme a nova senha
+            <input type="password" autoComplete="new-password" minLength={8} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required />
+          </label>
+          {error && <div className="form-error">{error}</div>}
+          <button className="primary-button" disabled={loading}>
+            {loading ? "Salvando..." : "Salvar nova senha"}
+            <ChevronRight size={18} />
+          </button>
+        </form>
+        <button className="text-button password-change-logout" type="button" onClick={onLogout}>Sair da conta</button>
+      </section>
+    </main>
+  );
+}
+
 function Shell({
   user,
   onLogout,
@@ -3802,5 +3865,13 @@ export default function App() {
       </div>
     );
   if (!session) return <Login onLogin={login} />;
+  if (session.user.mustChangePassword) return <FirstLoginPasswordChange
+    onComplete={(user) => {
+      const refreshedSession = { ...session, user };
+      localStorage.setItem("jh-redeflow-session", JSON.stringify(refreshedSession));
+      setSession(refreshedSession);
+    }}
+    onLogout={logout}
+  />;
   return <Shell user={session.user} onLogout={logout} />;
 }

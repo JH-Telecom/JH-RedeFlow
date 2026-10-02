@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { cancelSupabaseCall, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
+import { cancelSupabaseCall, changeSupabaseUserPassword, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
 import { getDefaultOltRegionMap, getManualOltRegionMap, identifyAtreladas, normalizeOltCode, replaceManualOltRegionMap, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
 import { matchD0Rows, type D0Row } from './imports/d0.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallObservationAttachment, CallObservationAttachmentInput, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, StoredCallObservationAttachment, Supervisor, SystemSettings, Technician, User } from './types.js';
@@ -137,8 +137,8 @@ export function shouldUseLocalDatabase() {
 export async function findLocalUserByEmail(email: string): Promise<(User & { passwordHash: string; role?: Role }) | undefined> {
   if (!shouldUseLocalDatabase()) return undefined;
   const client = await getDatabaseClient();
-  const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string; password_hash: string }>(
-    `SELECT u.id, u.name, u.email, u.role_id, u.active, u.created_at, u.password_hash
+  const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string; password_hash: string; password_change_required: boolean }>(
+    `SELECT u.id, u.name, u.email, u.role_id, u.active, u.created_at, u.password_hash, u.password_change_required
      FROM users u
      WHERE LOWER(u.email) = LOWER($1) AND u.deleted_at IS NULL
      LIMIT 1`,
@@ -147,14 +147,14 @@ export async function findLocalUserByEmail(email: string): Promise<(User & { pas
   const row = result.rows[0];
   if (!row) return undefined;
   const role = await getRoleById(row.role_id) ?? { id: row.role_id, name: 'Sem cargo', description: '', permissions: [] as PermissionCode[] };
-  return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, passwordHash: row.password_hash, role };
+  return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, passwordHash: row.password_hash, mustChangePassword: row.password_change_required, role };
 }
 
 export async function findLocalUserById(id: string): Promise<(User & { passwordHash: string; role?: Role }) | undefined> {
   if (!shouldUseLocalDatabase()) return undefined;
   const client = await getDatabaseClient();
-  const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string; password_hash: string }>(
-    `SELECT u.id, u.name, u.email, u.role_id, u.active, u.created_at, u.password_hash
+  const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string; password_hash: string; password_change_required: boolean }>(
+    `SELECT u.id, u.name, u.email, u.role_id, u.active, u.created_at, u.password_hash, u.password_change_required
      FROM users u
      WHERE u.id = $1 AND u.deleted_at IS NULL
      LIMIT 1`,
@@ -163,7 +163,7 @@ export async function findLocalUserById(id: string): Promise<(User & { passwordH
   const row = result.rows[0];
   if (!row) return undefined;
   const role = await getRoleById(row.role_id) ?? { id: row.role_id, name: 'Sem cargo', description: '', permissions: [] as PermissionCode[] };
-  return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, passwordHash: row.password_hash, role };
+  return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, passwordHash: row.password_hash, mustChangePassword: row.password_change_required, role };
 }
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
@@ -223,11 +223,11 @@ export async function listUsers(): Promise<User[]> {
   if (isSupabaseConfigured()) return await listSupabaseUsers() as User[];
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
-    const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string }>(
-      `SELECT id, name, email, role_id, active, created_at FROM users WHERE deleted_at IS NULL ORDER BY created_at ASC`,
+    const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string; password_change_required: boolean }>(
+      `SELECT id, name, email, role_id, active, created_at, password_change_required FROM users WHERE deleted_at IS NULL ORDER BY created_at ASC`,
     );
     const roleMap = new Map((await listRoles()).map((role) => [role.id, role]));
-    return result.rows.map((row) => ({ id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, role: roleMap.get(row.role_id) }));
+    return result.rows.map((row) => ({ id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, mustChangePassword: row.password_change_required, role: roleMap.get(row.role_id) }));
   }
   return [...users.values()].map(({ passwordHash: _passwordHash, ...user }) => ({ ...user, role: getRole(user.roleId) }));
 }
@@ -247,16 +247,16 @@ export async function addUser(input: { name: string; email: string; roleId: stri
     const client = await getDatabaseClient();
     const passwordHash = bcrypt.hashSync(input.password, 10);
     const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string }>(
-      `INSERT INTO users (name, email, role_id, password_hash, active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, true, now(), now())
+      `INSERT INTO users (name, email, role_id, password_hash, active, password_change_required, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, true, true, now(), now())
        RETURNING id, name, email, role_id, active, created_at`,
       [input.name, input.email, input.roleId, passwordHash],
     );
     const row = result.rows[0];
-    return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, role: await getRoleById(row.role_id) };
+    return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, mustChangePassword: true, role: await getRoleById(row.role_id) };
   }
   const id = `user-${crypto.randomUUID()}`;
-  const user = { id, name: input.name, email: input.email, roleId: input.roleId, active: true, createdAt: new Date().toISOString(), passwordHash: bcrypt.hashSync(input.password, 10) };
+  const user = { id, name: input.name, email: input.email, roleId: input.roleId, active: true, createdAt: new Date().toISOString(), mustChangePassword: true, passwordHash: bcrypt.hashSync(input.password, 10) };
   users.set(id, user);
   const { passwordHash: _passwordHash, ...safeUser } = user;
   return safeUser;
@@ -274,25 +274,53 @@ export async function updateUser(id: string, input: { name?: string; email?: str
     if (input.email) { sets.push(`email = $${index++}`); values.push(input.email); }
     if (input.roleId) { sets.push(`role_id = $${index++}`); values.push(input.roleId); }
     if (input.active !== undefined) { sets.push(`active = $${index++}`); values.push(input.active); }
-    if (input.password) { sets.push(`password_hash = $${index++}`); values.push(bcrypt.hashSync(input.password, 10)); }
+    if (input.password) {
+      sets.push(`password_hash = $${index++}`);
+      values.push(bcrypt.hashSync(input.password, 10));
+      sets.push('password_change_required = true');
+    }
     if (!sets.length) return { ...current, role: current.role };
     sets.push(`updated_at = now()`);
     values.push(id);
-    const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string }>(
-      `UPDATE users SET ${sets.join(', ')} WHERE id = $${index} AND deleted_at IS NULL RETURNING id, name, email, role_id, active, created_at`,
+    const result = await client.query<{ id: string; name: string; email: string; role_id: string; active: boolean; created_at: string; password_change_required: boolean }>(
+      `UPDATE users SET ${sets.join(', ')} WHERE id = $${index} AND deleted_at IS NULL RETURNING id, name, email, role_id, active, created_at, password_change_required`,
       values,
     );
     const row = result.rows[0];
     if (!row) return undefined;
-    return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, role: await getRoleById(row.role_id) };
+    return { id: row.id, name: row.name, email: row.email, roleId: row.role_id, active: row.active, createdAt: row.created_at, mustChangePassword: row.password_change_required, role: await getRoleById(row.role_id) };
   }
   const current = users.get(id);
   if (!current) return undefined;
   const updated = { ...current, ...input, passwordHash: input.password ? bcrypt.hashSync(input.password, 10) : current.passwordHash };
+  if (input.password) updated.mustChangePassword = true;
   delete (updated as { password?: string }).password;
   users.set(id, updated);
   const { passwordHash: _passwordHash, ...safeUser } = updated;
   return { ...safeUser, role: getRole(updated.roleId) };
+}
+export async function changeUserPassword(id: string, currentPassword: string, newPassword: string): Promise<{ user?: User; error?: 'invalid-current-password' | 'same-password' }> {
+  if (isSupabaseConfigured()) return await changeSupabaseUserPassword(id, currentPassword, newPassword);
+  if (shouldUseLocalDatabase()) {
+    const current = await findLocalUserById(id);
+    if (!current) return {};
+    if (!validatePassword(current, currentPassword)) return { error: 'invalid-current-password' };
+    if (validatePassword(current, newPassword)) return { error: 'same-password' };
+    const client = await getDatabaseClient();
+    const result = await client.query<{ id: string }>(
+      `UPDATE users SET password_hash = $1, password_change_required = false, updated_at = now() WHERE id = $2 AND deleted_at IS NULL RETURNING id`,
+      [bcrypt.hashSync(newPassword, 10), id],
+    );
+    if (!result.rowCount) return {};
+    return { user: getAuthUser({ ...current, mustChangePassword: false }) };
+  }
+  const current = users.get(id);
+  if (!current) return {};
+  if (!validatePassword(current, currentPassword)) return { error: 'invalid-current-password' };
+  if (validatePassword(current, newPassword)) return { error: 'same-password' };
+  current.passwordHash = bcrypt.hashSync(newPassword, 10);
+  current.mustChangePassword = false;
+  return { user: getAuthUser(current) };
 }
 export async function deleteUser(id: string): Promise<boolean> {
   if (isSupabaseConfigured()) {

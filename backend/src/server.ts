@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics } from './igp.js';
@@ -124,6 +124,9 @@ async function auth(request: AuthRequest, response: Response, next: NextFunction
       if (!localUser || !localUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
       request.authUser = getAuthUser(localUser);
     }
+    if (request.authUser.mustChangePassword && request.path !== '/api/auth/me' && request.path !== '/api/auth/change-password') {
+      return response.status(403).json({ code: 'PASSWORD_CHANGE_REQUIRED', message: 'Troque sua senha para continuar.' });
+    }
     next();
   } catch { return response.status(401).json({ message: 'Sessao expirada ou invalida.' }); }
 }
@@ -201,6 +204,16 @@ app.post('/api/auth/login', async (request, response) => {
   return response.json({ token, user: getAuthUser(user) });
 });
 app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json({ user: request.authUser }));
+app.post('/api/auth/change-password', auth, async (request: AuthRequest, response) => {
+  if (!request.authUser?.mustChangePassword) return response.status(409).json({ message: 'A troca inicial de senha ja foi concluida.' });
+  const parsed = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe sua senha atual e uma nova senha com pelo menos 8 caracteres.' });
+  const result = await changeUserPassword(request.authUser.id, parsed.data.currentPassword, parsed.data.newPassword);
+  if (result.error === 'invalid-current-password') return response.status(400).json({ message: 'A senha atual esta incorreta.' });
+  if (result.error === 'same-password') return response.status(400).json({ message: 'A nova senha deve ser diferente da senha atual.' });
+  if (!result.user) return response.status(404).json({ message: 'Usuario nao encontrado.' });
+  return response.json({ user: result.user });
+});
 app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   try { return response.json({ metrics: await getDashboardMetrics(await getScopedCallQuery(request)) }); }
   catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o dashboard.' }); }
