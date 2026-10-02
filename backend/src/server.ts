@@ -392,6 +392,9 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
   const region = typeof request.query.region === 'string' && request.query.region.trim() ? request.query.region.trim() : undefined;
   const neighborhood = typeof request.query.neighborhood === 'string' && request.query.neighborhood.trim() ? request.query.neighborhood.trim() : undefined;
   const olt = typeof request.query.olt === 'string' && request.query.olt.trim() ? request.query.olt.trim() : undefined;
+  const rawHasTechnician = request.query.hasTechnician;
+  if (rawHasTechnician !== undefined && rawHasTechnician !== 'true' && rawHasTechnician !== 'false') return response.status(400).json({ message: 'Filtro de tecnico invalido.' });
+  const hasTechnician = rawHasTechnician === undefined ? undefined : rawHasTechnician === 'true';
   const sortOptions = ['openedAt', 'status', 'region', 'technicianName', 'client', 'orderNumber'] as const;
   type CallSortKey = typeof sortOptions[number];
   const sort: CallSortKey = typeof request.query.sort === 'string' && (sortOptions as readonly string[]).includes(request.query.sort)
@@ -404,7 +407,7 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
     : 'desc';
   try {
     const scopedQuery = await getScopedCallQuery(request, request.query.teamScope === 'true');
-    const result = await listCallsPage(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, search, region, neighborhood, olt, sort, direction }, page, pageSize);
+    const result = await listCallsPage(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, search, region, neighborhood, olt, hasTechnician, sort, direction }, page, pageSize);
     return response.json(result);
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
 });

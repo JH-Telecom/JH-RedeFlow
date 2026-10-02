@@ -210,6 +210,37 @@ test('call list filters a status set before paginating', async () => {
   assert.deepEqual(closed.calls.map((call) => call.id), all.calls.filter((call) => ['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)).map((call) => call.id));
 });
 
+test('open calls split by technician assignment and assigned open calls appear in service queue', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const unassignedBefore = await fetch(`${baseUrl}/api/chamados?status=Aberto&hasTechnician=false&pageSize=100`, { headers });
+  const unassignedBeforeBody = await unassignedBefore.json() as { calls: Array<{ id: string; status: string; technicianId?: string }> };
+  assert.equal(unassignedBefore.status, 200);
+  assert.ok(unassignedBeforeBody.calls.every((call) => call.status === 'Aberto' && !call.technicianId));
+
+  const assignResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ technicianId: 'tech-carlos' }),
+  });
+  assert.equal(assignResponse.status, 200);
+
+  const unassignedAfter = await fetch(`${baseUrl}/api/chamados?status=Aberto&hasTechnician=false&pageSize=100`, { headers });
+  const unassignedAfterBody = await unassignedAfter.json() as { calls: Array<{ id: string; status: string; technicianId?: string }> };
+  assert.ok(!unassignedAfterBody.calls.some((call) => call.id === 'call-240918-01'));
+
+  const assignedInProgress = await fetch(`${baseUrl}/api/chamados?status=Aberto,Atribuido,Deslocamento,Em%20campo&hasTechnician=true&pageSize=100`, { headers });
+  const assignedInProgressBody = await assignedInProgress.json() as { calls: Array<{ id: string; status: string; technicianId?: string }> };
+  assert.equal(assignedInProgress.status, 200);
+  assert.ok(assignedInProgressBody.calls.every((call) => ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo'].includes(call.status) && Boolean(call.technicianId)));
+  assert.ok(assignedInProgressBody.calls.some((call) => call.id === 'call-240918-01' && call.status === 'Aberto'));
+});
+
 test('current-call workbook preview maps statuses and blocks demo confirmation', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

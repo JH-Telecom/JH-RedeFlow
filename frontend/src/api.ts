@@ -24,7 +24,7 @@ export type SystemSettings = { autoRefresh: boolean; refreshIntervalSeconds: num
 export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
 export type OltRegionRequest = { id: string; olt: string; source: string; status: 'Pendente' | 'Adicionada' | 'Ignorada'; occurrences: number; firstSeenAt: string; lastSeenAt: string; region?: string };
 export type AppNotification = { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string };
-export type CallListQuery = { from?: string; to?: string; teamScope?: boolean; search?: string; region?: string; neighborhood?: string; olt?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
+export type CallListQuery = { from?: string; to?: string; teamScope?: boolean; search?: string; region?: string; neighborhood?: string; olt?: string; hasTechnician?: boolean; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 export type CallListResult = { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] };
 export type IgpGroup = { orders: number; outliers: number; onTime: number; totalRepairHours: number; outlierPercent: number | null; onTimePercent: number | null; mttrHours: number | null };
 export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE';
@@ -93,6 +93,7 @@ export const api = {
     if (filters.region) params.set('region', filters.region);
     if (filters.neighborhood) params.set('neighborhood', filters.neighborhood);
     if (filters.olt) params.set('olt', filters.olt);
+    if (filters.hasTechnician !== undefined) params.set('hasTechnician', String(filters.hasTechnician));
     if (filters.page) params.set('page', String(filters.page));
     if (filters.pageSize) params.set('pageSize', String(Math.min(Math.max(filters.pageSize, 1), 100)));
     if (filters.sort) params.set('sort', filters.sort);

@@ -879,7 +879,7 @@ export async function deleteSupervisor(id: string): Promise<{ deleted: boolean; 
   supervisors.delete(id);
   return { deleted: true, technicianCount: 0 };
 }
-export type CallQuery = { id?: string; from?: string; to?: string; supervisorId?: string; status?: CallStatus | CallStatus[]; search?: string; region?: string; neighborhood?: string; olt?: string; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
+export type CallQuery = { id?: string; from?: string; to?: string; supervisorId?: string; status?: CallStatus | CallStatus[]; search?: string; region?: string; neighborhood?: string; olt?: string; hasTechnician?: boolean; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 function matchesCallStatus(status: CallStatus, filter?: CallStatus | CallStatus[]) {
   return !filter || (Array.isArray(filter) ? filter : [filter]).includes(status);
 }
@@ -926,7 +926,7 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
   const baseQuery = { ...query, status: baseStatus };
   if (isSupabaseConfigured()) {
     const rows = await listSupabaseCalls(baseStatus, { from: baseQuery.from, to: baseQuery.to, supervisorId: baseQuery.supervisorId, id: baseQuery.id });
-    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
+    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -938,13 +938,14 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
       [baseStatus ? (Array.isArray(baseStatus) ? baseStatus : [baseStatus]) : null, baseQuery.from ?? null, baseQuery.to ?? null, baseQuery.supervisorId ?? null, baseQuery.id ?? null],
     );
     const rows = result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', ofsStatus: row.ofs_status ?? undefined, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
-    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
+    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
   const rows = [...calls.values()].map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
     return { ...call, lastObservationAt };
   }).filter((call) => {
     if (baseQuery.id && call.id !== baseQuery.id) return false;
+    if (baseQuery.hasTechnician !== undefined && Boolean(call.technicianId) !== baseQuery.hasTechnician) return false;
     if (!matchesCallStatus(call.status, baseStatus)) return false;
     if (!isCallInDateRange(call, baseQuery)) return false;
     if (baseQuery.region && call.region !== baseQuery.region) return false;
@@ -974,11 +975,12 @@ export async function listCallsPage(status: CallStatus | CallStatus[] | undefine
   const emptyResult = (result?: CallPageResult) => result || { calls: [], total: 0, page: 1, pageSize, totalPages: 1, olts: [] };
 
   if (isSupabaseConfigured()) {
-    const { data, error } = await getSupabaseAdmin().rpc('list_calls_page', {
+    const { data, error } = await getSupabaseAdmin().rpc('list_calls_page_with_assignment', {
       p_status: normalizedStatuses,
       p_from: query.from ?? null,
       p_to: query.to ?? null,
       p_supervisor_id: query.supervisorId ?? null,
+      p_has_technician: query.hasTechnician ?? null,
       p_search: query.search?.trim() || null,
       p_region: query.region ?? null,
       p_neighborhood: query.neighborhood ?? null,
@@ -995,8 +997,8 @@ export async function listCallsPage(status: CallStatus | CallStatus[] | undefine
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
     const result = await client.query<{ page: CallPageResult }>(
-      'SELECT public.list_calls_page($1::text[], $2::date, $3::date, $4::uuid, $5::text, $6::text, $7::text, $8::text, $9::text, $10::text, $11::integer, $12::integer) AS page',
-      [normalizedStatuses, query.from ?? null, query.to ?? null, query.supervisorId ?? null, query.search?.trim() || null, query.region ?? null, query.neighborhood ?? null, query.olt ?? null, query.sort ?? 'openedAt', query.direction ?? 'desc', page, pageSize],
+      'SELECT public.list_calls_page_with_assignment($1::text[], $2::date, $3::date, $4::uuid, $5::boolean, $6::text, $7::text, $8::text, $9::text, $10::text, $11::text, $12::integer, $13::integer) AS page',
+      [normalizedStatuses, query.from ?? null, query.to ?? null, query.supervisorId ?? null, query.hasTechnician ?? null, query.search?.trim() || null, query.region ?? null, query.neighborhood ?? null, query.olt ?? null, query.sort ?? 'openedAt', query.direction ?? 'desc', page, pageSize],
     );
     return emptyResult(result.rows[0]?.page);
   }
