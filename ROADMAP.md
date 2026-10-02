@@ -124,6 +124,7 @@ Validação: teste HTTP focado passou; typecheck do backend e build do frontend 
 
 - Chamados abertos lista somente chamados com status Aberto e sem técnico atribuído;
 - Em atendimento lista somente chamados com técnico atribuído e status Aberto, Atribuido, Deslocamento ou Em campo, incluindo abertos já atribuídos;
+- o filtro de status da fila Em atendimento inicia em Todos; seleções feitas pelo usuário continuam persistidas;
 - a filtragem por atribuição ocorre no servidor antes da paginação e da contagem; o filtro de status dos abertos fica restrito a Aberto;
 - na tabela de Chamados abertos, a coluna Técnico ocupa a posição de Cliente / Técnico B2C; a antiga coluna Técnico no fim foi removida para evitar duplicidade;
 - na tabela Em atendimento, a coluna Obs. foi posicionada imediatamente após OLT;

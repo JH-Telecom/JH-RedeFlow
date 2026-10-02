@@ -2269,7 +2269,7 @@ function writeCallsPageState(pageKey: string, state: Record<string, unknown>) {
 const inProgressCallStatuses: CallStatus[] = ["Aberto", "Atribuido", "Deslocamento", "Em campo"];
 
 function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false, teamScoped = false, closedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; unassignedOnly?: boolean; teamScoped?: boolean; closedOnly?: boolean }) {
-  const pageKey = `${teamScoped ? 'team' : 'global'}:${closedOnly ? 'closed' : assignedOnly ? 'assigned' : unassignedOnly ? 'unassigned' : status ?? 'all'}:${title}`;
+  const pageKey = `${teamScoped ? 'team' : 'global'}:${closedOnly ? 'closed' : assignedOnly ? 'assigned-v2' : unassignedOnly ? 'unassigned' : status ?? 'all'}:${title}`;
   const initialState = readCallsPageState(pageKey);
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState(initialState.query ?? "");
