@@ -16,10 +16,10 @@ Status geral: EM DESENVOLVIMENTO
 
 Última atualização: 2026-10-02
 
-Última implementação: relatórios de ordens repetidas e quartil por técnico, com atribuição da repetição ao técnico do chamado original.
+Última implementação: sincronização do Google Drive tolera cabeçalhos com caixa/acentuação diferentes e variantes descritivas de atividades FIELD.
 Agente responsável pela última alteração: GitHub Copilot
 
-Próxima ação: conferir os relatórios de repetidos contra a base operacional, especialmente os registros sem endereço ou sem OLT/placa/PON.
+Próxima ação: publicar/reiniciar o backend atualizado e executar novamente a sincronização Drive; conferir os totais de elegíveis, cruzados e sem identificador.
 
 ---
 
@@ -101,6 +101,17 @@ Próxima ação: conferir os relatórios de repetidos contra a base operacional,
 ---
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
+
+### Correção de sincronização Drive para chamados FIELD — implementada em 2026-10-02
+
+- cabeçalhos de arquivos Drive agora são comparados sem sensibilidade a caixa, acentos e pontuação, para reconhecer campos como Tipo de Atividade, Ordem de Serviço e Endereço nas variantes do export;
+- tipos de atividade reconhecidos explicitamente continuam aceitos, e variantes descritivas contendo `FIELD` também passam; status pendente e motivo de não cumprimento continuam ignorados;
+- regressão coberta com cabeçalhos em caixa alta e tipo `MANUTENÇÃO DE REDE FIELD`, confirmando que a linha é elegível e que ordem, endereço e status são lidos;
+- sincronizações anteriores não são refeitas automaticamente; depois de publicar/reiniciar esta versão, executar novamente Sincronizar Drive. Linhas sem identificador reconhecível ainda não podem ser cruzadas com chamados existentes.
+
+Arquivos alterados: [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts) e [ROADMAP.md](ROADMAP.md).
+
+Validação: suíte `npx tsx --test test/supervisor-scoping.test.ts` passou (17/17) e `npm run typecheck` passou. O próximo passo operacional é publicar/reiniciar o backend e sincronizar novamente.
 
 ### Relatórios de ordens repetidas e quartil — implementados em 2026-10-02
 
