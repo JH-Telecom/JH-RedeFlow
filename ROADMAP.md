@@ -102,6 +102,17 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Sincronização Drive como único fluxo de importação — implementada em 2026-10-02
+
+- a página Importações mostra apenas a ação Sincronizar Drive e o resultado da execução; foram removidos os painéis de D-0, chamados atuais, acionamentos finalizados, seleção de arquivo genérica e histórico de uploads manuais;
+- a sincronização passa a ler CSV, XLSX, XLS e planilhas Google exportadas como CSV;
+- `NOC ACESSO`, `NOC ACCESS`, `NOC TX` e `NOC BACKBONE` agora passam pela elegibilidade, permitindo matching e atualização de chamados existentes inclusive para Finalizado/Cancelado;
+- o resultado da tela informa quantos chamados foram atualizados, novos, finalizados, cancelados, inalterados, ignorados e sem correspondência.
+
+Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/api.ts](frontend/src/api.ts), [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts), [docs/google-drive-d1-sync.md](docs/google-drive-d1-sync.md) e [ROADMAP.md](ROADMAP.md).
+
+Validação: testes focados de elegibilidade FIELD/NOC passaram; typecheck do backend e build do frontend passaram. Sem alteração de schema.
+
 ### Limite visual do card de regiões no dashboard — implementado em 2026-10-02
 
 - a lista de Volume por região fica limitada a aproximadamente 10 linhas visíveis e rola internamente quando houver mais regiões, sem aumentar a altura do card/página.

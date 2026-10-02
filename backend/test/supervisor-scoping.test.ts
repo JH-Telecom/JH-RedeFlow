@@ -44,6 +44,20 @@ test('Google Drive sync accepts ACIONAMENTO FIELD and fills address and neighbor
   assert.equal(hasMeaningfulCallChange(existing, update), true);
 });
 
+test('Google Drive sync accepts NOC access and backbone rows so finalized calls can reconcile', () => {
+  for (const type of ['NOC ACESSO', 'NOC TX']) {
+    const row = { 'Ordem de Serviço': `OS-${type}`, 'Tipo de Atividade': type, 'Status da Atividade': 'Finalizado', 'Data-Fim': '02/10/2026', Fim: '10:30' };
+    const imported = buildDriveCall(row);
+    assert.equal(isDriveRowEligible(row), true);
+    assert.equal(imported?.status, 'Finalizado');
+
+    const existing = { ...imported!, status: 'Aberto' as const, executedAt: undefined };
+    const update = buildDriveUpdate(row, existing);
+    assert.equal(update.status, 'Finalizado');
+    assert.equal(hasMeaningfulCallChange(existing, update), true);
+  }
+});
+
 test('Google Drive preserves an explicit neighborhood when address is absent', () => {
   const imported = buildDriveCall({
     'Ordem de Serviço': '12529280',

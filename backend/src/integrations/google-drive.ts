@@ -6,7 +6,7 @@ import { parseImport } from '../imports/parser.js';
 import { inferNeighborhood, resolveOltRegion } from './wuzapi/noc-consolidation.js';
 
 const defaultFolderId = '1m9m2atkUrxwb2v9xzTLgqebOQ4GQJue-';
-const validActivityTypes = new Set(['manutencao corretiva de rede', 'manutencao de rede field', 'reparo corretivo', 'acionamento field']);
+const validActivityTypes = new Set(['manutencao corretiva de rede', 'manutencao de rede field', 'reparo corretivo', 'acionamento field', 'noc acesso', 'noc access', 'noc tx', 'noc backbone']);
 const systemActor: User = { id: 'system-google-drive', name: 'Google Drive - Base histórica operacional', email: 'system@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date(0).toISOString() };
 
 type DriveRow = Record<string, string>;
@@ -277,10 +277,10 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
   const startedAt = new Date().toISOString();
   const drive = getDriveClient();
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || defaultFolderId;
-  const files: Array<{ id?: string | null; name?: string | null; modifiedTime?: string | null }> = [];
+  const files: Array<{ id?: string | null; name?: string | null; modifiedTime?: string | null; mimeType?: string | null }> = [];
   let pageToken: string | undefined;
   do {
-    const response = await drive.files.list({ q: `'${folderId}' in parents and trashed = false and mimeType = 'text/csv'`, fields: 'nextPageToken,files(id,name,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 1000, pageToken });
+    const response = await drive.files.list({ q: `'${folderId}' in parents and trashed = false and (mimeType = 'text/csv' or mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or mimeType = 'application/vnd.ms-excel')`, fields: 'nextPageToken,files(id,name,modifiedTime,mimeType)', orderBy: 'modifiedTime desc', pageSize: 1000, pageToken });
     files.push(...(response.data.files || []));
     pageToken = response.data.nextPageToken || undefined;
   } while (pageToken);
@@ -290,9 +290,12 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
   for (const file of [...files].reverse()) {
     if (!file.id || !file.name) continue;
     try {
-      const media = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'arraybuffer' });
+      const isGoogleSheet = file.mimeType === 'application/vnd.google-apps.spreadsheet';
+      const media = isGoogleSheet
+        ? await drive.files.export({ fileId: file.id, mimeType: 'text/csv' }, { responseType: 'arraybuffer' })
+        : await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'arraybuffer' });
       const base64 = Buffer.from(media.data as ArrayBuffer).toString('base64');
-      const parsed = parseImport(file.name, base64);
+      const parsed = parseImport(isGoogleSheet ? `${file.name}.csv` : file.name, base64);
 
       for (const row of parsed.rows as DriveRow[]) {
         result.rows += 1;
