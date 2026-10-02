@@ -15,6 +15,10 @@ function normalize(value: unknown) {
   return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 }
 
+function normalizeHeader(value: unknown) {
+  return normalize(value).replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 function normalizeOrder(value: unknown) {
   return normalize(value).replace(/^bdesk[-\s]*/, '').replace(/[^a-z0-9]/g, '');
 }
@@ -23,7 +27,9 @@ function value(row: DriveRow, ...headers: string[]) {
   for (const header of headers) {
     if (row[header] !== undefined && row[header] !== null && String(row[header]).trim() !== '') return String(row[header]).trim();
   }
-  return '';
+  const aliases = new Set(headers.map(normalizeHeader));
+  const match = Object.entries(row).find(([header, content]) => aliases.has(normalizeHeader(header)) && content !== null && String(content).trim() !== '');
+  return match ? String(match[1]).trim() : '';
 }
 
 function rowFingerprint(row: DriveRow) {
@@ -147,7 +153,7 @@ export function driveRowSkipReason(row: DriveRow): DriveRowSkipReason | undefine
   const statusText = normalize(value(row, 'Status da Atividade', 'Status'));
   const activityType = normalize(value(row, 'Tipo de Atividade', 'Tipo'));
   const reason = normalize(value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo'));
-  if (!validActivityTypes.has(activityType)) return 'unsupported-activity';
+  if (!validActivityTypes.has(activityType) && !activityType.includes('field')) return 'unsupported-activity';
   if (statusText === 'pendente') return 'pending';
   if (reason.includes('nao cumprimento')) return 'non-compliance';
   return undefined;

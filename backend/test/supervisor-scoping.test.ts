@@ -66,6 +66,22 @@ test('Google Drive sync accepts ACIONAMENTO FIELD and fills address and neighbor
   assert.equal(hasMeaningfulCallChange(existing, update), true);
 });
 
+test('Google Drive FIELD sync tolerates header casing and descriptive activity variants', () => {
+  const row = {
+    'ORDEM DE SERVIÇO': 'OS-FIELD-VARIANT',
+    'TIPO DE ATIVIDADE': 'MANUTENÇÃO DE REDE FIELD',
+    'STATUS DA ATIVIDADE': 'Concluído',
+    ENDEREÇO: 'RUA TESTE, 123, CENTRO, SÃO PAULO - SP',
+    CIDADE: 'SÃO PAULO',
+  };
+
+  assert.equal(isDriveRowEligible(row), true);
+  const imported = buildDriveCall(row);
+  assert.equal(imported?.orderNumber, 'OS-FIELD-VARIANT');
+  assert.equal(imported?.address, row.ENDEREÇO);
+  assert.equal(imported?.status, 'Finalizado');
+});
+
 test('Google Drive sync accepts NOC access and backbone rows so finalized calls can reconcile', () => {
   for (const type of ['NOC ACESSO', 'NOC TX']) {
     const row = { 'Ordem de Serviço': `OS-${type}`, 'Tipo de Atividade': type, 'Status da Atividade': 'Finalizado', 'Data-Fim': '02/10/2026', Fim: '10:30' };
