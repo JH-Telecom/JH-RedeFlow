@@ -682,7 +682,7 @@ function OperationalDashboard({ user, dateRange, onDateRangeChange }: { user: Us
                     <h2>Volume por regiao</h2>
                   </div>
                 </div>
-                <div className="rank-list">
+                <div className="rank-list rank-list-scroll">
                   {metrics.byRegion.map((item) => (
                     <div className="rank-row" key={item.label}>
                       <span>{item.label}</span>

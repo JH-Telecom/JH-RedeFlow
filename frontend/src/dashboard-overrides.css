@@ -1,1 +1,2 @@
 .bar-track i{max-height:170px!important}
+.rank-list-scroll{max-height:290px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}

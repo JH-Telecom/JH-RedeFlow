@@ -102,6 +102,14 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Limite visual do card de regiões no dashboard — implementado em 2026-10-02
+
+- a lista de Volume por região fica limitada a aproximadamente 10 linhas visíveis e rola internamente quando houver mais regiões, sem aumentar a altura do card/página.
+
+Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/dashboard-overrides.css](frontend/src/dashboard-overrides.css) e [ROADMAP.md](ROADMAP.md).
+
+Validação: build do frontend passou.
+
 ### Edição da data de abertura do chamado — implementada em 2026-10-02
 
 - o detalhe agora permite editar data e hora de abertura por controle local de data/hora e converte a entrada para ISO ao salvar;
