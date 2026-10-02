@@ -126,7 +126,7 @@ Validação: suíte de sincronização/supervisão 14/14 e typecheck do backend 
 
 ### Limite visual do card de regiões no dashboard — implementado em 2026-10-02
 
-- as listas Volume por região e Chamados por Bairro ficam limitadas a aproximadamente 10 linhas visíveis e rolam internamente quando houver mais itens, sem aumentar a altura do card/página.
+- todas as listas de ranking do dashboard (Volume por região, Chamados por Bairro, Chamados atribuídos e Chamados por tipo) ficam limitadas a aproximadamente 10 linhas visíveis e rolam internamente quando houver mais itens, sem aumentar a altura do card/página.
 
 Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/dashboard-overrides.css](frontend/src/dashboard-overrides.css) e [ROADMAP.md](ROADMAP.md).
 

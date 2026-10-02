@@ -738,7 +738,7 @@ function OperationalDashboard({ user, dateRange, onDateRangeChange }: { user: Us
                     <h2>Chamados atribuidos</h2>
                   </div>
                 </div>
-                <div className="rank-list">
+                <div className="rank-list rank-list-scroll">
                   {metrics.byTechnician.length ? metrics.byTechnician.map((item) => (
                     <div className="rank-row" key={item.label}>
                       <span>{item.label}</span>
@@ -756,7 +756,7 @@ function OperationalDashboard({ user, dateRange, onDateRangeChange }: { user: Us
                     <h2>Chamados por tipo</h2>
                   </div>
                 </div>
-                <div className="rank-list">
+                <div className="rank-list rank-list-scroll">
                   {metrics.byType.map((item) => (
                     <div className="rank-row" key={item.label}>
                       <span>{item.label}</span>
