@@ -2266,6 +2266,8 @@ function writeCallsPageState(pageKey: string, state: Record<string, unknown>) {
   }
 }
 
+const inProgressCallStatuses: CallStatus[] = ["Aberto", "Atribuido", "Deslocamento", "Em campo"];
+
 function CallsPage({ status, title, assignedOnly = false, teamScoped = false, closedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; teamScoped?: boolean; closedOnly?: boolean }) {
   const pageKey = `${teamScoped ? 'team' : 'global'}:${closedOnly ? 'closed' : assignedOnly ? 'assigned' : status ?? 'all'}:${title}`;
   const initialState = readCallsPageState(pageKey);
@@ -2276,7 +2278,9 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
   const [neighborhoodFilter, setNeighborhoodFilter] = useState(initialState.neighborhoodFilter ?? "Todos");
   const [oltFilter, setOltFilter] = useState(initialState.oltFilter ?? "Todas");
   const [availableOlts, setAvailableOlts] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(initialState.statusFilter ?? "Todos");
+  const savedStatusFilter = initialState.statusFilter ?? "Todos";
+  const initialStatusFilter = assignedOnly && savedStatusFilter !== "Todos" && !inProgressCallStatuses.includes(savedStatusFilter as CallStatus) ? "Todos" : savedStatusFilter;
+  const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(initialStatusFilter);
   const [dateRange, setDateRange] = useState(initialState.dateRange ?? { from: "", to: "" });
   const [showFilters, setShowFilters] = useState(Boolean(initialState.showFilters));
   const [error, setError] = useState("");
@@ -2497,7 +2501,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
   async function refreshCalls() {
     setLoading(true);
     try {
-      const requestStatus = statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : status) : statusFilter;
+      const requestStatus = statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
       const data = await api.calls(requestStatus, {
         from: dateRange.from,
         to: dateRange.to,
@@ -2523,7 +2527,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
 
   useEffect(() => {
     let active = true;
-    const requestStatus = statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : status) : statusFilter;
+    const requestStatus = statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
@@ -2623,7 +2627,7 @@ function CallsPage({ status, title, assignedOnly = false, teamScoped = false, cl
             <span className="result-count">{totalCalls} resultados</span>
           </div>
         </div>
-        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></> : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><select className="toolbar-select" value={oltFilter} onChange={(event) => setOltFilter(event.target.value)}><option value="Todas">Todas as OLTs</option>{[...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])].map((olt) => <option key={olt} value={olt}>{olt}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
+        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></> : assignedOnly ? inProgressCallStatuses.map((callStatus) => <option key={callStatus}>{callStatus}</option>) : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><select className="toolbar-select" value={oltFilter} onChange={(event) => setOltFilter(event.target.value)}><option value="Todas">Todas as OLTs</option>{[...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])].map((olt) => <option key={olt} value={olt}>{olt}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (

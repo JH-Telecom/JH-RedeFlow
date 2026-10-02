@@ -102,6 +102,16 @@ Próxima ação: implantar e validar a exclusão de supervisores vazios no ambie
 
 ## 5. IMPLEMENTAÇÃO EM ANDAMENTO
 
+### Chamados em atendimento sem encerrados — implementado em 2026-10-02
+
+- a página agora consulta somente chamados Aberto, Atribuido, Deslocamento e Em campo, removendo Finalizado, Cancelado e Baixar da tabela;
+- o filtro de status da página oferece apenas estados ativos; um filtro encerrado salvo anteriormente no navegador volta para Todos;
+- a tela dedicada a finalizados e cancelados permanece inalterada.
+
+Arquivo alterado: [frontend/src/App.tsx](frontend/src/App.tsx) e [ROADMAP.md](ROADMAP.md).
+
+Validação: build do frontend passou; permaneceu apenas o aviso já conhecido sobre o tamanho do chunk JavaScript.
+
 ### Troca obrigatória de senha no primeiro acesso — implementada em 2026-10-02
 
 - perfis existentes recebem `password_change_required = true` pelas migrations locais e Supabase; novos usuários cadastrados pelo sistema também precisam trocar a senha inicial;
