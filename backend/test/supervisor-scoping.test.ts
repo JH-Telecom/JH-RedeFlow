@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getCall, getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
-import { buildDriveCall, buildDriveUpdate, hasMeaningfulCallChange, isDriveRowEligible, shouldSkipDriveUpdate } from '../src/integrations/google-drive.js';
+import { buildDriveCall, buildDriveUpdate, driveRowSkipReason, hasMeaningfulCallChange, isDriveRowEligible, shouldSkipDriveUpdate } from '../src/integrations/google-drive.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
 import { calculateIgpMetrics, classifyIgpArea } from '../src/igp.js';
@@ -56,6 +56,13 @@ test('Google Drive sync accepts NOC access and backbone rows so finalized calls 
     assert.equal(update.status, 'Finalizado');
     assert.equal(hasMeaningfulCallChange(existing, update), true);
   }
+});
+
+test('Google Drive reports why rows are skipped', () => {
+  assert.equal(driveRowSkipReason({ 'Tipo de Atividade': 'Tipo desconhecido', Status: 'Finalizado' }), 'unsupported-activity');
+  assert.equal(driveRowSkipReason({ 'Tipo de Atividade': 'NOC ACESSO', Status: 'Pendente' }), 'pending');
+  assert.equal(driveRowSkipReason({ 'Tipo de Atividade': 'NOC ACESSO', Status: 'Finalizado', Motivo: 'Não cumprimento' }), 'non-compliance');
+  assert.equal(driveRowSkipReason({ 'Tipo de Atividade': 'NOC ACESSO', Status: 'Finalizado' }), undefined);
 });
 
 test('Google Drive reconciles a call drifted from an unchanged source fingerprint', () => {

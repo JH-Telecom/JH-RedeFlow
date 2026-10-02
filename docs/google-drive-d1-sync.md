@@ -36,6 +36,7 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 - A região é recalculada pelo mapeamento OLT→Região existente, inclusive em atualizações/reprocessamentos; OLT sem correspondência mantém a região disponível.
 - O motivo de encerramento vira o resultado e tambem fica registrado nas observacoes quando houver valor.
 - Cada alteracao efetiva gera log e snapshot com arquivo, identificador, payload e horario; cada execucao grava contadores em `google_drive_sync_runs`.
+- A resposta da sincronizacao informa registros elegiveis, correspondencias, duplicatas e motivos por tipo/status para linhas ignoradas ou sem correspondencia.
 - Status e motivo de cancelamento da base podem reconciliar chamados ja encerrados; alteracoes humanas continuam sujeitas ao bloqueio normal.
 - Nenhuma exclusao automatica e feita por ausencia temporaria do registro na base.
 

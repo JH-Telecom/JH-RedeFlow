@@ -118,11 +118,11 @@ Validação: build do frontend passou; testes D-0 7/7 passaram.
 - a sincronização passa a ler CSV, XLSX, XLS e planilhas Google exportadas como CSV;
 - `NOC ACESSO`, `NOC ACCESS`, `NOC TX` e `NOC BACKBONE` agora passam pela elegibilidade, permitindo matching e atualização de chamados existentes inclusive para Finalizado/Cancelado;
 - fingerprint igual não interrompe mais a reconciliação antes de comparar os campos persistidos; divergências de status, Data Abertura e demais dados são corrigidas, e duplicatas entre arquivos não inflacionam o contador de inalterados;
-- o resultado da tela informa quantos chamados foram atualizados, novos, finalizados, cancelados, inalterados, ignorados e sem correspondência.
+- o resultado da tela informa elegíveis, cruzados, duplicatas e motivos de ignorados/sem correspondência, além de atualizados, novos, finalizados e cancelados; usar a decomposição na próxima sincronização real para confirmar quais linhas da base atual não passam pelas regras.
 
 Arquivos alterados: [frontend/src/App.tsx](frontend/src/App.tsx), [frontend/src/api.ts](frontend/src/api.ts), [backend/src/integrations/google-drive.ts](backend/src/integrations/google-drive.ts), [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts), [docs/google-drive-d1-sync.md](docs/google-drive-d1-sync.md) e [ROADMAP.md](ROADMAP.md).
 
-Validação: suíte de sincronização/supervisão 14/14 e typecheck do backend passaram; build do frontend passou na implementação da tela. Sem alteração de schema.
+Validação: suíte de sincronização/supervisão 15/15 e typecheck do backend passaram; build do frontend passou. Sem alteração de schema; a sincronização real ainda precisa ser conferida após publicar esta instrumentação.
 
 ### Limite visual do card de regiões no dashboard — implementado em 2026-10-02
 

@@ -139,10 +139,18 @@ function normalizeDriveStatus(valueText: string) {
 }
 
 export function isDriveRowEligible(row: DriveRow) {
+  return driveRowSkipReason(row) === undefined;
+}
+
+export type DriveRowSkipReason = 'unsupported-activity' | 'pending' | 'non-compliance';
+export function driveRowSkipReason(row: DriveRow): DriveRowSkipReason | undefined {
   const statusText = normalize(value(row, 'Status da Atividade', 'Status'));
   const activityType = normalize(value(row, 'Tipo de Atividade', 'Tipo'));
   const reason = normalize(value(row, 'Motivo de Encerramento das atividades', 'Motivo de Encerramento', 'Motivo'));
-  return validActivityTypes.has(activityType) && statusText !== 'pendente' && !reason.includes('nao cumprimento');
+  if (!validActivityTypes.has(activityType)) return 'unsupported-activity';
+  if (statusText === 'pendente') return 'pending';
+  if (reason.includes('nao cumprimento')) return 'non-compliance';
+  return undefined;
 }
 
 export function buildDriveCall(row: DriveRow): Call | undefined {
@@ -279,6 +287,14 @@ export type DriveSyncResult = {
   unchanged: number;
   unmatched: number;
   skipped: number;
+  eligibleRows: number;
+  duplicateRows: number;
+  matchedCalls: number;
+  skippedByActivityType: number;
+  skippedPending: number;
+  skippedNonCompliance: number;
+  missingIdentifiers: number;
+  unsupportedStatus: number;
   errors: string[];
 };
 
@@ -293,10 +309,11 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
     files.push(...(response.data.files || []));
     pageToken = response.data.nextPageToken || undefined;
   } while (pageToken);
-  const result: DriveSyncResult = { files: files.length, rows: 0, processed: 0, newRecords: 0, updated: 0, finalised: 0, cancelled: 0, unchanged: 0, unmatched: 0, skipped: 0, errors: [] };
+  const result: DriveSyncResult = { files: files.length, rows: 0, processed: 0, newRecords: 0, updated: 0, finalised: 0, cancelled: 0, unchanged: 0, unmatched: 0, skipped: 0, eligibleRows: 0, duplicateRows: 0, matchedCalls: 0, skippedByActivityType: 0, skippedPending: 0, skippedNonCompliance: 0, missingIdentifiers: 0, unsupportedStatus: 0, errors: [] };
   const stagedRows = new Map<string, { row: DriveRow; fileId: string; fileName: string }>();
 
   for (const file of [...files].reverse()) {
+          result.duplicateRows += 1;
     if (!file.id || !file.name) continue;
     try {
       const isGoogleSheet = file.mimeType === 'application/vnd.google-apps.spreadsheet';
@@ -311,6 +328,7 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
         const identity = buildRowIdentity(row);
         if (!identity) {
           result.unmatched += 1;
+          result.missingIdentifiers += 1;
           continue;
         }
         stagedRows.set(identity, { row, fileId: file.id, fileName: file.name });
@@ -324,8 +342,13 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
   for (const { row, fileId, fileName } of stagedRows.values()) {
     if (!isDriveRowEligible(row)) {
       result.skipped += 1;
+      const reason = driveRowSkipReason(row);
+      if (reason === 'unsupported-activity') result.skippedByActivityType += 1;
+      if (reason === 'pending') result.skippedPending += 1;
+      if (reason === 'non-compliance') result.skippedNonCompliance += 1;
       continue;
     }
+    result.eligibleRows += 1;
 
     const sourceData = buildDriveSource(row, fileId, fileName);
     let matchingCall = calls.find((candidate) => matchesCall(candidate, row));
@@ -333,6 +356,7 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
       const importedCall = buildDriveCall(row);
       if (!importedCall) {
         result.unmatched += 1;
+        result.unsupportedStatus += 1;
         continue;
       }
       const created = await createDriveCall(importedCall, sourceData);
@@ -346,6 +370,7 @@ export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
         continue;
       }
     }
+    result.matchedCalls += 1;
 
     const update = buildDriveUpdate(row, matchingCall);
     if (shouldSkipDriveUpdate(matchingCall, sourceData.fingerprint, update)) {
