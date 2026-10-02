@@ -58,6 +58,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   return payload;
 }
+async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
+  const result = await request<T>(path, init);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('jh-redeflow:calls-changed'));
+  return result;
+}
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
@@ -94,30 +99,30 @@ export const api = {
     return request<CallListResult>(`/api/chamados${params.toString() ? `?${params}` : ''}`);
   },
   call: (id: string, filters?: { teamScope?: boolean }) => request<{ call: Call }>(`/api/chamados/${id}${filters?.teamScope ? '?teamScope=true' : ''}`),
-  updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'notes'>> & { technicianId?: string | null }) => request<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => request<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
-  cancelCall: (id: string, reason: string) => request<{ call: Call }>(`/api/chamados/${id}/cancelar`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  deleteCall: (id: string) => request<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),
-  deleteAllCalls: () => request<{ deleted: number }>('/api/chamados', { method: 'DELETE' }),
-  reopenCall: (id: string) => request<{ call: Call }>(`/api/chamados/${id}/reabrir`, { method: 'POST' }),
+  updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'notes'>> & { technicianId?: string | null }) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => requestCallMutation<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
+  cancelCall: (id: string, reason: string) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}/cancelar`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  deleteCall: (id: string) => requestCallMutation<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),
+  deleteAllCalls: () => requestCallMutation<{ deleted: number }>('/api/chamados', { method: 'DELETE' }),
+  reopenCall: (id: string) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}/reabrir`, { method: 'POST' }),
   observations: (id: string, filters?: { teamScope?: boolean }) => request<{ observations: CallObservation[] }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`),
   addObservation: (id: string, text: string, attachments: CallObservationAttachmentUpload[] = [], filters?: { teamScope?: boolean }) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`, { method: 'POST', body: JSON.stringify({ text, attachments }) }),
   observationAttachment: (callId: string, observationId: string, attachmentId: string, filters?: { teamScope?: boolean }) => request<{ attachment: CallObservationAttachmentContent }>(`/api/chamados/${callId}/observacoes/${observationId}/anexos/${attachmentId}${filters?.teamScope ? '?teamScope=true' : ''}`),
   auditLogs: (id: string) => request<{ logs: CallAuditLog[] }>(`/api/chamados/${id}/logs`),
   activations: (status?: Activation['status']) => request<{ activations: Activation[] }>(`/api/acionamentos${status ? `?status=${encodeURIComponent(status)}` : ''}`),
-  acceptActivation: (id: string) => request<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
+  acceptActivation: (id: string) => requestCallMutation<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
   rejectActivation: (id: string, reason: string) => request<{ activation: Activation }>(`/api/acionamentos/${id}/recusar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   imports: () => request<{ imports: ImportRecord[] }>('/api/importacoes'),
   d0Base: () => request<{ base: D0BaseSummary }>('/api/importacoes/d0'),
-  importD0: (fileName: string, content: string) => request<{ sync: { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number }; base: D0BaseSummary }>('/api/importacoes/d0', { method: 'POST', body: JSON.stringify({ fileName, content }) }),
+  importD0: (fileName: string, content: string) => requestCallMutation<{ sync: { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number }; base: D0BaseSummary }>('/api/importacoes/d0', { method: 'POST', body: JSON.stringify({ fileName, content }) }),
   clearD0Base: () => request<{ deleted: number; base: D0BaseSummary }>('/api/importacoes/d0', { method: 'DELETE' }),
   previewImport: (fileName: string, content: string) => request<{ import: ImportRecord }>('/api/importacoes/preview', { method: 'POST', body: JSON.stringify({ fileName, content }) }),
   confirmImport: (id: string) => request<{ import: ImportRecord }>(`/api/importacoes/${id}/confirmar`, { method: 'POST' }),
-  syncGoogleDrive: () => request<{ sync: { files: number; rows: number; processed: number; newRecords: number; updated: number; unchanged: number; unmatched: number; skipped: number; errors: string[] } }>('/api/integrations/google-drive/sync', { method: 'POST' }),
+  syncGoogleDrive: () => requestCallMutation<{ sync: { files: number; rows: number; processed: number; newRecords: number; updated: number; unchanged: number; unmatched: number; skipped: number; errors: string[] } }>('/api/integrations/google-drive/sync', { method: 'POST' }),
   previewHistoricalActivationImport: (fileName: string, contentBase64: string) => request<HistoricalActivationImportPreview>('/api/importacoes/acionamentos-historicos/preview', { method: 'POST', body: JSON.stringify({ fileName, contentBase64 }) }),
-  confirmHistoricalActivationImport: (previewId: string) => request<{ imported: number; skippedAlreadyPresent: number; fileName: string }>(`/api/importacoes/acionamentos-historicos/${encodeURIComponent(previewId)}/confirmar`, { method: 'POST' }),
+  confirmHistoricalActivationImport: (previewId: string) => requestCallMutation<{ imported: number; skippedAlreadyPresent: number; fileName: string }>(`/api/importacoes/acionamentos-historicos/${encodeURIComponent(previewId)}/confirmar`, { method: 'POST' }),
   previewCurrentCallsImport: (fileName: string, contentBase64: string) => request<CurrentCallsImportPreview>('/api/importacoes/chamados-atuais/preview', { method: 'POST', body: JSON.stringify({ fileName, contentBase64 }) }),
-  confirmCurrentCallsImport: (previewId: string) => request<{ imported: number; skippedAlreadyPresent: number; fileName: string }>(`/api/importacoes/chamados-atuais/${encodeURIComponent(previewId)}/confirmar`, { method: 'POST' }),
+  confirmCurrentCallsImport: (previewId: string) => requestCallMutation<{ imported: number; skippedAlreadyPresent: number; fileName: string }>(`/api/importacoes/chamados-atuais/${encodeURIComponent(previewId)}/confirmar`, { method: 'POST' }),
   createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUser: (id: string, data: { name?: string; email?: string; roleId?: string; active?: boolean; password?: string }) => request<{ user: User }>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteUser: (id: string) => request<{ deleted: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),

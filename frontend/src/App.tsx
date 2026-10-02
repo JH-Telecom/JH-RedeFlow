@@ -41,6 +41,8 @@ import * as XLSX from "xlsx";
 import {
   api,
   type Call,
+  type CallListQuery,
+  type CallListResult,
   type CallAuditLog,
   type CallObservation,
   type CallStatus,
@@ -2137,7 +2139,41 @@ function SupervisorOrdersPage({ user }: { user: User & { role: Role } }) {
 }
 
 const callsPageStateCookieName = "jh-redeflow-calls-page-state";
-const callsPageCache = new Map<string, { expiresAt: number; result: { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] } }>();
+const CALLS_PAGE_CACHE_TTL_MS = 30000;
+const callsPageCache = new Map<string, { expiresAt: number; result: CallListResult }>();
+const callsPageRequests = new Map<string, Promise<CallListResult>>();
+let callsPageCacheGeneration = 0;
+
+function callsPageCacheKey(status: CallStatus | CallStatus[] | undefined, filters: CallListQuery) {
+  return JSON.stringify({ status: status ?? null, filters });
+}
+
+function loadCallsPage(key: string, status: CallStatus | CallStatus[] | undefined, filters: CallListQuery) {
+  const cached = callsPageCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return Promise.resolve(cached.result);
+  if (cached) callsPageCache.delete(key);
+  const pending = callsPageRequests.get(key);
+  if (pending) return pending;
+
+  const generation = callsPageCacheGeneration;
+  let request: Promise<CallListResult>;
+  request = api.calls(status, filters).then((result) => {
+    if (generation === callsPageCacheGeneration) callsPageCache.set(key, { expiresAt: Date.now() + CALLS_PAGE_CACHE_TTL_MS, result });
+    return result;
+  }).finally(() => {
+    if (callsPageRequests.get(key) === request) callsPageRequests.delete(key);
+  });
+  callsPageRequests.set(key, request);
+  return request;
+}
+
+function invalidateCallsPageCache() {
+  callsPageCacheGeneration += 1;
+  callsPageCache.clear();
+  callsPageRequests.clear();
+}
+
+if (typeof window !== "undefined") window.addEventListener("jh-redeflow:calls-changed", invalidateCallsPageCache);
 
 function readCallsPageState(pageKey: string) {
   const fallback = { query: "", statusFilter: "Todos" as CallStatus | "Todos", regionFilter: "Todas", neighborhoodFilter: "Todos", oltFilter: "Todas", dateRange: { from: "", to: "" }, showFilters: false, callsPage: 1 };

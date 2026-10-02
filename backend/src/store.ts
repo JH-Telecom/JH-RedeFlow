@@ -937,6 +937,52 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
   return sortCalls(rows, baseQuery);
 }
 
+export type CallPageResult = { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] };
+export async function listCallsPage(status: CallStatus | CallStatus[] | undefined, query: CallQuery, requestedPage: number, requestedPageSize: number): Promise<CallPageResult> {
+  ensureDemoData();
+  const pageSize = Math.min(100, Math.max(1, Math.floor(requestedPageSize)));
+  const page = Math.max(1, Math.floor(requestedPage));
+  const normalizedStatuses = status ? (Array.isArray(status) ? status : [status]) : null;
+  const emptyResult = (result?: CallPageResult) => result || { calls: [], total: 0, page: 1, pageSize, totalPages: 1, olts: [] };
+
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().rpc('list_calls_page', {
+      p_status: normalizedStatuses,
+      p_from: query.from ?? null,
+      p_to: query.to ?? null,
+      p_supervisor_id: query.supervisorId ?? null,
+      p_search: query.search?.trim() || null,
+      p_region: query.region ?? null,
+      p_neighborhood: query.neighborhood ?? null,
+      p_olt: query.olt ?? null,
+      p_sort: query.sort ?? 'openedAt',
+      p_direction: query.direction ?? 'desc',
+      p_page: page,
+      p_page_size: pageSize,
+    });
+    if (error) throw new Error(error.message);
+    return emptyResult(data as CallPageResult | undefined);
+  }
+
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ page: CallPageResult }>(
+      'SELECT public.list_calls_page($1::text[], $2::date, $3::date, $4::uuid, $5::text, $6::text, $7::text, $8::text, $9::text, $10::text, $11::integer, $12::integer) AS page',
+      [normalizedStatuses, query.from ?? null, query.to ?? null, query.supervisorId ?? null, query.search?.trim() || null, query.region ?? null, query.neighborhood ?? null, query.olt ?? null, query.sort ?? 'openedAt', query.direction ?? 'desc', page, pageSize],
+    );
+    return emptyResult(result.rows[0]?.page);
+  }
+
+  const matchingCalls = await listCalls(status, { ...query, id: undefined, olt: undefined, page: undefined, pageSize: undefined });
+  const olts = [...new Set(matchingCalls.map((call) => call.olt.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  const filteredCalls = query.olt ? matchingCalls.filter((call) => call.olt.trim().toLocaleUpperCase() === query.olt!.toLocaleUpperCase()) : matchingCalls;
+  const total = filteredCalls.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  return { calls: filteredCalls.slice(start, start + pageSize), total, page: currentPage, pageSize, totalPages, olts };
+}
+
 function normalizeExternalCallIdentifier(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
