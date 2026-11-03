@@ -13,7 +13,7 @@ Frontend: `http://localhost:5173`
 
 API: `http://localhost:3333`
 
-Localmente, use `REDEFLOW_RUNTIME=local` e `DATABASE_URL` para o PostgreSQL. Em deploy, use `REDEFLOW_RUNTIME=supabase` (ou `NODE_ENV=production`) com as variáveis Supabase. O backend local nunca usa o Supabase apenas porque as chaves estão presentes no `.env`. Dados demo só são carregados quando `REDEFLOW_DEMO_DATA=true`; o padrão é ambiente vazio, sem registros fictícios.
+O backend tem dois modos: Supabase (produção) e memória (desenvolvimento e testes). Com `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` configurados, usa o Supabase; sem eles, roda em memória e perde os dados ao reiniciar. Dados demo só são carregados em memória quando `REDEFLOW_DEMO_DATA=true`; o padrão é ambiente vazio, sem registros fictícios. O antigo modo PostgreSQL local (`REDEFLOW_RUNTIME=local` + `DATABASE_URL`) foi removido em 2026-11-03.
 
 Modo demo: `admin@jhtelecom.com` / `RedeFlow@2026`
 

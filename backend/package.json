@@ -17,8 +17,7 @@
     "express": "^5.1.0",
     "googleapis": "^181.0.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.13.1",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -26,7 +25,6 @@
     "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.4",
-    "@types/pg": "^8.11.6",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   }

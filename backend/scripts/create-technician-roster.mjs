@@ -80,23 +80,15 @@ if (remote) {
     return body.technician;
   };
 } else {
-  const [{ isSupabaseConfigured }, store, database] = await Promise.all([
+  const [{ isSupabaseConfigured }, store] = await Promise.all([
     import('../src/integrations/supabase/client.ts'),
     import('../src/store.ts'),
-    import('../src/db.ts'),
   ]);
-  if (!isSupabaseConfigured() && process.env.DATABASE_URL) process.env.REDEFLOW_RUNTIME = 'local';
-  if (!isSupabaseConfigured() && !(process.env.REDEFLOW_RUNTIME === 'local' && process.env.DATABASE_URL)) {
-    throw new Error('Sem banco persistente configurado. Configure Supabase ou DATABASE_URL ou use --remote.');
+  if (!isSupabaseConfigured()) {
+    throw new Error('Sem banco persistente configurado. Configure o Supabase ou use --remote.');
   }
   loadTechnicians = store.listTechnicians;
   createTechnician = store.addTechnician;
-  if (!isSupabaseConfigured() && process.env.DATABASE_URL) {
-    closeConnection = async () => {
-      const client = await database.getDatabaseClient();
-      await client.end();
-    };
-  }
 }
 
 let createdTechnicians = 0;

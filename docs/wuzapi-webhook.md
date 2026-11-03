@@ -31,7 +31,7 @@ No ambiente local:
 ```env
 WUZAPI_WEBHOOK_TOKEN=um-token-local-forte
 WUZAPI_ACTIVATION_GROUP_ID=120363422003961917@g.us
-REDEFLOW_RUNTIME=local
+REDEFLOW_DEMO_DATA=true
 # Opcional: habilita enriquecimento semantico; sem a chave usa o parser local seguro
 GEMINI_API_KEY=chave-do-backend
 GEMINI_MODEL=gemini-2.5-flash

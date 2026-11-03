@@ -62,7 +62,8 @@ export function findHistoricalTechnician(name: string, technicians: Technician[]
 }
 
 function parseWorkbookDate(value: unknown): string | undefined {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  // Celulas de data da planilha tem precisao de segundos; o SheetJS pode devolver o instante com 1 ms de erro de arredondamento.
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(Math.round(value.getTime() / 1000) * 1000).toISOString();
   if (typeof value === 'number' && Number.isFinite(value)) {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return undefined;

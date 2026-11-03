@@ -252,7 +252,8 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
   if (terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined) {
     input = { ...input, executedAt: current.executedAt ?? new Date().toISOString() };
   }
-  const assignedAt = input.technicianId ? new Date().toISOString() : undefined;
+  // Mesma regra do PostgreSQL local e do modo demo: preserva a primeira atribuicao e limpa ao remover o tecnico.
+  const assignedAt = input.technicianId ? current.assignedAt ?? new Date().toISOString() : undefined;
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   const databaseFields: Record<string, string> = { orderNumber: 'order_number', bdesk: 'bdesk', officeTrack: 'office_track', client: 'client', type: 'type', reason: 'reason', region: 'region', city: 'city', address: 'address', bairro: 'bairro', ofsStatus: 'ofs_status', olt: 'olt', slotPon: 'slot_pon', status: 'status', openedAt: 'opened_at', executedAt: 'executed_at', result: 'result', cancellationReason: 'cancellation_reason', notes: 'notes' };
   for (const field of Object.keys(databaseFields)) {

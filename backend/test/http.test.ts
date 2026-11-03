@@ -10,7 +10,8 @@ let baseUrl = `http://127.0.0.1:${port}`;
 let server: ChildProcess | undefined;
 
 async function waitForServer() {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  // Ate 10 s: com todos os arquivos de teste rodando em paralelo, o boot pode passar de 4 s.
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/health`);
       if (response.ok) return;

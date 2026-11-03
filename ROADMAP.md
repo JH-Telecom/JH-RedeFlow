@@ -19,7 +19,7 @@ Status geral: EM DESENVOLVIMENTO
 Última implementação: P0/P1 da auditoria — "Apagar todos os chamados" movido para Configurações (zona de perigo), datas no fuso America/Sao_Paulo, consultas mais leves em finalizar/cancelar/reabrir, dashboard e notificações, correção do escopo de supervisor no Supabase e guardas de rota no frontend. Ver "2026-11-03 — P0/P1 da auditoria" no fim do arquivo.
 Agente responsável pela última alteração: Claude Code (Opus 5.5)
 
-Próxima ação: migration de fuso já aplicada no Supabase e código enviado ao GitHub (2026-11-03); acompanhar o deploy no Vercel/Render, validar em produção (badges 6h/9h, IGP, escopo de supervisor, notificações) e depois seguir para P2 (organização do código).
+Próxima ação: P2 concluído em 2026-11-03 (xlsx oficial 0.20.3, bundle dividido, `App.tsx` separado em `pages/`/`components/`/`lib/`, runtime PostgreSQL local removido, `store.ts` dividido em `backend/src/store/`). Próximo: P3 (design system e modernização visual); validar supervisor em produção.
 
 ---
 
@@ -2731,3 +2731,71 @@ Autorizado pelo responsável ("pode prosseguir com o seu plano de alterações")
 - Aplicar `database/migrations/021_calls_page_sao_paulo_dates.sql` em qualquer PostgreSQL local em uso.
 - Validar em produção: escopo de supervisor (IGP e detalhe da equipe), contadores de notificações, filtros de período perto da meia-noite.
 - Fora deste escopo, para P2: `reopenCall` sem caminho PG local; `assigned_at` divergente entre runtimes; Repetidos baixa todas as páginas no cliente; dependência `xlsx@0.18.5`.
+
+---
+
+## 2026-11-03 — P2 da auditoria: dependências, runtimes e organização do frontend
+
+Autorizado pelo responsável ("pode prosseguir"). Sem mudança de regra de negócio, banco ou API.
+
+### 1. Dependências
+- `xlsx` trocado de `0.18.5` (npm, sem correções, vulnerável a prototype pollution/ReDoS) para `0.20.3` da distribuição oficial do SheetJS (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`) em `backend` e `frontend`. O build do Render (`npm install`) baixa desse endereço.
+- `npm audit fix` (sem `--force`): atualizações dentro das faixas já declaradas (body-parser, qs, source-map-js, launch-editor e transitivas) — só `package-lock.json`.
+- Restante do audit: `zod < 4.6.6` exige major (`--force`); não aplicado — avaliar migração para zod 4 separadamente.
+- Ajuste: o SheetJS 0.20 devolve datas de célula com 1 ms de erro; `parseWorkbookDate` em `backend/src/imports/historical-activations.ts` arredonda para o segundo (as planilhas têm precisão de segundos).
+
+### 2. Divergências entre runtimes
+- `reopenCall` ganhou o caminho PostgreSQL local (antes caía no mapa em memória), com log de auditoria "Chamado reaberto".
+- Supabase: `assigned_at` deixou de ser sobrescrito a cada salvamento que envia o técnico; agora preserva a primeira atribuição e limpa ao remover o técnico, como o PG local e o modo demo. O campo não aparece em telas nem indicadores.
+
+### 3. Bundle do frontend
+- `xlsx` e `html2canvas` passaram a ser carregados sob demanda (`import()` no momento do upload/exportação PNG). Bundle principal: 430 kB (antes ~1,1 MB num único arquivo); `xlsx` (500 kB) e `html2canvas` (202 kB) viraram chunks separados.
+
+### 4. Divisão de `frontend/src/App.tsx` (4.025 → 76 linhas)
+- Feita por script com o compilador TypeScript: cada declaração foi movida sem alteração e os imports/exports foram gerados. Verificado que o código das 91 declarações é idêntico byte a byte ao original.
+- Nova estrutura:
+  - `lib/`: `constants.ts` (regiões operacionais, tamanho de página), `manual-production.ts` (tipos e parsers do Painel diário), `image-export.ts`.
+  - `components/`: `Shell.tsx` (layout, menu, rotas e guardas), `ui.tsx` (Metric, AdminModal, DetailItem, AccessDenied, DateRangeFilter…), `call-cells.tsx` (regra SLA 6h/9h, células Prazo/SLA/Timer e formatações de tempo).
+  - `pages/`: uma tela por arquivo (Login, Dashboard, IGP, ManualProduction, Imports, Activations, Users, Calls, CallDetail, Technicians, Supervisors, Roles, Settings).
+  - `App.tsx`: apenas sessão/login.
+- Código morto identificado e mantido (aguarda decisão): `Dashboard` em `pages/DashboardPage.tsx` não é usado em nenhuma rota e exibe números fixos ("42", "67"); `CallDetailBase` é usado por `AuditedCallDetailPage`.
+
+### Testes
+- `npm run typecheck` (frontend + backend): ✅.
+- `npm test --workspace backend`: ✅ 99/99.
+- `vite build`: ✅.
+- Demo local (memória): as 14 rotas renderizam, detalhe do chamado abre, selos "Limite 06:00" presentes, zona de perigo presente, nenhum erro no console.
+
+### Pendências / próximos passos
+- ~~P2 restante: dividir `backend/src/store.ts`~~ — feito; ver seção seguinte.
+- Remover `Dashboard` sem uso (requer autorização).
+- Avaliar zod 4.
+- P3: design system e modernização visual.
+
+---
+
+## 2026-11-03 — Runtime PostgreSQL local aposentado e `store.ts` dividido
+
+Decisão do responsável: o modo PostgreSQL local (`REDEFLOW_RUNTIME=local` + `DATABASE_URL`) não é mais usado e foi removido. O backend passa a ter dois modos: **Supabase** (produção) e **memória** (desenvolvimento e testes; `REDEFLOW_DEMO_DATA=true` carrega dados fictícios).
+
+### Removido
+- Todos os ramos `shouldUseLocalDatabase()` de `store.ts` e `server.ts` (61 removidos por script com o compilador TypeScript + ajustes manuais), `findLocalUserByEmail`, `findLocalUserById` e a consulta de cargo no PG local.
+- `backend/src/db.ts`, `backend/test/db.test.ts`, dependências `pg` e `@types/pg`.
+- Pasta `database/migrations/` (001–021), usada só pelo PG local; continua no histórico do Git. As migrations oficiais seguem em `supabase/migrations/`.
+- `DATABASE_URL` de `backend/.env.example`; README e docs (`wuzapi-webhook.md`, `google-drive-d1-sync.md`) atualizados. `backend/scripts/create-technician-roster.mjs` agora exige Supabase (ou `--remote`).
+- `REDEFLOW_RUNTIME=supabase` continua válido (Render); outros valores apenas resultam no modo memória.
+
+### `backend/src/store.ts` dividido (2.040 → barrel de 10 linhas)
+- `store.ts` reexporta exatamente os 77 nomes públicos de antes; `server.ts`, testes e scripts não mudaram de import.
+- Implementação em `backend/src/store/`: `demo-data.ts` (catálogo de permissões, cargos padrão, estado em memória e seed demo), `users.ts` (usuários, cargos, avatar, senha), `settings.ts` (configurações, regiões, OLT→Região e solicitações), `teams.ts` (técnicos e supervisores), `calls.ts` (listagem, paginação, importação, Drive, edição, finalizar/cancelar/reabrir, exclusão), `observations.ts` (observações, anexos, auditoria), `activations.ts`, `imports.ts` (importações, base D-0, painel diário), `dashboard.ts` (indicadores e notificações).
+- Divisão feita por script; o código das 125 declarações é idêntico byte a byte ao `store.ts` após a remoção do PG local.
+
+### Teste ajustado
+- `backend/test/http.test.ts`: espera de boot do servidor de teste de 4 s → 10 s. Era a causa da falha intermitente em `healthcheck exposes security headers` (e ocasionalmente em outro teste HTTP) quando todos os arquivos rodam em paralelo.
+
+### Testes
+- `npm run typecheck`: ✅. `npm test --workspace backend`: ✅ 98/98 em duas execuções seguidas (o teste de `db.ts` foi removido junto com o módulo). `vite build`: ✅.
+
+### Próximos passos
+- P3: design system e modernização visual.
+- Pendentes anteriores: validar supervisor em produção; decidir sobre `Dashboard` sem uso; avaliar zod 4.

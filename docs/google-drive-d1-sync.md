@@ -42,6 +42,6 @@ O endpoint manual e `POST /api/integrations/google-drive/sync` e exige a permiss
 
 ## Banco de dados
 
-Antes de sincronizar, aplique em ordem `database/migrations/008_google_drive_history.sql` e `database/migrations/009_call_location_fields.sql` no PostgreSQL local, ou suas equivalentes `supabase/migrations/202609290008_google_drive_history.sql` e `supabase/migrations/202609290009_call_location_fields.sql` no Supabase.
+Antes de sincronizar, aplique em ordem `supabase/migrations/202609290008_google_drive_history.sql` e `supabase/migrations/202609290009_call_location_fields.sql` no Supabase.
 
 Linhas sem identificador operacional ou com tipo/status fora das regras sao contabilizadas como `unmatched` ou `skipped` e nao criam chamados.

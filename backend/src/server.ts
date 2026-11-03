@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, findLocalUserByEmail, findLocalUserById, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, shouldUseLocalDatabase, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics } from './igp.js';
@@ -114,10 +114,6 @@ async function auth(request: AuthRequest, response: Response, next: NextFunction
       const supabaseUser = await getSupabaseProfile(payload.sub);
       if (!supabaseUser || !supabaseUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
       request.authUser = supabaseUser;
-    } else if (shouldUseLocalDatabase()) {
-      const localUser = await findLocalUserById(payload.sub);
-      if (!localUser || !localUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
-      request.authUser = getAuthUser(localUser);
     } else {
       const localUsers = await listUsers();
       const localUser = localUsers.find((item) => item.id === payload.sub);
@@ -189,13 +185,6 @@ app.post('/api/auth/login', async (request, response) => {
     } catch {
       return response.status(401).json({ message: 'Nao foi possivel autenticar no Supabase.' });
     }
-  }
-  if (shouldUseLocalDatabase()) {
-    const user = await findLocalUserByEmail(parsed.data.email);
-    if (!user || !user.active || !validatePassword(user, parsed.data.password)) return response.status(401).json({ message: 'E-mail ou senha incorretos.' });
-    clearLoginAttempts(request, parsed.data.email);
-    const token = jwt.sign({ sub: user.id }, jwtSecret!, { expiresIn: '8h' });
-    return response.json({ token, user: getAuthUser(user) });
   }
   const user = getUserByEmail(parsed.data.email);
   if (!user || !user.active || !validatePassword(user, parsed.data.password)) return response.status(401).json({ message: 'E-mail ou senha incorretos.' });
@@ -278,7 +267,7 @@ app.get('/api/users', auth, requirePermission('users.view'), async (_request, re
 app.post('/api/users', auth, requirePermission('users.create'), async (request, response) => {
   const parsed = z.object({ name: z.string().min(2), email: z.string().email(), roleId: z.string(), password: z.string().min(8) }).safeParse(request.body);
   if (!parsed.success || !(await getRoleById(parsed.success ? parsed.data.roleId : ''))) return response.status(400).json({ message: 'Dados de usuario invalidos.' });
-  const existingUser = shouldUseLocalDatabase() ? await findLocalUserByEmail(parsed.data.email) : getUserByEmail(parsed.data.email);
+  const existingUser = getUserByEmail(parsed.data.email);
   if (existingUser) return response.status(409).json({ message: 'Este e-mail ja esta cadastrado.' });
   return response.status(201).json({ user: await addUser(parsed.data) });
 });
@@ -627,8 +616,8 @@ app.post('/api/importacoes/chamados-atuais/preview', auth, requirePermission('im
     const expiresAt = Date.now() + 30 * 60 * 1000;
     for (const [id, pending] of pendingCurrentCallsImports) if (pending.expiresAt < Date.now()) pendingCurrentCallsImports.delete(id);
     pendingCurrentCallsImports.set(previewId, { userId: request.authUser!.id, fileName: parsed.data.fileName, candidates, expiresAt });
-    const canWrite = isSupabaseConfigured() || shouldUseLocalDatabase();
-    const target = isSupabaseConfigured() ? 'Supabase ativo' : shouldUseLocalDatabase() ? 'PostgreSQL local' : 'Demo em memoria';
+    const canWrite = isSupabaseConfigured();
+    const target = isSupabaseConfigured() ? 'Supabase ativo' : 'Demo em memoria';
     const byStatus: Record<string, number> = {};
     candidates.forEach(({ call }) => { byStatus[call.status] = (byStatus[call.status] || 0) + 1; });
     return response.json({
@@ -661,7 +650,7 @@ app.post('/api/importacoes/chamados-atuais/:previewId/confirmar', auth, requireP
     pendingCurrentCallsImports.delete(previewId);
     return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
   }
-  if (!isSupabaseConfigured() && !shouldUseLocalDatabase()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no ambiente conectado ao banco de destino.' });
+  if (!isSupabaseConfigured()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no ambiente conectado ao banco de destino.' });
   const unmatchedTechnicians = [...new Set(pending.candidates.filter((candidate) => candidate.call.technicianName && !candidate.call.technicianId).map((candidate) => candidate.call.technicianName!))];
   if (unmatchedTechnicians.length) return response.status(409).json({ message: `Cadastre ou corrija os tecnicos antes de confirmar a importacao: ${unmatchedTechnicians.join(', ')}.` });
   try {
@@ -700,8 +689,8 @@ app.post('/api/importacoes/acionamentos-historicos/preview', auth, requirePermis
     const expiresAt = Date.now() + 30 * 60 * 1000;
     for (const [id, pending] of pendingHistoricalImports) if (pending.expiresAt < Date.now()) pendingHistoricalImports.delete(id);
     pendingHistoricalImports.set(previewId, { userId: request.authUser!.id, fileName: parsed.data.fileName, candidates, expiresAt });
-    const canWrite = isSupabaseConfigured() || shouldUseLocalDatabase();
-    const target = isSupabaseConfigured() ? 'Supabase ativo' : shouldUseLocalDatabase() ? 'PostgreSQL local' : 'Demo em memória';
+    const canWrite = isSupabaseConfigured();
+    const target = isSupabaseConfigured() ? 'Supabase ativo' : 'Demo em memória';
     return response.json({
       previewId,
       fileName: parsed.data.fileName,
@@ -738,7 +727,7 @@ app.post('/api/importacoes/acionamentos-historicos/:previewId/confirmar', auth, 
     pendingHistoricalImports.delete(String(request.params.previewId));
     return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
   }
-  if (!isSupabaseConfigured() && !shouldUseLocalDatabase()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no sistema conectado ao banco de producao.' });
+  if (!isSupabaseConfigured()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no sistema conectado ao banco de producao.' });
   const unmatchedTechnicians = [...new Set(pending.candidates.filter((candidate) => candidate.call.technicianName && !candidate.call.technicianId).map((candidate) => candidate.call.technicianName!))];
   if (unmatchedTechnicians.length) return response.status(409).json({ message: `Cadastre ou corrija os tecnicos antes de confirmar a importacao: ${unmatchedTechnicians.join(', ')}.` });
   try {
