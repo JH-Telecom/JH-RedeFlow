@@ -19,7 +19,7 @@ Status geral: EM DESENVOLVIMENTO
 Última implementação: P0/P1 da auditoria — "Apagar todos os chamados" movido para Configurações (zona de perigo), datas no fuso America/Sao_Paulo, consultas mais leves em finalizar/cancelar/reabrir, dashboard e notificações, correção do escopo de supervisor no Supabase e guardas de rota no frontend. Ver "2026-11-03 — P0/P1 da auditoria" no fim do arquivo.
 Agente responsável pela última alteração: Claude Code (Opus 5.5)
 
-Próxima ação: aplicar a migration `supabase/migrations/202611030001_calls_page_sao_paulo_dates.sql` no Supabase (e `database/migrations/021_calls_page_sao_paulo_dates.sql` no PG local), publicar backend/frontend e validar em produção; depois seguir para P2 (organização do código).
+Próxima ação: migration de fuso já aplicada no Supabase e código enviado ao GitHub (2026-11-03); acompanhar o deploy no Vercel/Render, validar em produção (badges 6h/9h, IGP, escopo de supervisor, notificações) e depois seguir para P2 (organização do código).
 
 ---
 
@@ -2710,7 +2710,14 @@ Autorizado pelo responsável ("pode prosseguir com o seu plano de alterações")
 - `vite build`: ✅ (aviso existente de bundle > 500 kB).
 - Verificação manual em demo local (memória): fila sem o botão, zona de perigo apagando os chamados demo, supervisor recebendo "Acesso não permitido" em `/usuarios`.
 
+### Aplicação da migration no Supabase — 2026-11-03
+- Autorizada pelo responsável e aplicada no projeto Supabase `JH-RedeFlow` (`sxpoxgwxcloumpttcowt`) via `apply_migration` com o nome `calls_page_sao_paulo_dates` (agora registrada em `supabase_migrations.schema_migrations`; as migrations anteriores foram aplicadas manualmente e não aparecem nessa tabela).
+- Antes de aplicar: o corpo em produção de `list_calls_page_with_assignment` era idêntico a `202610020003_calls_assignment_filter.sql`; `TimeZone` do banco = `UTC`; tabela `calls` com 0 registros.
+- Depois de aplicar: a função contém `AT TIME ZONE 'America/Sao_Paulo'`; `list_calls_page_with_atrelada` responde normalmente com filtro de período; `'2026-10-01T01:30Z'` resulta em `2026-09-30` (São Paulo) em vez de `2026-10-01` (UTC).
+- Rollback: reexecutar `supabase/migrations/202610020003_calls_assignment_filter.sql`.
+- O PG local (`database/migrations/021_calls_page_sao_paulo_dates.sql`) não foi aplicado (não há banco local configurado nesta máquina).
+
 ### Pendências
-- Aplicar a migration 202611030001 (Supabase) / 021 (PG local) — requer autorização.
+- Aplicar `database/migrations/021_calls_page_sao_paulo_dates.sql` em qualquer PostgreSQL local em uso.
 - Validar em produção: escopo de supervisor (IGP e detalhe da equipe), contadores de notificações, filtros de período perto da meia-noite.
 - Fora deste escopo, para P2: `reopenCall` sem caminho PG local; `assigned_at` divergente entre runtimes; Repetidos baixa todas as páginas no cliente; dependência `xlsx@0.18.5`.
