@@ -39,3 +39,5 @@ services:
         value: America/Sao_Paulo
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
         sync: false
+      - key: OFS_INGEST_TOKEN
+        sync: false

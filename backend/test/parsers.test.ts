@@ -498,3 +498,12 @@ test('parses CSV rows and reports empty files', () => {
   const emptyContent = XLSX.write(empty, { type: 'base64', bookType: 'csv' });
   assert.deepEqual(parseImport('empty.csv', emptyContent).errors, ['A planilha nao possui linhas de dados.']);
 });
+
+test('CSV keeps accented headers and Brazilian dates exactly as written', () => {
+  const csv = 'Ordem de Serviço,Data,Fim,Endereço\n"RF-10","03/11/26","14:30","Rua São João, 10"\n';
+  for (const content of [Buffer.from(csv, 'utf8'), Buffer.from(`﻿${csv}`, 'utf8'), Buffer.from(csv, 'latin1')]) {
+    const parsed = parseImport('ofs.csv', content.toString('base64'));
+    assert.deepEqual(parsed.columns, ['Ordem de Serviço', 'Data', 'Fim', 'Endereço']);
+    assert.deepEqual(parsed.rows, [{ 'Ordem de Serviço': 'RF-10', Data: '03/11/26', Fim: '14:30', Endereço: 'Rua São João, 10' }]);
+  }
+});

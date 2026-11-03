@@ -11,6 +11,9 @@ import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
 import { hasD0Identifiers } from './imports/d0.js';
+import { countRowsForDate, parseOfsActivityExport } from './imports/ofs-export.js';
+import { toOperationalDate } from './timezone.js';
+import { timingSafeEqual } from 'node:crypto';
 import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
@@ -23,6 +26,7 @@ const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || (!isProduction ? 
 const activationGroupId = process.env.WUZAPI_ACTIVATION_GROUP_ID?.trim();
 const wuzapiDebug = process.env.WUZAPI_DEBUG === 'true';
 const skipWuzapiGroupFilter = process.env.WUZAPI_SKIP_GROUP_FILTER === 'true';
+const ofsIngestToken = process.env.OFS_INGEST_TOKEN?.trim() || undefined;
 const corsOrigins = [...new Set(['https://jh-rede.vercel.app', ...(process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean)])];
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 type PendingHistoricalImport = { userId: string; fileName: string; candidates: HistoricalActivationCandidate[]; expiresAt: number };
@@ -502,6 +506,49 @@ app.get('/api/chamados/:id/observacoes/:observationId/anexos/:attachmentId', aut
   return response.json({ attachment });
 });
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), async (request, response) => response.json({ logs: await listAuditLogs(String(request.params.id)) }));
+// Coletor OFS (extensao do Chrome): recebe o mesmo CSV que a pessoa subiria no Painel diario e faz os dois passos do
+// envio manual — salva o painel do dia e atualiza a base D-0/Status OFS dos chamados. Autenticado por token de maquina.
+let ofsIngestRunning = false;
+function hasValidOfsToken(request: Request) {
+  if (!ofsIngestToken) return false;
+  const provided = Buffer.from(String(request.headers['x-redeflow-ofs-token'] || ''));
+  const expected = Buffer.from(ofsIngestToken);
+  return provided.length === expected.length && timingSafeEqual(provided, expected);
+}
+app.post('/api/integrations/ofs/export', async (request, response) => {
+  if (!ofsIngestToken) return response.status(503).json({ message: 'Integracao do Coletor OFS nao configurada no servidor (OFS_INGEST_TOKEN).' });
+  if (!hasValidOfsToken(request)) return response.status(401).json({ message: 'Token do Coletor OFS invalido.' });
+  const parsed = z.object({ csv: z.string().min(1).max(14_000_000), nome: z.string().trim().max(255).optional(), maquina: z.string().trim().max(120).optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie o CSV exportado do OFS.' });
+  const today = toOperationalDate();
+  const dateCheck = countRowsForDate(parsed.data.csv, today);
+  if (dateCheck.hasDateColumn && !dateCheck.matching) return response.status(422).json({ message: `Nenhuma linha do CSV e de hoje (${today}); nada foi gravado.` });
+  if (ofsIngestRunning) return response.status(409).json({ message: 'Outro envio do Coletor OFS esta sendo processado. Tente no proximo ciclo.' });
+  ofsIngestRunning = true;
+  try {
+    const data = parseOfsActivityExport(parsed.data.csv);
+    if (!data.records?.length) return response.status(422).json({ message: 'O CSV nao tem atividades de manutencao de rede; o Painel diario nao foi alterado.' });
+    const fileName = parsed.data.nome || `ofs-${today}.csv`;
+    const uploadedBy = `Coletor OFS${parsed.data.maquina ? ` (${parsed.data.maquina})` : ''}`;
+    const base = await saveManualDailyBase(fileName, data, uploadedBy, today);
+    let d0: { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number } | undefined;
+    let d0Error: string | undefined;
+    try {
+      const d0File = parseImport(fileName, Buffer.from(parsed.data.csv, 'utf8').toString('base64'));
+      if (d0File.errors.length) d0Error = d0File.errors.join(' ');
+      else if (!hasD0Identifiers(d0File.rows)) d0Error = 'O CSV nao tem OS, BDESK, Office Track ou Contrato para cruzar os chamados.';
+      else d0 = await replaceD0Base(fileName, uploadedBy, d0File.rows);
+    } catch (error) {
+      d0Error = error instanceof Error ? error.message : 'Nao foi possivel atualizar a base D-0.';
+    }
+    console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${today}; D-0 ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados` : `nao atualizada (${d0Error})`}`);
+    return response.json({ ok: true, painel: { businessDate: base.businessDate, records: data.records.length, technicians: data.technicians.length, orders: data.orders.length }, d0, d0Error });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do OFS.' });
+  } finally {
+    ofsIngestRunning = false;
+  }
+});
 app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const body = normalizeWuzApiBody(request);
   if (wuzapiDebug) console.log('[WuzAPI] JSON recebido:', JSON.stringify(redactWuzApiPayload(request, body), null, 2));

@@ -2843,3 +2843,30 @@ Pedido do responsável: navegar pelas telas, melhorar todos os dashboards (infor
 ### Próximos passos
 - Publicar e conferir em produção quando houver chamados.
 - P3 continua: aplicar os mesmos componentes às demais telas (filas, técnicos, supervisores) e consolidar o design system.
+
+---
+
+## 2026-11-03 — Coletor OFS automático (extensão JH Telecom → RedeFlow)
+
+### Contexto
+O responsável enviou a extensão do Chrome "JH Telecom" 2.0.12 (`extensao-jh-2.0.12-LOJA.zip`), publicada na Chrome Web Store e mantida junto com o sistema **JH Agendamentos** (Supabase próprio `nqqklnygdytwnuzxrxrp`, site `agendamentos-jh.vercel.app`). Ela tem três partes: **Coletor** (exporta sozinho o CSV de atividades do OFS — `alloha.fs.ocs.oraclecloud.com`, Ações → Exportar, data de hoje, alocação configurada — e envia para a edge function `campo-upload`; várias máquinas se revezam), **AutoISP** (`auto.alloha.com`: potência/estado das ONUs de 27 OLTs a cada 2h, quedas de clientes com reparo aberto a cada 20 min, atualização de porta sob pedido) e **Mover no OFS** (move OS para técnicos a pedido do site). Analisada só por leitura, numa pasta temporária fora do projeto; nada foi executado.
+
+O CSV do Coletor é o mesmo "export plano" do OFS que o Painel diário já lê (colunas Recurso, Status da Atividade, Tipo de Atividade ×2, Ordem de Serviço). Decisão do responsável: **a extensão também envia o CSV ao RedeFlow**.
+
+### RedeFlow (backend)
+- Novo `POST /api/integrations/ofs/export` (`backend/src/server.ts`): autenticado por `x-redeflow-ofs-token` = variável `OFS_INGEST_TOKEN` (comparação em tempo constante; sem a variável o endpoint responde 503). Recusa CSV sem linhas de hoje na coluna "Data" (dd/mm/aa, data de São Paulo). Faz os mesmos dois passos do envio manual do Painel diário: (1) `saveManualDailyBase` para o dia de hoje, autor "Coletor OFS (máquina)"; (2) `replaceD0Base` com o mesmo arquivo (Status OFS, endereço, bairro, cidade, região, OLT e Data Fim dos chamados cruzados). Erro na D-0 não desfaz o painel e volta em `d0Error`. Um envio por vez (409 para concorrentes).
+- Novo `backend/src/imports/ofs-export.ts`: leitura do export plano do OFS portada de `frontend/src/lib/manual-production.ts` (mesmas posições de coluna e o mesmo filtro dos 3 tipos de manutenção de rede).
+- **Correção no leitor de CSV (`backend/src/imports/parser.ts`, afeta também envio manual da D-0 e a sincronização do Google Drive):** CSV/TXT/TSV passam a ser lidos como texto (UTF-8, com recuo para Latin-1) e sem conversão automática de tipos. Antes, o SheetJS lia UTF-8 como Latin-1 ("Ordem de Serviço" → "Ordem de ServiÃ§o", deixando de cruzar chamados) e trocava dia/mês de datas dd/mm com dia ≤ 12 ("03/11/26" → 11/03/2026, gerando Data Fim errada). Arquivos XLSX continuam no caminho anterior. Planilhas do Drive exportadas como CSV passam a manter datas e cabeçalhos exatamente como estão.
+- `render.yaml` e `backend/.env.example`: `OFS_INGEST_TOKEN` documentada (segredo, sem valor no repositório).
+- Testes: `parsers.test.ts` (CSV com acentos e datas brasileiras em UTF-8, UTF-8 com BOM e Latin-1) e `http.test.ts` (token ausente/errado → 401, CSV de outro dia → 422, envio válido salva o painel com 2 atividades de rede de 3 linhas, cruza a OS e grava Status OFS "Iniciado"). Suíte: ✅ 104/104.
+
+### Extensão 2.0.13 (fora deste repositório)
+- Alterações sobre a 2.0.12: `manifest.json` (versão 2.0.13 e permissão de host `https://jh-redeflow-api.onrender.com/*`), `coletor.js` (`enviarRedeFlow`: envia o mesmo CSV já validado, em paralelo e sem afetar o envio ao JH Agendamentos, só quando há token), `popup.html`/`popup.js` (campo "Token do JH RedeFlow" em Avançado e status do último envio). Mover, AutoISP e login inalterados.
+- Testada em Node com a função original extraída de `coletor.js` contra o backend local: com token envia e grava status; token errado registra o erro; sem token não envia.
+- Pacote gerado para o responsável publicar na Chrome Web Store (a nova permissão de host faz o Chrome pedir confirmação aos usuários na atualização).
+
+### Pendências
+- Definir `OFS_INGEST_TOKEN` no Render e o mesmo valor no popup da(s) máquina(s) coletora(s).
+- Publicar a 2.0.13 na Chrome Web Store.
+- Validar com um CSV real do OFS: posições das colunas (o leitor usa posições fixas 0/2/15/20/23/24, igual ao envio manual) e se a alocação configurada na extensão inclui as atividades do time de Rede.
+- Próxima etapa possível: usar os dados do AutoISP (`massive_status`, clientes por OLT/PON, potência) para preencher a coluna "Afet." e o detalhe do chamado.

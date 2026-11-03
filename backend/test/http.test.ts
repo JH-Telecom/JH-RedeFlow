@@ -56,6 +56,7 @@ async function startServer() {
       SUPABASE_SERVICE_ROLE_KEY: '',
       CORS_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173,https://jh-rede.vercel.app',
       GOOGLE_SERVICE_ACCOUNT_JSON: '',
+      OFS_INGEST_TOKEN: 'test-ofs-token',
     },
     stdio: 'ignore',
   });
@@ -947,4 +948,40 @@ test('accepts a valid jsonData group payload', async () => {
   const response = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
   assert.equal(response.status, 202);
   assert.equal((await response.json() as { status?: string }).status, 'Pendente');
+});
+
+test('OFS collector export updates the daily panel and the OFS status of matching calls', async () => {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const ofsDate = `${today.slice(8, 10)}/${today.slice(5, 7)}/${today.slice(2, 4)}`;
+  const header = Array.from({ length: 26 }, (_, index) => `Coluna ${index}`);
+  Object.assign(header, { 0: 'Recurso', 2: 'Status da Atividade', 3: 'Data', 5: 'Tipo de Atividade', 15: 'Início', 20: 'Tempo', 23: 'Tipo de Atividade', 24: 'Ordem de Serviço' });
+  const row = (resource: string, status: string, date: string, type: string, order: string) => {
+    const cells = Array.from({ length: 26 }, () => '');
+    Object.assign(cells, { 0: resource, 2: status, 3: date, 5: type, 15: '08:10', 20: '01:20', 23: type, 24: order });
+    return cells.map((cell) => `"${cell}"`).join(',');
+  };
+  const csv = [header.join(','), row('Carlos Mendes', 'Iniciado', ofsDate, 'Manutenção Corretiva de Rede', 'RF-240918'), row('Pedro Santos', 'Pendente', ofsDate, 'Manutenção Preventiva de Rede', 'OS-999'), row('Lucas Reis', 'Concluído', ofsDate, 'Instalação', 'OS-998')].join('\n');
+  const send = (body: unknown, token?: string) => fetch(`${baseUrl}/api/integrations/ofs/export`, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { 'x-redeflow-ofs-token': token } : {}) }, body: JSON.stringify(body) });
+
+  assert.equal((await send({ csv })).status, 401);
+  assert.equal((await send({ csv }, 'wrong-token')).status, 401);
+  const oldCsv = csv.replaceAll(ofsDate, '01/01/24');
+  const oldResponse = await send({ csv: oldCsv }, 'test-ofs-token');
+  assert.equal(oldResponse.status, 422);
+
+  const response = await send({ csv, nome: 'export-ofs.csv', maquina: 'maquina-teste' }, 'test-ofs-token');
+  const result = await response.json() as { ok: boolean; painel: { businessDate: string; records: number }; d0?: { matchedCalls: number; updatedCalls: number } };
+  assert.equal(response.status, 200);
+  assert.equal(result.painel.businessDate, today);
+  assert.equal(result.painel.records, 2); // a instalacao nao e manutencao de rede
+  assert.equal(result.d0?.matchedCalls, 1);
+
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const headers = { authorization: `Bearer ${(await loginResponse.json() as { token: string }).token}` };
+  const base = await (await fetch(`${baseUrl}/api/dashboards/painel-diario/base`, { headers })).json() as { base?: { uploadedBy: string; data: { orders: { order: string }[]; activities: { type: string }[] } } };
+  assert.equal(base.base?.uploadedBy, 'Coletor OFS (maquina-teste)');
+  assert.deepEqual(base.base?.data.orders.map((order) => order.order), ['RF-240918']);
+  assert.equal(base.base?.data.activities.length, 2);
+  const call = await (await fetch(`${baseUrl}/api/chamados/call-240918-01`, { headers })).json() as { call: { ofsStatus?: string } };
+  assert.equal(call.call.ofsStatus, 'Iniciado');
 });

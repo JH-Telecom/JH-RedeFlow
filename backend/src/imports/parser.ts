@@ -21,9 +21,18 @@ function formatCellValue(column: string, value: unknown) {
   return String(value ?? '');
 }
 
+// Texto em UTF-8 (com ou sem BOM); se nao for UTF-8 valido, Latin-1 (CSV salvo pelo Excel no Windows).
+function decodeText(buffer: Buffer) {
+  const utf8 = new TextDecoder('utf-8').decode(buffer);
+  return (utf8.includes('�') ? new TextDecoder('latin1').decode(buffer) : utf8).replace(/^﻿/, '');
+}
+
 export function parseImport(fileName: string, base64: string): ParsedImport {
   const buffer = Buffer.from(base64, 'base64');
-  const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+  // CSV/TXT/TSV: le como texto puro (raw). Sem isso o SheetJS decodificava UTF-8 como Latin-1 ("Serviço" -> "ServiÃ§o")
+  // e interpretava datas dd/mm como mm/dd ("03/11/26" virava 11/03/2026).
+  const isText = /\.(csv|txt|tsv)$/i.test(fileName);
+  const workbook = isText ? XLSX.read(decodeText(buffer), { type: 'string', raw: true }) : XLSX.read(buffer, { type: 'buffer', cellDates: false });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return { fileType: fileName.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx', sheetName: '', columns: [], rows: [], errors: ['Nenhuma aba encontrada.'] };
   const sheet = workbook.Sheets[sheetName];
