@@ -194,4 +194,20 @@ export type ManualProductionOrder = { order: string; technician: string; inicio:
 export type ManualProductionRecord = { activityType: string; technician: string; status: string; order: string; inicio: string; tempo: string };
 export type ManualProductionData = { activities: ManualProductionActivity[]; technicians: ManualProductionTechnician[]; orders: ManualProductionOrder[]; records?: ManualProductionRecord[]; updatedAt: string };
 export type ManualDailyBase = { businessDate: string; fileName: string; data: ManualProductionData; uploadedBy: string; updatedAt: string };
-export type DashboardMetrics = { receivedToday: number; open: number; unassigned: number; inProgress: number; finished: number; cancelled: number; pendingActivations: number; byStatus: { label: string; value: number }[]; byRegion: { label: string; value: number }[]; byNeighborhood: { label: string; value: number }[]; byTechnician: { label: string; value: number }[]; byType: { label: string; value: number }[] };
+export type SlaBreakdown = { onTime: number; late: number; outlier: number };
+export type DashboardActiveCall = { id: string; orderNumber: string; type: string; region: string; status: CallStatus; technicianName?: string; openedAt: string };
+export type DashboardMetrics = {
+  receivedToday: number; open: number; unassigned: number; inProgress: number; finished: number; cancelled: number; pendingActivations: number;
+  byStatus: { label: string; value: number }[]; byRegion: { label: string; value: number }[]; byNeighborhood: { label: string; value: number }[]; byTechnician: { label: string; value: number }[]; byType: { label: string; value: number }[];
+  // Fila ativa agora (independe do periodo; respeita o escopo de supervisor)
+  activeTotal: number;
+  activeUnassigned: number;
+  activeSla: SlaBreakdown;
+  oldestActive: DashboardActiveCall[];
+  activeByTechnician: { label: string; value: number }[];
+  // Abertos no periodo (data de abertura) e finalizados do periodo pela regra 6h/9h (Data Fim - Data de Abertura)
+  openedInPeriod: number;
+  closedSla: SlaBreakdown & { mttrHours: number | null };
+  // Serie diaria do periodo (ou ultimos 14 dias), na data de Sao Paulo
+  daily: { date: string; opened: number; finished: number }[];
+};

@@ -24,6 +24,10 @@ export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE';
 // Regra operacional: ate 6h = PRAZO; acima de 6h ate 9h = FORA DO PRAZO; acima de 9h = OUTLIER.
 export const SLA_ON_TIME_MAX_HOURS = 6;
 export const SLA_OUTLIER_AFTER_HOURS = 9;
+export type SlaState = 'onTime' | 'late' | 'outlier';
+export function classifySlaHours(hours: number): SlaState {
+  return hours > SLA_OUTLIER_AFTER_HOURS ? 'outlier' : hours > SLA_ON_TIME_MAX_HOURS ? 'late' : 'onTime';
+}
 type IgpGroupKey = 'access' | 'backbone';
 const altoTieteRegions = new Set([
   'FERRAZ DE VASCONCELOS 2',

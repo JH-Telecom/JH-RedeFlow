@@ -1,193 +1,210 @@
-import { useEffect, useState } from "react";
-import { Activity, BarChart3, ChevronRight, SlidersHorizontal } from "lucide-react";
-import { api, type Call, type Role, type User, type DashboardMetrics } from "../api";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Activity, AlertTriangle, BarChart3, BellRing, CheckCircle2, ChevronRight, Clock3, Inbox, RefreshCcw, SlidersHorizontal, Timer, UserX, XCircle } from "lucide-react";
+import { api, type Call, type DashboardActiveCall, type DashboardMetrics, type Role, type User } from "../api";
 import { toOperationalDate } from "../dates";
 import { ActivityRow, DateRangeFilter, Metric } from "../components/ui";
+import { DailyBars, KpiTile, Panel, RankBars, SlaStack, formatCount, formatHours, formatPercent, percentOf } from "../components/charts";
 import { RangeCallTable } from "./CallsPage";
 
-export function DashboardWithDateFilter({ user }: { user: User & { role: Role } }) {
-  const [dateRange, setDateRange] = useState({ from: "", to: "" });
-  return <OperationalDashboard user={user} dateRange={dateRange} onDateRangeChange={setDateRange} />;
+type PeriodPreset = "today" | "7d" | "30d" | "month" | "all" | "custom";
+const periodPresets: { key: PeriodPreset; label: string }[] = [
+  { key: "today", label: "Hoje" },
+  { key: "7d", label: "7 dias" },
+  { key: "30d", label: "30 dias" },
+  { key: "month", label: "Este mês" },
+  { key: "all", label: "Tudo" },
+  { key: "custom", label: "Personalizado" },
+];
+const periodStorageKey = "jh-redeflow-dashboard-period";
+const refreshIntervalMs = 60_000;
+
+function shiftDate(date: string, days: number) {
+  return new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-export function getDailyCallBars(calls: Call[], dateRange: { from: string; to: string }) {
-  const endKey = dateRange.to || toOperationalDate();
-  const end = Date.parse(`${endKey}T12:00:00Z`);
-  const start = dateRange.from ? Date.parse(`${dateRange.from}T12:00:00Z`) : end - 6 * 86400000;
-  const counts = new Map<string, number>();
-  calls.forEach((call) => {
-    const key = toOperationalDate(call.openedAt);
-    counts.set(key, (counts.get(key) || 0) + 1);
-  });
-  const bars: { key: string; label: string; value: number }[] = [];
-  for (let cursor = start; cursor <= end; cursor += 86400000) {
-    const key = new Date(cursor).toISOString().slice(0, 10);
-    bars.push({ key, label: `${key.slice(8, 10)}/${key.slice(5, 7)}`, value: counts.get(key) || 0 });
+function rangeForPreset(preset: PeriodPreset, today: string) {
+  if (preset === "today") return { from: today, to: today };
+  if (preset === "7d") return { from: shiftDate(today, -6), to: today };
+  if (preset === "30d") return { from: shiftDate(today, -29), to: today };
+  if (preset === "month") return { from: `${today.slice(0, 7)}-01`, to: today };
+  return { from: "", to: "" };
+}
+
+function formatDay(date: string) {
+  return date ? `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}` : "";
+}
+
+function formatAge(openedAt: string, now: number) {
+  const minutes = Math.max(0, Math.floor((now - Date.parse(openedAt)) / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
+function slaOf(openedAt: string, now: number) {
+  const hours = (now - Date.parse(openedAt)) / 3_600_000;
+  if (hours > 9) return { className: "is-outlier", label: "Outlier", icon: AlertTriangle };
+  if (hours > 6) return { className: "is-late", label: "Fora do prazo", icon: Clock3 };
+  return { className: "is-onTime", label: "No prazo", icon: CheckCircle2 };
+}
+
+function readStoredPreset(): PeriodPreset {
+  try {
+    const stored = localStorage.getItem(periodStorageKey);
+    return periodPresets.some((preset) => preset.key === stored) && stored !== "custom" ? stored as PeriodPreset : "7d";
+  } catch {
+    return "7d";
   }
-  return bars.slice(-14);
 }
 
-export function OperationalDashboard({ user, dateRange, onDateRangeChange }: { user: User; dateRange: { from: string; to: string }; onDateRangeChange: (value: { from: string; to: string }) => void }) {
+export function DashboardWithDateFilter({ user }: { user: User & { role: Role } }) {
+  const [preset, setPreset] = useState<PeriodPreset>(readStoredPreset);
+  const [customRange, setCustomRange] = useState({ from: "", to: "" });
+  const today = toOperationalDate();
+  const dateRange = preset === "custom" ? customRange : rangeForPreset(preset, today);
+  function choosePreset(next: PeriodPreset) {
+    setPreset(next);
+    if (next === "custom" && !customRange.from && !customRange.to) setCustomRange(rangeForPreset("7d", today));
+    try { if (next !== "custom") localStorage.setItem(periodStorageKey, next); } catch { /* preferencia opcional */ }
+  }
+  return <OperationalDashboard user={user} preset={preset} onPresetChange={choosePreset} dateRange={dateRange} onDateRangeChange={setCustomRange} />;
+}
+
+function OldestCallsList({ calls, now }: { calls: DashboardActiveCall[]; now: number }) {
+  if (!calls.length) return <div className="dv-empty">Nenhum chamado ativo.</div>;
+  return (
+    <ol className="dv-oldest">
+      {calls.map((call) => {
+        const sla = slaOf(call.openedAt, now);
+        return (
+          <li key={call.id}>
+            <Link to={`/chamados/${call.id}`}>
+              <span className="dv-oldest-main"><b>{call.orderNumber}</b><small>{call.type} · {call.region || "Sem região"}</small></span>
+              <span className={`dv-oldest-tech${call.technicianName ? "" : " is-missing"}`}>{call.technicianName || "Sem técnico"}</span>
+              <span className={`dv-sla-badge ${sla.className}`}><sla.icon size={13} aria-hidden="true" />{sla.label}</span>
+              <span className="dv-oldest-age">{formatAge(call.openedAt, now)}</span>
+              <ChevronRight size={15} aria-hidden="true" />
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+export function OperationalDashboard({ preset, onPresetChange, dateRange, onDateRangeChange }: { user: User; preset: PeriodPreset; onPresetChange: (value: PeriodPreset) => void; dateRange: { from: string; to: string }; onDateRangeChange: (value: { from: string; to: string }) => void }) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [callsInRange, setCallsInRange] = useState<Call[]>([]);
   const [error, setError] = useState("");
-  const dailyCallBars = getDailyCallBars(callsInRange, dateRange);
-  const dailyMax = Math.max(1, ...dailyCallBars.map((item) => item.value));
-        useEffect(() => {
-          api.dashboard(dateRange)
-            .then((data) => {
-              setMetrics(data.metrics);
-              setError("");
-            })
-            .catch((err) => setError(err instanceof Error ? err.message : "Nao foi possivel carregar os indicadores."));
-        }, [dateRange.from, dateRange.to]);
+  const [loading, setLoading] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<number>(Date.now());
 
-        useEffect(() => {
-          api.calls(undefined, { from: dateRange.from, to: dateRange.to })
-            .then((data) => setCallsInRange(data.calls))
-            .catch(() => setCallsInRange([]));
-        }, [dateRange.from, dateRange.to]);
+  const load = useCallback(() => {
+    setLoading(true);
+    return Promise.all([
+      api.dashboard(dateRange).then((data) => { setMetrics(data.metrics); setError(""); setUpdatedAt(Date.now()); }),
+      api.calls(undefined, { from: dateRange.from, to: dateRange.to }).then((data) => setCallsInRange(data.calls)).catch(() => setCallsInRange([])),
+    ])
+      .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar os indicadores."))
+      .finally(() => setLoading(false));
+  }, [dateRange.from, dateRange.to]);
 
-        if (error) return <div className="empty-state">{error}</div>;
-        if (!metrics) return <div className="empty-state">Carregando indicadores...</div>;
+  useEffect(() => {
+    void load();
+    const interval = window.setInterval(() => void load(), refreshIntervalMs);
+    return () => window.clearInterval(interval);
+  }, [load]);
 
-        return (
-          <>
-            <div className="page-heading dashboard-page-heading">
-              <div>
-                <span className="section-kicker">OPERACAO DE REDE</span>
-                <h1>Visao geral</h1>
-                <p>Indicadores calculados no backend a partir dos dados operacionais atuais.</p>
-              </div>
-              <div className="dashboard-toolbar">
-                <DateRangeFilter value={dateRange} onChange={onDateRangeChange} />
-                <button className="secondary-button dashboard-refresh-button" onClick={() => api.dashboard(dateRange).then((data) => setMetrics(data.metrics))}>
-                  <Activity size={16}/> Atualizar
-                </button>
-              </div>
-            </div>
+  const periodLabel = !dateRange.from && !dateRange.to
+    ? "Todo o histórico"
+    : dateRange.from === dateRange.to ? formatDay(dateRange.from) : `${formatDay(dateRange.from) || "início"} a ${formatDay(dateRange.to) || "hoje"}`;
 
-            <div className="metric-grid">
-              <Metric label="Recebidos hoje" value={String(metrics.receivedToday)} note="Chamados abertos hoje" positive />
-              <Metric label="Chamados abertos" value={String(metrics.open)} note={`${metrics.unassigned} sem tecnico`} />
-              <Metric label="Em atendimento" value={String(metrics.inProgress)} note="Atribuidos ou em campo" />
-              <Metric label="Pendentes de aceite" value={String(metrics.pendingActivations)} note={`${metrics.finished} finalizados`} positive />
-            </div>
+  const toolbar = (
+    <div className="dv-toolbar">
+      <div className="dv-segmented" role="group" aria-label="Período dos indicadores">
+        {periodPresets.map((option) => (
+          <button key={option.key} type="button" className={preset === option.key ? "is-selected" : ""} aria-pressed={preset === option.key} onClick={() => onPresetChange(option.key)}>{option.label}</button>
+        ))}
+      </div>
+      {preset === "custom" && <DateRangeFilter value={dateRange} onChange={onDateRangeChange} />}
+      <button type="button" className={`secondary-button dv-refresh${loading ? " is-refreshing" : ""}`} onClick={() => void load()} disabled={loading} aria-label="Atualizar indicadores">
+        <RefreshCcw size={15} aria-hidden="true" /> Atualizar
+      </button>
+    </div>
+  );
 
-            <div className="dashboard-grid">
-              <section className="panel chart-panel">
-                <div className="panel-heading">
-                  <div>
-                    <span className="section-kicker">STATUS</span>
-                    <h2>Distribuicao dos chamados</h2>
-                  </div>
-                </div>
-                <div className="bar-chart">
-                  {metrics.byStatus.map((item) => (
-                    <div className="bar-item" key={item.label}>
-                      <div className="bar-track"><i style={{ height: `${Math.max(8, item.value * 28)}px` }} /></div>
-                      <strong>{item.value}</strong>
-                      <span>{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
+  const heading = (
+    <div className="page-heading dv-heading">
+      <div>
+        <span className="section-kicker">OPERAÇÃO DE REDE</span>
+        <h1>Visão geral</h1>
+        <p>Fila em tempo real e indicadores do período · atualizado às {new Date(updatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+      </div>
+      {toolbar}
+    </div>
+  );
 
-              <section className="panel status-panel">
-                <div className="panel-heading">
-                  <div>
-                    <span className="section-kicker">REGIOES</span>
-                    <h2>Volume por regiao</h2>
-                  </div>
-                </div>
-                <div className="rank-list rank-list-scroll">
-                  {metrics.byRegion.map((item) => (
-                    <div className="rank-row" key={item.label}>
-                      <span>{item.label}</span>
-                      <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
-                      <b>{item.value}</b>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
+  if (error && !metrics) return <>{heading}<div className="dv-empty is-error" role="alert">{error}</div></>;
+  if (!metrics) return <>{heading}<div className="dv-empty" role="status">Carregando indicadores...</div></>;
 
-            <section className="panel status-panel">
-              <div className="panel-heading">
-                <div>
-                  <span className="section-kicker">LOCALIDADE</span>
-                  <h2>Chamados por Bairro</h2>
-                </div>
-              </div>
-              <div className="rank-list rank-list-scroll">
-                {metrics.byNeighborhood.length ? metrics.byNeighborhood.map((item) => (
-                  <div className="rank-row" key={item.label}>
-                    <span>{item.label}</span>
-                    <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
-                    <b>{item.value}</b>
-                  </div>
-                )) : <div className="empty-state">Nenhum chamado com bairro no período.</div>}
-              </div>
-            </section>
+  const now = updatedAt;
+  const outOfDeadline = metrics.activeSla.late + metrics.activeSla.outlier;
+  const closedTotal = metrics.closedSla.onTime + metrics.closedSla.late + metrics.closedSla.outlier;
+  const onTimeRate = percentOf(metrics.closedSla.onTime, closedTotal);
+  const dailyCapped = metrics.daily.length > 0 && Boolean(dateRange.from) && metrics.daily[0].date > dateRange.from;
 
-            <section className="panel chart-panel daily-calls-panel">
-              <div className="panel-heading">
-                <div>
-                  <span className="section-kicker">ABERTURAS</span>
-                  <h2>Chamados abertos por dia</h2>
-                </div>
-              </div>
-              <div className="bar-chart daily-bar-chart">
-                {dailyCallBars.map((item) => (
-                  <div className="bar-item" key={item.key}>
-                    <div className="bar-track"><i style={{ height: `${Math.max(8, (item.value / dailyMax) * 170)}px` }} /></div>
-                    <strong>{item.value}</strong>
-                    <span>{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
+  return (
+    <div className="dv-dashboard">
+      {heading}
+      {error && <div className="dv-inline-error" role="alert">{error} Exibindo os últimos dados carregados.</div>}
 
-            <div className="dashboard-grid">
-              <section className="panel status-panel">
-                <div className="panel-heading">
-                  <div>
-                    <span className="section-kicker">TECNICOS</span>
-                    <h2>Chamados atribuidos</h2>
-                  </div>
-                </div>
-                <div className="rank-list rank-list-scroll">
-                  {metrics.byTechnician.length ? metrics.byTechnician.map((item) => (
-                    <div className="rank-row" key={item.label}>
-                      <span>{item.label}</span>
-                      <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
-                      <b>{item.value}</b>
-                    </div>
-                  )) : <div className="empty-state">Nenhum chamado atribuido.</div>}
-                </div>
-              </section>
+      <h2 className="dv-section-title">Agora <small>fila ativa, independente do período</small></h2>
+      <div className="dv-kpi-grid">
+        <KpiTile label="Sem técnico" value={formatCount(metrics.activeUnassigned)} note="Aguardando atribuição" icon={UserX} tone={metrics.activeUnassigned ? "warning" : "default"} to="/chamados/abertos" />
+        <KpiTile label="Em atendimento" value={formatCount(metrics.activeTotal - metrics.activeUnassigned)} note="Atribuídos, em deslocamento ou em campo" icon={Activity} to="/chamados/atendimento" />
+        <KpiTile label="Fora do prazo agora" value={formatCount(outOfDeadline)} note={`${formatCount(metrics.activeSla.outlier)} outliers (acima de 9h)`} icon={AlertTriangle} tone={metrics.activeSla.outlier ? "critical" : outOfDeadline ? "warning" : "good"} to="/chamados/atendimento" />
+        <KpiTile label="Acionamentos pendentes" value={formatCount(metrics.pendingActivations)} note="Aguardando aceite ou recusa" icon={BellRing} tone={metrics.pendingActivations ? "warning" : "default"} to="/acionamentos" />
+      </div>
 
-              <section className="panel status-panel">
-                <div className="panel-heading">
-                  <div>
-                    <span className="section-kicker">TIPOS</span>
-                    <h2>Chamados por tipo</h2>
-                  </div>
-                </div>
-                <div className="rank-list rank-list-scroll">
-                  {metrics.byType.map((item) => (
-                    <div className="rank-row" key={item.label}>
-                      <span>{item.label}</span>
-                      <div><i style={{ width: `${Math.max(8, item.value * 30)}%` }} /></div>
-                      <b>{item.value}</b>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-            <RangeCallTable calls={callsInRange} />
-          </>
-        );
+      <div className="dv-grid dv-grid-split">
+        <Panel kicker="SLA DA FILA" title="Prazo dos chamados ativos" aside={<span className="dv-panel-meta">{formatCount(metrics.activeTotal)} ativos</span>}>
+          <SlaStack value={metrics.activeSla} caption="Prazo dos chamados ativos" />
+          <p className="dv-footnote">Tempo desde a abertura até agora. Regra JH: até 6h no prazo, de 6h a 9h fora do prazo, acima de 9h outlier.</p>
+        </Panel>
+        <Panel kicker="ATENÇÃO" title="Chamados ativos mais antigos" aside={<Link className="dv-panel-link" to="/chamados/atendimento">Ver fila <ChevronRight size={14} aria-hidden="true" /></Link>}>
+          <OldestCallsList calls={metrics.oldestActive} now={now} />
+        </Panel>
+      </div>
+
+      <h2 className="dv-section-title">Período <small>{periodLabel}</small></h2>
+      <div className="dv-kpi-grid dv-kpi-grid-5">
+        <KpiTile label="Abertos" value={formatCount(metrics.openedInPeriod)} note="Pela data de abertura" icon={Inbox} />
+        <KpiTile label="Finalizados" value={formatCount(metrics.finished)} note="Pela Data Fim" icon={CheckCircle2} />
+        <KpiTile label="Cancelados" value={formatCount(metrics.cancelled)} note="Pela Data Fim" icon={XCircle} />
+        <KpiTile label="Finalizados no prazo" value={formatPercent(onTimeRate)} note={closedTotal ? `${formatCount(metrics.closedSla.outlier)} outliers · meta 89%` : "Sem finalizados no período"} icon={Timer} tone={onTimeRate === null ? "default" : onTimeRate >= 89 ? "good" : onTimeRate >= 85 ? "warning" : "critical"} />
+        <KpiTile label="MTTR" value={formatHours(metrics.closedSla.mttrHours)} note="Tempo médio de reparo · meta 5,0h" icon={Clock3} tone={metrics.closedSla.mttrHours === null ? "default" : metrics.closedSla.mttrHours <= 5 ? "good" : metrics.closedSla.mttrHours <= 6 ? "warning" : "critical"} />
+      </div>
+
+      <Panel kicker="TENDÊNCIA" title="Abertos e finalizados por dia" aside={dailyCapped ? <span className="dv-panel-meta">Últimos 31 dias do período</span> : !dateRange.from ? <span className="dv-panel-meta">Últimos 14 dias</span> : undefined}>
+        <DailyBars days={metrics.daily} />
+      </Panel>
+
+      <div className="dv-grid dv-grid-3">
+        <Panel kicker="REGIÕES" title="Volume por região"><RankBars items={metrics.byRegion} empty="Nenhum chamado no período." /></Panel>
+        <Panel kicker="TIPOS" title="Tipo de evento"><RankBars items={metrics.byType} empty="Nenhum chamado no período." /></Panel>
+        <Panel kicker="EQUIPES" title="Carga atual por técnico" aside={<span className="dv-panel-meta">ativos agora</span>}><RankBars items={metrics.activeByTechnician} empty="Nenhum chamado ativo atribuído." unit="chamados ativos" /></Panel>
+      </div>
+
+      <div className="dv-grid dv-grid-2">
+        <Panel kicker="LOCALIDADE" title="Bairros com mais chamados"><RankBars items={metrics.byNeighborhood} empty="Nenhum chamado com bairro no período." /></Panel>
+        <Panel kicker="STATUS" title="Status no período"><RankBars items={metrics.byStatus} empty="Nenhum chamado no período." /></Panel>
+      </div>
+
+      <RangeCallTable calls={callsInRange} />
+    </div>
+  );
 }
 
 export function Dashboard({ user }: { user: User }) {

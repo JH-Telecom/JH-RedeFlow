@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Activity, Archive, BarChart3, Bell, Building2, Camera, ChevronRight, CircleHelp, ClipboardList, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, Repeat2, Users, X } from "lucide-react";
+import { Archive, Bell, BellRing, CalendarDays, Camera, ChevronRight, ClipboardCheck, Gauge, HardHat, Inbox, LayoutDashboard, LogOut, Menu, Repeat2, Settings, ShieldCheck, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Role, type User, type AppNotification } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
@@ -18,94 +18,30 @@ import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
 import { UsersPage } from "../pages/UsersPage";
 
-export const navItems = [
-  {
-    label: "Visao geral",
-    to: "/",
-    icon: LayoutDashboard,
-    permission: "dashboard.view",
-  },
-  {
-    label: "Chamados abertos",
-    to: "/chamados/abertos",
-    icon: ClipboardList,
-    permission: "calls.view",
-  },
-  {
-    label: "Em atendimento",
-    to: "/chamados/atendimento",
-    icon: Activity,
-    permission: "calls.view",
-  },
-  {
-    label: "Finalizados e cancelados",
-    to: "/chamados/finalizados",
-    icon: Archive,
-    permission: "calls.view",
-  },
-  {
-    label: "Repetidos",
-    to: "/repetidos",
-    icon: Repeat2,
-    permission: "calls.view",
-  },
-  {
-    label: "Ordens da equipe",
-    to: "/supervisor/ordens",
-    icon: Users,
-    permission: "calls.view",
-    roles: ["Supervisor"],
-  },
-  {
-    label: "Acionamentos",
-    to: "/acionamentos",
-    icon: ClipboardList,
-    permission: "activations.view",
-  },
-  {
-    label: "Painel diario",
-    to: "/painel-diario",
-    icon: BarChart3,
-    permission: "dashboard.view",
-  },
-  {
-    label: "IGP",
-    to: "/igp",
-    icon: BarChart3,
-    permission: "dashboard.view",
-  },
-  {
-    label: "Importacoes",
-    to: "/importacoes",
-    icon: ClipboardList,
-    permission: "imports.view",
-  },
-  {
-    label: "Tecnicos",
-    to: "/tecnicos",
-    icon: Users,
-    permission: "technicians.view",
-  },
-  {
-    label: "Supervisores",
-    to: "/supervisores",
-    icon: Building2,
-    permission: "supervisors.view",
-  },
-  { label: "Usuarios", to: "/usuarios", icon: Users, permission: "users.view" },
-  {
-    label: "Cargos e permissoes",
-    to: "/cargos",
-    icon: ShieldCheck,
-    permission: "roles.view",
-  },
-  {
-    label: "Configuracoes",
-    to: "/configuracoes",
-    icon: Settings,
-    permission: "settings.manage",
-  },
+type NavItem = { label: string; to: string; icon: LucideIcon; permission: string; section: string; roles?: string[]; counter?: "unassigned" | "activations" };
+
+export const navItems: NavItem[] = [
+  { section: "Operação", label: "Visão geral", to: "/", icon: LayoutDashboard, permission: "dashboard.view" },
+  { section: "Operação", label: "Chamados abertos", to: "/chamados/abertos", icon: Inbox, permission: "calls.view", counter: "unassigned" },
+  { section: "Operação", label: "Em atendimento", to: "/chamados/atendimento", icon: Wrench, permission: "calls.view" },
+  { section: "Operação", label: "Finalizados e cancelados", to: "/chamados/finalizados", icon: Archive, permission: "calls.view" },
+  { section: "Operação", label: "Repetidos", to: "/repetidos", icon: Repeat2, permission: "calls.view" },
+  { section: "Operação", label: "Ordens da equipe", to: "/supervisor/ordens", icon: ClipboardCheck, permission: "calls.view", roles: ["Supervisor"] },
+  { section: "Operação", label: "Acionamentos", to: "/acionamentos", icon: BellRing, permission: "activations.view", counter: "activations" },
+  { section: "Indicadores", label: "Painel diário", to: "/painel-diario", icon: CalendarDays, permission: "dashboard.view" },
+  { section: "Indicadores", label: "IGP", to: "/igp", icon: Gauge, permission: "dashboard.view" },
+  { section: "Equipes", label: "Técnicos", to: "/tecnicos", icon: HardHat, permission: "technicians.view" },
+  { section: "Equipes", label: "Supervisores", to: "/supervisores", icon: UserCog, permission: "supervisors.view" },
+  { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
+  { section: "Administração", label: "Usuários", to: "/usuarios", icon: Users, permission: "users.view" },
+  { section: "Administração", label: "Cargos e permissões", to: "/cargos", icon: ShieldCheck, permission: "roles.view" },
+  { section: "Administração", label: "Configurações", to: "/configuracoes", icon: Settings, permission: "settings.manage" },
 ];
+
+function navItemForPath(pathname: string) {
+  if (pathname === "/") return navItems[0];
+  return navItems.find((item) => item.to !== "/" && pathname.startsWith(item.to));
+}
 
 export async function resizeProfilePhoto(file: File) {
   if (!file.type.startsWith("image/")) throw new Error("Selecione um arquivo de imagem.");
@@ -228,38 +164,19 @@ export function Shell({
       return next;
     });
   }
-  const title =
-    location.pathname === "/"
-      ? "Visao geral"
-      : location.pathname.includes("/chamados/abertos")
-        ? "Chamados abertos"
-        : location.pathname === "/chamados/finalizados"
-          ? "Finalizados e cancelados"
-          : location.pathname === "/repetidos"
-            ? "Repetidos"
-          : location.pathname.includes("/chamados/atendimento")
-            ? "Em atendimento"
-          : location.pathname === "/supervisor/ordens"
-            ? "Ordens da equipe"
-          : location.pathname === "/acionamentos"
-            ? "Acionamentos"
-          : location.pathname === "/painel-diario"
-            ? "Painel diario"
-              : location.pathname === "/igp"
-                ? "IGP"
-          : location.pathname === "/importacoes"
-            ? "Importacoes"
-          : location.pathname.includes("/chamados/")
-            ? "Detalhe do chamado"
-            : location.pathname === "/tecnicos"
-              ? "Tecnicos"
-              : location.pathname === "/supervisores"
-                ? "Supervisores"
-                : location.pathname === "/usuarios"
-                  ? "Usuarios"
-                  : location.pathname === "/cargos"
-                    ? "Cargos e permissoes"
-                    : "Configuracoes";
+  const currentItem = navItemForPath(location.pathname);
+  const isCallDetail = !currentItem && location.pathname.startsWith("/chamados/");
+  const section = isCallDetail ? "Operação" : currentItem?.section ?? "O&M";
+  const title = isCallDetail ? "Detalhe do chamado" : currentItem?.label ?? "Visão geral";
+  const counters = {
+    unassigned: notifications.find((item) => item.id === "unassigned-calls")?.count ?? 0,
+    activations: activationCount,
+  };
+  const visibleItems = navItems.filter((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)));
+  const sections = [...new Set(visibleItems.map((item) => item.section))];
+  useEffect(() => {
+    document.title = `${title} · JH Telecom - Rede`;
+  }, [title]);
   return (
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       <aside className={`${desktopCollapsed ? "sidebar collapsed" : "sidebar"}${mobileOpen ? " open" : ""}`}>
@@ -276,35 +193,31 @@ export function Shell({
             <X size={18} />
           </button>
         </div>
-        <div className="workspace-switcher">
-          <span className="workspace-dot" />
-          <span>Operacao Rede</span>
-          <ChevronRight size={15} />
-        </div>
-        <nav>
-          {navItems
-            .filter((item) => user.role.permissions.includes(item.permission) && (!item.roles || item.roles.includes(user.role.name)))
-            .map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                onClick={() => setMobileOpen(false)}
-                title={desktopCollapsed ? item.label : undefined}
-                className={({ isActive }) =>
-                  isActive ? "nav-item active" : "nav-item"
-                }
-              >
-                <item.icon size={18} />
-                <span>{item.label}</span>
-                {item.to === "/acionamentos" && activationCount > 0 && <b className="nav-count">{activationCount > 99 ? "99+" : activationCount}</b>}
-              </NavLink>
-            ))}
+        <nav aria-label="Menu principal">
+          {sections.map((sectionName) => (
+            <div className="nav-section" key={sectionName}>
+              <span className="nav-section-title">{sectionName}</span>
+              {visibleItems.filter((item) => item.section === sectionName).map((item) => {
+                const count = item.counter ? counters[item.counter] : 0;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === "/"}
+                    onClick={() => setMobileOpen(false)}
+                    title={desktopCollapsed ? (count ? `${item.label} (${count})` : item.label) : undefined}
+                    className={({ isActive }) => (isActive || (item.to === "/chamados/atendimento" && isCallDetail) ? "nav-item active" : "nav-item")}
+                  >
+                    <item.icon size={18} aria-hidden="true" />
+                    <span>{item.label}</span>
+                    {count > 0 && <b className={`nav-count${item.counter === "unassigned" ? " is-warning" : ""}`} aria-label={item.counter === "unassigned" ? `${count} sem técnico` : `${count} pendentes`}>{count > 99 ? "99+" : count}</b>}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="help-link">
-            <CircleHelp size={17} />
-            <span>Central de ajuda</span>
-          </div>
           <div className="profile-mini">
             <ProfilePhotoButton name={user.name} photo={profilePhoto} className="avatar" disabled={savingProfilePhoto} onClick={() => profilePhotoInput.current?.click()} />
             <div>
@@ -327,14 +240,16 @@ export function Shell({
             className="icon-button menu-button"
             onClick={() => (window.innerWidth <= 900 ? setMobileOpen(true) : toggleSidebar())}
             title={desktopCollapsed ? "Expandir menu" : "Recolher menu"}
+            aria-label={desktopCollapsed ? "Expandir menu" : "Recolher menu"}
           >
             <Menu size={20} />
           </button>
-          <div className="breadcrumbs">
-            <span>O&amp;M</span>
-            <ChevronRight size={14} />
-            <strong>{title}</strong>
-          </div>
+          <nav className="breadcrumbs" aria-label="Você está em">
+            <span>{section}</span>
+            <ChevronRight size={14} aria-hidden="true" />
+            {isCallDetail ? <><NavLink to="/chamados/atendimento">Chamados</NavLink><ChevronRight size={14} aria-hidden="true" /></> : null}
+            <strong aria-current="page">{title}</strong>
+          </nav>
           <div className="topbar-actions">
             <div className="notification-wrap">
               <button className={`icon-button notification ${bellRinging ? "is-ringing" : ""}`} onClick={() => { setNotificationsOpen((current) => !current); void loadNotifications(); }} title="Notificacoes">

@@ -1,6 +1,7 @@
 import { countSupabasePendingActivations, countSupabaseUnassignedOpenCalls, isSupabaseConfigured, listSupabaseCalls } from "../integrations/supabase/client.js";
-import { toOperationalDate } from "../timezone.js";
-import type { Call, DashboardMetrics } from "../types.js";
+import { classifySlaHours } from "../igp.js";
+import { addDays, toOperationalDate } from "../timezone.js";
+import type { Call, DashboardActiveCall, DashboardMetrics, SlaBreakdown } from "../types.js";
 import { type CallQuery, isCallInDateRange, listCalls } from "./calls.js";
 import { activations, calls } from "./demo-data.js";
 
@@ -15,13 +16,13 @@ export async function countPendingActivations(): Promise<number> {
 }
 
 export async function listNotifications(includeOperational = true) {
-  const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string }[];
+  const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string; count: number }[];
   if (includeOperational) {
     const unassigned = await countUnassignedOpenCalls();
-    if (unassigned) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos' });
+    if (unassigned) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos', count: unassigned });
   }
   const pending = await countPendingActivations();
-  if (pending) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos' });
+  if (pending) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos', count: pending });
   return notifications;
 }
 
@@ -29,7 +30,66 @@ export function countByMap(counts: Map<string, number>) {
   return [...counts.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
-export function summarizeDashboardMetrics(calls: Call[], pendingActivations: number, today: string): DashboardMetrics {
+const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'];
+const maxDailyBars = 31;
+
+function emptySla(): SlaBreakdown {
+  return { onTime: 0, late: 0, outlier: 0 };
+}
+
+// Indicadores da fila ativa, dos finalizados e da serie diaria. `scopeCalls` sao todos os chamados do escopo
+// (sem filtro de periodo); `periodCalls` sao os do periodo pela data de referencia.
+export function summarizeOperationalTrends(scopeCalls: Call[], periodCalls: Call[], query: CallQuery, today: string, now = Date.now()) {
+  const activeCalls = scopeCalls.filter((call) => !terminalStatuses.includes(call.status));
+  const activeSla = emptySla();
+  const workload = new Map<string, number>();
+  for (const call of activeCalls) {
+    const openedAt = Date.parse(call.openedAt);
+    if (Number.isFinite(openedAt)) activeSla[classifySlaHours((now - openedAt) / 3_600_000)] += 1;
+    if (call.technicianName) workload.set(call.technicianName, (workload.get(call.technicianName) || 0) + 1);
+  }
+  const oldestActive: DashboardActiveCall[] = activeCalls
+    .filter((call) => Number.isFinite(Date.parse(call.openedAt)))
+    .sort((left, right) => Date.parse(left.openedAt) - Date.parse(right.openedAt))
+    .slice(0, 8)
+    .map((call) => ({ id: call.id, orderNumber: call.orderNumber, type: call.type, region: call.region, status: call.status, technicianName: call.technicianName, openedAt: call.openedAt }));
+
+  const closedSla = { ...emptySla(), mttrHours: null as number | null };
+  let repairHoursTotal = 0;
+  let measured = 0;
+  for (const call of periodCalls) {
+    if (call.status !== 'Finalizado' || !call.executedAt) continue;
+    const hours = (Date.parse(call.executedAt) - Date.parse(call.openedAt)) / 3_600_000;
+    if (!Number.isFinite(hours) || hours < 0) continue;
+    closedSla[classifySlaHours(hours)] += 1;
+    repairHoursTotal += hours;
+    measured += 1;
+  }
+  closedSla.mttrHours = measured ? repairHoursTotal / measured : null;
+
+  const end = query.to || today;
+  const rangeStart = query.from || addDays(end, -13);
+  const start = rangeStart < addDays(end, -(maxDailyBars - 1)) ? addDays(end, -(maxDailyBars - 1)) : rangeStart;
+  const daily = new Map<string, { date: string; opened: number; finished: number }>();
+  for (let date = start; date <= end; date = addDays(date, 1)) daily.set(date, { date, opened: 0, finished: 0 });
+  for (const call of scopeCalls) {
+    const openedDay = daily.get(toOperationalDate(call.openedAt));
+    if (openedDay) openedDay.opened += 1;
+    if (call.status === 'Finalizado' && call.executedAt) {
+      const finishedDay = daily.get(toOperationalDate(call.executedAt));
+      if (finishedDay) finishedDay.finished += 1;
+    }
+  }
+
+  const openedInPeriod = scopeCalls.filter((call) => {
+    const openedDate = toOperationalDate(call.openedAt);
+    return (!query.from || openedDate >= query.from) && (!query.to || openedDate <= query.to);
+  }).length;
+
+  return { activeTotal: activeCalls.length, activeUnassigned: activeCalls.filter((call) => !call.technicianId).length, activeSla, oldestActive, activeByTechnician: countByMap(workload), openedInPeriod, closedSla, daily: [...daily.values()] };
+}
+
+export function summarizeDashboardMetrics(calls: Call[], pendingActivations: number, today: string): Omit<DashboardMetrics, keyof ReturnType<typeof summarizeOperationalTrends>> {
   const statusCounts = new Map<string, number>();
   const regionCounts = new Map<string, number>();
   const neighborhoodCounts = new Map<string, number>();
@@ -77,15 +137,11 @@ export function summarizeDashboardMetrics(calls: Call[], pendingActivations: num
 export async function getDashboardMetrics(query: CallQuery = {}): Promise<DashboardMetrics> {
   const today = toOperationalDate();
   const pendingActivations = await countPendingActivations();
-
-  if (isSupabaseConfigured()) {
-    const summaryCalls = await listSupabaseCalls(undefined, { from: query.from, to: query.to, supervisorId: query.supervisorId }, { summary: true });
-    return summarizeDashboardMetrics(summaryCalls.filter((call) => isCallInDateRange(call, query)), pendingActivations, today);
-  }
-
-  if (query.from || query.to || query.supervisorId) {
-    return summarizeDashboardMetrics(await listCalls(undefined, query), pendingActivations, today);
-  }
-
-  return summarizeDashboardMetrics([...calls.values()], pendingActivations, today);
+  // Todos os chamados do escopo (colunas resumidas no Supabase); o periodo e aplicado em memoria
+  // para que fila ativa e serie diaria nao dependam da data de referencia dos encerrados.
+  const scopeCalls = isSupabaseConfigured()
+    ? await listSupabaseCalls(undefined, { supervisorId: query.supervisorId }, { summary: true })
+    : query.supervisorId ? await listCalls(undefined, { supervisorId: query.supervisorId }) : [...calls.values()];
+  const periodCalls = query.from || query.to ? scopeCalls.filter((call) => isCallInDateRange(call, query)) : scopeCalls;
+  return { ...summarizeDashboardMetrics(periodCalls, pendingActivations, today), ...summarizeOperationalTrends(scopeCalls, periodCalls, query, today) };
 }

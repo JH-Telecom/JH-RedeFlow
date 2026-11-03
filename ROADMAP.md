@@ -19,7 +19,7 @@ Status geral: EM DESENVOLVIMENTO
 Última implementação: P0/P1 da auditoria — "Apagar todos os chamados" movido para Configurações (zona de perigo), datas no fuso America/Sao_Paulo, consultas mais leves em finalizar/cancelar/reabrir, dashboard e notificações, correção do escopo de supervisor no Supabase e guardas de rota no frontend. Ver "2026-11-03 — P0/P1 da auditoria" no fim do arquivo.
 Agente responsável pela última alteração: Claude Code (Opus 5.5)
 
-Próxima ação: P2 concluído em 2026-11-03 (xlsx oficial 0.20.3, bundle dividido, `App.tsx` separado em `pages/`/`components/`/`lib/`, runtime PostgreSQL local removido, `store.ts` dividido em `backend/src/store/`). Próximo: P3 (design system e modernização visual); validar supervisor em produção.
+Próxima ação: dashboards (Visão geral, IGP) e navegação redesenhados em 2026-11-03 — ver "Dashboards e navegação (P3, parte 1)". Próximo: publicar, conferir com dados reais e estender os componentes às demais telas; validar supervisor em produção.
 
 ---
 
@@ -2805,3 +2805,41 @@ Decisão do responsável: o modo PostgreSQL local (`REDEFLOW_RUNTIME=local` + `D
 ### Próximos passos
 - P3: design system e modernização visual.
 - Pendentes anteriores: validar supervisor em produção; decidir sobre `Dashboard` sem uso; avaliar zod 4.
+
+---
+
+## 2026-11-03 — Dashboards e navegação (P3, parte 1)
+
+Pedido do responsável: navegar pelas telas, melhorar todos os dashboards (informações, disposição, cards) e a navegação. Regras de negócio inalteradas (SLA 6h/9h, metas do IGP, escopo, permissões).
+
+### Diagnóstico (com 154 chamados fictícios em memória)
+- Visão geral: barras com tamanho fixo em pixels (`valor × 28px`, `valor × 30%`) — com volume real todas ficavam iguais/estouravam (78 finalizados e 9 em campo com a mesma altura; regiões ≥4 chamados passavam de 100%). Faltavam: prazo da fila ativa, chamados mais antigos, carga por técnico, SLA/MTTR dos finalizados, abertos × finalizados por dia. Ícone igual em todos os cards e seta "↗" sem significado.
+- IGP: sem tendência mensal; situação da meta só na tabela.
+- Navegação: 15 itens soltos, ícones repetidos (prancheta em 3 itens, barras em 2), sem acentos, "Central de ajuda" e seletor "Operação Rede" sem função, título do cabeçalho por cadeia de ternários.
+
+### Backend
+- `GET /api/dashboards/operacao` ganhou campos (aditivos; os antigos continuam): `activeTotal`, `activeUnassigned`, `activeSla` (no prazo/fora/outlier da fila ativa agora, pela idade desde a abertura), `oldestActive` (8 mais antigos), `activeByTechnician`, `openedInPeriod`, `closedSla` (+ `mttrHours`) dos finalizados do período, `daily` (abertos e finalizados por dia em São Paulo; últimos 14 dias sem período, até 31 dias com período).
+- Fila ativa e série diária são calculadas sobre todos os chamados do escopo; o período continua aplicado pela data de referência (abertura para ativos, Data Fim para encerrados) nos demais indicadores.
+- `igp.ts`: `classifySlaHours` compartilhado (mesmas constantes 6h/9h).
+- `/api/notificacoes`: cada item ganhou `count` numérico.
+- Novo `backend/test/dashboard.test.ts` (4 testes: SLA da fila e ordenação dos mais antigos, SLA/MTTR dos finalizados, série diária em São Paulo, limite de 31 dias).
+
+### Frontend
+- Novos `components/charts.tsx` (KpiTile, Panel, RankBars, SlaStack, DailyBars) e `dashboards.css` (tokens de série e status; barras proporcionais ao maior valor; status sempre com ícone + rótulo; tooltip por hover/foco; responsivo).
+- **Visão geral** reorganizada: período por atalhos (Hoje, 7 dias — padrão, 30 dias, Este mês, Tudo, Personalizado; escolha lembrada no navegador) e atualização automática a cada 60 s; bloco **Agora** (sem técnico, em atendimento, fora do prazo agora, acionamentos pendentes — cada card leva à tela correspondente); **Prazo dos chamados ativos** (barra empilhada 6h/9h) e **Chamados ativos mais antigos** (link para o detalhe); bloco **Período** (abertos, finalizados, cancelados, % finalizados no prazo vs. meta 89%, MTTR vs. meta 5,0h); **Abertos e finalizados por dia**; rankings de região, tipo, carga atual por técnico, bairros e status (top 8 + "Ver todos"); tabela "Chamados no intervalo" mantida.
+- **IGP**: cards com situação da meta (ícone + rótulo + cor), "Resultado por rede" em largura total, **Dentro do prazo · últimos 6 meses** (colunas com linhas de meta 89% e mínimo 85%) e **Indicadores mês a mês**; metodologia em painel próprio.
+- **Painel diário**: não alterado — depende do arquivo OFS e da exportação PNG ajustada em sessões anteriores; sem arquivo real não há como validar mudanças.
+- **Navegação**: menu em seções (Operação, Indicadores, Equipes, Administração), ícone próprio por item, acentos corrigidos, contador amarelo de "sem técnico" em Chamados abertos (além do de Acionamentos), detalhe do chamado mantém "Em atendimento" ativo, cabeçalho "Seção › Página" (com link "Chamados" no detalhe), título da aba do navegador por página, `aria-label`s no menu; removidos "Central de ajuda" e o seletor "Operação Rede", que não tinham função. Menu recolhido: só ícones, divisórias entre seções e contadores sobre o ícone.
+
+### Arquivos
+- Criados: `backend/test/dashboard.test.ts`, `frontend/src/components/charts.tsx`, `frontend/src/dashboards.css`.
+- Alterados: `backend/src/igp.ts`, `backend/src/store/dashboard.ts`, `backend/src/types.ts`, `frontend/src/api.ts`, `frontend/src/components/Shell.tsx`, `frontend/src/main.tsx`, `frontend/src/pages/DashboardPage.tsx` (o `Dashboard` legado sem uso foi mantido), `frontend/src/pages/IgpPage.tsx`, `frontend/src/sidebar.css`.
+
+### Testes
+- `npm run typecheck` ✅; `npm test --workspace backend` ✅ 102/102; `vite build` ✅.
+- Visual (memória, 154 chamados fictícios gerados por script fora do repositório): Visão geral, IGP, menu expandido/recolhido em 1440 px; Visão geral, IGP, Chamados abertos e Configurações em 375 px sem rolagem horizontal (largura do documento 360 px). Tooltip do gráfico diário conferido.
+- Não validado: dados reais de produção (tabela `calls` vazia) e o Painel diário.
+
+### Próximos passos
+- Publicar e conferir em produção quando houver chamados.
+- P3 continua: aplicar os mesmos componentes às demais telas (filas, técnicos, supervisores) e consolidar o design system.
