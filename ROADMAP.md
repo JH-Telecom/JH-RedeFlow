@@ -2796,6 +2796,12 @@ Decisão do responsável: o modo PostgreSQL local (`REDEFLOW_RUNTIME=local` + `D
 ### Testes
 - `npm run typecheck`: ✅. `npm test --workspace backend`: ✅ 98/98 em duas execuções seguidas (o teste de `db.ts` foi removido junto com o módulo). `vite build`: ✅.
 
+### Publicação (2026-11-03)
+- Incidente: o commit `26e964d` foi enviado só com as exclusões em stage (um `git add` com caminho já removido abortou). No GitHub, `store.ts` ainda importava o `db.ts` excluído; o build do Render falhou (`build_failed`) e a produção permaneceu na versão anterior, sem indisponibilidade. O Vercel publicou `26e964d` sem impacto (frontend inalterado nesse commit).
+- Corrigido em seguida com `de4ed37` (sem reescrever histórico). Checkout limpo de `de4ed37` passou no typecheck de backend e frontend; Render `live` e Vercel `READY` em `de4ed37`.
+- Produção verificada com sessão de Administrador: novo bundle `index-BS-g8D5i.js` servido; IGP e Chamados abertos carregaram; chamadas `/api/*` com 200; nenhum erro no console.
+- Lição: conferir `git show --stat HEAD` antes do push.
+
 ### Próximos passos
 - P3: design system e modernização visual.
 - Pendentes anteriores: validar supervisor em produção; decidir sobre `Dashboard` sem uso; avaliar zod 4.
