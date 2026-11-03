@@ -1,13 +1,11 @@
-import { google } from 'googleapis';
+// Mapeamento de linhas do relatorio de atividades do OFS para chamados (criar/atualizar/finalizar).
+// Veio da antiga sincronizacao do Google Drive (removida em 2026-11-03): os dados agora chegam pela extensao da Rede.
 import { createHash, randomUUID } from 'node:crypto';
-import { createDriveCall, listCalls, recordDriveCallSnapshot, recordDriveSyncRun, updateCall, type DriveCallSource } from '../store.js';
-import type { Call, EditableCallFields, User } from '../types.js';
-import { parseImport } from '../imports/parser.js';
+import type { DriveCallSource } from '../store.js';
+import type { Call, EditableCallFields } from '../types.js';
 import { inferNeighborhood, resolveOltRegion } from './wuzapi/noc-consolidation.js';
 
-const defaultFolderId = '1m9m2atkUrxwb2v9xzTLgqebOQ4GQJue-';
 const validActivityTypes = new Set(['manutencao corretiva de rede', 'manutencao de rede field', 'reparo corretivo', 'acionamento field', 'noc acesso', 'noc access', 'noc tx', 'noc backbone']);
-const systemActor: User = { id: 'system-google-drive', name: 'Google Drive - Base histórica operacional', email: 'system@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date(0).toISOString() };
 
 type DriveRow = Record<string, string>;
 
@@ -53,15 +51,7 @@ function parseFinishedAt(dateValue: string, timeValue: string) {
   return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}-03:00`;
 }
 
-function getDriveClient() {
-  const rawCredentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!rawCredentials) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON nao configurada.');
-  const credentials = JSON.parse(rawCredentials) as { client_email: string; private_key: string };
-  const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive.readonly'] });
-  return google.drive({ version: 'v3', auth });
-}
-
-function buildRowIdentifiers(row: DriveRow) {
+export function buildRowIdentifiers(row: DriveRow) {
   return [
     ['os', value(row, 'Ordem de Serviço', 'Ordem de Servico', 'Número da Ordem', 'Numero da Ordem', 'OS', 'Ordem', 'Nº OS', 'Número OS', 'Numero OS')],
     ['bdesk', value(row, 'BDESK', 'BDesk')],
@@ -72,17 +62,17 @@ function buildRowIdentifiers(row: DriveRow) {
   ].map(([kind, raw]) => ({ kind, raw, normalized: normalizeOrder(raw) })).filter((entry) => entry.normalized);
 }
 
-function buildRowIdentity(row: DriveRow) {
+export function buildRowIdentity(row: DriveRow) {
   const identifiers = buildRowIdentifiers(row);
   const primary = identifiers[0];
   return primary ? `${primary.kind}:${primary.normalized}` : '';
 }
 
-function getCallIdentifiers(call: Call) {
+export function getCallIdentifiers(call: Call) {
   return [call.orderNumber, call.bdesk, call.officeTrack, ...(call.sourceIdentifiers || [])].map((candidate) => normalizeOrder(candidate)).filter(Boolean);
 }
 
-function indexCallIdentifiers(calls: Call[]) {
+export function indexCallIdentifiers(calls: Call[]) {
   const index = new Map<string, Call>();
   for (const call of calls) {
     for (const identifier of getCallIdentifiers(call)) {
@@ -92,19 +82,19 @@ function indexCallIdentifiers(calls: Call[]) {
   return index;
 }
 
-function addCallIdentifiers(index: Map<string, Call>, call: Call) {
+export function addCallIdentifiers(index: Map<string, Call>, call: Call) {
   for (const identifier of getCallIdentifiers(call)) {
     if (!index.has(identifier)) index.set(identifier, call);
   }
 }
 
-function removeCallIdentifiers(index: Map<string, Call>, call: Call) {
+export function removeCallIdentifiers(index: Map<string, Call>, call: Call) {
   for (const identifier of getCallIdentifiers(call)) {
     if (index.get(identifier)?.id === call.id) index.delete(identifier);
   }
 }
 
-function findMatchingCall(index: Map<string, Call>, row: DriveRow) {
+export function findMatchingCall(index: Map<string, Call>, row: DriveRow) {
   for (const { normalized } of buildRowIdentifiers(row)) {
     const call = index.get(normalized);
     if (call) return call;
@@ -224,7 +214,7 @@ export function buildDriveCall(row: DriveRow): Call | undefined {
   };
 }
 
-function buildDriveSource(row: DriveRow, fileId: string, fileName: string): DriveCallSource {
+export function buildDriveSource(row: DriveRow, fileId: string, fileName: string): DriveCallSource {
   return {
     identity: buildRowIdentity(row),
     identifiers: buildRowIdentifiers(row).map((entry) => entry.normalized),
@@ -307,141 +297,4 @@ export function shouldSkipDriveUpdate(existing: Call, fingerprint: string, candi
   return existing.source === 'google-drive'
     && existing.sourceFingerprint === fingerprint
     && !hasMeaningfulCallChange(existing, candidate);
-}
-
-export type DriveSyncResult = {
-  files: number;
-  rows: number;
-  processed: number;
-  newRecords: number;
-  updated: number;
-  finalised: number;
-  cancelled: number;
-  unchanged: number;
-  unmatched: number;
-  skipped: number;
-  eligibleRows: number;
-  duplicateRows: number;
-  matchedCalls: number;
-  skippedByActivityType: number;
-  skippedPending: number;
-  skippedNonCompliance: number;
-  missingIdentifiers: number;
-  unsupportedStatus: number;
-  errors: string[];
-};
-
-export async function syncCallsFromDrive(): Promise<DriveSyncResult> {
-  const startedAt = new Date().toISOString();
-  const drive = getDriveClient();
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID || defaultFolderId;
-  const files: Array<{ id?: string | null; name?: string | null; modifiedTime?: string | null; mimeType?: string | null }> = [];
-  let pageToken: string | undefined;
-  do {
-    const response = await drive.files.list({ q: `'${folderId}' in parents and trashed = false and (mimeType = 'text/csv' or mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or mimeType = 'application/vnd.ms-excel')`, fields: 'nextPageToken,files(id,name,modifiedTime,mimeType)', orderBy: 'modifiedTime desc', pageSize: 1000, pageToken });
-    files.push(...(response.data.files || []));
-    pageToken = response.data.nextPageToken || undefined;
-  } while (pageToken);
-  const result: DriveSyncResult = { files: files.length, rows: 0, processed: 0, newRecords: 0, updated: 0, finalised: 0, cancelled: 0, unchanged: 0, unmatched: 0, skipped: 0, eligibleRows: 0, duplicateRows: 0, matchedCalls: 0, skippedByActivityType: 0, skippedPending: 0, skippedNonCompliance: 0, missingIdentifiers: 0, unsupportedStatus: 0, errors: [] };
-  const stagedRows = new Map<string, { row: DriveRow; fileId: string; fileName: string }>();
-
-  for (const file of [...files].reverse()) {
-          result.duplicateRows += 1;
-    if (!file.id || !file.name) continue;
-    try {
-      const isGoogleSheet = file.mimeType === 'application/vnd.google-apps.spreadsheet';
-      const media = isGoogleSheet
-        ? await drive.files.export({ fileId: file.id, mimeType: 'text/csv' }, { responseType: 'arraybuffer' })
-        : await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'arraybuffer' });
-      const base64 = Buffer.from(media.data as ArrayBuffer).toString('base64');
-      const parsed = parseImport(isGoogleSheet ? `${file.name}.csv` : file.name, base64);
-
-      for (const row of parsed.rows as DriveRow[]) {
-        result.rows += 1;
-        const identity = buildRowIdentity(row);
-        if (!identity) {
-          result.unmatched += 1;
-          result.missingIdentifiers += 1;
-          continue;
-        }
-        stagedRows.set(identity, { row, fileId: file.id, fileName: file.name });
-      }
-    } catch (error) {
-      result.errors.push(`${file.name}: ${error instanceof Error ? error.message : 'erro desconhecido'}`);
-    }
-  }
-
-  const calls = await listCalls();
-  const callsByIdentifier = indexCallIdentifiers(calls);
-  const callPositions = new Map(calls.map((call, index) => [call.id, index]));
-  for (const { row, fileId, fileName } of stagedRows.values()) {
-    if (!isDriveRowEligible(row)) {
-      result.skipped += 1;
-      const reason = driveRowSkipReason(row);
-      if (reason === 'unsupported-activity') result.skippedByActivityType += 1;
-      if (reason === 'pending') result.skippedPending += 1;
-      if (reason === 'non-compliance') result.skippedNonCompliance += 1;
-      continue;
-    }
-    result.eligibleRows += 1;
-
-    const sourceData = buildDriveSource(row, fileId, fileName);
-    let matchingCall = findMatchingCall(callsByIdentifier, row);
-    if (!matchingCall) {
-      const importedCall = buildDriveCall(row);
-      if (!importedCall) {
-        result.unmatched += 1;
-        result.unsupportedStatus += 1;
-        continue;
-      }
-      const created = await createDriveCall(importedCall, sourceData);
-      matchingCall = created.call;
-      if (created.created) {
-        calls.push(matchingCall);
-        callPositions.set(matchingCall.id, calls.length - 1);
-        addCallIdentifiers(callsByIdentifier, matchingCall);
-        result.processed += 1;
-        result.newRecords += 1;
-        if (matchingCall.status === 'Finalizado') result.finalised += 1;
-        if (matchingCall.status === 'Cancelado') result.cancelled += 1;
-        continue;
-      }
-    }
-    result.matchedCalls += 1;
-
-    const update = buildDriveUpdate(row, matchingCall);
-    if (shouldSkipDriveUpdate(matchingCall, sourceData.fingerprint, update)) {
-      result.unchanged += 1;
-      continue;
-    }
-
-    const previousStatus = matchingCall.status;
-    const hasCallChanges = hasMeaningfulCallChange(matchingCall, update);
-    let updatedCall = matchingCall;
-    if (hasCallChanges) {
-      const persistedCall = await updateCall(matchingCall.id, update, systemActor);
-      if (!persistedCall) {
-        result.skipped += 1;
-        continue;
-      }
-      updatedCall = persistedCall;
-    }
-    await recordDriveCallSnapshot(matchingCall.id, sourceData);
-    const sourcedCall: Call = { ...updatedCall, source: 'google-drive', sourceIdentity: sourceData.identity, sourceIdentifiers: sourceData.identifiers, sourceFileId: sourceData.fileId, sourceFileName: sourceData.fileName, sourceReferenceDate: sourceData.referenceDate, sourceFingerprint: sourceData.fingerprint, sourceProcessedAt: new Date().toISOString() };
-    const callIndex = callPositions.get(matchingCall.id);
-    if (callIndex !== undefined) {
-      removeCallIdentifiers(callsByIdentifier, matchingCall);
-      calls[callIndex] = sourcedCall;
-      addCallIdentifiers(callsByIdentifier, sourcedCall);
-    }
-
-    result.processed += 1;
-    if (hasCallChanges) result.updated += 1;
-    else result.unchanged += 1;
-    if (previousStatus !== 'Finalizado' && sourcedCall.status === 'Finalizado') result.finalised += 1;
-    if (previousStatus !== 'Cancelado' && sourcedCall.status === 'Cancelado') result.cancelled += 1;
-  }
-
-  await recordDriveSyncRun(startedAt, result);
-  return result;
 }

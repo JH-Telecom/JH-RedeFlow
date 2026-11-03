@@ -2993,3 +2993,26 @@ Sem acesso à API do OFS; integração pela extensão. A pedido do responsável,
 - Painel da WuzAPI: conferir se a sessão está conectada e se o webhook aponta para `https://jh-redeflow-api.onrender.com/api/integrations/wuzapi/webhook?token=…`.
 - Depois do deploy, mandar um card no grupo de acionamentos e consultar `/api/integrations/wuzapi/grupos` (ou o log "grupo NAO configurado") para pegar o ID atual. Em seguida, atualizar `WUZAPI_ACTIVATION_GROUP_ID` no Render (aceita vários IDs separados por vírgula).
 - Avaliar um plano pago no Render: o plano free dorme, tem cold start e limite de 512 MB.
+
+## 2026-11-03 — Sincronização do Google Drive removida
+
+### Decisão
+A pedido do usuário, os dados do OFS passam a vir só pela extensão da Rede ("JH RedeFlow – Coletor OFS"). A sincronização do Drive saiu: ela lia ~18 mil linhas a cada execução e era a principal causa de estouro de memória no Render (512 MB).
+
+### Removido
+- Download dos arquivos do Drive (`syncCallsFromDrive`, cliente `googleapis`) e a dependência `googleapis` do backend.
+- Agendamento diário das 09:00 (`startDriveSchedule`), os jobs em memória e os endpoints `POST /api/integrations/google-drive/sync` e `GET /api/integrations/google-drive/sync/:jobId`.
+- Registro de execuções (`recordDriveSyncRun`, `lastDriveSyncRunDate`). A tabela `google_drive_sync_runs` continua no banco, intocada, com o histórico.
+- Botão "Sincronizar Drive" na tela Importações (agora ela explica que os dados chegam pela extensão) e os tipos/chamadas correspondentes em `frontend/src/api.ts`.
+- Variáveis `GOOGLE_DRIVE_*` e `GOOGLE_SERVICE_ACCOUNT_JSON` do `render.yaml`, e o documento `docs/google-drive-d1-sync.md`.
+
+### Mantido
+- O mapeamento de linha do OFS para chamado foi renomeado de `integrations/google-drive.ts` para `integrations/ofs-call-mapping.ts`. Funções: `buildDriveCall`, `buildDriveUpdate`, regras de elegibilidade, identificadores e fingerprint. Ele será a base da Fase 1 item 2: criar, finalizar e cancelar chamados a partir do CSV da extensão.
+- `createDriveCall` e `recordDriveCallSnapshot` (store) e a tabela `google_drive_call_snapshots`, pelo mesmo motivo.
+- Chamados antigos com `source = 'google-drive'` continuam como estão.
+
+### Testes
+- Suíte do backend: 113/113 (o teste do endpoint de sincronização do Drive saiu). Build do frontend OK.
+
+### Pendência (ação do usuário)
+- No painel do Render, as variáveis `GOOGLE_DRIVE_*` e `GOOGLE_SERVICE_ACCOUNT_JSON` ainda existem. O código não as lê mais, então podem ser apagadas quando quiser; não foram alteradas aqui.

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getCall, getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot, recordDriveSyncRun } from '../src/store.js';
-import { buildDriveCall, buildDriveUpdate, driveRowSkipReason, hasMeaningfulCallChange, isDriveRowEligible, shouldSkipDriveUpdate } from '../src/integrations/google-drive.js';
+import { getCall, getDashboardMetrics, getSupervisorIdForUser, listAuditLogs, listCalls, updateCall, createDriveCall, deleteAllCalls, recordDriveCallSnapshot } from '../src/store.js';
+import { buildDriveCall, buildDriveUpdate, driveRowSkipReason, hasMeaningfulCallChange, isDriveRowEligible, shouldSkipDriveUpdate } from '../src/integrations/ofs-call-mapping.js';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
 import { findAtreladaCallOrder } from '../src/integrations/wuzapi/noc-consolidation.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
@@ -346,7 +346,6 @@ test('historical date filters use execution date for finished calls and dashboar
     assert.equal((await getDashboardMetrics({ from: '2026-09-27', to: '2026-09-27' })).cancelled, 1);
     await recordDriveCallSnapshot(created.call.id, { ...sourceData, fingerprint: 'updated-fingerprint' });
     assert.equal((await listCalls()).find((item) => item.id === created.call.id)?.sourceFingerprint, 'updated-fingerprint');
-    await recordDriveSyncRun(executedAt, { files: 1, rows: 1, processed: 1, newRecords: 1, updated: 0, finalised: 1, cancelled: 0, unchanged: 0, unmatched: 0, skipped: 0, errors: [] });
     assert.ok((await listAuditLogs(created.call.id)).some((entry) => entry.userName === 'Google Drive'));
   } finally {
     if (previousRuntime === undefined) delete process.env.REDEFLOW_RUNTIME; else process.env.REDEFLOW_RUNTIME = previousRuntime;

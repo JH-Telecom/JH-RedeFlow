@@ -204,8 +204,6 @@ export async function insertHistoricalCalls(historicalCalls: Call[]): Promise<nu
 
 export type DriveCallSource = { identity: string; identifiers: string[]; fileId: string; fileName: string; referenceDate?: string; fingerprint: string; payload: Record<string, string> };
 
-export const driveSyncRuns: Array<{ startedAt: string; result: Record<string, unknown> }> = [];
-
 export async function createDriveCall(call: Call, sourceData: DriveCallSource): Promise<{ call: Call; created: boolean }> {
   await captureUnknownOltRequests([call.olt], 'Google Drive');
   const processedAt = new Date().toISOString();
@@ -241,27 +239,6 @@ export async function recordDriveCallSnapshot(callId: string, sourceData: DriveC
   }
   const existing = calls.get(callId);
   if (existing) calls.set(callId, { ...existing, source: 'google-drive', sourceIdentity: sourceData.identity, sourceIdentifiers: sourceData.identifiers, sourceFileId: sourceData.fileId, sourceFileName: sourceData.fileName, sourceReferenceDate: sourceData.referenceDate, sourceFingerprint: sourceData.fingerprint, sourceProcessedAt: processedAt });
-}
-
-export async function recordDriveSyncRun(startedAt: string, result: { files: number; rows: number; processed: number; newRecords: number; updated: number; finalised: number; cancelled: number; unchanged: number; unmatched: number; skipped: number; errors: string[] }) {
-  if (isSupabaseConfigured()) {
-    const { error } = await getSupabaseAdmin().from('google_drive_sync_runs').insert({ started_at: startedAt, finished_at: new Date().toISOString(), files: result.files, rows: result.rows, processed: result.processed, new_records: result.newRecords, updated: result.updated, finalised: result.finalised, cancelled: result.cancelled, unchanged: result.unchanged, unmatched: result.unmatched, skipped: result.skipped, errors: result.errors });
-    if (error) throw new Error(error.message);
-    return;
-  }
-  driveSyncRuns.push({ startedAt, result: { ...result } });
-}
-
-// Data operacional (Sao Paulo) da ultima sincronizacao do Drive registrada. O agendamento usa isso para nao
-// repetir a sincronizacao do dia a cada reinicio do servidor (Render reinicia varias vezes ao dia).
-export async function lastDriveSyncRunDate(): Promise<string | null> {
-  if (isSupabaseConfigured()) {
-    const { data, error } = await getSupabaseAdmin().from('google_drive_sync_runs').select('started_at').order('started_at', { ascending: false }).limit(1).maybeSingle();
-    if (error) throw new Error(error.message);
-    return data?.started_at ? toOperationalDate(data.started_at) : null;
-  }
-  const last = driveSyncRuns[driveSyncRuns.length - 1];
-  return last ? toOperationalDate(last.startedAt) : null;
 }
 
 export async function getCall(id: string, query: CallQuery = {}): Promise<Call | undefined> {
