@@ -3122,3 +3122,18 @@ Na tela "Chamados em atendimento", o filtro de status voltava como "Aberto" (ele
 
 ### Validação
 - Build do frontend OK. Conferido no navegador em modo demo, com o cookie "Aberto" salvo: o filtro abriu em "Todos" e a lista mostrou os chamados.
+
+## 2026-11-03 — Transição suave ao trocar de página
+
+### Pedido
+Trocar o efeito de "pisca" ao mudar de aba no menu. A tela antiga sumia de uma vez e a nova aparecia vazia ou em "Carregando…".
+
+### Implementado (frontend)
+- `Shell.tsx`: as rotas ficam dentro de `<div className="page-transition" key={location.pathname}>`, então cada troca de página monta a página nova do zero e dispara a animação.
+- Efeito colateral bom: telas que usam o mesmo componente (Chamados abertos / Em atendimento / Finalizados) não reaproveitam mais o estado da tela anterior.
+- `page-transition.css` (novo): a página entra com um fade de 0,22 s e um deslize de 6 px para cima. A animação fica desligada para quem usa "reduzir movimento" no sistema (`prefers-reduced-motion`).
+
+### Validação
+- Build do frontend OK.
+- No navegador (modo demo), a navegação Visão geral → Em atendimento remonta a página com a animação `page-enter` (220 ms), e o estado final fica com opacidade 1, sem deslocamento e com a lista renderizada.
+- O efeito não foi visto rodando na tela: o painel do navegador estava oculto, e o Chrome não avança animações de páginas ocultas. O estado final foi conferido forçando o fim da animação.

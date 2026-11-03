@@ -30,5 +30,6 @@ import './permissions.css';
 import './filters.css';
 import './refresh.css';
 import './dashboards.css';
+import './page-transition.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

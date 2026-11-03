@@ -264,6 +264,8 @@ export function Shell({
         </header>
         {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
         <div className="content">
+          {/* Troca de pagina com fade suave (page-transition.css) em vez do corte seco */}
+          <div className="page-transition" key={location.pathname}>
           <Routes>
             <Route path="/" element={canAccess("dashboard.view") ? <DashboardWithDateFilter user={user} /> : firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDenied />} />
             <Route
@@ -292,6 +294,7 @@ export function Shell({
             <Route path="/configuracoes" element={<SettingsPage user={user} canManage={canAccess("settings.manage")} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </div>
         </div>
       </div>
     </div>

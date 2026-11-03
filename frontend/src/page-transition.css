@@ -1,0 +1,23 @@
+/* Troca de pagina: em vez do corte seco (a tela some e a nova aparece vazia de uma vez), a pagina nova
+   entra com um fade curto e um leve deslize para cima. */
+.page-transition {
+  animation: page-enter 0.22s ease-out both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
+  }
+}
