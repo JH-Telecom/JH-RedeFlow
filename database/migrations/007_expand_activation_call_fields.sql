@@ -1,2 +1,0 @@
-ALTER TABLE calls ALTER COLUMN reason TYPE text;
-ALTER TABLE calls ALTER COLUMN slot_pon TYPE text;
