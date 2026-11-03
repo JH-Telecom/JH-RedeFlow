@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
 import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
+import { addDays, operationalDayStartIso } from '../../timezone.js';
 
 let adminClient: SupabaseClient | null = null;
 let authClient: SupabaseClient | null = null;
@@ -171,17 +172,21 @@ export async function deleteSupabaseTechnician(id: string) {
   return true;
 }
 
-export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filters: { from?: string; to?: string; supervisorId?: string; id?: string } = {}): Promise<Call[]> {
+// summary: somente as colunas usadas pelos indicadores, sem observacoes nem textos longos.
+export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filters: { from?: string; to?: string; supervisorId?: string; id?: string } = {}, options: { summary?: boolean } = {}): Promise<Call[]> {
   const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
+  const columns = options.summary
+    ? 'id, order_number, type, region, bairro, status, technician_id, opened_at, executed_at'
+    : 'id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, atrelada_order, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at)';
   const pageSize = 500;
   const calls: Call[] = [];
   for (let from = 0; ; from += pageSize) {
-    let query = getSupabaseAdmin().from('calls').select(`id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, atrelada_order, technician_id, opened_at, assigned_at, executed_at, result, cancellation_reason, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at), ${technicianJoin}`).order('opened_at', { ascending: false }).order('id', { ascending: true });
+    let query = getSupabaseAdmin().from('calls').select(`${columns}, ${technicianJoin}`).order('opened_at', { ascending: false }).order('id', { ascending: true });
     if (status) query = query.in('status', Array.isArray(status) ? status : [status]);
     if (filters.id) query = query.eq('id', filters.id);
   if (filters.from || filters.to) {
-    const from = filters.from ? `${filters.from}T00:00:00.000Z` : undefined;
-    const upperBound = filters.to ? new Date(Date.parse(`${filters.to}T00:00:00.000Z`) + 86400000).toISOString() : undefined;
+    const from = filters.from ? operationalDayStartIso(filters.from) : undefined;
+    const upperBound = filters.to ? operationalDayStartIso(addDays(filters.to, 1)) : undefined;
     const bounds = (column: string) => [from ? `${column}.gte.${from}` : '', upperBound ? `${column}.lt.${upperBound}` : ''].filter(Boolean);
     const closedExecution = ['status.in.(Finalizado,Cancelado,Baixar)', ...bounds('executed_at')];
     const closedOpeningFallback = ['status.in.(Finalizado,Cancelado,Baixar)', 'executed_at.is.null', ...bounds('opened_at')];
@@ -191,7 +196,7 @@ export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filt
   if (filters.supervisorId) query = query.eq('technicians.supervisor_id', filters.supervisorId);
     const { data, error } = await query.range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
-    const page = (data || []).map((row) => {
+    const page = ((data || []) as unknown as any[]).map((row) => {
       const technician = Array.isArray(row.technicians) ? row.technicians[0] : row.technicians;
       const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
       const observationRows = Array.isArray((row as any).call_observations) ? (row as any).call_observations : [];
@@ -204,7 +209,7 @@ export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filt
 }
 
 export async function finishSupabaseCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: { id: string; name: string }) {
-  const current = (await listSupabaseCalls()).find((call) => call.id === id);
+  const current = (await listSupabaseCalls(undefined, { id }))[0];
   if (!current || ['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
   const { data, error } = await getSupabaseAdmin().from('calls').update({ result: input.result, executed_at: input.executedAt, notes: input.notes, status: 'Finalizado', updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado,Baixar)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
@@ -214,29 +219,29 @@ export async function finishSupabaseCall(id: string, input: { result: string; ex
     const previousValue = String(current[field as keyof Call] ?? '');
     if (previousValue !== value) { const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: `${labels[field]} alterado`, field, previous_value: previousValue, new_value: value }); if (logError) throw new Error(logError.message); }
   }
-  return (await listSupabaseCalls()).find((call) => call.id === id);
+  return (await listSupabaseCalls(undefined, { id }))[0];
 }
 
 export async function cancelSupabaseCall(id: string, reason: string, actor: { id: string; name: string }) {
-  const current = (await listSupabaseCalls()).find((call) => call.id === id);
+  const current = (await listSupabaseCalls(undefined, { id }))[0];
   if (!current || ['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
   const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Cancelado', cancellation_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado,Baixar)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Motivo de cancelamento alterado', field: 'cancellationReason', previous_value: current.cancellationReason || '', new_value: reason });
   if (logError) throw new Error(logError.message);
-  return (await listSupabaseCalls()).find((call) => call.id === id);
+  return (await listSupabaseCalls(undefined, { id }))[0];
 }
 
 export async function reopenSupabaseCall(id: string, actor: { id: string; name: string }) {
-  const current = (await listSupabaseCalls()).find((call) => call.id === id);
+  const current = (await listSupabaseCalls(undefined, { id }))[0];
   if (!current || !['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
   const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Aberto', cancellation_reason: null, result: null, executed_at: null, updated_at: new Date().toISOString() }).eq('id', id).in('status', ['Finalizado', 'Cancelado', 'Baixar']).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Status alterado', field: 'status', previous_value: current.status, new_value: 'Aberto' });
   if (logError) throw new Error(logError.message);
-  return (await listSupabaseCalls()).find((call) => call.id === id);
+  return (await listSupabaseCalls(undefined, { id }))[0];
 }
 
 export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; openedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
@@ -345,6 +350,18 @@ export async function createSupabaseActivation(input: { source: string; original
   const { error: processingError } = await admin.from('activation_processing').insert({ activation_id: activation.id, extracted_data: extractedData, processor: input.analysis ? 'gemini-semantic' : 'local-semantic' });
   if (processingError) throw new Error(processingError.message);
   return { id: activation.id, source: activation.source, originalMessage: activation.original_message, receivedAt: activation.received_at, status: activation.status as ActivationStatus, extractedData: input.extractedData, analysis: enrichedAnalysis };
+}
+
+export async function countSupabasePendingActivations(): Promise<number> {
+  const { count, error } = await getSupabaseAdmin().from('activations').select('id', { count: 'exact', head: true }).eq('status', 'Pendente');
+  if (error) throw new Error(error.message);
+  return count || 0;
+}
+
+export async function countSupabaseUnassignedOpenCalls(): Promise<number> {
+  const { count, error } = await getSupabaseAdmin().from('calls').select('id', { count: 'exact', head: true }).is('technician_id', null).not('status', 'in', '(Finalizado,Cancelado,Baixar)');
+  if (error) throw new Error(error.message);
+  return count || 0;
 }
 
 export async function listSupabaseActivations(status?: ActivationStatus): Promise<Activation[]> {

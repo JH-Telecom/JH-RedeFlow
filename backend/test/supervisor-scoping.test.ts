@@ -166,7 +166,7 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
     createCall('backbone-late', 'NOC TX', 'Finalizado', '2026-09-04T00:00:00.000Z', '2026-09-04T09:00:00.000Z'),
     createCall('unknown-type', 'BAIXA TECNICA', 'Finalizado', '2026-09-05T00:00:00.000Z', '2026-09-05T04:00:00.000Z'),
     createCall('open-call', 'NOC TX', 'Aberto', '2026-09-05T00:00:00.000Z'),
-    createCall('other-month', 'NOC TX', 'Finalizado', '2026-10-01T00:00:00.000Z', '2026-10-01T02:00:00.000Z'),
+    createCall('other-month', 'NOC TX', 'Finalizado', '2026-10-01T12:00:00.000Z', '2026-10-01T14:00:00.000Z'),
   ], '2026-09');
 
   assert.equal(metrics.access.orders, 2);

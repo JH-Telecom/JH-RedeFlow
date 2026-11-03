@@ -14,12 +14,12 @@ Principais usuários: operadores, supervisores, administradores, mesários e usu
 
 Status geral: EM DESENVOLVIMENTO
 
-Última atualização: 2026-10-02
+Última atualização: 2026-11-03
 
-Última implementação: sincronização do Google Drive executa como job em segundo plano e o frontend acompanha seu status sem manter o POST aberto.
-Agente responsável pela última alteração: GitHub Copilot
+Última implementação: P0/P1 da auditoria — "Apagar todos os chamados" movido para Configurações (zona de perigo), datas no fuso America/Sao_Paulo, consultas mais leves em finalizar/cancelar/reabrir, dashboard e notificações, correção do escopo de supervisor no Supabase e guardas de rota no frontend. Ver "2026-11-03 — P0/P1 da auditoria" no fim do arquivo.
+Agente responsável pela última alteração: Claude Code (Opus 5.5)
 
-Próxima ação: publicar backend/frontend e executar uma sincronização acompanhando os logs/memória do Render; se houver restart ainda com job assíncrono, revisar métricas de memória por arquivo.
+Próxima ação: aplicar a migration `supabase/migrations/202611030001_calls_page_sao_paulo_dates.sql` no Supabase (e `database/migrations/021_calls_page_sao_paulo_dates.sql` no PG local), publicar backend/frontend e validar em produção; depois seguir para P2 (organização do código).
 
 ---
 
@@ -2669,3 +2669,48 @@ O IGP é recalculado a cada consulta: os percentuais de Prazo e Outlier de todos
 
 ### Próxima ação
 Revisar e commitar; após deploy, conferir badges das filas e um mês do IGP. Depois seguir para os demais itens P0 da auditoria (retirar "Apagar todos os chamados" das telas operacionais; corrigir fuso horário America/Sao_Paulo), mediante autorização.
+
+---
+
+## 2026-11-03 — P0/P1 da auditoria
+
+Autorizado pelo responsável ("pode prosseguir com o seu plano de alterações"). Regras de negócio preservadas; nenhuma migration foi aplicada e nenhum dado de produção foi tocado.
+
+### 1. "Apagar todos os chamados" fora das telas operacionais (P0)
+- Removido o botão do cabeçalho de Chamados abertos / Em atendimento / Finalizados (e o `window.prompt`).
+- Nova seção "Zona de perigo" no fim de Configurações, visível só com `calls.delete`: campo de confirmação que exige digitar `APAGAR TODOS`, botão desabilitado até a frase bater, mensagens com `role="status"`/`role="alert"`.
+- API `DELETE /api/chamados` e permissão inalteradas.
+
+### 2. Fuso horário America/Sao_Paulo (P0)
+- Novo `backend/src/timezone.ts` (`toOperationalDate`, `operationalDayStartIso`, `addDays`) e `frontend/src/dates.ts` (`toOperationalDate`).
+- Backend: limites de período no Supabase (`listSupabaseCalls`) passam a ser meia-noite de São Paulo; data de referência dos filtros em memória, "Recebidos hoje", data padrão do Painel diário e mês do IGP usam a data de São Paulo; consulta PG local usa `AT TIME ZONE 'America/Sao_Paulo'`.
+- Frontend: mês padrão do IGP, gráfico diário da Visão geral e filtro de período de Repetidos usam a data de São Paulo.
+- **Migration nova, NÃO aplicada:** `supabase/migrations/202611030001_calls_page_sao_paulo_dates.sql` e `database/migrations/021_calls_page_sao_paulo_dates.sql` recriam `list_calls_page_with_assignment` (usada por `list_calls_page_with_atrelada`) com a mesma lógica, trocando apenas a conversão de data para o fuso de São Paulo. Até ser aplicada, a listagem paginada continua usando a data UTC nos filtros de período.
+
+### 3. Finalizar/cancelar/reabrir no Supabase (P1)
+- `finishSupabaseCall`, `cancelSupabaseCall`, `reopenSupabaseCall` e `updateSupabaseCall` buscam apenas o chamado pelo ID (antes carregavam a tabela inteira duas vezes por ação).
+
+### 4. Dashboard e notificações (P1)
+- Notificações usam contagens (`count: exact, head: true` no Supabase; `COUNT(*)` no PG local) para chamados sem técnico e acionamentos pendentes, em vez de carregar todos os chamados e todos os acionamentos.
+- `listSupabaseActivations` era N+1 (uma consulta extra por acionamento do histórico inteiro); dashboard e notificações deixaram de chamá-lo.
+- Dashboard no Supabase usa `listSupabaseCalls(..., { summary: true })`, que seleciona só as colunas dos indicadores (sem observações nem textos longos). Regras dos indicadores inalteradas.
+
+### 5. Escopo de supervisor e guardas de rota (P1)
+- **Bug corrigido:** no Supabase e no PG local, `listCalls` refiltrava o escopo de supervisor com os mapas em memória do modo demo (vazios em produção), descartando todos os chamados. Afetava IGP de supervisores e detalhe de chamado com `teamScope=true`. O filtro já é feito no banco (join `technicians.supervisor_id`); o filtro redundante foi removido. Sem teste automatizado (os testes rodam em memória); validar em produção com um supervisor.
+- Revisão do item 8 da auditoria: supervisores enxergarem todos os chamados fora de "Ordens da equipe" é decisão registrada em 2026-09-24, então o escopo das rotas de API não foi alterado.
+- Frontend: rotas protegidas pela mesma permissão do menu; sem permissão, tela "Acesso não permitido". `/` redireciona para a primeira tela permitida quando o cargo não tem `dashboard.view` (ex.: Mesário). "Ordens da equipe" só para Supervisor.
+
+### Arquivos
+- Criados: `backend/src/timezone.ts`, `backend/test/timezone.test.ts`, `frontend/src/dates.ts`, `supabase/migrations/202611030001_calls_page_sao_paulo_dates.sql`, `database/migrations/021_calls_page_sao_paulo_dates.sql`.
+- Alterados: `backend/src/store.ts`, `backend/src/igp.ts`, `backend/src/integrations/supabase/client.ts`, `backend/test/supervisor-scoping.test.ts` (fixture "other-month" movida para o meio de outubro: o horário antigo era 23h de 30/09 em São Paulo), `frontend/src/App.tsx`, `frontend/src/repeated-calls.tsx`, `frontend/src/filters.css`.
+
+### Testes
+- `npm run typecheck` (frontend + backend): ✅.
+- `npm test --workspace backend`: ✅ 99/99 (3 novos testes de fuso horário).
+- `vite build`: ✅ (aviso existente de bundle > 500 kB).
+- Verificação manual em demo local (memória): fila sem o botão, zona de perigo apagando os chamados demo, supervisor recebendo "Acesso não permitido" em `/usuarios`.
+
+### Pendências
+- Aplicar a migration 202611030001 (Supabase) / 021 (PG local) — requer autorização.
+- Validar em produção: escopo de supervisor (IGP e detalhe da equipe), contadores de notificações, filtros de período perto da meia-noite.
+- Fora deste escopo, para P2: `reopenCall` sem caminho PG local; `assigned_at` divergente entre runtimes; Repetidos baixa todas as páginas no cliente; dependência `xlsx@0.18.5`.

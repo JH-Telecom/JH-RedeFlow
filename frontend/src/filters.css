@@ -203,8 +203,55 @@
 }
 
 .bulk-delete-button:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.65;
+}
+
+.access-denied {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  max-width: 520px;
+  margin: 48px auto;
+  padding: 36px 28px;
+  text-align: center;
+  color: #66748a;
+}
+
+.access-denied h2 {
+  color: #17233b;
+  font-size: 20px;
+}
+
+.settings-danger-zone {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 22px;
+  border: 1px solid #e1a7a7;
+  background: #fffafa;
+}
+
+.settings-danger-zone .section-kicker {
+  color: #bd5156;
+}
+
+.settings-danger-zone h2 {
+  margin: 6px 0 4px;
+  font-size: 18px;
+}
+
+.settings-danger-zone p {
+  color: #66748a;
+  font-size: 13px;
+}
+
+.settings-danger-zone label {
+  max-width: 360px;
+}
+
+.settings-danger-zone .bulk-delete-button {
+  justify-self: start;
 }
 
 @media (max-width: 900px) {

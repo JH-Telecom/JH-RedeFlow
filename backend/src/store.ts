@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { getDatabaseClient, isDatabaseConfigured } from './db.js';
-import { cancelSupabaseCall, changeSupabaseUserPassword, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, deleteSupabaseUserAvatar, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, saveSupabaseUserAvatar, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
+import { cancelSupabaseCall, changeSupabaseUserPassword, countSupabasePendingActivations, countSupabaseUnassignedOpenCalls, createSupabaseActivation, createSupabaseSupervisor, createSupabaseTechnician, createSupabaseUser, decideSupabaseActivation, deleteSupabaseTechnician, deleteSupabaseUserAvatar, finishSupabaseCall, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseActivations, listSupabaseCalls, listSupabaseRoles, listSupabaseSupervisors, listSupabaseTechnicians, listSupabaseUsers, reopenSupabaseCall, saveSupabaseUserAvatar, updateSupabaseCall, updateSupabaseSupervisor, updateSupabaseTechnician, updateSupabaseUser } from './integrations/supabase/client.js';
 import { findAtreladaCallOrder, getDefaultOltRegionMap, getManualOltRegionMap, identifyAtreladas, normalizeOltCode, replaceManualOltRegionMap, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
 import { matchD0Rows, type D0Row } from './imports/d0.js';
+import { toOperationalDate } from './timezone.js';
 import type { Activation, ActivationAnalysis, ActivationStatus, AuthUser, Call, CallAuditLog, CallObservation, CallObservationAttachment, CallObservationAttachmentInput, CallStatus, DashboardMetrics, EditableCallFields, ImportRecord, ManualDailyBase, ManualProductionData, PermissionCode, Role, StoredCallObservationAttachment, Supervisor, SystemSettings, Technician, User } from './types.js';
 
 const permissionDescriptions: Record<PermissionCode, string> = {
@@ -922,7 +923,7 @@ function matchesCallStatus(status: CallStatus, filter?: CallStatus | CallStatus[
   return !filter || (Array.isArray(filter) ? filter : [filter]).includes(status);
 }
 function callReferenceDate(call: Call) {
-  return (['Finalizado', 'Cancelado', 'Baixar'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt).slice(0, 10);
+  return toOperationalDate(['Finalizado', 'Cancelado', 'Baixar'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt);
 }
 function isCallInDateRange(call: Call, query: CallQuery) {
   const referenceDate = callReferenceDate(call);
@@ -963,8 +964,9 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
   const baseStatus = status ?? query.status;
   const baseQuery = { ...query, status: baseStatus };
   if (isSupabaseConfigured()) {
+    // O escopo de supervisor e aplicado no banco (join com technicians.supervisor_id), tanto aqui quanto no PostgreSQL local.
     const rows = await listSupabaseCalls(baseStatus, { from: baseQuery.from, to: baseQuery.to, supervisorId: baseQuery.supervisorId, id: baseQuery.id });
-    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
+    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
   if (shouldUseLocalDatabase()) {
     const client = await getDatabaseClient();
@@ -972,11 +974,11 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
       `SELECT c.id, c.order_number, c.bdesk, c.office_track, c.client, c.type, c.reason, c.region, c.city, c.address, c.bairro, c.ofs_status, c.olt, c.slot_pon, c.status, c.atrelada_order, c.technician_id, t.name AS technician_name, s.name AS supervisor_name, c.opened_at, c.assigned_at, c.executed_at, c.result, c.cancellation_reason, c.notes, c.source, c.source_identity, c.source_identifiers, c.source_file_id, c.source_file_name, c.source_reference_date, c.source_fingerprint, c.source_processed_at, latest_observation.created_at AS last_observation_at
        FROM calls c LEFT JOIN technicians t ON t.id = c.technician_id LEFT JOIN supervisors s ON s.id = t.supervisor_id
        LEFT JOIN LATERAL (SELECT created_at FROM call_observations WHERE call_id = c.id ORDER BY created_at DESC LIMIT 1) latest_observation ON true
-      WHERE ($1::text[] IS NULL OR c.status = ANY($1::text[])) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END)::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) AND ($5::uuid IS NULL OR c.id = $5::uuid) ORDER BY c.opened_at DESC`,
+      WHERE ($1::text[] IS NULL OR c.status = ANY($1::text[])) AND ($2::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END AT TIME ZONE 'America/Sao_Paulo')::date >= $2::date) AND ($3::date IS NULL OR (CASE WHEN c.status IN ('Finalizado', 'Cancelado', 'Baixar') THEN COALESCE(c.executed_at, c.opened_at) ELSE c.opened_at END AT TIME ZONE 'America/Sao_Paulo')::date <= $3::date) AND ($4::uuid IS NULL OR t.supervisor_id = $4::uuid) AND ($5::uuid IS NULL OR c.id = $5::uuid) ORDER BY c.opened_at DESC`,
       [baseStatus ? (Array.isArray(baseStatus) ? baseStatus : [baseStatus]) : null, baseQuery.from ?? null, baseQuery.to ?? null, baseQuery.supervisorId ?? null, baseQuery.id ?? null],
     );
     const rows = result.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, bdesk: row.bdesk, officeTrack: row.office_track, client: row.client, type: row.type, reason: row.reason, region: row.region, city: row.city, address: row.address ?? '', bairro: row.bairro ?? '', ofsStatus: row.ofs_status ?? undefined, olt: row.olt, slotPon: row.slot_pon, status: row.status as CallStatus, atrelada: row.atrelada_order ?? undefined, technicianId: row.technician_id ?? undefined, technicianName: row.technician_name ?? undefined, supervisorName: row.supervisor_name ?? undefined, openedAt: row.opened_at, assignedAt: row.assigned_at ?? undefined, executedAt: row.executed_at ?? undefined, result: row.result ?? undefined, cancellationReason: row.cancellation_reason ?? undefined, notes: row.notes ?? '', lastObservationAt: row.last_observation_at ?? undefined, source: row.source ?? undefined, sourceIdentity: row.source_identity ?? undefined, sourceIdentifiers: row.source_identifiers ?? [], sourceFileId: row.source_file_id ?? undefined, sourceFileName: row.source_file_name ?? undefined, sourceReferenceDate: row.source_reference_date ?? undefined, sourceFingerprint: row.source_fingerprint ?? undefined, sourceProcessedAt: row.source_processed_at ?? undefined }));
-    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && (!baseQuery.supervisorId || call.supervisorName === supervisors.get(baseQuery.supervisorId)?.name || (call.technicianId ? technicians.get(call.technicianId)?.supervisorId === baseQuery.supervisorId : false)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
+    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && matchesCallStatus(call.status, baseQuery.status) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
   const rows = [...calls.values()].map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
@@ -1262,8 +1264,8 @@ export async function getCall(id: string, query: CallQuery = {}): Promise<Call |
       return undefined;
     }
   }
-  if (query.from && call.openedAt.slice(0, 10) < query.from) return undefined;
-  if (query.to && call.openedAt.slice(0, 10) > query.to) return undefined;
+  if (query.from && toOperationalDate(call.openedAt) < query.from) return undefined;
+  if (query.to && toOperationalDate(call.openedAt) > query.to) return undefined;
   return call;
 }
 export async function deleteCall(id: string): Promise<boolean> {
@@ -1351,16 +1353,32 @@ export async function deleteAllCalls(): Promise<number> {
   for (const activation of activations.values()) activation.createdCallId = undefined;
   return deleted;
 }
+async function countUnassignedOpenCalls(): Promise<number> {
+  if (isSupabaseConfigured()) return await countSupabaseUnassignedOpenCalls();
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ count: number }>(`SELECT COUNT(*)::integer AS count FROM calls WHERE technician_id IS NULL AND status NOT IN ('Finalizado', 'Cancelado', 'Baixar')`);
+    return result.rows[0]?.count || 0;
+  }
+  return [...calls.values()].filter((call) => !call.technicianId && !['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)).length;
+}
+async function countPendingActivations(): Promise<number> {
+  if (isSupabaseConfigured()) return await countSupabasePendingActivations();
+  if (shouldUseLocalDatabase()) {
+    const client = await getDatabaseClient();
+    const result = await client.query<{ count: number }>(`SELECT COUNT(*)::integer AS count FROM activations WHERE status = 'Pendente'`);
+    return result.rows[0]?.count || 0;
+  }
+  return [...activations.values()].filter((activation) => activation.status === 'Pendente').length;
+}
 export async function listNotifications(includeOperational = true) {
   const notifications = [] as { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string }[];
   if (includeOperational) {
-    const currentCalls = isSupabaseConfigured() || shouldUseLocalDatabase() ? await listCalls() : [...calls.values()];
-    const unassigned = currentCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado', 'Baixar'].includes(call.status));
-    if (unassigned.length) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned.length} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos' });
+    const unassigned = await countUnassignedOpenCalls();
+    if (unassigned) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos' });
   }
-  const currentActivations = isSupabaseConfigured() || shouldUseLocalDatabase() ? await listActivations() : [...activations.values()];
-  const pending = currentActivations.filter((activation) => activation.status === 'Pendente');
-  if (pending.length) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending.length} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos' });
+  const pending = await countPendingActivations();
+  if (pending) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos' });
   return notifications;
 }
 function normalizeTechnicianId(id?: string | null) {
@@ -1916,7 +1934,7 @@ export async function clearD0Base(): Promise<number> {
 }
 
 function manualBaseDate(date?: string) {
-  return date || new Date().toISOString().slice(0, 10);
+  return date || toOperationalDate();
 }
 function mapManualBase(row: { business_date: string; file_name: string; payload: ManualProductionData; uploaded_by: string; updated_at: string }): ManualDailyBase {
   return { businessDate: row.business_date, fileName: row.file_name, data: row.payload, uploadedBy: row.uploaded_by, updatedAt: row.updated_at };
@@ -1970,7 +1988,7 @@ function countByMap(counts: Map<string, number>) {
   return [...counts.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
-function summarizeDashboardMetrics(calls: Call[], activations: Activation[], today: string): DashboardMetrics {
+function summarizeDashboardMetrics(calls: Call[], pendingActivations: number, today: string): DashboardMetrics {
   const statusCounts = new Map<string, number>();
   const regionCounts = new Map<string, number>();
   const neighborhoodCounts = new Map<string, number>();
@@ -1983,10 +2001,9 @@ function summarizeDashboardMetrics(calls: Call[], activations: Activation[], tod
   let inProgress = 0;
   let finished = 0;
   let cancelled = 0;
-  let pendingActivations = 0;
 
   for (const call of calls) {
-    if (call.openedAt.slice(0, 10) === today) receivedToday += 1;
+    if (toOperationalDate(call.openedAt) === today) receivedToday += 1;
     if (call.status === 'Aberto') open += 1;
     if (!call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)) unassigned += 1;
     if (['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)) inProgress += 1;
@@ -1998,10 +2015,6 @@ function summarizeDashboardMetrics(calls: Call[], activations: Activation[], tod
     if (call.bairro) neighborhoodCounts.set(call.bairro, (neighborhoodCounts.get(call.bairro) || 0) + 1);
     if (call.technicianName) technicianCounts.set(call.technicianName, (technicianCounts.get(call.technicianName) || 0) + 1);
     typeCounts.set(call.type, (typeCounts.get(call.type) || 0) + 1);
-  }
-
-  for (const activation of activations) {
-    if (activation.status === 'Pendente') pendingActivations += 1;
   }
 
   return {
@@ -2021,21 +2034,17 @@ function summarizeDashboardMetrics(calls: Call[], activations: Activation[], tod
 }
 
 export async function getDashboardMetrics(query: CallQuery = {}): Promise<DashboardMetrics> {
-  const today = new Date().toISOString().slice(0, 10);
-
-  if (query.from || query.to || query.supervisorId) {
-    const allCalls = await listCalls(undefined, query);
-    const activations = await listActivations();
-    return summarizeDashboardMetrics(allCalls, activations, today);
-  }
+  const today = toOperationalDate();
+  const pendingActivations = await countPendingActivations();
 
   if (isSupabaseConfigured()) {
-    return summarizeDashboardMetrics(await listSupabaseCalls(), await listSupabaseActivations(), today);
+    const summaryCalls = await listSupabaseCalls(undefined, { from: query.from, to: query.to, supervisorId: query.supervisorId }, { summary: true });
+    return summarizeDashboardMetrics(summaryCalls.filter((call) => isCallInDateRange(call, query)), pendingActivations, today);
   }
 
-  if (shouldUseLocalDatabase()) {
-    return summarizeDashboardMetrics(await listCalls(), await listActivations(), today);
+  if (query.from || query.to || query.supervisorId || shouldUseLocalDatabase()) {
+    return summarizeDashboardMetrics(await listCalls(undefined, query), pendingActivations, today);
   }
 
-  return summarizeDashboardMetrics([...calls.values()], [...activations.values()], today);
+  return summarizeDashboardMetrics([...calls.values()], pendingActivations, today);
 }

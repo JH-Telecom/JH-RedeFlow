@@ -65,6 +65,7 @@ import {
   type OltRegionRequest,
 } from "./api";
 import { RepeatedCallsPage } from "./repeated-calls";
+import { toOperationalDate } from "./dates";
 
 const operationalRegions = [
   "COLUMBIA", "SERTÃOZINHO", "TURQUESA", "GIULIA", "MAUÁ", "RIBEIRÃO PIRES", "SANTA LUZIA", "CÂMBIO", "CAÇULA",
@@ -437,6 +438,9 @@ function Shell({
       setSavingProfilePhoto(false);
     }
   }
+  const canAccess = (permission: string) => user.role.permissions.includes(permission);
+  const guard = (permission: string, element: React.ReactNode) => (canAccess(permission) ? element : <AccessDenied />);
+  const firstAllowedPath = navItems.find((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)))?.to;
   function toggleSidebar() {
     setDesktopCollapsed((current) => {
       const next = !current;
@@ -565,35 +569,45 @@ function Shell({
         {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
         <div className="content">
           <Routes>
-            <Route path="/" element={<DashboardWithDateFilter user={user} />} />
+            <Route path="/" element={canAccess("dashboard.view") ? <DashboardWithDateFilter user={user} /> : firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDenied />} />
             <Route
               path="/chamados/abertos"
-              element={<CallsPage status="Aberto" title="Chamados abertos" unassignedOnly />}
+              element={guard("calls.view", <CallsPage status="Aberto" title="Chamados abertos" unassignedOnly />)}
             />
             <Route
               path="/chamados/atendimento"
-              element={<CallsPage title="Chamados em atendimento" assignedOnly />}
+              element={guard("calls.view", <CallsPage title="Chamados em atendimento" assignedOnly />)}
             />
             <Route
               path="/chamados/finalizados"
-              element={<CallsPage title="Finalizados e cancelados" closedOnly />}
+              element={guard("calls.view", <CallsPage title="Finalizados e cancelados" closedOnly />)}
             />
-            <Route path="/repetidos" element={<RepeatedCallsPage teamScoped={user.role.name === "Supervisor"} />} />
-            <Route path="/supervisor/ordens" element={<SupervisorOrdersPage user={user} />} />
-            <Route path="/acionamentos" element={<ActivationsPage />} />
-            <Route path="/painel-diario" element={<ManualProductionDashboard />} />
-            <Route path="/igp" element={<IGPPage />} />
-            <Route path="/importacoes" element={<ImportsPage />} />
-            <Route path="/chamados/:id" element={<CallDetailRoute />} />
-            <Route path="/tecnicos" element={<TechniciansPage />} />
-            <Route path="/supervisores" element={<SupervisorsPage user={user} />} />
-            <Route path="/usuarios" element={<UsersPage />} />
-            <Route path="/cargos" element={<RolesPage />} />
-            <Route path="/configuracoes" element={<SettingsPage />} />
+            <Route path="/repetidos" element={guard("calls.view", <RepeatedCallsPage teamScoped={user.role.name === "Supervisor"} />)} />
+            <Route path="/supervisor/ordens" element={user.role.name === "Supervisor" ? guard("calls.view", <SupervisorOrdersPage user={user} />) : <AccessDenied />} />
+            <Route path="/acionamentos" element={guard("activations.view", <ActivationsPage />)} />
+            <Route path="/painel-diario" element={guard("dashboard.view", <ManualProductionDashboard />)} />
+            <Route path="/igp" element={guard("dashboard.view", <IGPPage />)} />
+            <Route path="/importacoes" element={guard("imports.view", <ImportsPage />)} />
+            <Route path="/chamados/:id" element={guard("calls.view", <CallDetailRoute />)} />
+            <Route path="/tecnicos" element={guard("technicians.view", <TechniciansPage />)} />
+            <Route path="/supervisores" element={guard("supervisors.view", <SupervisorsPage user={user} />)} />
+            <Route path="/usuarios" element={guard("users.view", <UsersPage />)} />
+            <Route path="/cargos" element={guard("roles.view", <RolesPage />)} />
+            <Route path="/configuracoes" element={guard("settings.manage", <SettingsPage />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AccessDenied() {
+  return (
+    <div className="panel access-denied" role="alert">
+      <LockKeyhole size={22} />
+      <h2>Acesso não permitido</h2>
+      <p>Seu cargo não tem permissão para abrir esta tela. Fale com um administrador se precisar de acesso.</p>
     </div>
   );
 }
@@ -620,7 +634,7 @@ function getIgpGoalState(value: number | null, target: number, minimum: number, 
 }
 
 function IGPPage() {
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [month, setMonth] = useState(() => toOperationalDate().slice(0, 7));
   const [area, setArea] = useState<IgpArea>('ALL');
   const [metrics, setMetrics] = useState<IgpMetrics | null>(null);
   const [error, setError] = useState("");
@@ -667,18 +681,18 @@ function IGPPage() {
 }
 
 function getDailyCallBars(calls: Call[], dateRange: { from: string; to: string }) {
-  const today = new Date();
-  const end = dateRange.to ? new Date(`${dateRange.to}T12:00:00`) : today;
-  const start = dateRange.from ? new Date(`${dateRange.from}T12:00:00`) : new Date(end.getTime() - 6 * 86400000);
-  const counts = new Map(calls.map((call) => [call.openedAt.slice(0, 10), 0]));
+  const endKey = dateRange.to || toOperationalDate();
+  const end = Date.parse(`${endKey}T12:00:00Z`);
+  const start = dateRange.from ? Date.parse(`${dateRange.from}T12:00:00Z`) : end - 6 * 86400000;
+  const counts = new Map<string, number>();
   calls.forEach((call) => {
-    const key = new Date(call.openedAt).toISOString().slice(0, 10);
+    const key = toOperationalDate(call.openedAt);
     counts.set(key, (counts.get(key) || 0) + 1);
   });
   const bars: { key: string; label: string; value: number }[] = [];
-  for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
-    const key = cursor.toISOString().slice(0, 10);
-    bars.push({ key, label: cursor.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }), value: counts.get(key) || 0 });
+  for (let cursor = start; cursor <= end; cursor += 86400000) {
+    const key = new Date(cursor).toISOString().slice(0, 10);
+    bars.push({ key, label: `${key.slice(8, 10)}/${key.slice(5, 7)}`, value: counts.get(key) || 0 });
   }
   return bars.slice(-14);
 }
@@ -2382,8 +2396,6 @@ function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false
   const [dateRange, setDateRange] = useState(initialState.dateRange ?? { from: "", to: "" });
   const [showFilters, setShowFilters] = useState(Boolean(initialState.showFilters));
   const [error, setError] = useState("");
-  const [bulkDeleteMessage, setBulkDeleteMessage] = useState("");
-  const [canDeleteAllCalls, setCanDeleteAllCalls] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "downloaded" | "error">("idle");
   const [callsPage, setCallsPage] = useState(initialState.callsPage ?? 1);
   const [totalCalls, setTotalCalls] = useState(0);
@@ -2395,34 +2407,6 @@ function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
   useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage }); }, [pageKey, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
   useEffect(() => { setCallsPage(1); }, [query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('jh-redeflow-session');
-      const session = raw ? JSON.parse(raw) : null;
-      setCanDeleteAllCalls(Boolean(session?.user?.role?.permissions?.includes('calls.delete')));
-    } catch {
-      setCanDeleteAllCalls(false);
-    }
-  }, []);
-
-  async function deleteAllCalls() {
-    const confirmation = window.prompt('Esta ação apagará TODOS os chamados, inclusive os fora dos filtros atuais. Digite APAGAR TODOS para confirmar.');
-    if (confirmation !== 'APAGAR TODOS') return;
-    setLoading(true);
-    setError('');
-    setBulkDeleteMessage('');
-    try {
-      const result = await api.deleteAllCalls();
-      setCalls([]);
-      setCallsPage(1);
-      setBulkDeleteMessage(`${result.deleted} chamado(s) apagado(s).`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel apagar os chamados.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function copyTableAsImage() {
     const table = tableRef.current;
     if (!table) return;
@@ -2705,9 +2689,6 @@ function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false
           </p>
         </div>
         <div className="calls-heading-actions">
-          {canDeleteAllCalls && !teamScoped && <button className="bulk-delete-button" onClick={() => void deleteAllCalls()} disabled={loading} title="Apaga todos os chamados, não apenas os filtrados">
-            <Trash2 size={15} /> Apagar todos os chamados
-          </button>}
           <button
             className={`secondary-button compact ${loading ? "is-refreshing" : ""}`}
             onClick={() => void refreshCalls()}
@@ -2717,7 +2698,6 @@ function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false
           </button>
         </div>
       </div>
-      {bulkDeleteMessage && <div className="save-message">{bulkDeleteMessage}</div>}
       <section className={`panel table-panel calls-table${assignedOnly ? " attendance-table" : ""}`}>
         <div className="table-toolbar">
           <div className="search-field">
@@ -3803,6 +3783,30 @@ function SettingsPage() {
   const [oltRequests, setOltRequests] = useState<OltRegionRequest[]>([]);
   const [oltRequestRegions, setOltRequestRegions] = useState<Record<string, string>>({});
   const [oltRequestActionId, setOltRequestActionId] = useState<string | null>(null);
+  const [canDeleteAllCalls] = useState(() => {
+    try { return Boolean(JSON.parse(localStorage.getItem("jh-redeflow-session") || "null")?.user?.role?.permissions?.includes("calls.delete")); }
+    catch { return false; }
+  });
+  const [deleteAllConfirmation, setDeleteAllConfirmation] = useState("");
+  const [deletingAllCalls, setDeletingAllCalls] = useState(false);
+  const [deleteAllMessage, setDeleteAllMessage] = useState("");
+  const [deleteAllError, setDeleteAllError] = useState("");
+  async function deleteAllCalls(event: React.FormEvent) {
+    event.preventDefault();
+    if (deleteAllConfirmation !== "APAGAR TODOS") return;
+    setDeletingAllCalls(true);
+    setDeleteAllMessage("");
+    setDeleteAllError("");
+    try {
+      const result = await api.deleteAllCalls();
+      setDeleteAllConfirmation("");
+      setDeleteAllMessage(`${result.deleted} chamado(s) apagado(s).`);
+    } catch (err) {
+      setDeleteAllError(err instanceof Error ? err.message : "Não foi possível apagar os chamados.");
+    } finally {
+      setDeletingAllCalls(false);
+    }
+  }
   useEffect(() => { api.settings().then((data) => setSettings(data.settings)).catch((err) => setError(err.message)); }, []);
   useEffect(() => { api.oltRegionMappings().then((data) => setOltRegions(data.mappings)).catch((err) => setMappingError(err.message)).finally(() => setMappingLoading(false)); }, []);
   useEffect(() => { api.customOperationalRegions().then((data) => setCustomRegions(data.regions)).catch((err) => setMappingError(err.message)); }, []);
@@ -3934,6 +3938,17 @@ function SettingsPage() {
         <div className="settings-olt-table-wrap"><table className="settings-olt-table"><thead><tr><th>OLT</th><th>Região</th><th>Origem</th><th>Ação</th></tr></thead><tbody>{filteredOltRegions.map((mapping) => <tr key={mapping.olt}><td><strong>{mapping.olt}</strong></td><td><select aria-label={`Região da OLT ${mapping.olt}`} value={mapping.region} onChange={(event) => setOltRegions((current) => current.map((item) => item.olt === mapping.olt ? { ...item, region: event.target.value } : item))}>{availableRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></td><td>{mapping.defaultRegion ? "Padrão" : "Personalizada"}</td><td>{!mapping.defaultRegion && <button className="icon-button settings-olt-remove" type="button" aria-label={`Remover OLT ${mapping.olt}`} title="Remover OLT personalizada" onClick={() => setOltRegions((current) => current.filter((item) => item.olt !== mapping.olt))}><Trash2 size={15}/></button>}</td></tr>)}</tbody></table>{mappingLoading && <div className="empty-state">Carregando mapeamentos...</div>}{!mappingLoading && !filteredOltRegions.length && <div className="empty-state">Nenhuma OLT encontrada.</div>}</div>
         {mappingMessage && <div className="save-message">{mappingMessage}</div>}{mappingError && <div className="form-error">{mappingError}</div>}
       </form>
+      {canDeleteAllCalls && <form className="panel settings-danger-zone" onSubmit={(event) => void deleteAllCalls(event)} aria-labelledby="settings-danger-title">
+        <div>
+          <span className="section-kicker">ZONA DE PERIGO</span>
+          <h2 id="settings-danger-title">Apagar todos os chamados</h2>
+          <p>Remove definitivamente todos os chamados, observações e históricos de auditoria, inclusive os finalizados. Esta ação não pode ser desfeita.</p>
+        </div>
+        <label><span>Digite <strong>APAGAR TODOS</strong> para confirmar</span><input value={deleteAllConfirmation} onChange={(event) => setDeleteAllConfirmation(event.target.value)} autoComplete="off" disabled={deletingAllCalls} /></label>
+        <button className="bulk-delete-button" type="submit" disabled={deletingAllCalls || deleteAllConfirmation !== "APAGAR TODOS"}><Trash2 size={15} />{deletingAllCalls ? "Apagando..." : "Apagar todos os chamados"}</button>
+        {deleteAllMessage && <div className="save-message" role="status">{deleteAllMessage}</div>}
+        {deleteAllError && <div className="form-error" role="alert">{deleteAllError}</div>}
+      </form>}
     </>
   );
 }

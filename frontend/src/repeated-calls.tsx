@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { RefreshCcw } from "lucide-react";
 import { api, type Call } from "./api";
+import { toOperationalDate } from "./dates";
 
 type RepeatedOrder = {
   current: Call;
@@ -27,7 +28,7 @@ function dateValue(value: string | undefined) {
 }
 
 function dateIsInRange(value: string | undefined, from: string, to: string) {
-  const date = value?.slice(0, 10) || "";
+  const date = value ? toOperationalDate(value) : "";
   return Boolean(date) && (!from || date >= from) && (!to || date <= to);
 }
 

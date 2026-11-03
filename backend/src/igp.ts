@@ -1,3 +1,4 @@
+import { toOperationalDate } from './timezone.js';
 import type { Call } from './types.js';
 
 export type IgpGroup = {
@@ -68,7 +69,7 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
   let excludedOrders = 0;
 
   for (const call of calls) {
-    if (call.status !== 'Finalizado' || !call.executedAt || call.executedAt.slice(0, 7) !== month) continue;
+    if (call.status !== 'Finalizado' || !call.executedAt || toOperationalDate(call.executedAt).slice(0, 7) !== month) continue;
     if (area !== 'ALL' && classifyIgpArea(call.region) !== area) continue;
     const groupKey = classifyIgpGroup(call.type);
     const openedAt = Date.parse(call.openedAt);
