@@ -3016,3 +3016,35 @@ A pedido do usuário, os dados do OFS passam a vir só pela extensão da Rede ("
 
 ### Pendência (ação do usuário)
 - No painel do Render, as variáveis `GOOGLE_DRIVE_*` e `GOOGLE_SERVICE_ACCOUNT_JSON` ainda existem. O código não as lê mais, então podem ser apagadas quando quiser; não foram alteradas aqui.
+
+## 2026-11-03 — Coletor OFS 1.1.0: login com o usuário do sistema
+
+### Pedido
+A extensão da Rede passa a entrar com o login do JH RedeFlow (e-mail e senha), em vez de um token colado.
+
+### Backend (`server.ts`)
+- **Novo `POST /api/integrations/ofs/login`.**
+  - Usa as mesmas credenciais e o mesmo limite de tentativas do `/api/auth/login`. A checagem de credenciais virou a função `checkCredentials`, compartilhada pelos dois.
+  - Exige a permissão `imports.create` e recusa usuário com troca de senha pendente.
+  - Devolve uma sessão JWT de 30 dias com `scope: 'ofs-collector'`. São 30 dias porque a coleta roda de hora em hora, inclusive de madrugada.
+- **A sessão do coletor só vale para o envio do export.** O middleware `auth` recusa tokens com esse escopo, então ela não abre o resto da API.
+- **`POST /api/integrations/ofs/export` aceita duas formas de autenticação:**
+  - `Authorization: Bearer <sessão>`: a cada envio confere se o usuário continua ativo e com a permissão. Desativar o usuário corta a extensão na hora.
+  - O token de máquina antigo (`x-redeflow-ofs-token` = `OFS_INGEST_TOKEN`), que continua aceito.
+  - O "Enviado por" do Painel diário mostra o nome do usuário: "Coletor OFS – Nome (máquina)".
+- Teste novo em `http.test.ts`: login válido e inválido, perfil sem permissão (403), sessão aceita no export, sessão recusada em `/api/auth/me`. Suíte: 114/114.
+
+### Extensão (`extensao-rede/`, versão 1.1.0)
+- **Card "Conta do JH RedeFlow" no topo do popup.**
+  - Deslogado: e-mail, senha e Entrar.
+  - Logado: nome, e-mail, validade da sessão, Testar conexão e Sair.
+- **A senha não é guardada.** Só a sessão fica em `chrome.storage.local`, nesta máquina; não sincroniza entre Chromes.
+- **Sem login, a extensão para e avisa.**
+  - O ícone mostra "!" e a coleta automática não envia.
+  - Se o RedeFlow recusar a sessão (401/403: vencida, usuário desativado, sem permissão), a extensão sai sozinha e pede login de novo.
+- O token de máquina foi para **Avançado** como alternativa opcional. Com usuário logado, o login tem prioridade.
+- README atualizado; pacote `jh-redeflow-coletor-ofs-1.1.0.zip` gerado.
+
+### Pendências
+- Instalar a 1.1.0 na máquina coletora e entrar com um usuário que tenha a permissão de Importações.
+- Depois que todas as máquinas estiverem usando login, avaliar remover o `OFS_INGEST_TOKEN` do Render.

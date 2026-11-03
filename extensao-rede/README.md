@@ -21,7 +21,10 @@ Extensão do Chrome da Rede, separada da extensão do JH Agendamentos. Ela expor
 
 1. Publicar o pacote (`extensao-rede`, compactado com `manifest.json` na raiz) na Chrome Web Store, ou, para teste,
    `chrome://extensions` → Modo do desenvolvedor → **Carregar sem compactação** → pasta `extensao-rede`.
-2. No popup: colar o **Token do JH RedeFlow** (mesmo valor de `OFS_INGEST_TOKEN` no Render) → **Testar token** → **Salvar**.
+2. No popup, em **Conta do JH RedeFlow**: entrar com o **e-mail e a senha do sistema** → **Testar conexão**.
+   O perfil precisa da permissão de Importações. A sessão vale 30 dias e só serve para enviar o export do OFS;
+   a senha não fica guardada. Quando vencer (ou o usuário for desativado), a extensão mostra "!" e pede login de novo.
+   O token de máquina (`OFS_INGEST_TOKEN`) continua aceito em **Avançado**, como alternativa.
 3. Deixar uma aba do OFS aberta e logada (Console de Alocação) nesta máquina.
 4. Em **Avançado**, informar o `data-id` da alocação da Rede na árvore do OFS para não depender da alocação selecionada.
 

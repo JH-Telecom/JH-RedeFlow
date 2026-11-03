@@ -37,6 +37,19 @@ async function mostrarStatus() {
   $("proximas").textContent = partes.length ? `Próximas exportações: ${partes.join(" · ")}` : "Nenhuma exportação automática agendada.";
 }
 
+function mostrarConta(sessao) {
+  $("formLogin").hidden = Boolean(sessao);
+  $("logado").hidden = !sessao;
+  if (!sessao) return;
+  $("usuarioNome").textContent = sessao.nome;
+  $("usuarioEmail").textContent = sessao.email;
+  $("sessaoAte").textContent = sessao.expiraEm ? new Date(sessao.expiraEm).toLocaleDateString("pt-BR") : "—";
+}
+
+async function carregarConta() {
+  mostrarConta(await enviar({ tipo: "sessao" }));
+}
+
 async function carregar() {
   $("versao").textContent = `v${chrome.runtime.getManifest().version}`;
   const cfg = { ...PADRAO, ...(await chrome.storage.sync.get(Object.keys(PADRAO))) };
@@ -51,6 +64,7 @@ async function carregar() {
     $(id).min = somarDias(hojeSP(), -31);
   }
   $("dataEscolhida").value = ontem;
+  carregarConta();
   $("arquivoData").value = hojeSP();
   mostrarStatus();
 }
@@ -83,12 +97,34 @@ $("salvar").onclick = async () => {
   setTimeout(mostrarStatus, 300);
 };
 
-$("testarToken").onclick = async () => {
-  await chrome.storage.sync.set({ token: $("token").value.trim() });
-  $("configStatus").textContent = "Testando…";
-  const r = await enviar({ tipo: "testarToken" });
-  $("configStatus").textContent = r?.ok ? "✓ Token aceito pelo RedeFlow." : `✗ ${r?.erro || "falhou"}`;
-  $("configStatus").className = `hint ${r?.ok ? "ok" : "erro"}`;
+$("formLogin").onsubmit = async (e) => {
+  e.preventDefault();
+  $("entrar").disabled = true;
+  $("contaStatus").className = "hint";
+  $("contaStatus").textContent = "Entrando…";
+  const r = await enviar({ tipo: "entrar", email: $("email").value, senha: $("senha").value });
+  $("entrar").disabled = false;
+  $("senha").value = "";
+  $("contaStatus").textContent = r?.ok ? "" : `✗ ${r?.erro || "não foi possível entrar"}`;
+  $("contaStatus").className = `hint ${r?.ok ? "ok" : "erro"}`;
+  if (r?.ok) mostrarConta(r);
+  mostrarStatus();
+};
+
+$("sair").onclick = async () => {
+  await enviar({ tipo: "sair" });
+  $("contaStatus").textContent = "Você saiu. A coleta automática fica parada até entrar de novo.";
+  $("contaStatus").className = "hint";
+  mostrarConta(null);
+};
+
+$("testarConexao").onclick = async () => {
+  $("contaStatus").className = "hint";
+  $("contaStatus").textContent = "Testando…";
+  const r = await enviar({ tipo: "testarConexao" });
+  $("contaStatus").textContent = r?.ok ? "✓ Conexão com o RedeFlow OK." : `✗ ${r?.erro || "falhou"}`;
+  $("contaStatus").className = `hint ${r?.ok ? "ok" : "erro"}`;
+  if (!r?.ok) carregarConta();
 };
 
 $("arquivo").onchange = async (e) => {
@@ -104,5 +140,6 @@ $("arquivo").onchange = async (e) => {
 
 chrome.storage.onChanged.addListener((mudancas, area) => {
   if (area === "local" && (mudancas.ultimoEnvio || mudancas.captura)) mostrarStatus();
+  if (area === "local" && mudancas.sessao) carregarConta();
 });
 carregar();

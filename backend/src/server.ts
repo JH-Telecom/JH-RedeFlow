@@ -26,6 +26,7 @@ const activationGroupIds = [...new Set((process.env.WUZAPI_ACTIVATION_GROUP_ID |
 const wuzapiDebug = process.env.WUZAPI_DEBUG === 'true';
 const skipWuzapiGroupFilter = process.env.WUZAPI_SKIP_GROUP_FILTER === 'true';
 const ofsIngestToken = process.env.OFS_INGEST_TOKEN?.trim() || undefined;
+const OFS_COLLECTOR_SCOPE = 'ofs-collector';
 const corsOrigins = [...new Set(['https://jh-rede.vercel.app', ...(process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean)])];
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 type PendingHistoricalImport = { userId: string; fileName: string; candidates: HistoricalActivationCandidate[]; expiresAt: number };
@@ -112,7 +113,9 @@ async function auth(request: AuthRequest, response: Response, next: NextFunction
   const token = request.headers.authorization?.replace('Bearer ', '');
   if (!token) return response.status(401).json({ message: 'Sessao nao encontrada.' });
   try {
-    const payload = jwt.verify(token, jwtSecret!) as { sub: string };
+    const payload = jwt.verify(token, jwtSecret!) as { sub: string; scope?: string };
+    // Sessao da extensao (30 dias) so serve para enviar o export do OFS.
+    if (payload.scope === OFS_COLLECTOR_SCOPE) return response.status(401).json({ message: 'Sessao da extensao nao vale para o sistema.' });
     if (isSupabaseConfigured()) {
       const supabaseUser = await getSupabaseProfile(payload.sub);
       if (!supabaseUser || !supabaseUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
@@ -174,26 +177,33 @@ app.get('/health/supabase', async (_request, response) => {
   const result = await checkSupabaseConnection();
   return response.status(result.connected ? 200 : 503).json({ configured: result.configured, connected: result.connected, error: result.connected ? undefined : result.error });
 });
-app.post('/api/auth/login', async (request, response) => {
-  const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(request.body);
-  if (!parsed.success) return response.status(400).json({ message: 'Informe e-mail e senha validos.' });
-  if (isLoginRateLimited(request, parsed.data.email)) return response.status(429).json({ message: 'Muitas tentativas de login. Tente novamente mais tarde.' });
+const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
+type CredentialResult = { user: AuthUser } | { status: number; message: string };
+// E-mail e senha do sistema (Supabase ou demo), com o mesmo limite de tentativas do login.
+async function checkCredentials(request: Request, email: string, password: string): Promise<CredentialResult> {
+  if (isLoginRateLimited(request, email)) return { status: 429, message: 'Muitas tentativas de login. Tente novamente mais tarde.' };
   if (isSupabaseConfigured()) {
     try {
-      const supabaseUser = await authenticateSupabaseUser(parsed.data.email, parsed.data.password);
-      if (!supabaseUser) return response.status(401).json({ message: 'E-mail, senha ou perfil incorretos.' });
-      clearLoginAttempts(request, parsed.data.email);
-      const token = jwt.sign({ sub: supabaseUser.id }, jwtSecret!, { expiresIn: '8h' });
-      return response.json({ token, user: supabaseUser });
+      const supabaseUser = await authenticateSupabaseUser(email, password);
+      if (!supabaseUser) return { status: 401, message: 'E-mail, senha ou perfil incorretos.' };
+      clearLoginAttempts(request, email);
+      return { user: supabaseUser };
     } catch {
-      return response.status(401).json({ message: 'Nao foi possivel autenticar no Supabase.' });
+      return { status: 401, message: 'Nao foi possivel autenticar no Supabase.' };
     }
   }
-  const user = getUserByEmail(parsed.data.email);
-  if (!user || !user.active || !validatePassword(user, parsed.data.password)) return response.status(401).json({ message: 'E-mail ou senha incorretos.' });
-  clearLoginAttempts(request, parsed.data.email);
-  const token = jwt.sign({ sub: user.id }, jwtSecret!, { expiresIn: '8h' });
-  return response.json({ token, user: getAuthUser(user) });
+  const user = getUserByEmail(email);
+  if (!user || !user.active || !validatePassword(user, password)) return { status: 401, message: 'E-mail ou senha incorretos.' };
+  clearLoginAttempts(request, email);
+  return { user: getAuthUser(user) };
+}
+app.post('/api/auth/login', async (request, response) => {
+  const parsed = loginSchema.safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe e-mail e senha validos.' });
+  const result = await checkCredentials(request, parsed.data.email, parsed.data.password);
+  if (!('user' in result)) return response.status(result.status).json({ message: result.message });
+  const token = jwt.sign({ sub: result.user.id }, jwtSecret!, { expiresIn: '8h' });
+  return response.json({ token, user: result.user });
 });
 app.get('/api/auth/me', auth, (request: AuthRequest, response) => response.json({ user: request.authUser }));
 app.get('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
@@ -514,9 +524,49 @@ function hasValidOfsToken(request: Request) {
   const expected = Buffer.from(ofsIngestToken);
   return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
+// Login da extensao com o usuario do sistema: gera uma sessao de 30 dias que so vale para enviar o export do OFS
+// (a coleta automatica roda de hora em hora, inclusive de madrugada). Exige a permissao de importar.
+const OFS_COLLECTOR_PERMISSION: PermissionCode = 'imports.create';
+async function loadActiveUser(userId: string): Promise<AuthUser | undefined> {
+  if (isSupabaseConfigured()) {
+    const user = await getSupabaseProfile(userId);
+    return user && user.active ? user : undefined;
+  }
+  const user = (await listUsers()).find((item) => item.id === userId);
+  return user && user.active ? getAuthUser(user) : undefined;
+}
+app.post('/api/integrations/ofs/login', async (request, response) => {
+  const parsed = loginSchema.safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe e-mail e senha validos.' });
+  const result = await checkCredentials(request, parsed.data.email, parsed.data.password);
+  if (!('user' in result)) return response.status(result.status).json({ message: result.message });
+  if (result.user.mustChangePassword) return response.status(403).json({ message: 'Troque sua senha no sistema antes de entrar na extensao.' });
+  if (!result.user.role.permissions.includes(OFS_COLLECTOR_PERMISSION)) return response.status(403).json({ message: 'Seu perfil nao tem permissao para enviar dados do OFS (Importacoes).' });
+  const token = jwt.sign({ sub: result.user.id, scope: OFS_COLLECTOR_SCOPE }, jwtSecret!, { expiresIn: '30d' });
+  const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  return response.json({ token, expiresAt, user: { id: result.user.id, name: result.user.name, email: result.user.email } });
+});
+// Quem esta enviando: o usuario logado na extensao (sessao do coletor) ou o token de maquina antigo.
+async function ofsCollectorIdentity(request: Request): Promise<{ label: string } | { status: number; message: string }> {
+  const bearer = request.headers.authorization?.replace(/^Bearer\s+/i, '').trim();
+  if (bearer) {
+    let payload: { sub?: string; scope?: string };
+    try { payload = jwt.verify(bearer, jwtSecret!) as { sub?: string; scope?: string }; }
+    catch { return { status: 401, message: 'Sessao da extensao expirada. Entre novamente.' }; }
+    const user = payload.sub ? await loadActiveUser(payload.sub) : undefined;
+    if (!user) return { status: 401, message: 'Usuario inativo ou removido. Entre novamente.' };
+    if (!user.role.permissions.includes(OFS_COLLECTOR_PERMISSION)) return { status: 403, message: 'Seu perfil nao tem permissao para enviar dados do OFS (Importacoes).' };
+    return { label: user.name };
+  }
+  if (request.headers['x-redeflow-ofs-token']) {
+    if (!ofsIngestToken) return { status: 503, message: 'Token de maquina do Coletor OFS nao configurado no servidor (OFS_INGEST_TOKEN).' };
+    return hasValidOfsToken(request) ? { label: '' } : { status: 401, message: 'Token do Coletor OFS invalido.' };
+  }
+  return { status: 401, message: 'Entre na extensao com seu usuario do JH RedeFlow.' };
+}
 app.post('/api/integrations/ofs/export', async (request, response) => {
-  if (!ofsIngestToken) return response.status(503).json({ message: 'Integracao do Coletor OFS nao configurada no servidor (OFS_INGEST_TOKEN).' });
-  if (!hasValidOfsToken(request)) return response.status(401).json({ message: 'Token do Coletor OFS invalido.' });
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
   const parsed = z.object({ csv: z.string().min(1).max(14_000_000), nome: z.string().trim().max(255).optional(), maquina: z.string().trim().max(120).optional(), data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Envie o CSV exportado do OFS.' });
   const today = toOperationalDate();
@@ -532,7 +582,7 @@ app.post('/api/integrations/ofs/export', async (request, response) => {
     const data = parseOfsActivityExport(parsed.data.csv);
     if (!data.records?.length) return response.status(422).json({ message: 'O CSV nao tem atividades de manutencao de rede; o Painel diario nao foi alterado.' });
     const fileName = parsed.data.nome || `ofs-${businessDate}.csv`;
-    const uploadedBy = `Coletor OFS${parsed.data.maquina ? ` (${parsed.data.maquina})` : ''}`;
+    const uploadedBy = `Coletor OFS${identity.label ? ` – ${identity.label}` : ''}${parsed.data.maquina ? ` (${parsed.data.maquina})` : ''}`;
     const base = await saveManualDailyBase(fileName, data, uploadedBy, businessDate);
     let d0: { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number } | undefined;
     let d0Error: string | undefined;

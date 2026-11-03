@@ -11,6 +11,29 @@
     <div><strong>JH RedeFlow</strong><small>Coletor OFS · <span id="versao"></span></small></div>
   </header>
 
+  <section class="card" id="cardConta">
+    <h2>Conta do JH RedeFlow</h2>
+    <form id="formLogin">
+      <label class="campo">E-mail
+        <input id="email" type="email" autocomplete="username" required>
+      </label>
+      <label class="campo">Senha
+        <input id="senha" type="password" autocomplete="current-password" required>
+      </label>
+      <button id="entrar" class="primario" type="submit">Entrar</button>
+      <p class="hint">Use o mesmo login do sistema. O perfil precisa da permissão de Importações.</p>
+    </form>
+    <div id="logado" hidden>
+      <div class="status ok">✓ <span id="usuarioNome"></span></div>
+      <div class="hint"><span id="usuarioEmail"></span> · sessão até <span id="sessaoAte"></span></div>
+      <div class="botoes">
+        <button id="testarConexao" type="button">Testar conexão</button>
+        <button id="sair" type="button">Sair</button>
+      </div>
+    </div>
+    <div id="contaStatus" class="hint"></div>
+  </section>
+
   <section class="card" id="cardStatus">
     <h2>Último envio</h2>
     <div id="status" class="status">Nenhum envio ainda.</div>
@@ -33,10 +56,6 @@
 
   <section class="card">
     <h2>Configuração</h2>
-    <label class="campo">Token do JH RedeFlow
-      <input id="token" type="password" autocomplete="off" placeholder="cole o token fornecido pelo administrador">
-    </label>
-    <button id="testarToken" class="link">Testar token</button>
     <label class="campo">Atualizar hoje
       <select id="intervaloMin">
         <option value="0">Desligado</option>
@@ -55,6 +74,10 @@
       <label class="campo">ID da alocação da Rede (data-id)
         <input id="alocacaoId" type="text" placeholder="em branco = a alocação selecionada no OFS">
         <span class="hint">Garante exportar sempre a mesma alocação da árvore do OFS.</span>
+      </label>
+      <label class="campo">Token de máquina (opcional)
+        <input id="token" type="password" autocomplete="off" placeholder="só se não usar o login">
+        <span class="hint">Alternativa antiga ao login. Com usuário logado, o login é usado.</span>
       </label>
     </details>
     <label class="interruptor"><input id="ativo" type="checkbox"> Coleta automática ligada</label>

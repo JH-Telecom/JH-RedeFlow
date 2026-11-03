@@ -4,7 +4,9 @@
    e o Status OFS / Data Fim dos chamados. So captura o download que ela mesma pediu — exportacoes manuais no OFS
    continuam baixando normalmente. */
 
-const API_URL = "https://jh-redeflow-api.onrender.com/api/integrations/ofs/export";
+const API_BASE = "https://jh-redeflow-api.onrender.com";
+const API_URL = `${API_BASE}/api/integrations/ofs/export`;
+const LOGIN_URL = `${API_BASE}/api/integrations/ofs/login`;
 const OFS_MATCH = "https://alloha.fs.ocs.oraclecloud.com/*";
 const ALARME_HOJE = "rf-coleta-hoje";
 const ALARME_ONTEM = "rf-coleta-dia-anterior";
@@ -20,6 +22,38 @@ const diaBR = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)
 
 async function config() {
   return { ...PADRAO, ...(await chrome.storage.sync.get(Object.keys(PADRAO))) };
+}
+
+// ---------- login com o usuario do JH RedeFlow ----------
+// A sessao (30 dias, so vale para enviar o export) fica no storage local desta maquina; a senha nunca e guardada.
+async function sessaoAtual() {
+  const { sessao } = await chrome.storage.local.get("sessao");
+  if (!sessao?.token) return null;
+  if (sessao.expiraEm && Date.parse(sessao.expiraEm) <= Date.now()) { await chrome.storage.local.remove("sessao"); return null; }
+  return sessao;
+}
+
+// Cabecalho de autenticacao: usuario logado; sem login, o token de maquina antigo (Avancado), se houver.
+async function autenticacao() {
+  const sessao = await sessaoAtual();
+  if (sessao) return { headers: { Authorization: `Bearer ${sessao.token}` }, sessao };
+  const { token } = await config();
+  if (token) return { headers: { "x-redeflow-ofs-token": token }, sessao: null };
+  return null;
+}
+
+async function entrar(email, senha) {
+  try {
+    const r = await fetch(LOGIN_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password: senha }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok || !body?.token) return { ok: false, erro: body?.message || `HTTP ${r.status}` };
+    const sessao = { token: body.token, expiraEm: body.expiresAt, nome: body.user?.name || email, email: body.user?.email || email };
+    await chrome.storage.local.set({ sessao });
+    atualizarSelo();
+    return { ok: true, nome: sessao.nome, email: sessao.email, expiraEm: sessao.expiraEm };
+  } catch (e) {
+    return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` };
+  }
 }
 
 async function maquinaId() {
@@ -39,7 +73,7 @@ async function atualizarSelo() {
     if (color) chrome.action.setBadgeBackgroundColor({ color });
     chrome.action.setTitle({ title: `JH RedeFlow – Coletor OFS${title ? ` — ${title}` : ""}` });
   };
-  if (!cfg.token) return set("!", "#dc2626", "configure o token do RedeFlow");
+  if (!(await autenticacao())) return set("!", "#dc2626", "entre com seu usuário do JH RedeFlow");
   if (!cfg.ativo) return set("OFF", "#6b7280", "coleta automática desligada");
   if (captura && Date.now() < captura.ate) return set("...", "#2563eb", `exportando ${diaBR(captura.data)}`);
   if (!ultimoEnvio) return set("", null, "nenhum envio ainda");
@@ -64,15 +98,17 @@ async function registrar(resultado) {
 
 // ---------- envio ao RedeFlow ----------
 async function enviarCsv(csv, nome, data) {
-  const { token } = await config();
-  if (!token) return { ok: false, erro: "Token do RedeFlow não configurado" };
+  const auth = await autenticacao();
+  if (!auth) return { ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" };
   try {
     const r = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-redeflow-ofs-token": token },
+      headers: { "Content-Type": "application/json", ...auth.headers },
       body: JSON.stringify({ csv, nome: nome || `ofs-${data}.csv`, maquina: await maquinaId(), data }),
     });
     const body = await r.json().catch(() => ({}));
+    // Sessao vencida, usuario desativado ou sem permissao: sai para o popup pedir login de novo.
+    if (auth.sessao && (r.status === 401 || r.status === 403)) await chrome.storage.local.remove("sessao");
     if (!r.ok) return { ok: false, erro: body?.message || `HTTP ${r.status}` };
     return { ok: true, atividades: body?.painel?.records ?? null, cruzados: body?.d0?.matchedCalls ?? null, atualizados: body?.d0?.updatedCalls ?? null, aviso: body?.d0Error || null };
   } catch (e) {
@@ -159,7 +195,7 @@ async function rodarNaPagina(tabId, args) {
 // Exporta um dia (hoje por padrao). O envio acontece quando o download chega (chrome.downloads.onCreated).
 async function exportarDia(data, automatico) {
   const cfg = await config();
-  if (!cfg.token) return registrar({ ok: false, data, automatico, erro: "Configure o token do RedeFlow no popup" });
+  if (!(await autenticacao())) return registrar({ ok: false, data, automatico, erro: "Entre com seu usuário do JH RedeFlow no popup" });
   const aba = await abaDoOfs();
   if (!aba) return registrar({ ok: false, data, automatico, erro: "Nenhuma aba do OFS aberta (abra o Console de Alocação e faça login)" });
   const { captura } = await chrome.storage.local.get("captura");
@@ -254,6 +290,7 @@ chrome.alarms.onAlarm.addListener(async (alarme) => {
 
 chrome.storage.onChanged.addListener((mudancas, area) => {
   if (area === "sync" && Object.keys(mudancas).some((chave) => chave in PADRAO)) agendar();
+  if (area === "local" && mudancas.sessao) atualizarSelo();
 });
 chrome.runtime.onInstalled.addListener(() => agendar());
 chrome.runtime.onStartup.addListener(() => agendar());
@@ -265,14 +302,18 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
   const tarefas = {
     exportar: () => exportarDia(msg.data || hojeSP(), false),
     enviarArquivo: async () => registrar({ ...(await enviarCsv(msg.csv, msg.nome, msg.data)), data: msg.data, automatico: false }),
-    testarToken: async () => {
-      const { token } = await config();
-      if (!token) return { ok: false, erro: "Preencha o token" };
+    entrar: () => entrar(String(msg.email || "").trim(), String(msg.senha || "")),
+    sair: async () => { await chrome.storage.local.remove("sessao"); atualizarSelo(); return { ok: true }; },
+    sessao: async () => { const s = await sessaoAtual(); return s ? { nome: s.nome, email: s.email, expiraEm: s.expiraEm } : null; },
+    testarConexao: async () => {
+      const auth = await autenticacao();
+      if (!auth) return { ok: false, erro: "Entre com seu usuário primeiro" };
       try {
-        const r = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json", "x-redeflow-ofs-token": token }, body: "{}" });
+        const r = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json", ...auth.headers }, body: "{}" });
         if (r.status === 400) return { ok: true };
-        if (r.status === 401) return { ok: false, erro: "Token recusado pelo RedeFlow" };
-        if (r.status === 503) return { ok: false, erro: "O RedeFlow está sem o token configurado no servidor" };
+        const body = await r.json().catch(() => ({}));
+        if (auth.sessao && (r.status === 401 || r.status === 403)) await chrome.storage.local.remove("sessao");
+        if (r.status === 401 || r.status === 403 || r.status === 503) return { ok: false, erro: body?.message || `Acesso recusado (HTTP ${r.status})` };
         return { ok: false, erro: `Resposta inesperada (HTTP ${r.status})` };
       } catch (e) { return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` }; }
     },

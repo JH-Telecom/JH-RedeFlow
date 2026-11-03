@@ -33,3 +33,4 @@ summary { cursor: pointer; font-size: 12px; color: var(--mudo); }
 .historico li { padding: 5px 7px; border-radius: 5px; background: #f8fafc; }
 .historico li.ok { border-left: 3px solid #0ca30c; }
 .historico li.erro { border-left: 3px solid #d03b3b; }
+[hidden] { display: none !important; }

@@ -974,6 +974,25 @@ test('OFS collector export updates the daily panel and the OFS status of matchin
   assert.equal(call.call.ofsStatus, 'Iniciado');
 });
 
+test('OFS collector extension logs in with the system user and its session only works for the export', async () => {
+  const login = (email: string, password: string) => fetch(`${baseUrl}/api/integrations/ofs/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  assert.equal((await login('admin@jhtelecom.com', 'senha-errada')).status, 401);
+  assert.equal((await login('joao@jhtelecom.com', 'RedeFlow@2026')).status, 403, 'supervisor sem permissao de importar');
+
+  const response = await login('admin@jhtelecom.com', 'RedeFlow@2026');
+  assert.equal(response.status, 200);
+  const session = await response.json() as { token: string; expiresAt: string; user: { name: string } };
+  assert.equal(session.user.name, 'Administrador JH');
+  assert.ok(Date.parse(session.expiresAt) - Date.now() > 29 * 86_400_000);
+
+  const exportWith = (authorization?: string) => fetch(`${baseUrl}/api/integrations/ofs/export`, { method: 'POST', headers: { 'content-type': 'application/json', ...(authorization ? { authorization } : {}) }, body: '{}' });
+  assert.equal((await exportWith(`Bearer ${session.token}`)).status, 400, 'sessao aceita: falha so por faltar o CSV');
+  assert.equal((await exportWith('Bearer token-invalido')).status, 401);
+  assert.equal((await exportWith()).status, 401);
+  // A sessao de 30 dias da extensao nao abre o resto do sistema.
+  assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);
+});
+
 test('OFS collector export of a previous day updates that day panel and calls without replacing today D-0 base', async () => {
   const fmt = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
   const today = fmt(new Date());
