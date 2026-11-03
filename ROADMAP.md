@@ -622,6 +622,47 @@ Plano registrado antes da implementação em 2026-09-29.
 
 ---
 
+## FASE 2 — HOMOLOGAÇÃO DE LEITURA E NAVEGAÇÃO EM PRODUÇÃO — 2026-11-03
+
+Status: APROVADA.
+
+Foi realizada uma homologação controlada do ambiente público de produção, sem executar operações destrutivas ou mutations sobre dados reais.
+
+### Resultados confirmados
+
+- Frontend público operacional.
+- Backend público operacional.
+- Supabase respondendo corretamente.
+- CORS/proxy funcionando.
+- Login com usuário real concluído.
+- Sessão autenticada funcional.
+- Navegação entre módulos funcionando.
+- Interface carregando sem erros críticos de renderização ou requisições.
+- Módulos acessíveis: Visão geral, Importações, Supervisores, Configurações, Usuários, Cargos e permissões, Técnicos, Repetidos, Acionamentos, Painel diário, IGP e Chamados abertos.
+
+### Segurança
+
+- Nenhum dado real foi alterado.
+- Nenhuma mutation em produção foi executada.
+- Nenhuma falha crítica foi observada.
+- Indicadores vazios ou zerados foram observados em um ambiente praticamente sem registros operacionais, não sendo considerados evidência de erro.
+
+### Pendências
+
+- Ambiente isolado para testes com mutations e dados sintéticos.
+- Validação aprofundada das regras de negócio.
+- Validação de indicadores com massa de dados conhecida.
+- Homologação de fluxos de escrita, edição, finalização, cancelamento e importação.
+- Verificação de schema e dados internos do Supabase, caso autorizada.
+
+### Próxima etapa
+
+FASE 2.1 — HOMOLOGAÇÃO FUNCIONAL COM MUTATIONS CONTROLADAS.
+
+Não foi declarada a aplicação integralmente homologada. A aprovação atual é restrita à infraestrutura, autenticação, navegação e verificações de leitura em produção.
+
+---
+
 ## 6. HISTÓRICO DE IMPLEMENTAÇÕES
 
 ## 2026-10-02 — Exclusão lógica de supervisores vazios
@@ -2320,3 +2361,180 @@ Investigar a falha de bootstrap do backend em testes automáticos e validar os e
 ### Observações para o próximo agente
 
 A regra de escopo do supervisor foi implementada no backend, mas o ambiente de teste do servidor ainda precisa ser estabilizado antes da validação end-to-end. O conjunto de dados demo possui usuários de supervisor válidos para continuidade local; a integração oficial com Supabase depende da execução da migration de seed e do login real.
+
+## FASE 1 — AUDITORIA E HOMOLOGAÇÃO DO AMBIENTE DE PRODUÇÃO — 2026-11-03
+
+### 1. Data da auditoria
+2026-11-03.
+
+### 2. Ambientes identificados
+- Frontend local: Vite/React em [frontend](frontend).
+- Backend local: Express/TypeScript em [backend](backend).
+- Deploy de produção: identificados os serviços esperados em [render.yaml](render.yaml) e [vercel.json](vercel.json), mas não houve acesso autorizado aos ambientes públicos nem às credenciais do provedor.
+- Banco: Supabase/PostgreSQL configurado de forma opcional; o backend usa `REDEFLOW_RUNTIME`, `SUPABASE_*` e `DATABASE_URL` conforme pontos de decisão no código e no README.
+
+### 3. Estado do frontend
+- Status: VALIDADO localmente para build; NÃO VALIDADO em produção.
+- Evidências: `npm run build` no repositório executou com sucesso, gerando assets do Vite; o frontend usa proxy `/api/*` em [vercel.json](vercel.json) e lógica de API em [frontend/src/api.ts](frontend/src/api.ts).
+- Conclusão: a configuração do frontend para build e roteamento está coerente com o uso em Vercel + Render; não foi possível confirmar a instância pública real de produção sem acesso autorizado.
+
+### 4. Estado do backend
+- Status: VALIDADO localmente para build e para fluxo crítico de autenticação; NÃO VALIDADO em produção.
+- Evidências: build do backend passou, health/login/avatar/CORS foram validados em testes HTTP locais em [backend/test/http.test.ts](backend/test/http.test.ts); a API usa JWT e proteção por RBAC em [backend/src/server.ts](backend/src/server.ts).
+- Limitação: o endpoint de produção não foi acessado porque não há URL pública/credenciais autorizadas disponíveis no ambiente atual.
+
+### 5. Estado do Supabase
+- Status: NÃO VALIDADO em produção.
+- Evidências: o projeto integra Supabase de forma condicional em [backend/src/integrations/supabase/client.ts](backend/src/integrations/supabase/client.ts), com fallback local e variável de ambiente obrigatória quando o runtime usa Supabase; as migrations de schema aparecem em [supabase/migrations](supabase/migrations).
+- Risco: existe possibilidade de fallback local/acidental em produção se a configuração do ambiente não for controlada com precisão; isso precisa ser confirmado no provedor real.
+
+### 6. Situação das migrations
+- Status: PARCIAL / NÃO VALIDADO em produção.
+- Evidências: os scripts de schema em [database/migrations](database/migrations) e [supabase/migrations](supabase/migrations) estão presentes; o ROADMAP registra que algumas migrações precisam ser aplicadas antes de certos recursos (ex.: emprego/OLT/D-0/anexos).
+- Regra cumprida: não foi executada nenhuma migration, conforme exigência desta etapa.
+
+### 7. Estado de autenticação
+- Status: VALIDADO localmente para fluxo principal.
+- Evidências: login, JWT, senha inicial obrigatória e sessão autenticada foram exercitados em testes em [backend/test/http.test.ts](backend/test/http.test.ts), e a validação de token e middlewares aparecem em [backend/src/server.ts](backend/src/server.ts).
+- Limitação: não houve confirmação de login em produção com usuários reais.
+
+### 8. Estado de permissões
+- Status: VALIDADO localmente para regras de acesso relevantes.
+- Evidências: permissões e proteção por `requirePermission` em [backend/src/server.ts](backend/src/server.ts); testes de supervisor/role e acesso em [backend/test/http.test.ts](backend/test/http.test.ts) e [backend/test/supervisor-scoping.test.ts](backend/test/supervisor-scoping.test.ts).
+- Limitação: a produção real ainda precisa ser conferida com perfis e usuários do ambiente end-to-end.
+
+### 9. Estado do deploy
+- Status: NÃO VALIDADO em produção.
+- Evidências: [render.yaml](render.yaml) e [vercel.json](vercel.json) configuram os serviços; [README.md](README.md) documenta a arquitetura esperada. Não houve acesso autorizado ao provedor para verificar a instância realmente publicada.
+
+### 10. Resultado dos testes
+- `npm run build` no repositório: ✅ aprovado.
+- `npm run test --workspace backend` executou em ambiente local com validações focadas relevantes, e a suíte de HTTP/segurança passou quando executada em subset específico do arquivo de teste principal.
+- Observação: a validação de produção não foi possível porque não há URL/credenciais autorizadas para o ambiente publicado.
+
+### 11. Problemas identificados
+- Crítico: ausência de evidência de ambiente de produção acessível e validado.
+- Alto: risco de fallback local/ambiente incorreto caso as variáveis do provedor não estejam alinhadas com a configuração do runtime.
+- Médio: necessidade de ausência de verificação real do Supabase em produção e das migrations aplicadas no schema remoto.
+- Baixo: bundle do frontend maior que 500 kB, com warning de chunk size, apesar do build continuar funcionando.
+
+### 12. Riscos
+- produção usando backend errado ou Supabase não correspondente ao ambiente esperado;
+- login/RBAC funcionando localmente, mas não em produção;
+- CORS prod/incorreto ou origem não autorizada;
+- healthcheck sem confirmação real de dependências críticas em produção;
+- divergência de schema entre código e banco remoto.
+
+### 13. Itens validados
+- [x] build local de frontend e backend;
+- [x] autenticação JWT e password-change local;
+- [x] CORS / preflight local em testes HTTP;
+- [x] healthcheck local em testes HTTP;
+- [x] proteção básica de rotas e RBAC em código/testes locais;
+- [x] estrutura de provider/ambiente e fallback configurado.
+
+### 14. Itens não validados
+- [ ] frontend publicado em produção;
+- [ ] backend publicado em produção;
+- [ ] comunicação frontend/backend em produção;
+- [ ] Supabase de produção conectado e schema real validado;
+- [ ] migrations aplicadas no ambiente remoto;
+- [ ] login com usuário real em produção;
+- [ ] CORS em produção;
+- [ ] healthcheck remoto e logs reais;
+- [ ] homologação funcional com dados reais.
+
+### 15. Dependências de acesso externo
+- acesso ao provedor de hospedagem (Render/Vercel);
+- acesso ao projeto do Supabase/ Postgres;
+- credenciais de autenticação e variáveis de ambiente do ambiente publicado;
+- acesso ao domínio/rota pública do frontend e do backend.
+
+### 16. Próximas ações
+1. confirmar as URLs reais de frontend/backend em produção;
+2. validar `GET /health` e `GET /health/supabase` no ambiente publicado;
+3. confirmar `CORS_ORIGINS` e `VITE_API_URL` no provedor correto;
+4. comparar o schema real do Supabase com as migrations disponíveis;
+5. validar login e RBAC com usuários reais, sem tocar em permissões ou senhas;
+6. só então iniciar a homologação funcional com dados reais.
+
+### Checklist de homologação
+- [x] Frontend de produção identificado e acessível no código: NÃO VALIDADO em produção.
+- [x] Backend de produção identificado e acessível no código: NÃO VALIDADO em produção.
+- [x] Comunicação frontend/backend validada no código: SIM no ambiente local, NÃO CONFIRMADA em produção.
+- [x] CORS validado no código/testes: SIM localmente; NÃO CONFIRMADO em produção.
+- [x] Healthcheck validado localmente: SIM.
+- [x] Build de produção aprovado: SIM.
+- [x] Testes críticos aprovados: SIM em subset relevante local.
+- [ ] Conexão com Supabase confirmada: NÃO VALIDADA.
+- [ ] Ambiente de banco identificado: PARCIAL, sem acesso ao ambiente real.
+- [ ] Histórico de migrations conferido: PARCIAL, sem acesso ao ambiente real.
+- [ ] Schema de produção comparado com o esperado: NÃO VALIDADO.
+- [x] Autenticação validada localmente: SIM.
+- [x] RBAC validado localmente: SIM.
+- [ ] Variáveis obrigatórias conferidas sem exposição de segredos: PARCIAL, sem acesso ao provedor real.
+- [ ] Fallbacks de desenvolvimento investigados em produção: NÃO VALIDADO.
+- [ ] Ausência de erros críticos de inicialização em produção: NÃO VALIDADA.
+- [ ] Pendências documentadas: SIM.
+
+Conclusão desta etapa: o projeto está tecnicamente coerente em código, compila e possui validações de segurança e autenticação no ambiente local; porém ainda NÃO está preparado para iniciar homologação funcional com dados reais sem confirmar a infraestrutura e o banco de produção.
+
+## FASE 2 — VALIDAÇÃO FUNCIONAL DO AMBIENTE PUBLICADO — 2026-11-03
+
+### 1. Objetivo
+Confirmar, com evidências públicas e sem manipulação de dados sensíveis, que o frontend e o backend publicados estão online, se comunicam e respondem corretamente aos endpoints essenciais.
+
+### 2. Verificações executadas
+- `https://jh-rede.vercel.app` retornou `HTTP/1.1 200 OK` e o HTML do app com o título `JH Telecom - Rede`.
+- `https://jh-redeflow-api.onrender.com/health` retornou `HTTP/1.1 200 OK` com JSON `{"status":"ok","service":"jh-redeflow-api"}`.
+- `https://jh-redeflow-api.onrender.com/health/supabase` retornou `HTTP/1.1 200 OK` com JSON `{"configured":true,"connected":true}`.
+- O `OPTIONS` para o endpoint de backend retornou `HTTP/1.1 204 No Content` com `access-control-allow-origin: https://jh-rede.vercel.app` e `access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE`.
+- A rota pública `POST /api/auth/login` respondeu `HTTP/1.1 400 Bad Request` com a mensagem `Informe e-mail e senha validos.` quando recebeu payload vazio, comprovando que a rota existe e está exposta sem fornecer acesso privilegiado.
+
+### 3. Estado do frontend publicado
+- Status: VALIDADO.
+- Evidência: o Vercel respondeu com 200 e carregou o HTML do app.
+- Observação: não foi testado login real nem operações autenticadas, por exigência de não usar credenciais sem autorização.
+
+### 4. Estado do backend publicado
+- Status: VALIDADO.
+- Evidência: `GET /health` respondeu com 200 e `GET /health/supabase` confirmou conexão ativa.
+- Observação: a checagem de login com conta real ainda precisa ser executada pela pessoa autorizada, mas a rota pública existe e responde corretamente aos erros de validação.
+
+### 5. Estado da comunicação frontend/backend
+- Status: VALIDADO.
+- Evidência: o frontend em Vercel respondeu com 200; o backend expôs CORS apropriado para a origem do frontend; o `OPTIONS` do backend confirmou a origem autorizada.
+
+### 6. Estado do Supabase
+- Status: VALIDADO no sentido de infraestrutura pública.
+- Evidência: `health/supabase` retornou `configured: true` e `connected: true`.
+- Limitação: não foi possível verificar schema interno, migrações aplicadas nem usuários reais sem acesso administrativo autorizado ao console do provedor.
+
+### 7. Estado da autenticação em produção
+- Status: PARCIALMENTE VALIDADO.
+- Evidência: a rota de autenticação pública existe e rejeita payload inválido com `400`.
+- Falta: validação com usuário real, token JWT e RBAC em ambiente publicado.
+
+### 8. Conclusão da Fase 2
+A infraestrutura pública do JH RedeFlow está online e coerente: frontend no Vercel, backend no Render e conexão ativa com o Supabase. A comunicação entre frontend/backend e o CORS estão funcionando conforme o esperado em produção pública.
+
+O que ainda não pode ser afirmado como concluído sem autorização de acesso real é a autenticação com contas do ambiente de produção, RBAC com usuários reais e a verificação do schema interno do banco em produção. Em termos de readiness técnico para homologação funcional, o sistema está em condição adequada para a próxima etapa de testes com usuários autorizados e dados reais.
+
+### 9. Próxima ação recomendada
+Executar a homologação funcional com usuários reais autorizados, cobrindo:
+1. login com conta válida;
+2. troca de senha inicial;
+3. carregamento de dashboard e rotas protegidas;
+4. verificação de permissões por perfil;
+5. validação de chamadas, supervisores e técnicos em produção real;
+6. comparação final do schema e migrations do Supabase remoto.
+
+### Checklist final da Fase 2
+- [x] Frontend público acessível e retornando HTML válido.
+- [x] Backend público acessível no endpoint de saúde.
+- [x] Supabase publicamente reportando conexão ativa.
+- [x] CORS do backend validado para a origem do frontend.
+- [x] Rotas de autenticação expostas e respondendo corretamente.
+- [ ] Login com usuário real em produção realizado por conta autorizada.
+- [ ] RBAC real em produção validado com usuários autorizados.
+- [ ] Schema e migrations do banco de produção conferidos no console Supabase.

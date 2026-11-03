@@ -1966,29 +1966,76 @@ export async function deleteManualDailyBase(date?: string): Promise<boolean> {
   }
   return manualDailyBases.delete(businessDate);
 }
+function countByMap(counts: Map<string, number>) {
+  return [...counts.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
+}
+
+function summarizeDashboardMetrics(calls: Call[], activations: Activation[], today: string): DashboardMetrics {
+  const statusCounts = new Map<string, number>();
+  const regionCounts = new Map<string, number>();
+  const neighborhoodCounts = new Map<string, number>();
+  const technicianCounts = new Map<string, number>();
+  const typeCounts = new Map<string, number>();
+
+  let receivedToday = 0;
+  let open = 0;
+  let unassigned = 0;
+  let inProgress = 0;
+  let finished = 0;
+  let cancelled = 0;
+  let pendingActivations = 0;
+
+  for (const call of calls) {
+    if (call.openedAt.slice(0, 10) === today) receivedToday += 1;
+    if (call.status === 'Aberto') open += 1;
+    if (!call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)) unassigned += 1;
+    if (['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)) inProgress += 1;
+    if (call.status === 'Finalizado') finished += 1;
+    if (call.status === 'Cancelado') cancelled += 1;
+
+    statusCounts.set(call.status, (statusCounts.get(call.status) || 0) + 1);
+    regionCounts.set(call.region, (regionCounts.get(call.region) || 0) + 1);
+    if (call.bairro) neighborhoodCounts.set(call.bairro, (neighborhoodCounts.get(call.bairro) || 0) + 1);
+    if (call.technicianName) technicianCounts.set(call.technicianName, (technicianCounts.get(call.technicianName) || 0) + 1);
+    typeCounts.set(call.type, (typeCounts.get(call.type) || 0) + 1);
+  }
+
+  for (const activation of activations) {
+    if (activation.status === 'Pendente') pendingActivations += 1;
+  }
+
+  return {
+    receivedToday,
+    open,
+    unassigned,
+    inProgress,
+    finished,
+    cancelled,
+    pendingActivations,
+    byStatus: countByMap(statusCounts),
+    byRegion: countByMap(regionCounts),
+    byNeighborhood: countByMap(neighborhoodCounts),
+    byTechnician: countByMap(technicianCounts),
+    byType: countByMap(typeCounts),
+  };
+}
+
 export async function getDashboardMetrics(query: CallQuery = {}): Promise<DashboardMetrics> {
+  const today = new Date().toISOString().slice(0, 10);
+
   if (query.from || query.to || query.supervisorId) {
     const allCalls = await listCalls(undefined, query);
     const activations = await listActivations();
-    const countBy = (values: string[]) => Object.entries(values.reduce<Record<string, number>>((accumulator, value) => { accumulator[value] = (accumulator[value] || 0) + 1; return accumulator; }, {})).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-    return { receivedToday: allCalls.filter((call) => call.openedAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length, open: allCalls.filter((call) => call.status === 'Aberto').length, unassigned: allCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)).length, inProgress: allCalls.filter((call) => ['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)).length, finished: allCalls.filter((call) => call.status === 'Finalizado').length, cancelled: allCalls.filter((call) => call.status === 'Cancelado').length, pendingActivations: activations.filter((activation) => activation.status === 'Pendente').length, byStatus: countBy(allCalls.map((call) => call.status)), byRegion: countBy(allCalls.map((call) => call.region)), byNeighborhood: countBy(allCalls.map((call) => call.bairro || '').filter(Boolean)), byTechnician: countBy(allCalls.filter((call) => call.technicianName).map((call) => call.technicianName!)), byType: countBy(allCalls.map((call) => call.type)) };
+    return summarizeDashboardMetrics(allCalls, activations, today);
   }
+
   if (isSupabaseConfigured()) {
-    const allCalls = await listSupabaseCalls();
-    const activations = await listSupabaseActivations();
-    const today = new Date().toISOString().slice(0, 10);
-    const countBy = (values: string[]) => Object.entries(values.reduce<Record<string, number>>((accumulator, value) => { accumulator[value] = (accumulator[value] || 0) + 1; return accumulator; }, {})).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-    return { receivedToday: allCalls.filter((call) => call.openedAt.slice(0, 10) === today).length, open: allCalls.filter((call) => call.status === 'Aberto').length, unassigned: allCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)).length, inProgress: allCalls.filter((call) => ['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)).length, finished: allCalls.filter((call) => call.status === 'Finalizado').length, cancelled: allCalls.filter((call) => call.status === 'Cancelado').length, pendingActivations: activations.filter((activation) => activation.status === 'Pendente').length, byStatus: countBy(allCalls.map((call) => call.status)), byRegion: countBy(allCalls.map((call) => call.region)), byNeighborhood: countBy(allCalls.map((call) => call.bairro || '').filter(Boolean)), byTechnician: countBy(allCalls.filter((call) => call.technicianName).map((call) => call.technicianName!)), byType: countBy(allCalls.map((call) => call.type)) };
+    return summarizeDashboardMetrics(await listSupabaseCalls(), await listSupabaseActivations(), today);
   }
+
   if (shouldUseLocalDatabase()) {
-    const allCalls = await listCalls();
-    const activations = await listActivations();
-    const today = new Date().toISOString().slice(0, 10);
-    const countBy = (values: string[]) => Object.entries(values.reduce<Record<string, number>>((accumulator, value) => { accumulator[value] = (accumulator[value] || 0) + 1; return accumulator; }, {})).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-    return { receivedToday: allCalls.filter((call) => call.openedAt.slice(0, 10) === today).length, open: allCalls.filter((call) => call.status === 'Aberto').length, unassigned: allCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)).length, inProgress: allCalls.filter((call) => ['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)).length, finished: allCalls.filter((call) => call.status === 'Finalizado').length, cancelled: allCalls.filter((call) => call.status === 'Cancelado').length, pendingActivations: activations.filter((activation) => activation.status === 'Pendente').length, byStatus: countBy(allCalls.map((call) => call.status)), byRegion: countBy(allCalls.map((call) => call.region)), byNeighborhood: countBy(allCalls.map((call) => call.bairro || '').filter(Boolean)), byTechnician: countBy(allCalls.filter((call) => call.technicianName).map((call) => call.technicianName!)), byType: countBy(allCalls.map((call) => call.type)) };
+    return summarizeDashboardMetrics(await listCalls(), await listActivations(), today);
   }
-  const allCalls = [...calls.values()];
-  const today = new Date().toISOString().slice(0, 10);
-  const countBy = (values: string[]) => Object.entries(values.reduce<Record<string, number>>((accumulator, value) => { accumulator[value] = (accumulator[value] || 0) + 1; return accumulator; }, {})).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-  return { receivedToday: allCalls.filter((call) => call.openedAt.slice(0, 10) === today).length, open: allCalls.filter((call) => call.status === 'Aberto').length, unassigned: allCalls.filter((call) => !call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)).length, inProgress: allCalls.filter((call) => ['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)).length, finished: allCalls.filter((call) => call.status === 'Finalizado').length, cancelled: allCalls.filter((call) => call.status === 'Cancelado').length, pendingActivations: [...activations.values()].filter((activation) => activation.status === 'Pendente').length, byStatus: countBy(allCalls.map((call) => call.status)), byRegion: countBy(allCalls.map((call) => call.region)), byNeighborhood: countBy(allCalls.map((call) => call.bairro || '').filter(Boolean)), byTechnician: countBy(allCalls.filter((call) => call.technicianName).map((call) => call.technicianName!)), byType: countBy(allCalls.map((call) => call.type)) };
+
+  return summarizeDashboardMetrics([...calls.values()], [...activations.values()], today);
 }
