@@ -50,7 +50,7 @@ async function startServer() {
       PORT: String(port),
       JWT_SECRET: 'test-jwt-secret',
       WUZAPI_WEBHOOK_TOKEN: 'test-webhook-token',
-      WUZAPI_ACTIVATION_GROUP_ID: '120363422003961917@g.us',
+      WUZAPI_ACTIVATION_GROUP_ID: '120363422003961917@g.us, 120363183251501300@g.us',
       SUPABASE_URL: '',
       SUPABASE_ANON_KEY: '',
       SUPABASE_SERVICE_ROLE_KEY: '',
@@ -837,6 +837,21 @@ test('ignores private WuzAPI messages and rejects mismatched groups', async () =
   const mismatchBody = await mismatchResponse.json() as { status?: string; reason?: string; chatId?: string };
   assert.equal(mismatchBody.status, 'ignored');
   assert.equal(mismatchBody.reason, 'Grupo nao autorizado.');
+});
+
+test('accepts WuzAPI messages from any configured activation group', async () => {
+  const response = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      type: 'Message',
+      chatId: '120363183251501300@g.us',
+      isGroup: true,
+      message: 'ORDEM: RF-MULTI-GROUP-01\nMOTIVO: teste',
+    }),
+  });
+  assert.equal(response.status, 202);
+  assert.equal((await response.json() as { status?: string }).status, 'Pendente');
 });
 
 test('admin can delete a test call through the protected API route', async () => {

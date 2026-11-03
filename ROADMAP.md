@@ -2866,7 +2866,58 @@ O CSV do Coletor é o mesmo "export plano" do OFS que o Painel diário já lê (
 - Pacote gerado para o responsável publicar na Chrome Web Store (a nova permissão de host faz o Chrome pedir confirmação aos usuários na atualização).
 
 ### Pendências
-- Definir `OFS_INGEST_TOKEN` no Render e o mesmo valor no popup da(s) máquina(s) coletora(s).
+- ~~Definir `OFS_INGEST_TOKEN` no Render~~ — feito em 2026-11-03 (valor entregue ao responsável fora do repositório). Falta colar o mesmo valor no popup da(s) máquina(s) coletora(s).
 - Publicar a 2.0.13 na Chrome Web Store.
 - Validar com um CSV real do OFS: posições das colunas (o leitor usa posições fixas 0/2/15/20/23/24, igual ao envio manual) e se a alocação configurada na extensão inclui as atividades do time de Rede.
 - Próxima etapa possível: usar os dados do AutoISP (`massive_status`, clientes por OLT/PON, potência) para preencher a coluna "Afet." e o detalhe do chamado.
+
+---
+
+## PLANO — RedeFlow integrado ao OFS (substituir o Drive e operar o OFS pelo sistema) — 2026-11-03
+
+### Objetivo (pedido do responsável)
+Puxar os dados diretamente do OFS em vez do Google Drive: dias anteriores, Status e Data Fim; finalizar, cancelar, despachar e mover ordens pelo RedeFlow em sincronia com o OFS; conferir ordens do OFS ainda não acionadas no grupo do WhatsApp; Painel diário atualizado de hora em hora; relatórios automáticos. A única entrada externa continua sendo o acionamento do grupo do WhatsApp (WuzAPI).
+
+### Arquitetura
+- **Ponte:** extensão JH Telecom (Chrome logado no OFS/AutoISP), com revezamento entre máquinas coletoras. Leitura: export CSV do OFS → `POST /api/integrations/ofs/export` (já em produção com `OFS_INGEST_TOKEN`). Escrita: RedeFlow → extensão via `chrome.runtime.sendMessage` (mesmo mecanismo do "Mover no OFS" usado pelo JH Agendamentos).
+- **Alternativa preferível, se a Alloha liberar:** API REST oficial do OFS com credenciais próprias — o backend lê e escreve sem depender de navegador aberto nem do layout da tela. A decisão muda as fases 2 a 5; perguntar à Alloha antes de investir pesado na automação de tela.
+
+### Pré-requisitos (bloqueiam a Fase 1)
+- CSVs reais do OFS da alocação do time de Rede: um de hoje e um de dia anterior (colunas, status final, Data Fim/hora de conclusão, identificadores BDESK/Office Track/Contrato).
+- Confirmar se há (ou se a Alloha pode liberar) acesso à API do OFS.
+- Aval da Alloha para ações de escrita automatizadas no OFS (Fases 4 e 5).
+
+### Fase 1 — Leitura automática (baixo risco)
+1. **Painel diário de hora em hora:** extensão 2.0.13 publicada + "Atualizar sozinho: a cada 1 hora" + token no popup. Sem código novo.
+2. **Dia anterior fechado (D-1) pela extensão:** exportação diária do dia anterior (a extensão já navega datas no OFS) enviada a um endpoint de histórico. O RedeFlow cria/atualiza/finaliza/cancela chamados com a lógica de reconciliação que hoje é do Google Drive (`buildDriveCall`/`buildDriveUpdate`), com a origem "OFS".
+3. **Retroativo:** comando para exportar um intervalo de dias passados (um dia por vez) e preencher o histórico.
+4. **Transição do Drive:** rodar OFS e Drive em paralelo por alguns dias, comparar contagens (criados, finalizados, cancelados, Data Fim) e só então desligar `GOOGLE_DRIVE_SYNC_ENABLED`.
+- Critério de pronto: uma semana de paralelo sem divergência relevante; Painel diário com atualização ≤ 1h durante o expediente.
+
+### Fase 2 — Conferência OFS × acionamentos
+- Tela/painel "Divergências": ordens de rede no OFS sem acionamento/chamado no RedeFlow e chamados no RedeFlow sem ordem no OFS; status divergentes (ex. concluída no OFS e aberta no RedeFlow).
+- Alerta no sino e contador no menu.
+- Critério de pronto: lista conferida manualmente com a operação durante alguns dias.
+
+### Fase 3 — Relatórios automáticos
+- Envio programado do Painel diário (imagem já gerada hoje) e de um resumo (abertos, fora do prazo, outliers, finalizados) em horários fixos, via WuzAPI para um grupo definido ou outro canal.
+- Critério de pronto: horários e destinatários definidos pela operação; envio com registro de sucesso/falha.
+
+### Fase 4 — Despachar e mover pelo RedeFlow (escrita, risco médio)
+- Liberar o RedeFlow (`jh-rede.vercel.app`) em `externally_connectable` da extensão e reaproveitar o "Mover no OFS" (contrato → OS do dia → técnico → posição).
+- No RedeFlow: ação "Despachar/Mover no OFS" no detalhe do chamado, com confirmação, permissão própria (ex. `calls.assign`) e registro na auditoria; resultado da extensão exibido na tela.
+- Critério de pronto: piloto com um operador, sem divergência entre RedeFlow e OFS.
+
+### Fase 5 — Finalizar e cancelar no OFS (escrita, risco alto)
+- Mapear os formulários de encerramento do OFS (campos obrigatórios, códigos de causa/encerramento) com um usuário real.
+- Nova automação na extensão, sempre com confirmação por ação, registro de auditoria e "modo somente simular" para o piloto.
+- Critério de pronto: aval da Alloha + piloto acompanhado.
+
+### Riscos
+- Automação de tela quebra quando a Oracle muda o layout do OFS (a extensão já avisa após 3 falhas seguidas).
+- Depende de Chrome aberto e logado; o revezamento de máquinas reduz o risco.
+- Ações de escrita em sistema de terceiro (Alloha) exigem autorização.
+- Latência: dados do OFS chegam no intervalo da exportação (hoje até 1h), não em tempo real.
+
+### Ordem sugerida
+Pré-requisitos → Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5. Fases 2 e 3 podem andar em paralelo depois da Fase 1.

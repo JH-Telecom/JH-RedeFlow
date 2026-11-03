@@ -42,7 +42,7 @@ SUPABASE_URL
 SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 WUZAPI_WEBHOOK_TOKEN
-WUZAPI_ACTIVATION_GROUP_ID
+WUZAPI_ACTIVATION_GROUP_ID (um ou mais IDs de grupos separados por virgula)
 ```
 
 O `render.yaml` autoriza a origem `https://jh-rede.vercel.app` por padrao. Se usar outro dominio Vercel ou dominio proprio, configure `CORS_ORIGINS` no Render com a lista de origens separadas por virgula, sem barra final.

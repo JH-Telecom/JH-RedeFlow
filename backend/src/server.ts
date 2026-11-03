@@ -23,7 +23,7 @@ const port = Number(process.env.PORT || 3333);
 const isProduction = process.env.NODE_ENV === 'production';
 const jwtSecret = process.env.JWT_SECRET || (!isProduction ? 'local-demo-secret-change-me' : undefined);
 const wuzapiWebhookToken = process.env.WUZAPI_WEBHOOK_TOKEN || (!isProduction ? 'local-wuzapi-demo-token' : undefined);
-const activationGroupId = process.env.WUZAPI_ACTIVATION_GROUP_ID?.trim();
+const activationGroupIds = [...new Set((process.env.WUZAPI_ACTIVATION_GROUP_ID || '').split(',').map((groupId) => groupId.trim()).filter(Boolean))];
 const wuzapiDebug = process.env.WUZAPI_DEBUG === 'true';
 const skipWuzapiGroupFilter = process.env.WUZAPI_SKIP_GROUP_FILTER === 'true';
 const ofsIngestToken = process.env.OFS_INGEST_TOKEN?.trim() || undefined;
@@ -37,7 +37,7 @@ const processedWebhookMessages = new Map<string, { activationId: string; expires
 const webhookDeduplicationWindowMs = 24 * 60 * 60 * 1000;
 const loginAttemptWindowMs = 15 * 60 * 1000;
 const maxLoginAttempts = 5;
-if (isProduction && (!jwtSecret || !wuzapiWebhookToken || (!activationGroupId && !skipWuzapiGroupFilter))) {
+if (isProduction && (!jwtSecret || !wuzapiWebhookToken || (!activationGroupIds.length && !skipWuzapiGroupFilter))) {
   throw new Error('JWT_SECRET, WUZAPI_WEBHOOK_TOKEN e WUZAPI_ACTIVATION_GROUP_ID sao obrigatorios em producao.');
 }
 if (isSupabaseConfigured() && (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SUPABASE_ANON_KEY)) {
@@ -554,7 +554,7 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   if (wuzapiDebug) console.log('[WuzAPI] JSON recebido:', JSON.stringify(redactWuzApiPayload(request, body), null, 2));
   const providedToken = extractWuzApiToken(request, body);
   if (providedToken !== wuzapiWebhookToken) return response.status(401).json({ message: 'Webhook nao autorizado.' });
-  if (!activationGroupId && !skipWuzapiGroupFilter) return response.status(503).json({ status: 'ignored' });
+  if (!activationGroupIds.length && !skipWuzapiGroupFilter) return response.status(503).json({ status: 'ignored' });
   const message = parseIncomingMessage(body);
   logWuzApiDecision('mensagem normalizada', { id: message.id, chatId: message.chatId, isGroup: message.isGroup, eventType: message.eventType, hasText: Boolean(message.message?.trim()), hasQuotedText: Boolean(message.quotedMessage?.trim()), isFromMe: message.isFromMe });
   if (message.id) {
@@ -562,14 +562,14 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
     if (previous && previous.expiresAt > Date.now()) return response.status(202).json({ activationId: previous.activationId, status: 'Pendente', duplicate: true });
     processedWebhookMessages.delete(message.id);
   }
-  if (!skipWuzapiGroupFilter && activationGroupId && (message.isGroup !== true || !message.chatId || message.chatId !== activationGroupId)) {
+  if (!skipWuzapiGroupFilter && activationGroupIds.length && (message.isGroup !== true || !message.chatId || !activationGroupIds.includes(message.chatId))) {
     const reason = message.isGroup !== true
       ? 'Mensagem privada nao autorizada.'
       : !message.chatId
         ? 'Chat nao identificado.'
         : 'Grupo nao autorizado.';
-    console.warn(`[WuzAPI] acionamento ignorado: grupo esperado="${activationGroupId}" chatId recebido="${message.chatId || 'nenhum'}" sender="${message.sender || 'nenhum'}" isGroup=${String(message.isGroup)}`);
-    logWuzApiDecision('ignorado por grupo', { reason, expectedGroup: activationGroupId, receivedGroup: message.chatId || null });
+    console.warn(`[WuzAPI] acionamento ignorado: grupos esperados="${activationGroupIds.join(',')}" chatId recebido="${message.chatId || 'nenhum'}" sender="${message.sender || 'nenhum'}" isGroup=${String(message.isGroup)}`);
+    logWuzApiDecision('ignorado por grupo', { reason, expectedGroups: activationGroupIds, receivedGroup: message.chatId || null });
     return response.status(202).json({ status: 'ignored', reason, chatId: message.chatId || null, isGroup: message.isGroup ?? false });
   }
   const eventType = message.eventType?.toLowerCase() || '';

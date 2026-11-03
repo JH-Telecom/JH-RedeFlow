@@ -30,7 +30,7 @@ No ambiente local:
 
 ```env
 WUZAPI_WEBHOOK_TOKEN=um-token-local-forte
-WUZAPI_ACTIVATION_GROUP_ID=120363422003961917@g.us
+WUZAPI_ACTIVATION_GROUP_ID=120363422003961917@g.us,120363183251501300@g.us
 REDEFLOW_DEMO_DATA=true
 # Opcional: habilita enriquecimento semantico; sem a chave usa o parser local seguro
 GEMINI_API_KEY=chave-do-backend
@@ -82,7 +82,7 @@ Resposta esperada:
 
 Resposta esperada: `activationId` preenchido e `status` igual a `Pendente`.
 
-O grupo usado no payload precisa ser exatamente o valor de `WUZAPI_ACTIVATION_GROUP_ID`.
+Cada grupo usado no payload precisa corresponder exatamente a um dos IDs configurados em `WUZAPI_ACTIVATION_GROUP_ID`. Separe vários IDs por vírgula; espaços antes ou depois dos IDs são ignorados.
 
 Sem token ou com token incorreto, a resposta deve ser `401`. Sem mensagem, deve ser `400`.
 
@@ -105,7 +105,7 @@ Para produção, use o domínio HTTPS do deploy e configure o mesmo `WUZAPI_WEBH
 ## Fluxo esperado
 
 1. WuzAPI envia a mensagem para o endpoint.
-2. O backend aceita somente o grupo definido em `WUZAPI_ACTIVATION_GROUP_ID`.
+2. O backend aceita somente os grupos definidos em `WUZAPI_ACTIVATION_GROUP_ID` (IDs separados por vírgula).
 3. O backend normaliza texto simples ou payload aninhado em `event.Message`.
 4. A mensagem é normalizada, filtrada e classificada; mensagens do próprio bot, sem texto, fora do grupo e sem sinais operacionais são ignoradas.
 5. O analisador semântico extrai os dados completos, preserva os endereços e grava a mensagem original junto com o resultado estruturado. O Gemini é opcional; se estiver indisponível, o parser local continua funcionando sem inventar valores.
