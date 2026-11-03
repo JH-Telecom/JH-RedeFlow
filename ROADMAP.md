@@ -3088,3 +3088,24 @@ O ícone do perfil sumia com a barra lateral recolhida, e clicar no ícone para 
 
 ### Testes
 - Novo teste com o card real (NOC ACESSO, `IsFromMe: true`, grupo autorizado): registrado como Pendente. Suíte: 115/115.
+
+## 2026-11-03 — Coletor OFS: leitura do export pelo nome das colunas
+
+### Problema
+O export de 03/11 vindo da extensão (com o balde/alocação configurado) foi recusado com "O arquivo nao e o export de atividades do OFS". A leitura do Painel diário (`backend/src/imports/ofs-export.ts`) usava posições fixas de coluna (Recurso = 0, Status = 2, Início = 15, Tempo = 20, Tipo = 23, OS = 24) e exigia duas colunas "Tipo de Atividade". Só que o OFS exporta as colunas da visão/alocação atual, então a ordem e a quantidade mudam.
+
+### Implementado
+- As colunas agora são localizadas pelo nome do cabeçalho, sem acento e sem diferenciar maiúsculas. São obrigatórias:
+  - Status da Atividade;
+  - pelo menos uma "Tipo de Atividade";
+  - Ordem de Serviço.
+- Recurso, Início e Tempo são opcionais.
+- Com mais de uma coluna "Tipo de Atividade", vale a que tiver um tipo de manutenção de rede.
+- Quando o arquivo não serve, o erro diz quais colunas faltam e mostra as primeiras colunas recebidas. Assim o histórico da extensão já indica o que veio do OFS.
+
+### Testes
+- `backend/test/ofs-export.test.ts` (novo, 3 testes): colunas em outra ordem com um único "Tipo de Atividade", escolha da coluna de tipo certa e mensagem de erro com as colunas recebidas.
+- Suíte: 118/118.
+
+### Observação
+- O envio manual pela tela do Painel diário (`frontend/src/lib/manual-production.ts`) ainda usa a leitura antiga por posição. Alinhar se o mesmo arquivo também for recusado por lá.

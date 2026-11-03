@@ -55,23 +55,48 @@ function updatedAtLabel() {
   return new Date().toLocaleString('pt-BR', { timeZone: OPERATIONAL_TIME_ZONE });
 }
 
-// Export "plano" do OFS: Recurso (0), Status da Atividade (2), Inicio (15), Tempo (20), Tipo de Atividade (23), Ordem de Servico (24).
+// Colunas do export "plano" do OFS, localizadas pelo NOME do cabecalho (nao pela posicao): a ordem muda conforme
+// a alocacao/visao exportada. Pode haver mais de uma coluna "Tipo de Atividade"; vale a que tiver um tipo de rede.
+type OfsColumns = { resource: number; status: number; types: number[]; order: number; start: number; duration: number };
+
+function findOfsColumns(header: string[]): OfsColumns {
+  const normalized = header.map(normalizeText);
+  const index = (...names: string[]) => normalized.findIndex((cell) => names.includes(cell));
+  return {
+    resource: index('recurso', 'tecnico'),
+    status: index('status da atividade', 'status'),
+    types: normalized.flatMap((cell, position) => (/^tipo de atividade(?:\s*\d+)?$/.test(cell) ? [position] : [])),
+    order: index('ordem de servico', 'os', 'o s'),
+    start: index('inicio', 'hora de inicio'),
+    duration: index('tempo', 'duracao'),
+  };
+}
+
+function missingColumns(columns: OfsColumns) {
+  return [
+    columns.status < 0 ? 'Status da Atividade' : null,
+    columns.types.length ? null : 'Tipo de Atividade',
+    columns.order < 0 ? 'Ordem de Servico' : null,
+  ].filter((name): name is string => Boolean(name));
+}
+
 function parseFlatActivityExport(rows: string[][]): ManualProductionData {
+  const columns = findOfsColumns(rows[0] ?? []);
   const activities = new Map<string, ManualProductionActivity>();
   const technicians = new Map<string, ManualProductionTechnician>();
   const orders: ManualProductionOrder[] = [];
   const records: ManualProductionRecord[] = [];
+  const cell = (cells: string[], position: number) => (position >= 0 ? cells[position]?.trim() ?? '' : '');
   for (const cells of rows.slice(1)) {
-    if (cells.length < 25) continue;
-    const technicianName = cells[0]?.trim();
-    const status = cells[2]?.trim() ?? '';
-    const activityType = cells[23]?.trim();
-    const order = cells[24]?.trim();
-    if (!activityType || !allowedActivityTypes.has(normalizeText(activityType))) continue;
+    const activityType = columns.types.map((position) => cell(cells, position)).find((value) => allowedActivityTypes.has(normalizeText(value)));
+    if (!activityType) continue;
+    const technicianName = cell(cells, columns.resource);
+    const status = cell(cells, columns.status);
+    const order = cell(cells, columns.order);
     const activity = activities.get(activityType) ?? emptyCounter({ type: activityType });
     incrementProductionStatus(activity, status);
     activities.set(activityType, activity);
-    const record = { activityType, technician: technicianName || '', status, order: order || '', inicio: cells[15]?.trim() ?? '', tempo: cells[20]?.trim() ?? '' };
+    const record = { activityType, technician: technicianName, status, order, inicio: cell(cells, columns.start), tempo: cell(cells, columns.duration) };
     records.push(record);
     if (technicianName) {
       const technician = technicians.get(technicianName) ?? emptyCounter({ name: technicianName });
@@ -83,20 +108,25 @@ function parseFlatActivityExport(rows: string[][]): ManualProductionData {
   return { activities: [...activities.values()], technicians: [...technicians.values()], orders, records, updatedAt: updatedAtLabel() };
 }
 
-export function isOfsFlatExport(raw: string) {
+function headerOf(raw: string) {
   const firstLine = raw.split(/\r?\n/).find((line) => line.trim());
-  if (!firstLine) return false;
-  const header = splitCsvLikeLine(firstLine.trim()).map(normalizeText);
-  return header.includes('recurso')
-    && header.includes('status da atividade')
-    && header.filter((cell) => /^tipo de atividade(?:\s*\d+)?$/.test(cell)).length >= 2
-    && header.includes('ordem de servico');
+  return firstLine ? splitCsvLikeLine(firstLine.trim()) : [];
+}
+
+export function isOfsFlatExport(raw: string) {
+  const header = headerOf(raw);
+  return header.length > 1 && !missingColumns(findOfsColumns(header)).length;
 }
 
 // Somente o export plano do OFS (o formato que a extensao captura). O formato antigo de tabelas resumidas
 // continua sendo lido apenas pelo envio manual na tela do Painel diario.
 export function parseOfsActivityExport(raw: string): ManualProductionData {
-  if (!isOfsFlatExport(raw)) throw new Error('O arquivo nao e o export de atividades do OFS (faltam Recurso, Status da Atividade, Tipo de Atividade ou Ordem de Servico).');
+  const header = headerOf(raw);
+  const missing = missingColumns(findOfsColumns(header));
+  if (header.length <= 1 || missing.length) {
+    const received = header.slice(0, 12).join(' | ') || 'arquivo vazio';
+    throw new Error(`O arquivo nao e o export de atividades do OFS: faltam as colunas ${missing.join(', ') || 'esperadas'}. Colunas recebidas: ${received}${header.length > 12 ? ' ...' : ''}`);
+  }
   const rows = raw.split(/\r?\n/).map((line) => line.replace(/^\s+|\s+$/g, '')).filter(Boolean);
   return parseFlatActivityExport(rows.map(splitCsvLikeLine));
 }
