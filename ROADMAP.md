@@ -3048,3 +3048,25 @@ A extensão da Rede passa a entrar com o login do JH RedeFlow (e-mail e senha), 
 ### Pendências
 - Instalar a 1.1.0 na máquina coletora e entrar com um usuário que tenha a permissão de Importações.
 - Depois que todas as máquinas estiverem usando login, avaliar remover o `OFS_INGEST_TOKEN` do Render.
+
+## 2026-11-03 — Perfil: avatar sempre visível e troca de foto só em Configurações
+
+### Pedido
+O ícone do perfil sumia com a barra lateral recolhida, e clicar no ícone para trocar a foto era ruim.
+
+### Implementado (frontend)
+- **Barra lateral recolhida:** a regra de CSS escondia todo `button` do `.profile-mini`, inclusive o avatar. Agora só o nome e o botão Sair somem; o avatar continua visível (`sidebar.css`).
+- **Avatar só exibe a foto** (novo `components/ProfileAvatar.tsx`).
+  - Na barra lateral e no topo, clicar leva para Configurações → "Meu perfil" (`/configuracoes#perfil`).
+  - Clicar no avatar não abre mais o seletor de arquivo.
+- **Configurações → "Meu perfil"** (`SettingsPage.tsx`): mostra foto grande, nome, e-mail e perfil, com os botões "Adicionar/Trocar foto" e "Remover foto". O redimensionamento automático continua o mesmo.
+- **Configurações agora aparece para todos os usuários**, para cada um trocar a própria foto.
+  - Quem não tem `settings.manage` vê só "Meu perfil".
+  - As configurações do sistema (SLA, OLT por Região, zona de perigo) seguem restritas como antes. O backend não mudou: as rotas continuam exigindo `settings.manage`.
+
+### Validação
+- Build do frontend OK.
+- Conferido no navegador em modo demo:
+  - Operador: avatar visível com a barra recolhida e Configurações só com "Meu perfil".
+  - Administrador: "Meu perfil" mais as configurações do sistema.
+- Não foi testado o upload de uma foto real (o fluxo de envio é o mesmo de antes).

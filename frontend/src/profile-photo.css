@@ -59,3 +59,70 @@
     height: 19px;
   }
 }
+
+/* Avatar so exibe a foto; o link leva para Configuracoes > Meu perfil */
+.profile-avatar-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  text-decoration: none;
+  color: inherit;
+}
+
+.profile-avatar-link:focus-visible {
+  outline: 2px solid #1683ff;
+  outline-offset: 2px;
+}
+
+.profile-avatar-link .profile-photo-button {
+  cursor: pointer;
+}
+
+/* Configuracoes > Meu perfil */
+.settings-profile {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 22px;
+  scroll-margin-top: 90px;
+}
+
+.settings-profile-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #e8f0fe;
+  color: #173a71;
+  font-size: 28px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.settings-profile-info h2 {
+  margin: 2px 0 2px;
+}
+
+.settings-profile-info p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.settings-profile-info small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.settings-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .settings-profile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

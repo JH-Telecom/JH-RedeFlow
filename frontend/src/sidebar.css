@@ -49,8 +49,8 @@
   .sidebar.collapsed .workspace-switcher svg,
   .sidebar.collapsed .nav-item span,
   .sidebar.collapsed .help-link span,
-  .sidebar.collapsed .profile-mini > div:not(.avatar),
-  .sidebar.collapsed .profile-mini button {
+  .sidebar.collapsed .profile-mini > div,
+  .sidebar.collapsed .profile-mini .profile-logout {
     display: none;
   }
 

@@ -1,9 +1,64 @@
-import { useEffect, useState } from "react";
-import { ChevronRight, Plus, Search, Settings, Trash2 } from "lucide-react";
-import { api, type OltRegionMapping, type OltRegionRequest } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { Camera, ChevronRight, Plus, Search, Settings, Trash2 } from "lucide-react";
+import { api, type OltRegionMapping, type OltRegionRequest, type Role, type User } from "../api";
+import { ProfileAvatar } from "../components/ProfileAvatar";
 import { operationalRegions } from "../lib/constants";
 
-export function SettingsPage() {
+type ProfilePhotoControls = { photo: string | null; saving: boolean; error: string; onChange: (file: File) => Promise<void>; onRemove: () => Promise<void> };
+
+// Configuracoes: "Meu perfil" (foto) para todo usuario; o restante so para quem tem settings.manage.
+export function SettingsPage({ user, canManage, profile }: { user: User & { role: Role }; canManage: boolean; profile: ProfilePhotoControls }) {
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <span className="section-kicker">SISTEMA</span>
+          <h1>Configurações</h1>
+          <p>{canManage ? "Seu perfil e as preferências gerais do ambiente O&M." : "Seu perfil no JH RedeFlow."}</p>
+        </div>
+      </div>
+      <ProfileSettings user={user} profile={profile} />
+      {canManage && <SystemSettings />}
+    </>
+  );
+}
+
+function ProfileSettings({ user, profile }: { user: User & { role: Role }; profile: ProfilePhotoControls }) {
+  const input = useRef<HTMLInputElement | null>(null);
+  const [message, setMessage] = useState("");
+  async function change(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file) return;
+    setMessage("");
+    await profile.onChange(file);
+    setMessage("Foto atualizada.");
+  }
+  async function remove() {
+    setMessage("");
+    await profile.onRemove();
+    setMessage("Foto removida.");
+  }
+  return (
+    <section className="panel settings-profile" id="perfil" aria-labelledby="settings-profile-title">
+      <ProfileAvatar name={user.name} photo={profile.photo} className="settings-profile-avatar" />
+      <div className="settings-profile-info">
+        <span className="section-kicker">MEU PERFIL</span>
+        <h2 id="settings-profile-title">{user.name}</h2>
+        <p>{user.email} · {user.role.name}</p>
+        <div className="settings-profile-actions">
+          <button className="primary-button compact" type="button" onClick={() => input.current?.click()} disabled={profile.saving}><Camera size={15} />{profile.saving ? "Salvando..." : profile.photo ? "Trocar foto" : "Adicionar foto"}</button>
+          {profile.photo && <button className="secondary-button compact" type="button" onClick={() => void remove()} disabled={profile.saving}><Trash2 size={15} /> Remover foto</button>}
+          <input ref={input} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void change(event)} />
+        </div>
+        <small>JPG, PNG ou WebP de até 10 MB; a imagem é reduzida automaticamente.</small>
+        {profile.error ? <div className="form-error" role="alert">{profile.error}</div> : message && <div className="save-message" role="status">{message}</div>}
+      </div>
+    </section>
+  );
+}
+
+function SystemSettings() {
   const [settings, setSettings] = useState({ autoRefresh: true, refreshIntervalSeconds: 60, slaAlertHours: 8, defaultRegion: "Todas" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -131,13 +186,6 @@ export function SettingsPage() {
   const availableRegions = [...new Set([...operationalRegions, ...customRegions, ...oltRegions.map((mapping) => mapping.region)])].sort((left, right) => left.localeCompare(right));
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="section-kicker">SISTEMA</span>
-          <h1>Configuracoes</h1>
-          <p>Preferencias gerais do ambiente O&amp;M.</p>
-        </div>
-      </div>
       <form className="panel settings-panel settings-form" onSubmit={save}>
         <div className="settings-icon"><Settings size={20} /></div>
         <div className="settings-fields">

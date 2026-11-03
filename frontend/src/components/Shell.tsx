@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Archive, Bell, BellRing, CalendarDays, Camera, ChevronRight, ClipboardCheck, Gauge, HardHat, Inbox, LayoutDashboard, LogOut, Menu, Repeat2, Settings, ShieldCheck, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
+import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Inbox, LayoutDashboard, LogOut, Menu, Repeat2, Settings, ShieldCheck, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Role, type User, type AppNotification } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
@@ -14,6 +14,7 @@ import { ImportsPage } from "../pages/ImportsPage";
 import { ManualProductionDashboard } from "../pages/ManualProductionPage";
 import { RolesPage } from "../pages/RolesPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { ProfileAvatar } from "./ProfileAvatar";
 import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
 import { UsersPage } from "../pages/UsersPage";
@@ -35,7 +36,7 @@ export const navItems: NavItem[] = [
   { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
   { section: "Administração", label: "Usuários", to: "/usuarios", icon: Users, permission: "users.view" },
   { section: "Administração", label: "Cargos e permissões", to: "/cargos", icon: ShieldCheck, permission: "roles.view" },
-  { section: "Administração", label: "Configurações", to: "/configuracoes", icon: Settings, permission: "settings.manage" },
+  { section: "Administração", label: "Configurações", to: "/configuracoes", icon: Settings, permission: "" },
 ];
 
 function navItemForPath(pathname: string) {
@@ -64,19 +65,12 @@ export async function resizeProfilePhoto(file: File) {
   return avatarDataUrl;
 }
 
-export function ProfilePhotoButton({ name, photo, className = "", disabled = false, onClick }: {
-  name: string;
-  photo: string | null;
-  className?: string;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  const initials = name.split(" ").map((part) => part[0]).slice(0, className.includes("topbar") ? 1 : 2).join("");
+// Avatar da barra lateral e do topo: abre "Meu perfil" em Configuracoes (a troca de foto fica so la).
+function ProfileLink({ name, photo, className }: { name: string; photo: string | null; className: string }) {
   return (
-    <button className={`profile-photo-button ${className}`} type="button" onClick={onClick} disabled={disabled} title="Alterar foto de perfil" aria-label="Alterar foto de perfil">
-      {photo ? <img src={photo} alt="" /> : initials}
-      <span className="profile-photo-camera"><Camera size={12} /></span>
-    </button>
+    <NavLink to="/configuracoes#perfil" className="profile-avatar-link" title={`${name} · Meu perfil`} aria-label="Meu perfil">
+      <ProfileAvatar name={name} photo={photo} className={className} />
+    </NavLink>
   );
 }
 
@@ -99,7 +93,6 @@ export function Shell({
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [profilePhotoError, setProfilePhotoError] = useState("");
   const [savingProfilePhoto, setSavingProfilePhoto] = useState(false);
-  const profilePhotoInput = useRef<HTMLInputElement | null>(null);
   const knownActivationIds = useRef<Set<string> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -138,10 +131,7 @@ export function Shell({
     api.profileAvatar().then(({ avatarDataUrl }) => { if (active) setProfilePhoto(avatarDataUrl); }).catch(() => {});
     return () => { active = false; };
   }, [user.id]);
-  async function handleProfilePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (!file) return;
+  async function handleProfilePhotoChange(file: File) {
     setProfilePhotoError("");
     setSavingProfilePhoto(true);
     try {
@@ -154,7 +144,19 @@ export function Shell({
       setSavingProfilePhoto(false);
     }
   }
-  const canAccess = (permission: string) => user.role.permissions.includes(permission);
+  async function handleProfilePhotoRemove() {
+    setProfilePhotoError("");
+    setSavingProfilePhoto(true);
+    try {
+      await api.removeProfileAvatar();
+      setProfilePhoto(null);
+    } catch (error) {
+      setProfilePhotoError(error instanceof Error ? error.message : "Não foi possível remover a foto.");
+    } finally {
+      setSavingProfilePhoto(false);
+    }
+  }
+  const canAccess = (permission: string) => !permission || user.role.permissions.includes(permission);
   const guard = (permission: string, element: React.ReactNode) => (canAccess(permission) ? element : <AccessDenied />);
   const firstAllowedPath = navItems.find((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)))?.to;
   function toggleSidebar() {
@@ -219,13 +221,12 @@ export function Shell({
         </nav>
         <div className="sidebar-bottom">
           <div className="profile-mini">
-            <ProfilePhotoButton name={user.name} photo={profilePhoto} className="avatar" disabled={savingProfilePhoto} onClick={() => profilePhotoInput.current?.click()} />
+            <ProfileLink name={user.name} photo={profilePhoto} className="avatar" />
             <div>
               <strong>{user.name}</strong>
-              <small className={profilePhotoError ? "profile-photo-error" : undefined}>{profilePhotoError || user.role.name}</small>
+              <small>{user.role.name}</small>
             </div>
-            <input ref={profilePhotoInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void handleProfilePhotoChange(event)} />
-            <button className="icon-button" onClick={onLogout} title="Sair">
+            <button className="icon-button profile-logout" onClick={onLogout} title="Sair">
               <LogOut size={16} />
             </button>
           </div>
@@ -258,7 +259,7 @@ export function Shell({
               </button>
               {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span></div>{notifications.length ? notifications.map((notification) => <button className="notification-item" key={notification.id} onClick={() => { setNotificationsOpen(false); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
             </div>
-            <ProfilePhotoButton name={user.name} photo={profilePhoto} className="topbar-avatar" disabled={savingProfilePhoto} onClick={() => profilePhotoInput.current?.click()} />
+            <ProfileLink name={user.name} photo={profilePhoto} className="topbar-avatar" />
           </div>
         </header>
         {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
@@ -288,7 +289,7 @@ export function Shell({
             <Route path="/supervisores" element={guard("supervisors.view", <SupervisorsPage user={user} />)} />
             <Route path="/usuarios" element={guard("users.view", <UsersPage />)} />
             <Route path="/cargos" element={guard("roles.view", <RolesPage />)} />
-            <Route path="/configuracoes" element={guard("settings.manage", <SettingsPage />)} />
+            <Route path="/configuracoes" element={<SettingsPage user={user} canManage={canAccess("settings.manage")} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
