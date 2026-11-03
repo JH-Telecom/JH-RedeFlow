@@ -2717,7 +2717,17 @@ Autorizado pelo responsável ("pode prosseguir com o seu plano de alterações")
 - Rollback: reexecutar `supabase/migrations/202610020003_calls_assignment_filter.sql`.
 - O PG local (`database/migrations/021_calls_page_sao_paulo_dates.sql`) não foi aplicado (não há banco local configurado nesta máquina).
 
+### Validação em produção — 2026-11-03
+- Deploys: Vercel produção `READY` e Render `live` no commit `34ca29e`.
+- Bundle publicado contém "Limite 06:00", "ZONA DE PERIGO", "Acesso não permitido" e `America/Sao_Paulo`; não contém "Limite 08:00" nem "acima de 10h".
+- Sessão real de Administrador (login feito pelo responsável): Visão geral, Em atendimento, IGP e Configurações carregaram; todas as chamadas `/api/*` (dashboard, chamados paginados, notificações, acionamentos, IGP, configurações) responderam 200.
+- Em atendimento não exibe mais "Apagar todos os chamados"; Configurações exibe a "Zona de perigo" (não acionada).
+- IGP mostra a metodologia 6h/9h. Gráfico diário da Visão geral exibe 28/10 a 03/11 (data de São Paulo).
+- Limitações: a tabela `calls` de produção está vazia, então os selos de prazo nas filas e os percentuais do IGP não puderam ser vistos com dados reais; o escopo de supervisor não foi validado (requer login de um supervisor).
+
 ### Pendências
+- Validar com um usuário Supervisor: IGP e detalhe de chamado em "Ordens da equipe".
+- Conferir os selos de prazo 6h/9h assim que houver chamados em produção.
 - Aplicar `database/migrations/021_calls_page_sao_paulo_dates.sql` em qualquer PostgreSQL local em uso.
 - Validar em produção: escopo de supervisor (IGP e detalhe da equipe), contadores de notificações, filtros de período perto da meia-noite.
 - Fora deste escopo, para P2: `reopenCall` sem caminho PG local; `assigned_at` divergente entre runtimes; Repetidos baixa todas as páginas no cliente; dependência `xlsx@0.18.5`.
