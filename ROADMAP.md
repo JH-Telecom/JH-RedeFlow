@@ -3109,3 +3109,16 @@ O export de 03/11 vindo da extensão (com o balde/alocação configurado) foi re
 
 ### Observação
 - O envio manual pela tela do Painel diário (`frontend/src/lib/manual-production.ts`) ainda usa a leitura antiga por posição. Alinhar se o mesmo arquivo também for recusado por lá.
+
+## 2026-11-03 — "Em atendimento": filtro de status sem "Aberto"
+
+### Problema
+Na tela "Chamados em atendimento", o filtro de status voltava como "Aberto" (ele fica salvo em cookie por página) e a lista aparecia vazia. Essa tela só mostra chamados com técnico, e um chamado com técnico não fica como "Aberto". Por isso essa combinação nunca trazia resultado.
+
+### Implementado (`frontend/src/pages/CallsPage.tsx`)
+- O filtro de status de "Em atendimento" oferece Todos, Atribuido, Deslocamento e Em campo; a opção "Aberto" saiu.
+- Se houver um filtro salvo fora dessas opções (por exemplo, o "Aberto" antigo), a tela abre em "Todos".
+- Em "Todos", a consulta continua a mesma.
+
+### Validação
+- Build do frontend OK. Conferido no navegador em modo demo, com o cookie "Aberto" salvo: o filtro abriu em "Todos" e a lista mostrou os chamados.

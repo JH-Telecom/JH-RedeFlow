@@ -123,6 +123,8 @@ export function writeCallsPageState(pageKey: string, state: Record<string, unkno
 }
 
 export const inProgressCallStatuses: CallStatus[] = ["Aberto", "Atribuido", "Deslocamento", "Em campo"];
+// Filtro de status de "Em atendimento": so lista chamados com tecnico, entao "Aberto" (sem tecnico) sempre vinha vazio.
+const attendanceStatusOptions: CallStatus[] = ["Atribuido", "Deslocamento", "Em campo"];
 
 export function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false, teamScoped = false, closedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; unassignedOnly?: boolean; teamScoped?: boolean; closedOnly?: boolean }) {
   const pageKey = `${teamScoped ? 'team' : 'global'}:${closedOnly ? 'closed' : assignedOnly ? 'assigned-v2' : unassignedOnly ? 'unassigned' : status ?? 'all'}:${title}`;
@@ -135,7 +137,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [oltFilter, setOltFilter] = useState(initialState.oltFilter ?? "Todas");
   const [availableOlts, setAvailableOlts] = useState<string[]>([]);
   const savedStatusFilter = initialState.statusFilter ?? "Todos";
-  const initialStatusFilter = unassignedOnly ? "Aberto" : assignedOnly && savedStatusFilter !== "Todos" && !inProgressCallStatuses.includes(savedStatusFilter as CallStatus) ? "Todos" : savedStatusFilter;
+  const initialStatusFilter = unassignedOnly ? "Aberto" : assignedOnly && savedStatusFilter !== "Todos" && !attendanceStatusOptions.includes(savedStatusFilter as CallStatus) ? "Todos" : savedStatusFilter;
   const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(initialStatusFilter);
   const [dateRange, setDateRange] = useState(initialState.dateRange ?? { from: "", to: "" });
   const [showFilters, setShowFilters] = useState(Boolean(initialState.showFilters));
@@ -464,7 +466,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             <span className="result-count">{totalCalls} resultados</span>
           </div>
         </div>
-        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}>{unassignedOnly ? <option>Aberto</option> : <><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></> : assignedOnly ? inProgressCallStatuses.map((callStatus) => <option key={callStatus}>{callStatus}</option>) : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></>}</>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><select className="toolbar-select" value={oltFilter} onChange={(event) => setOltFilter(event.target.value)}><option value="Todas">Todas as OLTs</option>{[...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])].map((olt) => <option key={olt} value={olt}>{olt}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
+        {showFilters && <div className="table-filter-row"><select className="toolbar-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CallStatus | "Todos")}>{unassignedOnly ? <option>Aberto</option> : <><option>Todos</option>{closedOnly ? <><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></> : assignedOnly ? attendanceStatusOptions.map((callStatus) => <option key={callStatus}>{callStatus}</option>) : <><option>Aberto</option><option>Atribuido</option><option>Deslocamento</option><option>Em campo</option><option>Finalizado</option><option>Cancelado</option><option>Baixar</option></>}</>}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select><select className="toolbar-select" value={neighborhoodFilter} onChange={(event) => setNeighborhoodFilter(event.target.value)}><option>Todos</option>{neighborhoods.map((neighborhood) => <option key={neighborhood}>{neighborhood}</option>)}</select><select className="toolbar-select" value={oltFilter} onChange={(event) => setOltFilter(event.target.value)}><option value="Todas">Todas as OLTs</option>{[...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])].map((olt) => <option key={olt} value={olt}>{olt}</option>)}</select><DateRangeFilter value={dateRange} onChange={setDateRange}/></div>}
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
