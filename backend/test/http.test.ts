@@ -827,6 +827,18 @@ test('accepts WuzAPI messages from any configured activation group', async () =>
   assert.equal((await response.json() as { status?: string }).status, 'Pendente');
 });
 
+test('accepts an activation card typed on the phone connected to WuzAPI (IsFromMe)', async () => {
+  const response = await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'Message', event: { Info: { ID: 'wuz-from-me-01', Chat: '120363422003961917@g.us', Sender: '5511999999999@s.whatsapp.net', IsGroup: true, IsFromMe: true }, Message: { conversation: '⚠️ACIONAMENTO DE EVENTO MASSIVO⚠️\n\n⚠️VALIDAR COM NOC ACESSO⚠️\n\n • OLT: VIP-GZ2-SPO-OHW-03\n\n • SLOT/PON: 04/15\n\n • Tipo de Falha: Total\n\n • Data/Hora do Evento: 03/11/2026 17:02\n\n • Contrato(s) Exemplo(s): NOME: ANGELA NAIR RIBEIRO NETA EUGENIO || CONTRATO: 4533071\nNOME: ARIANE APARECIDA DOS SANTOS || CONTRATO: 4544282\n\n • Afetados: 84\n\n • BDESK: 672288\n\n • Tarefa Office Track: 610116554630102\n\n • Técnico Rede: JH TELECOM REDES\n\n • Endereços:\nCEP: 08.142-390\nRUA SANTA LUZIA DA BOA VISÃO, 91 JARDIM MIRIAM, SAO PAULO - SP' } } }),
+  });
+  assert.equal(response.status, 202);
+  const body = await response.json() as { status?: string; activationId?: string };
+  assert.equal(body.status, 'Pendente');
+  assert.ok(body.activationId);
+});
+
 test('admin can delete a test call through the protected API route', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

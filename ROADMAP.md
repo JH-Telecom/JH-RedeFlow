@@ -3070,3 +3070,21 @@ O ícone do perfil sumia com a barra lateral recolhida, e clicar no ícone para 
   - Operador: avatar visível com a barra recolhida e Configurações só com "Meu perfil".
   - Administrador: "Meu perfil" mais as configurações do sistema.
 - Não foi testado o upload de uma foto real (o fluxo de envio é o mesmo de antes).
+
+## 2026-11-03 — Acionamento enviado pelo número conectado à WuzAPI era descartado em silêncio
+
+### Diagnóstico
+- O card de teste (grupo "teste 2", 17:29) foi enviado pelo próprio número conectado à WuzAPI ("Você").
+- O webhook descartava toda mensagem com `IsFromMe` ("mensagem do próprio bot"), mas o RedeFlow não envia mensagens pela WuzAPI. Com isso, o filtro só servia para jogar fora cards digitados no celular conectado.
+- Esse descarte, e todas as outras decisões sobre grupos autorizados, só aparecia no log com `WUZAPI_DEBUG=true`. Por isso não havia rastro no Render.
+- Nenhum acionamento novo no banco (último: 2026-10-08).
+- Entre 10:04 e 19:51 UTC não houve nenhum log da WuzAPI, nem os avisos de grupo que o código da época gerava para toda mensagem. Ou seja, nesse período a WuzAPI não chamou o webhook. Continua pendente conferir a sessão e o webhook no painel da WuzAPI.
+
+### Implementado (`server.ts`)
+- Mensagens `IsFromMe` de grupo autorizado são processadas como qualquer outra. A deduplicação por ID da mensagem continua.
+- Em grupo autorizado, toda decisão vai para o log sem precisar de debug. Exemplos:
+  - `[WuzAPI] grupo <id> (enviada pelo numero conectado): acionamento registrado <id> (ACESSO, BDESK 672288)`
+  - `[WuzAPI] grupo <id>: ignorada, sem sinais de acionamento: "<início do texto>"`
+
+### Testes
+- Novo teste com o card real (NOC ACESSO, `IsFromMe: true`, grupo autorizado): registrado como Pendente. Suíte: 115/115.
