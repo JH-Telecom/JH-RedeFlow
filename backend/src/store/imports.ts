@@ -55,10 +55,16 @@ export async function replaceD0Base(fileName: string, uploadedBy: string, rows: 
     d0BaseRows.splice(0, d0BaseRows.length, ...records);
   }
 
+  return applyOfsRowsToCalls(rows, 'Importacao D-0');
+}
+
+// Cruza linhas do export do OFS/D-0 com os chamados e atualiza Status OFS, endereco, bairro, cidade, regiao, OLT e
+// Data Fim (mesma regra da D-0), sem tocar no snapshot `d0_base_records`. Usado tambem para dias anteriores.
+export async function applyOfsRowsToCalls(rows: D0Row[], actorName: string): Promise<D0SyncResult> {
   const currentCalls = await listCalls();
   const { matches, unmatchedRows } = matchD0Rows(rows, currentCalls);
   const callsById = new Map(currentCalls.map((call) => [call.id, call]));
-  const actor: User = { id: 'system-d0-import', name: 'Importacao D-0', email: 'system-d0@jhtelecom.com', roleId: 'system', active: true, createdAt: importedAt };
+  const actor: User = { id: 'system-d0-import', name: actorName, email: 'system-d0@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date().toISOString() };
   let updatedCalls = 0;
   const batchSize = 10;
   for (let offset = 0; offset < matches.length; offset += batchSize) {

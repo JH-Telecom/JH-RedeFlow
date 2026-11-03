@@ -252,6 +252,18 @@ export async function recordDriveSyncRun(startedAt: string, result: { files: num
   driveSyncRuns.push({ startedAt, result: { ...result } });
 }
 
+// Data operacional (Sao Paulo) da ultima sincronizacao do Drive registrada. O agendamento usa isso para nao
+// repetir a sincronizacao do dia a cada reinicio do servidor (Render reinicia varias vezes ao dia).
+export async function lastDriveSyncRunDate(): Promise<string | null> {
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('google_drive_sync_runs').select('started_at').order('started_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data?.started_at ? toOperationalDate(data.started_at) : null;
+  }
+  const last = driveSyncRuns[driveSyncRuns.length - 1];
+  return last ? toOperationalDate(last.startedAt) : null;
+}
+
 export async function getCall(id: string, query: CallQuery = {}): Promise<Call | undefined> {
   ensureDemoData();
   if (isSupabaseConfigured()) {

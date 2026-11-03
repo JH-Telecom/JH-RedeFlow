@@ -1,3 +1,5 @@
+import { normalizeCardText, splitTicket } from './card-normalizer.js';
+
 export type WuzApiMessage = {
   id?: string;
   message?: string;
@@ -83,6 +85,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     info.groupJid,
     info.remoteJid,
     info.remoteJid,
+    event.Chat,
     event.chatId,
     event.chat,
     event.remoteJid,
@@ -99,6 +102,7 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
     info.Sender,
     info.sender,
     info.participant,
+    event.Sender,
     event.sender,
     data.sender,
     event.key && typeof event.key === 'object' ? (event.key as Record<string, unknown>).participant : undefined,
@@ -152,7 +156,8 @@ export function parseIncomingMessage(payload: unknown): WuzApiMessage {
   };
 }
 
-export function extractOperationalData(message: string): Record<string, string> {
+export function extractOperationalData(rawMessage: string): Record<string, string> {
+  const message = normalizeCardText(rawMessage);
   const valueFor = (candidate: string, patterns: RegExp[], fallbackPattern?: RegExp) => {
     for (const pattern of patterns) {
       const match = candidate.match(pattern);
@@ -168,44 +173,44 @@ export function extractOperationalData(message: string): Record<string, string> 
   const isFieldActivation = /ACIONAMENTO\s+FIELD/i.test(message);
   const isBackboneActivation = /EVENTO\s+BACKBONE|VALIDAR\s+COM\s+NOC\s+TX/i.test(message);
   const hasNocTx = /NOC\s+TX/i.test(normalized);
-  const officeTrack = valueFor(message, [/TAREFA\s+OFFICE\s+TRACK\s*[:=-]\s*([^\n\r]+)/i, /OFFICE\s+TRACK\s*[:=-]\s*([^\n\r]+)/i, /OS\s+OT\s*[:=-]\s*([^\n\r]+)/i, /OFFICETRACK\s*[:=-]\s*([^\n\r]+)/i, /OFFICETRACK\s+([^\n\r]+)/i]);
-  const orderNumber = valueFor(message, [/ORDEM\s+DE\s+SERVIÇO\s*[:=-]\s*([^\n\r]+)/i, /ORDEM\s*[:=-]\s*([^\n\r]+)/i, /ORDEM\s+([^\n\r]+)/i, /O\.S\.\s*[:=-]\s*([^\n\r]+)/i]) || officeTrack;
+  const officeTrack = valueFor(message, [/TAREFA\s+OFFICE\s+TRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICE\s+TRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OS\s+OT\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICETRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICETRACK\s+([^\n\r]+)/i]);
+  const orderNumber = valueFor(message, [/ORDEM\s+DE\s+SERVIÇO\s*[:=-][ \t]*([^\n\r]+)/i, /ORDEM\s*[:=-][ \t]*([^\n\r]+)/i, /ORDEM\s+([^\n\r]+)/i, /O\.S\.\s*[:=-][ \t]*([^\n\r]+)/i]) || officeTrack;
   const type = isBackboneActivation ? 'NOC TX' : isFieldActivation ? 'ACIONAMENTO FIELD' : hasNocTx ? 'NOC TX' : 'NOC ACESSO';
   const addresses = /Endere[cç]os?\s*:/i.test(message) ? message.split(/Endere[cç]os?\s*:/i)[1]?.split(/COPE\s+REDE:/i)[0]?.trim() || '' : '';
   const slotPon = (() => {
-    const combined = message.match(/SLOT\s*\/\s*PON\s*[:=-]\s*([^\n\r]+)/i);
+    const combined = message.match(/SLOT\s*\/\s*PON\s*[:=-][ \t]*([^\n\r]+)/i);
     if (combined) return combined[1].replace(/[*]/g, '').trim();
     const slot = message.match(/SLOT\s*[:=-]?\s*([^|\n]+).*?PON\s*[:=-]?\s*([^\n]+)/i);
     if (slot) return `${slot[1].replace(/[*]/g, '').trim()} / ${slot[2].replace(/[*]/g, '').trim()}`;
-    return valueFor(message, [/SLOT\s*(?:\/|[-:])?\s*PON\s*[:=-]\s*([^\n\r]+)/i, /SLOT\s*\/\s*PON\s*[:=-]\s*([^\n\r]+)/i, /PLACA\s*\/\s*PON\s*[:=-]\s*([^\n\r]+)/i, /PLACA\s*[:=-]\s*([^\n\r]+)/i]);
+    return valueFor(message, [/SLOT\s*(?:\/|[-:])?\s*PON\s*[:=-][ \t]*([^\n\r]+)/i, /SLOT\s*\/\s*PON\s*[:=-][ \t]*([^\n\r]+)/i, /PLACA\s*\/\s*PON\s*[:=-][ \t]*([^\n\r]+)/i, /PLACA\s*[:=-][ \t]*([^\n\r]+)/i]);
   })();
 
   return {
     orderNumber,
     officeTrack,
-    bdesk: valueFor(message, [/BDESK\s*[:=-]\s*([^\n\r]+)/i, /TICKET\s*[:=-]\s*([^\n\r]+)/i]),
+    bdesk: splitTicket(valueFor(message, [/BDESK\s*[:=-][ \t]*([^\n\r]+)/i, /TICKET\s*[:=-][ \t]*([^\n\r]+)/i])).numero || '',
     type,
-    reason: valueFor(message, [/MOTIVO\s*[:=-]\s*([^\n\r]+)/i, /TIPO\s+DE\s+FALHA\s*[:=-]\s*([^\n\r]+)/i, /TIPO\s*[:=-]\s*([^\n\r]+)/i]),
-    eventAt: valueFor(message, [/DATA\s*(?:\/|[-])?\s*HORA\s+DO\s+EVENTO\s*[:=-]\s*([^\n\r]+)/i, /DATA\s*(?:\/|[-])?\s*HORA\s*[:=-]\s*([^\n\r]+)/i, /DATA\s+HORA\s+DO\s+EVENTO\s*[:=-]\s*([^\n\r]+)/i]),
-    olt: valueFor(message, [/OLT\s*[:=-]\s*([^\n\r]+)/i]),
+    reason: valueFor(message, [/MOTIVO\s*[:=-][ \t]*([^\n\r]+)/i, /TIPO\s+DE\s+FALHA\s*[:=-][ \t]*([^\n\r]+)/i, /TIPO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    eventAt: valueFor(message, [/DATA\s*(?:\/|[-])?\s*HORA\s+DO\s+EVENTO\s*[:=-][ \t]*([^\n\r]+)/i, /DATA\s*(?:\/|[-])?\s*HORA\s*[:=-][ \t]*([^\n\r]+)/i, /DATA\s+HORA\s+DO\s+EVENTO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    olt: valueFor(message, [/OLT\s*[:=-][ \t]*([^\n\r]+)/i]),
     slotPon,
-    affectedCount: valueFor(message, [/AFETADOS\s*[:=-]\s*([^\n\r]+)/i, /AFETA[ÇC]Ã?O\s*[:=-]\s*([^\n\r]+)/i]),
-    contract: valueFor(message, [/CONTRATO(?:S)?\s+EXEMPLO(?:S)?\s*[:=-]\s*([^\n\r]+)/i, /CONTRATO\s*[:=-]\s*([^\n\r]+)/i]),
-    technician: valueFor(message, [/TÉCNICO\s+REDE\s*[:=-]\s*([^\n\r]+)/i, /TECNICO\s+REDE\s*[:=-]\s*([^\n\r]+)/i, /TÉCNICO\s*[:=-]\s*([^\n\r]+)/i, /TECNICO\s*[:=-]\s*([^\n\r]+)/i]),
-    cope: valueFor(message, [/COPE\s+REDE\s*[:=-]\s*([^\n\r]+)/i]),
-    client: valueFor(message, [/CLIENTE\s*[:=-]\s*([^\n\r]+)/i]),
-    region: valueFor(message, [/REGIÃ?O\s*[:=-]\s*([^\n\r]+)/i, /REGIAO\s*[:=-]\s*([^\n\r]+)/i]),
-    city: valueFor(message, [/CIDADE\s*[:=-]\s*([^\n\r]+)/i]),
-    phone: valueFor(message, [/TELEFONE\s*[:=-]\s*([^\n\r]+)/i]),
-    customerOrder: valueFor(message, [/O\.S\.\s*CASA\s+CLIENTE\s*[:=-]\s*([^\n\r]+)/i, /O\.S\.?\s*[:=-]\s*([^\n\r]+)/i]),
-    ticket: valueFor(message, [/TICKET\s*[:=-]\s*([^\n\r]+)/i]),
-    serialNumber: valueFor(message, [/S\/N\s*[:=-]\s*([^\n\r]+)/i]),
-    ctoId: valueFor(message, [/ID\s*\/\s*CTO\s*[:=-]\s*([^\n\r]+)/i, /ID\/CTO\s*[:=-]\s*([^\n\r]+)/i]),
-    ctoLocation: valueFor(message, [/LOC\s+CTO\s*[:=-]\s*([^\n\r]+)/i]),
-    title: valueFor(message, [/TITULO\s*[:=-]\s*([^\n\r]+)/i, /TÍTULO\s*[:=-]\s*([^\n\r]+)/i]),
-    openedAt: valueFor(message, [/ABERTO\s+EM\s*[:=-]\s*([^\n\r]+)/i]),
-    observations: valueFor(message, [/OBSERVA[ÇC]Õ?ES\s*[:=-]\s*([^\n\r]+)/i]),
-    outageStart: valueFor(message, [/INÍ?CIO\s+DA\s+QUEDA\s*[:=-]\s*([^\n\r]+)/i, /INICIO\s+DA\s+QUEDA\s*[:=-]\s*([^\n\r]+)/i]),
+    affectedCount: valueFor(message, [/AFETADOS\s*[:=-][ \t]*([^\n\r]+)/i, /AFETA[ÇC]Ã?O\s*[:=-][ \t]*([^\n\r]+)/i]),
+    contract: valueFor(message, [/CONTRATO(?:S)?\s+EXEMPLO(?:S)?\s*[:=-][ \t]*([^\n\r]+)/i, /CONTRATO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    technician: valueFor(message, [/TÉCNICO\s+REDE\s*[:=-][ \t]*([^\n\r]+)/i, /TECNICO\s+REDE\s*[:=-][ \t]*([^\n\r]+)/i, /TÉCNICO\s*[:=-][ \t]*([^\n\r]+)/i, /TECNICO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    cope: valueFor(message, [/COPE\s+REDE\s*[:=-][ \t]*([^\n\r]+)/i]),
+    client: valueFor(message, [/CLIENTE\s*[:=-][ \t]*([^\n\r]+)/i]),
+    region: valueFor(message, [/REGIÃ?O\s*[:=-][ \t]*([^\n\r]+)/i, /REGIAO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    city: valueFor(message, [/CIDADE\s*[:=-][ \t]*([^\n\r]+)/i]),
+    phone: valueFor(message, [/TELEFONE\s*[:=-][ \t]*([^\n\r]+)/i]),
+    customerOrder: valueFor(message, [/O\.S\.\s*CASA\s+CLIENTE\s*[:=-][ \t]*([^\n\r]+)/i, /O\.S\.?\s*[:=-][ \t]*([^\n\r]+)/i]),
+    ticket: valueFor(message, [/TICKET\s*[:=-][ \t]*([^\n\r]+)/i]),
+    serialNumber: valueFor(message, [/S\/N\s*[:=-][ \t]*([^\n\r]+)/i]),
+    ctoId: valueFor(message, [/ID\s*\/\s*CTO\s*[:=-][ \t]*([^\n\r]+)/i, /ID\/CTO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    ctoLocation: valueFor(message, [/LOC\s+CTO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    title: valueFor(message, [/TITULO\s*[:=-][ \t]*([^\n\r]+)/i, /TÍTULO\s*[:=-][ \t]*([^\n\r]+)/i]),
+    openedAt: valueFor(message, [/ABERTO\s+EM\s*[:=-][ \t]*([^\n\r]+)/i]),
+    observations: valueFor(message, [/OBSERVA[ÇC]Õ?ES\s*[:=-][ \t]*([^\n\r]+)/i]),
+    outageStart: valueFor(message, [/INÍ?CIO\s+DA\s+QUEDA\s*[:=-][ \t]*([^\n\r]+)/i, /INICIO\s+DA\s+QUEDA\s*[:=-][ \t]*([^\n\r]+)/i]),
     addresses,
   };
 }

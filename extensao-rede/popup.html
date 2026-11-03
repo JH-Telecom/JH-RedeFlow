@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>JH RedeFlow – Coletor OFS</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="" width="28" height="28">
+    <div><strong>JH RedeFlow</strong><small>Coletor OFS · <span id="versao"></span></small></div>
+  </header>
+
+  <section class="card" id="cardStatus">
+    <h2>Último envio</h2>
+    <div id="status" class="status">Nenhum envio ainda.</div>
+    <div id="proximas" class="hint"></div>
+  </section>
+
+  <section class="card">
+    <h2>Exportar agora</h2>
+    <p class="hint">Precisa de uma aba do OFS (Console de Alocação) aberta e logada neste Chrome.</p>
+    <div class="botoes">
+      <button id="exportarHoje" class="primario">Hoje</button>
+      <button id="exportarOntem">Dia anterior</button>
+    </div>
+    <div class="linha">
+      <input id="dataEscolhida" type="date">
+      <button id="exportarData">Exportar data</button>
+    </div>
+    <div id="acaoStatus" class="hint"></div>
+  </section>
+
+  <section class="card">
+    <h2>Configuração</h2>
+    <label class="campo">Token do JH RedeFlow
+      <input id="token" type="password" autocomplete="off" placeholder="cole o token fornecido pelo administrador">
+    </label>
+    <button id="testarToken" class="link">Testar token</button>
+    <label class="campo">Atualizar hoje
+      <select id="intervaloMin">
+        <option value="0">Desligado</option>
+        <option value="15">A cada 15 min</option>
+        <option value="30">A cada 30 min</option>
+        <option value="60">A cada 1 hora</option>
+        <option value="120">A cada 2 horas</option>
+      </select>
+    </label>
+    <label class="campo">Exportar o dia anterior todo dia às
+      <input id="horaDiaAnterior" type="time">
+      <span class="hint">Em branco = não exporta o dia anterior automaticamente.</span>
+    </label>
+    <details>
+      <summary>Avançado</summary>
+      <label class="campo">ID da alocação da Rede (data-id)
+        <input id="alocacaoId" type="text" placeholder="em branco = a alocação selecionada no OFS">
+        <span class="hint">Garante exportar sempre a mesma alocação da árvore do OFS.</span>
+      </label>
+    </details>
+    <label class="interruptor"><input id="ativo" type="checkbox"> Coleta automática ligada</label>
+    <button id="salvar" class="primario">Salvar</button>
+    <div id="configStatus" class="hint"></div>
+  </section>
+
+  <section class="card">
+    <h2>Envio manual</h2>
+    <p class="hint">Se o automático falhar: exporte no OFS (Ações → Exportar), escolha o dia do arquivo e selecione o CSV.</p>
+    <div class="linha">
+      <input id="arquivoData" type="date">
+      <input id="arquivo" type="file" accept=".csv">
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Histórico</h2>
+    <ol id="historico" class="historico"></ol>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

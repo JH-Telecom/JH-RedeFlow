@@ -326,16 +326,38 @@ export async function listSupabaseRoles() {
   });
 }
 
+// Ultimo processamento de cada acionamento em poucas consultas (antes era uma consulta por acionamento).
+async function latestProcessingByActivation(ids: string[]) {
+  const latest = new Map<string, Record<string, unknown>>();
+  for (let index = 0; index < ids.length; index += 150) {
+    const chunk = ids.slice(index, index + 150);
+    const { data, error } = await getSupabaseAdmin().from('activation_processing').select('activation_id, extracted_data, created_at').in('activation_id', chunk).order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    for (const row of data || []) if (!latest.has(row.activation_id)) latest.set(row.activation_id, (row.extracted_data || {}) as Record<string, unknown>);
+  }
+  return latest;
+}
+
+// Apenas o que findAtreladaCallOrder usa: chamados com OFS Pendente na mesma OLT.
+async function listAtreladaCandidates(olt: string | null | undefined): Promise<Call[]> {
+  if (!olt) return [];
+  const { data, error } = await getSupabaseAdmin().from('calls').select('order_number, office_track, olt, slot_pon, opened_at, ofs_status').ilike('ofs_status', '%pendente%').not('olt', 'is', null).limit(2000);
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => ({ orderNumber: row.order_number || '', officeTrack: row.office_track || '', olt: row.olt || '', slotPon: row.slot_pon || '', openedAt: row.opened_at, ofsStatus: row.ofs_status || '' }) as Call);
+}
+
+const ACTIVATION_DEDUPE_DAYS = 14;
+
 export async function createSupabaseActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string>; analysis?: ActivationAnalysis }): Promise<Activation> {
   const admin = getSupabaseAdmin();
   const normalize = (value: unknown) => String(value || '').trim().toLowerCase();
   const incomingKeys = [input.originalMessage, input.extractedData.bdesk, input.extractedData.officeTrack, input.extractedData.orderNumber].map(normalize).filter(Boolean);
-  const { data: pendingRows, error: pendingError } = await admin.from('activations').select('id, source, original_message, received_at, status').eq('source', input.source).in('status', ['Pendente', 'Aceito']).order('received_at', { ascending: false });
+  const { data: pendingRows, error: pendingError } = await admin.from('activations').select('id, source, original_message, received_at, status').eq('source', input.source).in('status', ['Pendente', 'Aceito']).gte('received_at', new Date(Date.now() - ACTIVATION_DEDUPE_DAYS * 86_400_000).toISOString()).order('received_at', { ascending: false });
   if (pendingError) throw new Error(pendingError.message);
+  const processingById = await latestProcessingByActivation((pendingRows || []).map((row) => row.id));
   const existingAnalyses: Array<{ id: string; analysis?: ActivationAnalysis }> = [];
   for (const pending of pendingRows || []) {
-    const { data: processing } = await admin.from('activation_processing').select('extracted_data').eq('activation_id', pending.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    const stored = (processing?.extracted_data || {}) as Record<string, unknown>;
+    const stored = processingById.get(pending.id) || {};
     const { _analysis: storedAnalysis } = stored;
     existingAnalyses.push({ id: pending.id, analysis: storedAnalysis as ActivationAnalysis | undefined });
     const storedKeys = [pending.original_message, stored.bdesk, stored.officeTrack, stored.orderNumber].map(normalize).filter(Boolean);
@@ -343,7 +365,7 @@ export async function createSupabaseActivation(input: { source: string; original
     const { _analysis: analysis, ...extractedData } = stored;
     return { id: pending.id, source: pending.source, originalMessage: pending.original_message, receivedAt: pending.received_at, status: pending.status as ActivationStatus, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
   }
-  const atreladaOrder = input.analysis ? findAtreladaCallOrder(input.analysis, await listSupabaseCalls()) : undefined;
+  const atreladaOrder = input.analysis ? findAtreladaCallOrder(input.analysis, await listAtreladaCandidates(input.analysis.olt)) : undefined;
   const enrichedAnalysis = input.analysis ? { ...input.analysis, atrelada: atreladaOrder || null, atreladas: identifyAtreladas(input.analysis, existingAnalyses) } : input.analysis;
   const { data: activation, error } = await admin.from('activations').insert({ source: input.source, original_message: input.originalMessage, status: 'Pendente' }).select('id, source, original_message, received_at, status').single();
   if (error || !activation) throw new Error(error?.message || 'Nao foi possivel registrar o acionamento.');
@@ -372,9 +394,9 @@ export async function listSupabaseActivations(status?: ActivationStatus): Promis
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   const activations: Activation[] = [];
+  const processingById = await latestProcessingByActivation((data || []).map((row) => row.id));
   for (const row of data || []) {
-    const { data: processing } = await admin.from('activation_processing').select('extracted_data').eq('activation_id', row.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    const extracted = (processing?.extracted_data || {}) as Record<string, unknown>;
+    const extracted = processingById.get(row.id) || {};
     const { _analysis: analysis, ...extractedData } = extracted;
     activations.push({ id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, decisionBy: row.decision_by || undefined, decisionAt: row.decision_at || undefined, createdCallId: row.created_call_id || undefined, rejectionReason: row.rejection_reason || undefined, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined });
   }

@@ -1,6 +1,7 @@
 import { extractOperationalData, type WuzApiMessage } from './client.js';
 import type { ActivationAnalysis } from '../../types.js';
 import { consolidateNocAddresses } from './noc-consolidation.js';
+import { normalizeCardText, splitTicket } from './card-normalizer.js';
 
 const nullValue = (value: string | undefined) => {
   const normalized = value?.replace(/[ *_-]/g, '').trim();
@@ -11,10 +12,15 @@ function clean(value: string) {
   return value.replace(/^\s*[-*]\s*/, '').replace(/\s*[*]\s*$/, '').trim();
 }
 
+// Primeiro valor nao vazio do rotulo. O separador so aceita espacos da mesma linha: "Contratos Exemplos:" vazio
+// nao pode "pegar" a linha seguinte como valor.
 function labelValue(text: string, labels: string[]) {
-  const pattern = new RegExp(`^\\s*[-*]?\\s*(?:${labels.join('|')})\\s*[:=-]\\s*(.*)$`, 'im');
-  const match = text.match(pattern);
-  return match?.[1] ? nullValue(clean(match[1])) : null;
+  const pattern = new RegExp(`^[ \\t]*[-*]?[ \\t]*(?:${labels.join('|')})[ \\t]*[:=-][ \\t]*(.*)$`, 'gim');
+  for (const match of text.matchAll(pattern)) {
+    const value = match[1] ? nullValue(clean(match[1])) : null;
+    if (value) return value;
+  }
+  return null;
 }
 
 function sectionValue(text: string, heading: RegExp, until: RegExp) {
@@ -50,8 +56,13 @@ function classify(text: string, legacy: Record<string, string>) {
   return { type, card };
 }
 
+// Tecnico informado como "0", "-" ou "**" significa "sem tecnico".
+const technicianValue = (value: string | null) => (value && !/^[0\-–—.]+$/.test(value.trim()) ? value : null);
+
 export function analyzeOperationalMessage(message: WuzApiMessage | string): ActivationAnalysis {
-  const text = typeof message === 'string' ? message : message.message || '';
+  const rawText = typeof message === 'string' ? message : message.message || '';
+  // Cards fora do padrao (negrito, bullets, rotulos com outro nome) viram o formato padrao antes da leitura.
+  const text = normalizeCardText(rawText);
   const legacy = extractOperationalData(text);
   const classification = classify(text, legacy);
   const markerCount = [
@@ -69,10 +80,13 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
   const dataHora = labelValue(text, ['DATA\\s*/\\s*HORA DO EVENTO', 'DATA HORA DO EVENTO', 'DATA\\s*HORA']);
   const officeTrack = labelValue(text, ['TAREFA OFFICE TRACK', 'OFFICE TRACK', 'OFFICETRACK', 'OS OT']) || nullValue(legacy.officeTrack);
   const contract = labelValue(text, ['CONTRATO(?:S)?(?: EXEMPLO(?:S)?)?']) || nullValue(legacy.contract);
-  const technician = labelValue(text, ['TÉCNICO REDE', 'TECNICO REDE', 'TÉCNICO', 'TECNICO']) || nullValue(legacy.technician);
+  const technician = technicianValue(labelValue(text, ['TÉCNICO REDE', 'TECNICO REDE']) || labelValue(text, ['TÉCNICO', 'TECNICO']) || nullValue(legacy.technician));
   const addresses = parseAddresses(text) || (legacy.addresses ? [legacy.addresses] : null);
   const consolidated = consolidateNocAddresses(addresses);
   const isNoBairroApplicable = classification.card === 'TX';
+  // TICKET do backbone vem com o trecho junto: "658278 » SP::ATN::MAUA_TUR<>SAO_PAULO_MTX::DWDM::VIP"
+  const ticket = splitTicket(labelValue(text, ['TICKET']) || nullValue(legacy.ticket));
+  const bdesk = splitTicket(labelValue(text, ['BDESK']));
   const analysis: ActivationAnalysis = {
     eh_acionamento: isActivation,
     tipo_registro: classification.type,
@@ -80,11 +94,12 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
     categoria: classification.card,
     origem: 'WUZAPI',
     prioridade: null,
-    tecnico: labelValue(text, ['TÉCNICO', 'TECNICO']),
-    auxiliar: labelValue(text, ['AUXILIAR']),
+    tecnico: technicianValue(labelValue(text, ['TÉCNICO', 'TECNICO'])),
+    auxiliar: technicianValue(labelValue(text, ['AUXILIAR'])),
     telefone: labelValue(text, ['TELEFONE', 'CELULAR']),
-    bdesk: labelValue(text, ['BDESK']) || nullValue(legacy.bdesk),
-    ticket: labelValue(text, ['TICKET']) || nullValue(legacy.ticket),
+    bdesk: bdesk.numero || ticket.numero || splitTicket(nullValue(legacy.bdesk)).numero,
+    ticket: ticket.numero,
+    trecho: labelValue(text, ['TRECHO']) || ticket.trecho || bdesk.trecho,
     office_track: officeTrack,
     os_ot: officeTrack,
     os_casa_cliente: labelValue(text, ['O\\.S\\. CASA CLIENTE', 'OS CASA CLIENTE']),
@@ -105,7 +120,7 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
     tecnico_rede: technician,
     cope_rede: labelValue(text, ['COPE REDE']) || nullValue(legacy.cope),
     observacoes: labelValue(text, ['OBSERVAÇÕES', 'OBSERVACOES']) || nullValue(legacy.observations),
-    raw_text: text,
+    raw_text: rawText,
     clientes_afetados: isNoBairroApplicable ? [] : consolidated.clientes,
     endereco_principal: isNoBairroApplicable ? null : consolidated.enderecoPrincipal,
     bairro_principal: isNoBairroApplicable ? null : consolidated.bairroPrincipal,

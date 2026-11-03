@@ -19,7 +19,7 @@ Status geral: EM DESENVOLVIMENTO
 Última implementação: P0/P1 da auditoria — "Apagar todos os chamados" movido para Configurações (zona de perigo), datas no fuso America/Sao_Paulo, consultas mais leves em finalizar/cancelar/reabrir, dashboard e notificações, correção do escopo de supervisor no Supabase e guardas de rota no frontend. Ver "2026-11-03 — P0/P1 da auditoria" no fim do arquivo.
 Agente responsável pela última alteração: Claude Code (Opus 5.5)
 
-Próxima ação: dashboards (Visão geral, IGP) e navegação redesenhados em 2026-11-03 — ver "Dashboards e navegação (P3, parte 1)". Próximo: publicar, conferir com dados reais e estender os componentes às demais telas; validar supervisor em produção.
+Próxima ação: acionamentos (2026-11-03) — cards fora do padrão normalizados, diagnóstico de grupos (`GET /api/integrations/wuzapi/grupos`) e N+1 removido. Próximo: corrigir `WUZAPI_ACTIVATION_GROUP_ID` com o ID atual do grupo e conferir a sessão/webhook da WuzAPI; depois, extensão da Rede na máquina coletora.
 
 ---
 
@@ -2879,18 +2879,18 @@ O CSV do Coletor é o mesmo "export plano" do OFS que o Painel diário já lê (
 Puxar os dados diretamente do OFS em vez do Google Drive: dias anteriores, Status e Data Fim; finalizar, cancelar, despachar e mover ordens pelo RedeFlow em sincronia com o OFS; conferir ordens do OFS ainda não acionadas no grupo do WhatsApp; Painel diário atualizado de hora em hora; relatórios automáticos. A única entrada externa continua sendo o acionamento do grupo do WhatsApp (WuzAPI).
 
 ### Arquitetura
-- **Ponte:** extensão JH Telecom (Chrome logado no OFS/AutoISP), com revezamento entre máquinas coletoras. Leitura: export CSV do OFS → `POST /api/integrations/ofs/export` (já em produção com `OFS_INGEST_TOKEN`). Escrita: RedeFlow → extensão via `chrome.runtime.sendMessage` (mesmo mecanismo do "Mover no OFS" usado pelo JH Agendamentos).
-- **Alternativa preferível, se a Alloha liberar:** API REST oficial do OFS com credenciais próprias — o backend lê e escreve sem depender de navegador aberto nem do layout da tela. A decisão muda as fases 2 a 5; perguntar à Alloha antes de investir pesado na automação de tela.
+- **Decisão (2026-11-03):** não há acesso à API do OFS; tudo será pela extensão. E a extensão é **própria da Rede**, separada da extensão do JH Agendamentos: **"JH RedeFlow – Coletor OFS"**, código em [extensao-rede/](extensao-rede/) (ver "Extensão própria da Rede" abaixo). A 2.0.13 da extensão JH Telecom deixa de ser o caminho.
+- **Ponte:** extensão da Rede (Chrome logado no OFS). Leitura: export CSV do OFS → `POST /api/integrations/ofs/export` (em produção com `OFS_INGEST_TOKEN`). Escrita (Fases 4 e 5): RedeFlow → extensão via `chrome.runtime.sendMessage` (`externally_connectable`), reimplementando na extensão da Rede o fluxo de mover que existe na do Agendamentos.
 
 ### Pré-requisitos (bloqueiam a Fase 1)
 - CSVs reais do OFS da alocação do time de Rede: um de hoje e um de dia anterior (colunas, status final, Data Fim/hora de conclusão, identificadores BDESK/Office Track/Contrato).
-- Confirmar se há (ou se a Alloha pode liberar) acesso à API do OFS.
+- ~~Confirmar acesso à API do OFS~~ — não há; decidido seguir pela extensão.
 - Aval da Alloha para ações de escrita automatizadas no OFS (Fases 4 e 5).
 
 ### Fase 1 — Leitura automática (baixo risco)
-1. **Painel diário de hora em hora:** extensão 2.0.13 publicada + "Atualizar sozinho: a cada 1 hora" + token no popup. Sem código novo.
-2. **Dia anterior fechado (D-1) pela extensão:** exportação diária do dia anterior (a extensão já navega datas no OFS) enviada a um endpoint de histórico. O RedeFlow cria/atualiza/finaliza/cancela chamados com a lógica de reconciliação que hoje é do Google Drive (`buildDriveCall`/`buildDriveUpdate`), com a origem "OFS".
-3. **Retroativo:** comando para exportar um intervalo de dias passados (um dia por vez) e preencher o histórico.
+1. ✅ **Painel diário de hora em hora:** extensão da Rede 1.0.0 (intervalo padrão 1 h). Falta publicar e configurar a máquina.
+2. 🟡 **Dia anterior pela extensão:** ✅ exportação diária do dia anterior (padrão 07:00) enviada com `data`; o RedeFlow salva o Painel diário daquele dia e atualiza Status OFS/Data Fim dos chamados que cruzam, sem tocar na D-0 de hoje. ⏳ Falta criar/finalizar/cancelar chamados a partir do OFS (lógica de reconciliação do Google Drive, `buildDriveCall`/`buildDriveUpdate`, com origem "OFS") — depende dos CSVs reais para mapear status final e Data Fim.
+3. ✅ **Retroativo:** botão no popup exporta qualquer dia dos últimos 31 (um por vez).
 4. **Transição do Drive:** rodar OFS e Drive em paralelo por alguns dias, comparar contagens (criados, finalizados, cancelados, Data Fim) e só então desligar `GOOGLE_DRIVE_SYNC_ENABLED`.
 - Critério de pronto: uma semana de paralelo sem divergência relevante; Painel diário com atualização ≤ 1h durante o expediente.
 
@@ -2921,3 +2921,75 @@ Puxar os dados diretamente do OFS em vez do Google Drive: dias anteriores, Statu
 
 ### Ordem sugerida
 Pré-requisitos → Fase 1 → Fase 2 → Fase 3 → Fase 4 → Fase 5. Fases 2 e 3 podem andar em paralelo depois da Fase 1.
+
+---
+
+## 2026-11-03 — Extensão própria da Rede: "JH RedeFlow – Coletor OFS" 1.0.0
+
+### Decisão
+Sem acesso à API do OFS; integração pela extensão. A pedido do responsável, uma **extensão nova, só da Rede**, distinta da extensão JH Telecom (JH Agendamentos). Código versionado neste repositório em `extensao-rede/`.
+
+### Extensão (`extensao-rede/`)
+- `manifest.json` (MV3, 1.0.0): permissões `storage`, `alarms`, `scripting`, `tabs`, `downloads`, `notifications`; hosts somente OFS e a API do RedeFlow no Render. Sem login do Agendamentos, sem Mover e sem AutoISP.
+- `background.js`: automação na aba do OFS (`acaoNaPagina`: navega até a data alvo pelas setas, seleciona a alocação por `data-id` ou a selecionada, atualiza a grade, Ações → Exportar); captura **apenas** o download que ela mesma disparou (janela de 90 s — exportações manuais baixam normalmente); lê o blob na aba e envia ao RedeFlow com o token; depois de um dia anterior devolve a tela do OFS para hoje; alarmes: hoje a cada N min (padrão 60) e dia anterior diário (padrão 07:00); selo do ícone, histórico dos 15 últimos envios e notificação após 3 falhas seguidas.
+- `popup.html/js/css`: último envio, próximas exportações, botões Hoje / Dia anterior / data escolhida (até 31 dias), token + "Testar token", intervalo, horário do dia anterior, `data-id` da alocação, liga/desliga, envio manual de CSV com a data e histórico.
+- `icons/`: ícones próprios (quadrado azul RedeFlow com "R"), gerados localmente.
+- `README.md`: instalação, configuração, convivência com a extensão do Agendamentos e limitações.
+
+### Backend
+- `POST /api/integrations/ofs/export` aceita `data` (YYYY-MM-DD, hoje até 31 dias atrás; futuro → 400). Hoje: comportamento anterior (Painel diário + substitui a D-0 + atualiza chamados). Dia anterior: salva o Painel diário daquele dia e só atualiza os chamados (Status OFS, endereço, bairro, cidade, região, OLT, Data Fim), sem sobrescrever a D-0 de hoje. A checagem da coluna "Data" usa o dia informado.
+- `store/imports.ts`: `applyOfsRowsToCalls` separado de `replaceD0Base` (este continua gravando o snapshot e chamando aquele); exportado no barrel `store.ts`.
+
+### Testes
+- `http.test.ts`: novo teste do dia anterior (data futura → 400; CSV de ontem sem `data` → 422; com `data` salva o painel de ontem, cruza o chamado, grava Status OFS "Concluído" e mantém a D-0 de hoje igual).
+- Corrigidos dois testes frágeis: "open calls split…" dependia do horário (turno do `tech-carlos` termina 16:00; agora marca ativo manualmente antes de atribuir) e a espera de boot do servidor de teste subiu para 30 s. Suíte: ✅ 106/106.
+- Extensão: `acaoNaPagina` executada numa página simulada do OFS com os mesmos seletores (ontem com 1 clique, volta para hoje sem exportar, 3 dias atrás atravessando o mês, alocação inexistente → erro claro); `background.js` carregado em Node com `chrome` simulado contra o backend local (token aceito, captura só do download do OFS, envio com 1 atividade e 1 chamado cruzado/atualizado, volta para hoje, download manual fora da janela não cancelado, sem token não exporta).
+
+### Pendências
+- Publicar a 1.0.0 na Chrome Web Store (ou carregar sem compactação para piloto) e configurar a máquina coletora com o token.
+- Validar com o OFS real: texto do seletor de data, `data-id` da alocação da Rede e colunas do CSV.
+- Fase 1 item 2: criar/finalizar/cancelar chamados a partir do OFS (substituir o Drive) — precisa dos CSVs reais.
+
+## 2026-11-03 — Acionamentos: diagnóstico dos grupos e leitura de cards fora do padrão
+
+### Diagnóstico (produção, somente leitura)
+- Último acionamento gravado no Supabase: 2026-10-08 21:19 UTC (457 no total).
+- Logs do Render: a WuzAPI enviou mensagens de vários grupos (120363419703117730, 120363404274690636, 120363429479875793, 120363028742968831, 120363106964250033, 120363029517717229, 120363430674238214), mas **nenhum** dos IDs configurados em `WUZAPI_ACTIVATION_GROUP_ID` (120363183251501300, 120363422003961917) aparece. Hipótese: o grupo mudou de ID (grupo novo/comunidade) ou o número saiu do grupo.
+- Sem nenhum log da WuzAPI depois de 2026-11-03 10:04 UTC (07:04 em São Paulo): a WuzAPI parou de chamar o webhook (sessão/URL a verificar no painel da WuzAPI).
+- 10:51 UTC: "Reached heap limit" (512 MB). A sincronização agendada do Drive rodava de novo a cada reinício (cerca de 15 hoje) e lia ~17,8 mil linhas a cada vez.
+- Cards não reconhecidos eram descartados antes de gravar. Variações reais encontradas: cabeçalho "Fulano - COP Redes", "### ACIONAMENTO FIELD ###" com seções "=== INFO ===", rótulos em negrito (`*OLT*:`), bullets e emojis, "Técnico Rede: 0", TICKET do backbone com o trecho junto ("658278 » SP::…").
+
+### Implementado
+- `backend/src/integrations/wuzapi/card-normalizer.ts` (novo): antes da leitura, converte o card para o formato padrão.
+  - Remove a formatação do WhatsApp, bullets, emojis e caracteres invisíveis.
+  - Aceita `-`, `–` e `=` como separador, além de `:`.
+  - Aceita apelidos de rótulo (Técnico de rede, B-DESK, Clientes afetados, Falha, OT, OBS, Data e hora do evento…).
+  - Normaliza a grafia do tipo: NOC-ACESSO/NOC_TX, "Validar c/ o NOC", "Acionamento de campo/fild", "Evento de back-bone".
+  - Linhas de endereço e trechos com hífen não são alterados.
+- `splitTicket`: separa número e trecho do TICKET. O campo `bdesk` agora recebe só o número; o trecho vai para o novo campo `trecho` de `ActivationAnalysis`.
+- `semantic.ts`:
+  - `labelValue` não atravessa mais a quebra de linha. Antes, "Contrato(s) Exemplos:" vazio capturava a linha seguinte.
+  - Usa o primeiro valor não vazio do rótulo.
+  - Técnico "0"/"-" passa a ser "sem técnico".
+- `client.ts`:
+  - Os 48 padrões do leitor legado só leem valores na mesma linha.
+  - `parseIncomingMessage` lê `Chat`/`Sender` no nível do evento (recibos).
+- Webhook (`server.ts`):
+  - O filtro de tipo de evento roda antes do filtro de grupo, então recibos/presença não geram mais "grupo não autorizado / chatId nenhum".
+  - O aviso de grupo não autorizado sai uma vez por hora por grupo.
+  - Card de acionamento vindo de grupo **não configurado** gera um aviso explícito no log.
+  - Novo `GET /api/integrations/wuzapi/grupos` (permissão `settings.manage`): mostra os grupos vistos desde o último reinício, com mensagens, cards que parecem acionamento, último envio e se o grupo está autorizado. Serve para achar o ID correto.
+- Recebimento (`supabase/client.ts`):
+  - `createSupabaseActivation` e `listSupabaseActivations` buscam `activation_processing` em lote (`.in`, 150 por consulta). Antes era uma consulta por acionamento (N+1).
+  - A deduplicação considera os últimos 14 dias.
+  - A busca de atrelada lê só os chamados com OFS Pendente que têm OLT (colunas mínimas), em vez de todos os chamados.
+- Drive: o agendamento consulta `google_drive_sync_runs` e não repete a sincronização do dia após um reinício (`lastDriveSyncRunDate`).
+
+### Testes
+- `backend/test/card-variants.test.ts` (novo, 8 testes com as variações reais).
+- Suíte completa: 114/114 passando.
+
+### Pendências (ação do usuário)
+- Painel da WuzAPI: conferir se a sessão está conectada e se o webhook aponta para `https://jh-redeflow-api.onrender.com/api/integrations/wuzapi/webhook?token=…`.
+- Depois do deploy, mandar um card no grupo de acionamentos e consultar `/api/integrations/wuzapi/grupos` (ou o log "grupo NAO configurado") para pegar o ID atual. Em seguida, atualizar `WUZAPI_ACTIVATION_GROUP_ID` no Render (aceita vários IDs separados por vírgula).
+- Avaliar um plano pago no Render: o plano free dorme, tem cold start e limite de 512 MB.

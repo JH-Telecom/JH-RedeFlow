@@ -10,8 +10,8 @@ let baseUrl = `http://127.0.0.1:${port}`;
 let server: ChildProcess | undefined;
 
 async function waitForServer() {
-  // Ate 10 s: com todos os arquivos de teste rodando em paralelo, o boot pode passar de 4 s.
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  // Ate 30 s: com todos os arquivos de teste rodando em paralelo (ou a maquina carregada), o boot ja passou de 10 s.
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     try {
       const response = await fetch(`${baseUrl}/health`);
       if (response.ok) return;
@@ -330,6 +330,8 @@ test('open calls split by technician assignment and assigned open calls appear i
   assert.equal(unassignedBefore.status, 200);
   assert.ok(unassignedBeforeBody.calls.every((call) => call.status === 'Aberto' && !call.technicianId));
 
+  // Turno do tech-carlos e 07:00-16:00: marca ativo manualmente para o teste nao depender do horario em que roda.
+  assert.equal((await fetch(`${baseUrl}/api/tecnicos/tech-carlos`, { method: 'PATCH', headers, body: JSON.stringify({ active: true }) })).status, 200);
   const assignResponse = await fetch(`${baseUrl}/api/chamados/call-240918-01`, {
     method: 'PATCH',
     headers,
@@ -999,4 +1001,38 @@ test('OFS collector export updates the daily panel and the OFS status of matchin
   assert.equal(base.base?.data.activities.length, 2);
   const call = await (await fetch(`${baseUrl}/api/chamados/call-240918-01`, { headers })).json() as { call: { ofsStatus?: string } };
   assert.equal(call.call.ofsStatus, 'Iniciado');
+});
+
+test('OFS collector export of a previous day updates that day panel and calls without replacing today D-0 base', async () => {
+  const fmt = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+  const today = fmt(new Date());
+  const yesterday = fmt(new Date(Date.parse(`${today}T12:00:00Z`) - 86_400_000));
+  const ofsDate = `${yesterday.slice(8, 10)}/${yesterday.slice(5, 7)}/${yesterday.slice(2, 4)}`;
+  const header = Array.from({ length: 26 }, (_, index) => `Coluna ${index}`);
+  Object.assign(header, { 0: 'Recurso', 2: 'Status da Atividade', 3: 'Data', 5: 'Tipo de Atividade', 15: 'Início', 20: 'Tempo', 23: 'Tipo de Atividade', 24: 'Ordem de Serviço' });
+  const cells = Array.from({ length: 26 }, () => '');
+  Object.assign(cells, { 0: 'Andre Costa', 2: 'Concluído', 3: ofsDate, 5: 'Manutenção Corretiva de Rede', 15: '09:00', 20: '02:00', 23: 'Manutenção Corretiva de Rede', 24: 'RF-240916' });
+  const csv = [header.join(','), cells.map((cell) => `"${cell}"`).join(',')].join('\n');
+  const send = (body: unknown) => fetch(`${baseUrl}/api/integrations/ofs/export`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-redeflow-ofs-token': 'test-ofs-token' }, body: JSON.stringify(body) });
+
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const headers = { authorization: `Bearer ${(await loginResponse.json() as { token: string }).token}` };
+  const d0Before = await (await fetch(`${baseUrl}/api/importacoes/d0`, { headers })).json() as { base: { fileName?: string; rowCount: number } };
+
+  assert.equal((await send({ csv, data: '2999-01-01' })).status, 400);
+  assert.equal((await send({ csv })).status, 422); // sem `data`, o CSV de ontem nao e de hoje
+
+  const response = await send({ csv, data: yesterday, nome: 'ofs-ontem.csv', maquina: 'maquina-teste' });
+  const result = await response.json() as { painel: { businessDate: string; records: number }; d0?: { matchedCalls: number } };
+  assert.equal(response.status, 200);
+  assert.equal(result.painel.businessDate, yesterday);
+  assert.equal(result.d0?.matchedCalls, 1);
+
+  const pastBase = await (await fetch(`${baseUrl}/api/dashboards/painel-diario/base?date=${yesterday}`, { headers })).json() as { base?: { fileName: string; data: { activities: { concluded: number }[] } } };
+  assert.equal(pastBase.base?.fileName, 'ofs-ontem.csv');
+  assert.equal(pastBase.base?.data.activities[0]?.concluded, 1);
+  const d0After = await (await fetch(`${baseUrl}/api/importacoes/d0`, { headers })).json() as { base: { fileName?: string; rowCount: number } };
+  assert.deepEqual(d0After.base, d0Before.base);
+  const call = await (await fetch(`${baseUrl}/api/chamados/call-240916-01`, { headers })).json() as { call: { ofsStatus?: string } };
+  assert.equal(call.call.ofsStatus, 'Concluído');
 });

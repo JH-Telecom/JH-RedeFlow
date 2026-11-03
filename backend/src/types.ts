@@ -142,6 +142,7 @@ export type ActivationAnalysis = {
   telefone: string | null;
   bdesk: string | null;
   ticket: string | null;
+  trecho?: string | null;
   office_track: string | null;
   os_ot: string | null;
   os_casa_cliente: string | null;

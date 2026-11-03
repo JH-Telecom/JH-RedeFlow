@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, lastDriveSyncRunDate, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics } from './igp.js';
@@ -12,7 +12,7 @@ import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistorica
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { countRowsForDate, parseOfsActivityExport } from './imports/ofs-export.js';
-import { toOperationalDate } from './timezone.js';
+import { addDays, toOperationalDate } from './timezone.js';
 import { timingSafeEqual } from 'node:crypto';
 import { syncCallsFromDrive } from './integrations/google-drive.js';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
@@ -518,30 +518,36 @@ function hasValidOfsToken(request: Request) {
 app.post('/api/integrations/ofs/export', async (request, response) => {
   if (!ofsIngestToken) return response.status(503).json({ message: 'Integracao do Coletor OFS nao configurada no servidor (OFS_INGEST_TOKEN).' });
   if (!hasValidOfsToken(request)) return response.status(401).json({ message: 'Token do Coletor OFS invalido.' });
-  const parsed = z.object({ csv: z.string().min(1).max(14_000_000), nome: z.string().trim().max(255).optional(), maquina: z.string().trim().max(120).optional() }).safeParse(request.body);
+  const parsed = z.object({ csv: z.string().min(1).max(14_000_000), nome: z.string().trim().max(255).optional(), maquina: z.string().trim().max(120).optional(), data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Envie o CSV exportado do OFS.' });
   const today = toOperationalDate();
-  const dateCheck = countRowsForDate(parsed.data.csv, today);
-  if (dateCheck.hasDateColumn && !dateCheck.matching) return response.status(422).json({ message: `Nenhuma linha do CSV e de hoje (${today}); nada foi gravado.` });
+  // `data` (opcional) = dia exportado; dias anteriores ate 31 dias atras. Sem `data`, e o dia de hoje.
+  const businessDate = parsed.data.data || today;
+  if (businessDate > today || businessDate < addDays(today, -31)) return response.status(400).json({ message: 'A data do export deve ser hoje ou um dos ultimos 31 dias.' });
+  const isToday = businessDate === today;
+  const dateCheck = countRowsForDate(parsed.data.csv, businessDate);
+  if (dateCheck.hasDateColumn && !dateCheck.matching) return response.status(422).json({ message: `Nenhuma linha do CSV e de ${businessDate}; nada foi gravado.` });
   if (ofsIngestRunning) return response.status(409).json({ message: 'Outro envio do Coletor OFS esta sendo processado. Tente no proximo ciclo.' });
   ofsIngestRunning = true;
   try {
     const data = parseOfsActivityExport(parsed.data.csv);
     if (!data.records?.length) return response.status(422).json({ message: 'O CSV nao tem atividades de manutencao de rede; o Painel diario nao foi alterado.' });
-    const fileName = parsed.data.nome || `ofs-${today}.csv`;
+    const fileName = parsed.data.nome || `ofs-${businessDate}.csv`;
     const uploadedBy = `Coletor OFS${parsed.data.maquina ? ` (${parsed.data.maquina})` : ''}`;
-    const base = await saveManualDailyBase(fileName, data, uploadedBy, today);
+    const base = await saveManualDailyBase(fileName, data, uploadedBy, businessDate);
     let d0: { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number } | undefined;
     let d0Error: string | undefined;
     try {
       const d0File = parseImport(fileName, Buffer.from(parsed.data.csv, 'utf8').toString('base64'));
       if (d0File.errors.length) d0Error = d0File.errors.join(' ');
       else if (!hasD0Identifiers(d0File.rows)) d0Error = 'O CSV nao tem OS, BDESK, Office Track ou Contrato para cruzar os chamados.';
-      else d0 = await replaceD0Base(fileName, uploadedBy, d0File.rows);
+      // Hoje: substitui a base D-0 (snapshot do dia) e atualiza os chamados. Dia anterior: so atualiza os chamados
+      // (Status OFS, Data Fim etc.), sem sobrescrever a D-0 de hoje.
+      else d0 = isToday ? await replaceD0Base(fileName, uploadedBy, d0File.rows) : await applyOfsRowsToCalls(d0File.rows, uploadedBy);
     } catch (error) {
       d0Error = error instanceof Error ? error.message : 'Nao foi possivel atualizar a base D-0.';
     }
-    console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${today}; D-0 ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados` : `nao atualizada (${d0Error})`}`);
+    console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${businessDate}; chamados ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados` : `nao atualizados (${d0Error})`}`);
     return response.json({ ok: true, painel: { businessDate: base.businessDate, records: data.records.length, technicians: data.technicians.length, orders: data.orders.length }, d0, d0Error });
   } catch (error) {
     return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do OFS.' });
@@ -549,6 +555,37 @@ app.post('/api/integrations/ofs/export', async (request, response) => {
     ofsIngestRunning = false;
   }
 });
+// Diagnostico dos grupos: quais grupos mandam mensagens e quantas parecem acionamento. Ajuda a achar o ID
+// certo para WUZAPI_ACTIVATION_GROUP_ID quando o grupo muda (novo grupo, numero removido etc.).
+type WuzApiGroupSighting = { chatId: string; authorized: boolean; messages: number; activationLike: number; lastAt: string; lastSender?: string; lastActivationAt?: string };
+const wuzapiGroupSightings = new Map<string, WuzApiGroupSighting>();
+const unauthorizedGroupWarnings = new Map<string, number>();
+function recordWuzApiGroupSighting(message: ReturnType<typeof parseIncomingMessage>) {
+  const chatId = message.chatId!;
+  const current = wuzapiGroupSightings.get(chatId) || { chatId, authorized: activationGroupIds.includes(chatId), messages: 0, activationLike: 0, lastAt: '' };
+  const text = message.message?.trim() || message.quotedMessage?.trim() || '';
+  const activationLike = Boolean(text) && Boolean(analyzeOperationalMessage(text).tipo_card);
+  current.messages += 1;
+  current.lastAt = new Date().toISOString();
+  current.lastSender = message.senderName || message.sender || current.lastSender;
+  if (activationLike) { current.activationLike += 1; current.lastActivationAt = current.lastAt; }
+  wuzapiGroupSightings.set(chatId, current);
+  if (activationLike && !current.authorized) console.warn(`[WuzAPI] card de acionamento recebido de grupo NAO configurado: ${chatId} (${current.activationLike} ate agora). Se for o grupo de acionamentos, adicione em WUZAPI_ACTIVATION_GROUP_ID.`);
+  if (wuzapiGroupSightings.size > 300) wuzapiGroupSightings.delete(wuzapiGroupSightings.keys().next().value!);
+}
+// Um aviso por grupo nao autorizado a cada hora, em vez de um por mensagem.
+function shouldWarnUnauthorizedGroup(chatId?: string) {
+  if (!chatId) return true;
+  const last = unauthorizedGroupWarnings.get(chatId) || 0;
+  if (Date.now() - last < 3_600_000) return false;
+  unauthorizedGroupWarnings.set(chatId, Date.now());
+  return true;
+}
+app.get('/api/integrations/wuzapi/grupos', auth, requirePermission('settings.manage'), (_request, response) => response.json({
+  configured: activationGroupIds,
+  filterDisabled: skipWuzapiGroupFilter,
+  groups: [...wuzapiGroupSightings.values()].sort((left, right) => right.activationLike - left.activationLike || right.messages - left.messages),
+}));
 app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const body = normalizeWuzApiBody(request);
   if (wuzapiDebug) console.log('[WuzAPI] JSON recebido:', JSON.stringify(redactWuzApiPayload(request, body), null, 2));
@@ -562,20 +599,22 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
     if (previous && previous.expiresAt > Date.now()) return response.status(202).json({ activationId: previous.activationId, status: 'Pendente', duplicate: true });
     processedWebhookMessages.delete(message.id);
   }
+  // Recibos, presenca e afins saem antes do filtro de grupo (nao poluem o log com "chatId nenhum").
+  const eventType = message.eventType?.toLowerCase() || '';
+  const knownMessageEvent = ['message', 'messages.upsert', 'message.upsert', 'message.new', 'messages.new'].includes(eventType);
+  const knownNonMessageEvent = ['connected', 'connection', 'presence', 'presence.update', 'receipt', 'message.ack', 'logout'].includes(eventType);
+  if (knownNonMessageEvent || (eventType && !knownMessageEvent && !message.message?.trim())) { logWuzApiDecision('ignorado por tipo', { eventType }); return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' }); }
+  if (message.chatId && message.isGroup === true) recordWuzApiGroupSighting(message);
   if (!skipWuzapiGroupFilter && activationGroupIds.length && (message.isGroup !== true || !message.chatId || !activationGroupIds.includes(message.chatId))) {
     const reason = message.isGroup !== true
       ? 'Mensagem privada nao autorizada.'
       : !message.chatId
         ? 'Chat nao identificado.'
         : 'Grupo nao autorizado.';
-    console.warn(`[WuzAPI] acionamento ignorado: grupos esperados="${activationGroupIds.join(',')}" chatId recebido="${message.chatId || 'nenhum'}" sender="${message.sender || 'nenhum'}" isGroup=${String(message.isGroup)}`);
+    if (reason !== 'Grupo nao autorizado.' || shouldWarnUnauthorizedGroup(message.chatId)) console.warn(`[WuzAPI] acionamento ignorado: grupos esperados="${activationGroupIds.join(',')}" chatId recebido="${message.chatId || 'nenhum'}" sender="${message.sender || 'nenhum'}" isGroup=${String(message.isGroup)}`);
     logWuzApiDecision('ignorado por grupo', { reason, expectedGroups: activationGroupIds, receivedGroup: message.chatId || null });
     return response.status(202).json({ status: 'ignored', reason, chatId: message.chatId || null, isGroup: message.isGroup ?? false });
   }
-  const eventType = message.eventType?.toLowerCase() || '';
-  const knownMessageEvent = ['message', 'messages.upsert', 'message.upsert', 'message.new', 'messages.new'].includes(eventType);
-  const knownNonMessageEvent = ['connected', 'connection', 'presence', 'presence.update', 'receipt', 'message.ack', 'logout'].includes(eventType);
-  if (knownNonMessageEvent || (eventType && !knownMessageEvent && !message.message?.trim())) { logWuzApiDecision('ignorado por tipo', { eventType }); return response.status(202).json({ status: 'ignored', reason: 'Evento nao e uma mensagem.' }); }
   if (message.isFromMe) { logWuzApiDecision('ignorado propria mensagem', { id: message.id }); return response.status(202).json({ status: 'ignored', reason: 'Mensagem enviada pelo proprio bot.' }); }
   if (!message.message?.trim() && !message.quotedMessage?.trim()) { logWuzApiDecision('ignorado sem texto', { id: message.id }); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' }); }
   const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
@@ -865,6 +904,12 @@ function startDriveSchedule() {
     const date = `${get('year')}-${get('month')}-${get('day')}`;
     if (Number(get('hour')) < syncHour || lastDriveSyncDate === date) return;
     lastDriveSyncDate = date;
+    // Ja rodou hoje antes de um reinicio? Nao roda de novo (cada execucao le ~18 mil linhas e estourava a memoria).
+    try {
+      if (await lastDriveSyncRunDate() === date) { console.log(`[Google Drive] sincronizacao agendada de ${date} ja executada; ignorada apos reinicio.`); return; }
+    } catch (error) {
+      console.error('[Google Drive] nao foi possivel consultar a ultima sincronizacao:', error);
+    }
     startDriveSyncJob('scheduled');
   };
   void check();
