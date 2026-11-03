@@ -2538,3 +2538,134 @@ Executar a homologação funcional com usuários reais autorizados, cobrindo:
 - [ ] Login com usuário real em produção realizado por conta autorizada.
 - [ ] RBAC real em produção validado com usuários autorizados.
 - [ ] Schema e migrations do banco de produção conferidos no console Supabase.
+
+---
+
+## ETAPA 1 — IMERSÃO E AUDITORIA TÉCNICA/VISUAL — 2026-11-03
+
+Agente: Claude Code (Opus 5.5). Escopo: somente leitura. Nenhum código, migration, tabela, política RLS, dado do Supabase, variável de ambiente ou deploy foi alterado. A única alteração foi esta seção. O app foi executado apenas localmente em modo demo em memória (sem `.env`, Supabase ou banco) para a inspeção visual; os servidores foram encerrados ao final.
+
+### Estado do Git na auditoria
+
+- Branch ativa `main`, sincronizada com `origin/main`, árvore limpa (sem alterações locais). Branch adicional: `atts` (local e remota).
+- Último commit: `bf610b9 Fix loading`.
+
+### Arquitetura identificada
+
+- Monorepo npm workspaces: `frontend` (React 19 + Vite 6 + React Router 7, TypeScript estrito) e `backend` (Express 5 + TypeScript via `tsx`/`tsc`, Zod, JWT, bcryptjs, pg, `@supabase/supabase-js`, googleapis, xlsx).
+- Deploy: frontend no Vercel (`/api` reescrito para o Render via `vercel.json`); backend no Render (`render.yaml`); banco PostgreSQL no Supabase.
+- Três runtimes de dados implementados lado a lado em cada função de `backend/src/store.ts` (2.040 linhas): Supabase (service role), PostgreSQL local (`pg`, `REDEFLOW_RUNTIME=local`) e memória/demo (`REDEFLOW_DEMO_DATA=true`).
+- O frontend nunca acessa o Supabase diretamente; tudo passa pela API (`frontend/src/api.ts`, `fetch` + Bearer JWT em `localStorage`).
+- Autenticação: login no Supabase Auth (ou bcrypt local) → backend emite JWT próprio (8h). Cada requisição revalida o perfil (`profiles` + cargo + permissões) no banco.
+- Autorização: RBAC por código de permissão (`requirePermission`) com 27 permissões e 5 cargos (Administrador, Operador, Supervisor, Mesário, Visualização). Escopo de supervisor por `supervisor_id` do técnico, aplicado quando `teamScope=true` e sempre no IGP.
+- RLS habilitado em todas as tabelas; o backend usa service role (bypass de RLS). Policies `select using (true)` para `authenticated` em calls/técnicos/supervisores/observações/logs.
+- Paginação de chamados no servidor via RPC `list_calls_page_with_atrelada` (Supabase e PG local); cache de páginas no cliente por 30s.
+- Integrações: WuzAPI (webhook com token + filtro de grupo + Gemini opcional para classificação), Google Drive (sync D-1 como job assíncrono em memória, agendável), importações CSV/XLSX (D-0, chamados atuais, acionamentos históricos, painel diário).
+- Estado de jobs, prévias de importação, deduplicação de webhook e rate limit de login ficam em memória do processo (perdidos em restart; não escalam para múltiplas instâncias).
+
+### Módulos analisados
+
+Visão geral, Chamados abertos, Em atendimento, Finalizados e cancelados, Detalhe do chamado (observações com anexos, auditoria, finalizar/cancelar/reabrir), Repetidos, Ordens da equipe (supervisor), Acionamentos, Painel diário, IGP, Importações, Técnicos, Supervisores, Usuários, Cargos e permissões, Configurações (OLT→Região, solicitações de OLT, regiões).
+
+### Regras de negócio relevantes confirmadas no código
+
+- Status de chamado: Aberto, Atribuído, Deslocamento, Em campo, Finalizado, Cancelado, Baixar. Terminais: Finalizado, Cancelado, Baixar.
+- Finalizar exige técnico, motivo, resultado, data de execução e observação. Cancelar exige motivo (≥3 caracteres). Reabrir só a partir de status terminal.
+- Atribuição só para técnicos `Tecnico` (não Auxiliar), ativos e não Demitidos. "Ativo" considera turno do técnico e sobrescrita manual.
+- Supervisor só pode ser excluído (lógico) sem técnicos vinculados (409).
+- Região do chamado é derivada da OLT (mapa padrão + overrides); OLT desconhecida gera solicitação em Configurações.
+- **Divergência de SLA (não alterada, requer decisão do responsável):** o código usa **até 8h = No prazo, >8h até 10h = Fora do prazo, >10h = Outlier** (frontend `SlaCell`/`SlaDurationCell`/`TimerCell` em `App.tsx` e backend `igp.ts`; rótulo "Limite 08:00"). A regra informada pelo responsável e documentada no legado (`docs/appscript-integration-map.md`, indicador JH4) é **até 6h = PRAZO, >6h até 9h = FORA DO PRAZO, >9h = OUTLIER**. O registro de 2026-09-24 neste roadmap documenta 8h/10h. É preciso confirmar se são indicadores diferentes (ex.: GIGA × JH) ou se o código está incorreto.
+- **Decisão do responsável (2026-11-03): a regra correta é 6h/9h** — até 6h = PRAZO; acima de 6h até 9h = FORA DO PRAZO; acima de 9h = OUTLIER. A regra 8h/10h do código (e do registro de 2026-09-24) está incorreta. Correção implementada em 2026-11-03 (ver "Correção da regra de SLA 6h/9h" abaixo). Pontos que foram corrigidos: `SlaCell`, `SlaDurationCell` e `TimerCell` em `frontend/src/App.tsx` (limites 480/600 min e rótulo "Limite 08:00"), texto da metodologia do IGP em `App.tsx` ("Outlier: reparo acima de 10h · Prazo: reparo até 8h"), `calculateIgpMetrics` em `backend/src/igp.ts` (`> 10` / `<= 8`) e os testes de IGP que fixam esses limites. `slaAlertHours: 8` em Configurações é um alerta operacional separado e não foi incluído na decisão.
+
+### Problemas identificados (por gravidade)
+
+🔴 Crítico / alto
+1. Regra de SLA divergente (acima).
+2. `finishSupabaseCall`, `cancelSupabaseCall` e `reopenSupabaseCall` chamam `listSupabaseCalls()` sem filtro duas vezes por ação: carregam a tabela inteira de chamados (com observações) para alterar um registro. Degrada com o volume histórico.
+3. Dashboard (`getDashboardMetrics`) e notificações (`listNotifications`) carregam todos os chamados; notificações são consultadas a cada 15s por usuário logado (intervalo reiniciado a cada troca de rota).
+4. Fuso horário: filtros de período no Supabase usam meia-noite UTC (`T00:00:00Z`) e "Recebidos hoje"/data padrão do painel diário usam `toISOString()` (UTC). Chamados abertos entre 21h e 23h59 (BRT) caem no dia seguinte.
+5. Dependência `xlsx@0.18.5` (npm) com vulnerabilidades conhecidas (prototype pollution / ReDoS), usada para processar planilhas enviadas por usuários no backend.
+6. Ação "Apagar todos os chamados" exibida no cabeçalho das telas operacionais de chamados (e como primeiro botão no mobile), para quem tem `calls.delete` (Administrador). Risco operacional alto de clique acidental.
+
+🟠 Médio
+7. `store.ts` triplica cada regra (Supabase/PG/memória) com divergências: `reopenCall` não tem caminho PG local (cai no mapa em memória); a lógica de `assigned_at` difere entre runtimes (Supabase redefine `assigned_at` a cada reatribuição); `listCalls` no Supabase filtra supervisor também usando os mapas de memória (vazios em produção).
+8. `PATCH /api/chamados/:id` e `GET /api/chamados/:id/logs` não aplicam escopo de supervisor (baixo impacto hoje porque Supervisor não tem `calls.edit`/`calls.view_logs` por padrão, mas um cargo customizado abriria a brecha).
+9. Rotas do frontend sem guarda de permissão (a navegação direta por URL renderiza a tela e só falha na API).
+10. JWT em `localStorage` sem CSP; anexos e avatares armazenados em base64 no Postgres (crescimento do banco e payloads grandes).
+11. Estado em memória (jobs Drive, prévias, dedupe WuzAPI, rate limit) é perdido em restart do Render.
+12. Teste HTTP `healthcheck exposes security headers` falhou de forma intermitente na 1ª execução e passou na 2ª (95/95). Provável sensibilidade ao tempo de boot do servidor de teste.
+13. Repetidos baixa todas as páginas de chamados no cliente para calcular o relatório.
+14. `GEMINI_API_KEY`/`GEMINI_MODEL`, `GOOGLE_DRIVE_*` e variáveis auxiliares `WUZAPI_*` não estão listadas na seção 11 deste roadmap.
+
+🟡 Qualidade / UX
+15. `frontend/src/App.tsx` com 4.005 linhas, ~180 `useState`, todas as telas, parsers de planilha e exportação PNG no mesmo arquivo; bundle único >500 kB (xlsx + html2canvas carregados na entrada).
+16. 27 arquivos CSS globais importados em cascata, vários com sufixo `-overrides`, CSS minificado à mão em linha única, 34 `!important`, cores hard-coded fora dos tokens (`--blue`, `--ink` etc.), sem escala de espaçamento/tipografia.
+17. Textos sem acentuação em boa parte da UI ("Visao geral", "Tecnicos", "Distribuicao", "Regioes", "Configuracoes"), misturados com textos acentuados.
+18. Ícones repetidos e pouco semânticos: o mesmo ícone de prancheta em todos os KPIs e em Chamados/Acionamentos/Importações; o mesmo ícone de barras para Painel diário e IGP.
+19. Hierarquia de botões inconsistente (CTA primário grande em Técnicos; "Aceitar todos" pequeno e pálido em Acionamentos; ação destrutiva com mais destaque que "Atualizar").
+20. Elementos decorativos sem função: "Central de ajuda" e seletor "Operacao Rede" na sidebar.
+21. Tabelas operacionais dependem de rolagem horizontal no mobile, sem layout em cartões; títulos quebram em duas linhas em larguras médias.
+22. Acessibilidade: poucos atributos ARIA (26 no App), botões só-ícone dependem de `title`, cor de status como principal sinal, uso de `window.confirm` (8) em vez de modais acessíveis.
+23. Estados de carregamento/vazio/erro implementados de forma ad hoc por tela, com textos e estilos diferentes.
+24. ROADMAP com duas linhas soltas antes do título (linhas 1–2) e seções numeradas fora de ordem (FASE 1/FASE 2 após a seção 15).
+
+### Melhorias recomendadas e prioridades sugeridas
+
+P0 — decisões e riscos (antes de qualquer refatoração)
+- Confirmar a regra de SLA (6h/9h × 8h/10h) e onde cada uma se aplica; depois centralizar os limites em um único módulo compartilhado e coberto por testes.
+- Retirar "Apagar todos os chamados" das telas operacionais (mover para Configurações/zona de perigo com confirmação digitada).
+- Corrigir fuso horário (America/Sao_Paulo) nos filtros, em "Recebidos hoje" e na data do painel diário.
+
+P1 — desempenho e segurança
+- Trocar `listSupabaseCalls()` sem filtro por consulta por ID em finalizar/cancelar/reabrir.
+- Dashboard e notificações por agregação SQL/RPC (contagens) em vez de carregar todos os chamados; reduzir o polling.
+- Substituir `xlsx@0.18.5` pela distribuição oficial atualizada do SheetJS ou alternativa; limitar tamanho/linhas.
+- Aplicar escopo de supervisor em todas as rotas de chamado; guardas de rota no frontend.
+
+P2 — organização do código
+- Separar `store.ts` em repositórios por entidade com uma interface única por runtime (ou aposentar o runtime PG local, se não for mais usado).
+- Quebrar `App.tsx` em `pages/`, `components/`, `hooks/`, `lib/` sem alterar comportamento; lazy-load de xlsx/html2canvas.
+
+P3 — modernização visual (identidade própria)
+- Design system em tokens (cor, tipografia, espaçamento, raio, sombra, estados de SLA) num único arquivo, com componentes base (Button, Card, KPI, Table, Badge de status/SLA, Modal, Empty/Loading/Error, Filtros).
+- Revisão de textos com acentuação, ícones semânticos por módulo, hierarquia de ações, tabelas responsivas e acessibilidade (foco, ARIA, contraste).
+
+### Próximas etapas
+
+1. Aguardar validação desta auditoria e autorização do responsável.
+2. Obter decisão sobre a regra de SLA.
+3. Executar P0 → P1 → P2 → P3, cada etapa registrada neste roadmap com testes (`npm run typecheck`, `npm test --workspace backend`, build do frontend).
+
+### Testes executados nesta auditoria
+
+- `npm run typecheck` (frontend + backend): ✅ sem erros.
+- `npm test --workspace backend` (em memória): 1ª execução 94/95 (falha intermitente no healthcheck); 2ª execução ✅ 95/95.
+
+---
+
+## 2026-11-03 — Correção da regra de SLA 6h/9h (P0)
+
+### Objetivo
+Aplicar a regra operacional confirmada pelo responsável: até 6h = PRAZO; acima de 6h até 9h = FORA DO PRAZO; acima de 9h = OUTLIER. Substitui a regra 8h/10h registrada em 2026-09-24, que estava incorreta.
+
+### Alterações realizadas
+- `backend/src/igp.ts`: novas constantes exportadas `SLA_ON_TIME_MAX_HOURS = 6` e `SLA_OUTLIER_AFTER_HOURS = 9`; `calculateIgpMetrics` passou a usá-las (antes `<= 8` e `> 10`).
+- `frontend/src/App.tsx`: constantes `SLA_ON_TIME_MAX_MINUTES` (360), `SLA_OUTLIER_AFTER_MINUTES` (540), `SLA_LIMIT_LABEL` ("Limite 06:00") e função `getSlaState`, usada por `SlaCell`, `SlaDurationCell` e `TimerCell` (antes 480/600 min repetidos três vezes). O texto de metodologia do IGP agora descreve 6h/9h. A cópia TSV/PNG herda o novo rótulo via `data-prazo`.
+- `backend/test/supervisor-scoping.test.ts`: fixture "access-on-time" ajustada de 8h para 6h (MTTR esperado 8,5h no acesso e 26/3 no total) e novo teste de fronteira (6h = PRAZO, 6h01 = FORA DO PRAZO, 9h = FORA DO PRAZO, 9h01 = OUTLIER).
+
+### Não alterado
+- `slaAlertHours: 8` (alerta operacional de Configurações) — fora do escopo da decisão.
+- Metas exibidas no IGP (Prazo 89% / mínimo 85%; Outlier 4,90% / limite 5,20%).
+- Banco, migrations, APIs e permissões.
+
+### Impacto esperado
+O IGP é recalculado a cada consulta: os percentuais de Prazo e Outlier de todos os meses, inclusive os já fechados, ficam mais rigorosos após o deploy. As badges das filas mudam de cor mais cedo.
+
+### Testes
+- `npm run typecheck` (frontend + backend): ✅.
+- `npm test --workspace backend`: ✅ 96/96.
+- `vite build` do frontend: ✅ (mantém o aviso existente de bundle > 500 kB).
+- Validação visual no ambiente publicado: pendente (requer deploy).
+
+### Próxima ação
+Revisar e commitar; após deploy, conferir badges das filas e um mês do IGP. Depois seguir para os demais itens P0 da auditoria (retirar "Apagar todos os chamados" das telas operacionais; corrigir fuso horário America/Sao_Paulo), mediante autorização.

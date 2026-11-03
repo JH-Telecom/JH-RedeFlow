@@ -660,7 +660,7 @@ function IGPPage() {
           const state = getIgpGoalState(totalValue, row.target, row.minimum, row.lowerIsBetter);
           return <tr key={row.label}><th scope="row">{row.label}</th><td>{row.format(metrics.access[row.key])}</td><td>{row.format(metrics.backbone[row.key])}</td><td><strong>{row.format(totalValue)}</strong></td><td>{row.format(row.target)}</td><td>{row.format(row.minimum)}</td><td><span className={`igp-goal ${state.className}`}>{state.label}</span></td></tr>;
         })}</tbody></table></div>}
-        <div className="igp-methodology"><strong>Ponderação Acesso × Backbone:</strong> média das duas redes ponderada pela quantidade de OS finalizadas classificáveis no mês. Acesso inclui NOC ACESSO/FIELD; Backbone inclui NOC TX/Backbone. Ordens sem tipo reconhecido: <b>{metrics.excludedOrders}</b>.<br /><span>Outlier: reparo acima de 10h · Prazo: reparo até 8h · MTTR: Data Fim − Data de Abertura.</span></div>
+        <div className="igp-methodology"><strong>Ponderação Acesso × Backbone:</strong> média das duas redes ponderada pela quantidade de OS finalizadas classificáveis no mês. Acesso inclui NOC ACESSO/FIELD; Backbone inclui NOC TX/Backbone. Ordens sem tipo reconhecido: <b>{metrics.excludedOrders}</b>.<br /><span>Prazo: reparo até 6h · Fora do prazo: acima de 6h até 9h · Outlier: reparo acima de 9h · MTTR: Data Fim − Data de Abertura.</span></div>
       </section>
     </>}
   </>;
@@ -2790,22 +2790,26 @@ function formatElapsed(openedAt: string) {
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
   return `${hours}:${minutes}:${seconds}`;
 }
+// Regra operacional: ate 6h = PRAZO; acima de 6h ate 9h = FORA DO PRAZO; acima de 9h = OUTLIER.
+const SLA_ON_TIME_MAX_MINUTES = 6 * 60;
+const SLA_OUTLIER_AFTER_MINUTES = 9 * 60;
+const SLA_LIMIT_LABEL = "Limite 06:00";
+function getSlaState(elapsedMinutes: number) {
+  return elapsedMinutes > SLA_OUTLIER_AFTER_MINUTES ? "outlier" : elapsedMinutes > SLA_ON_TIME_MAX_MINUTES ? "late" : "on-time";
+}
 function SlaCell({ openedAt }: { openedAt: string }) {
-  const elapsedMinutes = getElapsedMinutes(openedAt);
-  const state = elapsedMinutes > 600 ? "outlier" : elapsedMinutes > 480 ? "late" : "on-time";
+  const state = getSlaState(getElapsedMinutes(openedAt));
   const label = state === "outlier" ? "Outlier" : state === "late" ? "Fora do prazo" : "No prazo";
   const color = state === "outlier" ? "#bd3f45" : state === "late" ? "#a86b00" : "#138a5e";
-  return <span className={`sla-cell ${state}`} data-prazo={`${label} - Limite 08:00`} style={{ color }}><strong style={{ color }}>{label}</strong><small style={{ color }}>Limite 08:00</small></span>;
+  return <span className={`sla-cell ${state}`} data-prazo={`${label} - ${SLA_LIMIT_LABEL}`} style={{ color }}><strong style={{ color }}>{label}</strong><small style={{ color }}>{SLA_LIMIT_LABEL}</small></span>;
 }
 function SlaDurationCell({ openedAt }: { openedAt: string }) {
-  const elapsedMinutes = getElapsedMinutes(openedAt);
-  const state = elapsedMinutes > 600 ? "outlier" : elapsedMinutes > 480 ? "late" : "on-time";
+  const state = getSlaState(getElapsedMinutes(openedAt));
   return <span className={`sla-duration ${state}`}>{formatElapsed(openedAt)}</span>;
 }
 function TimerCell({ lastObservationAt }: { lastObservationAt?: string }) {
   if (!lastObservationAt) return <span className="timer-cell empty">Sem observacao</span>;
-  const elapsedMinutes = getElapsedMinutes(lastObservationAt);
-  const state = elapsedMinutes > 600 ? "outlier" : elapsedMinutes > 480 ? "late" : "on-time";
+  const state = getSlaState(getElapsedMinutes(lastObservationAt));
   return <span className={`timer-cell ${state}`}>{formatElapsed(lastObservationAt)}</span>;
 }
 function formatWaiting(openedAt: string) {

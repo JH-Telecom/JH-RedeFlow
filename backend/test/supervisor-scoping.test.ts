@@ -161,7 +161,7 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
     notes: '',
   });
   const metrics = calculateIgpMetrics([
-    createCall('access-on-time', 'NOC ACESSO', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T08:00:00.000Z'),
+    createCall('access-on-time', 'NOC ACESSO', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T06:00:00.000Z'),
     createCall('access-outlier', 'ACIONAMENTO FIELD', 'Finalizado', '2026-09-03T00:00:00.000Z', '2026-09-03T11:00:00.000Z'),
     createCall('backbone-late', 'NOC TX', 'Finalizado', '2026-09-04T00:00:00.000Z', '2026-09-04T09:00:00.000Z'),
     createCall('unknown-type', 'BAIXA TECNICA', 'Finalizado', '2026-09-05T00:00:00.000Z', '2026-09-05T04:00:00.000Z'),
@@ -172,14 +172,14 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   assert.equal(metrics.access.orders, 2);
   assert.equal(metrics.access.outlierPercent, 50);
   assert.equal(metrics.access.onTimePercent, 50);
-  assert.equal(metrics.access.mttrHours, 9.5);
+  assert.equal(metrics.access.mttrHours, 8.5);
   assert.equal(metrics.backbone.orders, 1);
   assert.equal(metrics.backbone.outlierPercent, 0);
   assert.equal(metrics.backbone.onTimePercent, 0);
   assert.equal(metrics.total.orders, 3);
   assert.ok(Math.abs(metrics.total.outlierPercent! - 100 / 3) < 1e-10);
   assert.ok(Math.abs(metrics.total.onTimePercent! - 100 / 3) < 1e-10);
-  assert.equal(metrics.total.mttrHours, 28 / 3);
+  assert.equal(metrics.total.mttrHours, 26 / 3);
   assert.equal(metrics.excludedOrders, 1);
 
   const guarulhosMetrics = calculateIgpMetrics([
@@ -195,6 +195,20 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   ], '2026-09', 'ALTO_TIETE');
   assert.equal(altoTieteMetrics.total.orders, 1);
   assert.equal(altoTieteMetrics.backbone.orders, 1);
+});
+
+test('IGP classifies repair time with the 6h prazo and 9h outlier limits', () => {
+  const classify = (repairMinutes: number) => {
+    const openedAt = Date.parse('2026-09-02T00:00:00.000Z');
+    const call: Call = { id: `call-${repairMinutes}`, orderNumber: String(repairMinutes), bdesk: '', officeTrack: '', client: '', type: 'NOC ACESSO', reason: '', region: 'SÃO PAULO', city: '', olt: '', slotPon: '', status: 'Finalizado', openedAt: new Date(openedAt).toISOString(), executedAt: new Date(openedAt + repairMinutes * 60_000).toISOString(), notes: '' };
+    const { total } = calculateIgpMetrics([call], '2026-09');
+    return total.onTime ? 'PRAZO' : total.outliers ? 'OUTLIER' : 'FORA DO PRAZO';
+  };
+
+  assert.equal(classify(6 * 60), 'PRAZO');
+  assert.equal(classify(6 * 60 + 1), 'FORA DO PRAZO');
+  assert.equal(classify(9 * 60), 'FORA DO PRAZO');
+  assert.equal(classify(9 * 60 + 1), 'OUTLIER');
 });
 
 test('supervisor users resolve to their own team and can only see their calls', async () => {

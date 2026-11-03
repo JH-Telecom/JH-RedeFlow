@@ -20,6 +20,9 @@ export type IgpMetrics = {
 };
 
 export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE';
+// Regra operacional: ate 6h = PRAZO; acima de 6h ate 9h = FORA DO PRAZO; acima de 9h = OUTLIER.
+export const SLA_ON_TIME_MAX_HOURS = 6;
+export const SLA_OUTLIER_AFTER_HOURS = 9;
 type IgpGroupKey = 'access' | 'backbone';
 const altoTieteRegions = new Set([
   'FERRAZ DE VASCONCELOS 2',
@@ -76,8 +79,8 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
     }
 
     const repairHours = (executedAt - openedAt) / 3_600_000;
-    const isOutlier = repairHours > 10;
-    const isOnTime = repairHours <= 8;
+    const isOutlier = repairHours > SLA_OUTLIER_AFTER_HOURS;
+    const isOnTime = repairHours <= SLA_ON_TIME_MAX_HOURS;
     for (const group of [groups[groupKey], total]) {
       group.orders += 1;
       group.totalRepairHours += repairHours;
