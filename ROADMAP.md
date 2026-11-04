@@ -3768,3 +3768,14 @@ Além da foto, colocar um banner no perfil, que aparece de fundo nas observaçõ
   - Detalhe do chamado: observação de autor com banner mostra o banner ao fundo; nome e hora em branco sobre faixa escurecida e texto em caixa quase opaca, para manter o contraste nos dois temas.
   - Letra do avatar das observações em azul escuro (4,3 → acima de 4,5:1).
 - Validação: no preview, banner salvo pela API, observação nova com o banner ao fundo; auditoria de contraste do detalhe e de Configurações zerada nos dois temas; build OK.
+
+## 2026-11-04 — Faixa "OS vencendo": botão leva para a aba certa
+
+### Problema
+"Ver fila" na faixa de OS vencendo sempre abria Chamados abertos, mas a OS da captura (12664799) tinha técnico e estava em Em atendimento.
+
+### Implementado
+- `components/DueSoonBanner.tsx`: o botão vai para a aba do chamado mais urgente da faixa: **Chamados abertos** quando não tem técnico, **Em atendimento** quando tem (Atribuído/Deslocamento/Em campo). O texto diz o destino ("Ver em Chamados abertos" / "Ver em Em atendimento"). Clicar no número da OS continua abrindo o chamado.
+
+### Validação
+- Preview: com a OS simulada com técnico, o botão mostrou "Ver em Em atendimento" e abriu `/chamados/atendimento`. Build OK.

@@ -45,6 +45,11 @@ export function DueSoonBanner() {
   }, [visible]);
 
   if (!visible) return null;
+  // "Ver fila" vai para a aba onde o chamado mais urgente esta: sem tecnico -> Chamados abertos;
+  // com tecnico (Atribuido/Deslocamento/Em campo) -> Em atendimento.
+  const queueFor = (item: { technicianName?: string }) => (item.technicianName ? "/chamados/atendimento" : "/chamados/abertos");
+  const queuePath = queueFor(items[0]);
+  const queueLabel = queuePath === "/chamados/abertos" ? "Ver em Chamados abertos" : "Ver em Em atendimento";
   return (
     <div className="due-soon-banner" role="alert">
       <AlertTriangle size={16} aria-hidden="true" />
@@ -57,7 +62,7 @@ export function DueSoonBanner() {
         ))}
         {items.length > MAX_SHOWN && <span>+{items.length - MAX_SHOWN}</span>}
       </div>
-      <button type="button" className="due-soon-open" onClick={() => navigate("/chamados/abertos")}>Ver fila <ChevronRight size={14} /></button>
+      <button type="button" className="due-soon-open" onClick={() => navigate(queuePath)} title={queueLabel}>{queueLabel} <ChevronRight size={14} /></button>
     </div>
   );
 }
