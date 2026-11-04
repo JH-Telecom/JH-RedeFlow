@@ -132,16 +132,21 @@ test('Google Drive preserves an explicit neighborhood when address is absent', (
 });
 
 test('IGP calculates weighted monthly indicators for Access and Backbone', () => {
-  for (const region of ['GUARULHOS 1', 'GUARULHOS 2', 'GUARULHOS 3', 'GUARULHOS 4', 'GUARULHOS 5']) {
+  // Clusters da operadora: C.12 Guarulhos, C.8 Sao Paulo, C.11 Alto Tiete; ABC e desconhecidas ficam fora das tres.
+  for (const region of ['GUARULHOS', 'GUARULHOS 1', 'GUARULHOS 2', 'GUARULHOS 3', 'GUARULHOS 4', 'GUARULHOS 5']) {
     assert.equal(classifyIgpArea(region), 'GRU');
   }
-  for (const region of ['GUARULHOS', 'GUARULHOS 6', 'GUAIANASES 1', 'DIADEMA']) {
+  for (const region of ['SÃO PAULO', 'GUAIANASES 1', 'ITAIM PAULISTA', 'São Rafael', 'CIDADE TIRADENTES 2', 'IGUATEMI']) {
     assert.equal(classifyIgpArea(region), 'SP');
   }
+  for (const region of ['DIADEMA', 'CONQUISTA', 'GUARULHOS 6', 'Nao informada']) {
+    assert.equal(classifyIgpArea(region), 'OUTRAS');
+  }
+  assert.equal(classifyIgpArea('COTIA'), 'ALTO_TIETE');
   for (const region of ['FERRAZ DE VASCONCELOS 2', 'MOGI DAS CRUZES', 'MOGI 1', 'MOGI 2', 'PALMEIRAS', 'SUZANO', 'FERRAZ DE VASCONCELOS', 'FERRAZ DE VASCONCELOS 1']) {
     assert.equal(classifyIgpArea(region), 'ALTO_TIETE');
   }
-  assert.equal(classifyIgpArea('MOGI 3'), 'SP');
+  assert.equal(classifyIgpArea('MOGI 3'), 'OUTRAS');
 
   const createCall = (id: string, type: string, status: Call['status'], openedAt: string, executedAt?: string, region = 'SÃO PAULO'): Call => ({
     id,

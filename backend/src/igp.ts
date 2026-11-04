@@ -38,6 +38,27 @@ const altoTieteRegions = new Set([
   'SUZANO',
   'FERRAZ DE VASCONCELOS',
   'FERRAZ DE VASCONCELOS 1',
+  // Cluster C.11 no relatorio da operadora.
+  'COTIA',
+]);
+
+// Cluster C.8 | Sao Paulo: so os distritos da capital atendidos. ABC e regioes desconhecidas nao entram em SP.
+const saoPauloRegions = new Set([
+  'SAO PAULO',
+  'CIDADE TIRADENTES',
+  'CIDADE TIRADENTES 1',
+  'CIDADE TIRADENTES 2',
+  'CIDADE TIRADENTES 3',
+  'GUAIANASES',
+  'GUAIANASES 1',
+  'GUAIANASES 2',
+  'ITAIM PAULISTA',
+  'IGUATEMI',
+  'SAO MATEUS',
+  'SAO MIGUEL PAULISTA',
+  'SAO RAFAEL',
+  'ARICANDUVA',
+  'PENHA',
 ]);
 
 function createGroup(): IgpGroup {
@@ -60,11 +81,14 @@ function classifyIgpGroup(type: string): IgpGroupKey | undefined {
   return undefined;
 }
 
-export function classifyIgpArea(region: string): Exclude<IgpArea, 'ALL'> {
+// Areas do IGP pelos clusters da operadora: C.8 Sao Paulo, C.12 Guarulhos, C.11 Alto Tiete. O resto (ABC, sem regiao)
+// fica em OUTRAS: conta so em "Todas".
+export function classifyIgpArea(region: string): Exclude<IgpArea, 'ALL'> | 'OUTRAS' {
   const normalized = region.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
-  if (/^GUARULHOS [1-5]$/.test(normalized)) return 'GRU';
+  if (/^GUARULHOS( [1-5])?$/.test(normalized)) return 'GRU';
   if (altoTieteRegions.has(normalized)) return 'ALTO_TIETE';
-  return 'SP';
+  if (saoPauloRegions.has(normalized)) return 'SP';
+  return 'OUTRAS';
 }
 
 export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea = 'ALL'): IgpMetrics {

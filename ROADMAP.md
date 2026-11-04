@@ -3316,3 +3316,25 @@ Cadastrar sozinho os técnicos que divergirem.
 ### Testes
 - Novos testes do layout do relatório (tipos, datas, região, técnico, observações) e da comparação tolerante de nomes (inclui casos que não devem casar).
 - Suíte: 125/125 (rodada duas vezes; na primeira, o teste do coletor OFS estourou o tempo de subida do servidor, e passou sozinho e na segunda rodada completa).
+
+## 2026-11-04 — IGP: regiões pelos clusters da operadora
+
+### Problema
+No IGP, a região SP mostrava 49 ordens em novembro, mas o relatório da operadora tem 27 no cluster "C.8 | Sao Paulo". `classifyIgpArea` mandava para SP tudo o que não fosse GRU ("GUARULHOS 1–5") ou Alto Tietê, incluindo:
+- ABC: Diadema e Conquista, 3 ordens;
+- "GUARULHOS" sem número, 7 ordens;
+- chamados sem região, 2 ordens.
+
+### Regra nova (`backend/src/igp.ts`, definida pelo usuário: "SP é só o cluster C.8")
+- **SP (C.8)**: São Paulo, Cidade Tiradentes (1–3), Guaianases (1–2), Itaim Paulista, Iguatemi, São Mateus, São Miguel Paulista, São Rafael, Aricanduva e Penha.
+- **GRU (C.12)**: "GUARULHOS", com ou sem número de 1 a 5.
+- **Alto Tietê (C.11)**: o conjunto anterior + COTIA.
+- **OUTRAS**: ABC, regiões desconhecidas e "Nao informada". Não entram em SP, GRU nem Alto Tietê, só em "Todas".
+- O teste de `classifyIgpArea` foi atualizado para a regra nova; antes ele garantia GUARULHOS e DIADEMA como SP.
+
+### Resultado esperado em novembro
+- SP passa de 49 para 37.
+- A diferença de 10 para as 27 do relatório são chamados da primeira planilha (Finalizados.xlsx) que não estão no relatório da operadora. Seis deles fecharam depois do horário de corte do relatório (último fechamento: 03/11 14:08). Pendente: decisão do usuário sobre manter ou remover esses 10.
+
+### Testes
+- Suíte: 125/125.
