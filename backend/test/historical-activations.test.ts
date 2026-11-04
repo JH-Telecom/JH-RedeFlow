@@ -133,3 +133,51 @@ test('team names in the workbook resolve to the JH Telecom registration', () => 
   for (const name of ['Equipe JH', 'JH TELECOM REDES', 'JH Telecom Rede', 'jh telecom']) assert.equal(findHistoricalTechnician(name, technicians)?.id, 'jh-team', name);
   assert.equal(findHistoricalTechnician('JH Telecom Engenharia', technicians), undefined);
 });
+
+test('reads the operator report layout (OS, ORIGEM, DATA_ABERTURA, DATA_FECHAMENTO, RECURSO)', () => {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['OS', 'BDESK', 'ORIGEM', 'TME', 'CAUSA_SIMPLES', 'CIDADE', 'CLIENTES_AFETADOS', 'DATA_ABERTURA', 'DATA_FECHAMENTO', 'ELEMENTO', 'CLUSTER', 'OS_OFS', 'RECURSO', 'REDE'],
+    [610152573830102, 671715, 'BACKBONE', 8.516667, '', 'Ferraz De Vasconcelos', '', '2026-11-02 14:47:57', '2026-11-02 23:19:00', 'SPSPO_GR1_SWP_03-SPSPO_GZ1_SWP_03', 'C.11 | Alto Tiete', '610152573830102', 'LUCAS OLIVEIRA SANTOS', 'BackBone Geral - VIP'],
+    [610103301480102, 671419, 'BDESK', 3.2, 'Cabo Danificado', 'Guarulhos Ii', 11, '2026-11-01 08:00:00', '2026-11-01 11:12:00', 'CABO 12', 'C.12 | Guarulhos', '610103301480102', 'TIAGO DA SILVA', 'ACESSO'],
+    [12657628, '', 'FIELD', 2, '', 'Sao Paulo/guaianases', '', '2026-11-03 09:00:00', '2026-11-03 11:00:00', '', 'C.8 | Sao Paulo', '12657628', 'MARCOS ANTONIO RAMOS', ''],
+  ]), 'Planilha1');
+  const parsed = parseHistoricalActivationWorkbook('Finalizadas.xlsx', XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer);
+
+  assert.equal(parsed.candidates.length, 3);
+  assert.deepEqual(parsed.byType, { 'NOC TX': 1, 'NOC ACESSO': 1, 'ACIONAMENTO FIELD': 1 });
+  const [backbone, access, field] = parsed.candidates.map((candidate) => candidate.call);
+  assert.equal(backbone.orderNumber, '610152573830102');
+  assert.equal(backbone.bdesk, '671715');
+  assert.equal(backbone.status, 'Finalizado');
+  assert.equal(backbone.openedAt, '2026-11-02T17:47:57.000Z', 'horario de Sao Paulo, independente do fuso do servidor');
+  assert.equal(backbone.executedAt, '2026-11-03T02:19:00.000Z');
+  assert.equal(backbone.technicianName, 'Lucas Oliveira Santos');
+  assert.match(backbone.notes, /Elemento: SPSPO_GR1_SWP_03/);
+  assert.equal(access.region, 'GUARULHOS 2');
+  assert.equal(access.reason, 'Cabo Danificado');
+  assert.match(field.region, /GUAIANASES/);
+});
+
+test('matches technician names written differently in the report, without guessing between people', () => {
+  const base = { registration: '', region: '', shift: '', currentStatus: 'Disponivel' as const, teamRole: 'Tecnico' as const, active: true };
+  const technicians = [
+    { ...base, id: 'marcos', name: 'Marcos Antônio Ramos dos Santos' },
+    { ...base, id: 'paulo', name: 'Paulo Herculano' },
+    { ...base, id: 'ricardo', name: 'Ricardo Mendes de souza' },
+    { ...base, id: 'carlos-filho', name: 'Carlos Roberto Oliveira Filho' },
+    { ...base, id: 'carlos-junior', name: 'Carlos Junior', active: false },
+    { ...base, id: 'lucas', name: 'Lucas Oliveira Santos' },
+    { ...base, id: 'guilherme', name: 'Guilherme Lima Oliveira Santos' },
+  ];
+  const id = (name: string) => findHistoricalTechnician(name, technicians)?.id;
+  assert.equal(id('MARCOS ANTONIO RAMOS'), 'marcos');
+  assert.equal(id('PAULO HERCULANO FIRMO'), 'paulo');
+  assert.equal(id('RICARDO MENDES DE SOUSA'), 'ricardo');
+  assert.equal(id('CARLOS ROBERTO OLIVEIRA FILHO'), 'carlos-filho');
+  assert.equal(id('CARLOS ROBERTO OLIVEIRA JUNIO'), 'carlos-junior');
+  assert.equal(id('LUCAS OLIVEIRA SANTOS'), 'lucas');
+  assert.equal(id('TIAGO DA SILVA'), undefined);
+  assert.equal(id('OLIVEIRA SANTOS'), undefined, 'primeiro nome diferente nao casa');
+  assert.equal(id('Carlos'), undefined, 'um nome so nao basta');
+});

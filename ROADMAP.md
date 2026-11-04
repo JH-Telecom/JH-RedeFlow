@@ -3286,3 +3286,33 @@ Cadastrar sozinho os técnicos que divergirem.
 ### Validação
 - Build OK.
 - No navegador (modo demo), com o modal "Novo usuário" aberto, o fundo escuro ocupa a tela inteira e o wrapper fica com `transform: none`.
+
+## 2026-11-04 — Importação de finalizados: relatório da operadora (Finalizadas.xlsx)
+
+### Situação
+- Planilha nova com 57 chamados finalizados em novembro, no layout do relatório da operadora: OS, BDESK, ORIGEM (BACKBONE/BDESK/FIELD), TME, CAUSA_SIMPLES, CIDADE, DATA_ABERTURA, DATA_FECHAMENTO, ELEMENTO, CLUSTER, OS_OFS, RECURSO, REDE etc. Não tem o card.
+- Nove deles já estavam no sistema; 48 são novos.
+- O importador de finalizados exigia a coluna ACIONAMENTO (card) e recusaria o arquivo.
+- Os nomes em RECURSO vêm escritos de outro jeito ("MARCOS ANTONIO RAMOS", "PAULO HERCULANO FIRMO", "RICARDO MENDES DE SOUSA"), e o cadastro automático criaria quase-duplicados.
+
+### Implementado (`backend/src/imports/historical-activations.ts`)
+- **Segundo formato aceito**: quando a planilha não tem o card, o importador procura OS + DATA_ABERTURA + DATA_FECHAMENTO.
+  - Tipo pela ORIGEM: BACKBONE → NOC TX (Backbone no IGP); BDESK → NOC ACESSO; FIELD → ACIONAMENTO FIELD (Acesso no IGP).
+  - Motivo vem de CAUSA_SIMPLES; técnico vem de RECURSO, convertido para nome com iniciais maiúsculas.
+  - OLT vem de ELEMENTO quando for OLT. Se não for (trecho do backbone ou "CABO 12"), o ELEMENTO vai para as observações, junto com TME, clientes afetados e cluster.
+  - Região tirada da CIDADE, conferindo com as regiões conhecidas do mapa de OLTs: "Sao Paulo/guaianases" → GUAIANASES, "Guarulhos Ii" → GUARULHOS 2, "Maua/conquista" → CONQUISTA, "Sao Paulo/itaim" → ITAIM PAULISTA.
+  - Ordens repetidas seguem a mesma regra do formato com card.
+- **Datas "AAAA-MM-DD HH:MM:SS"** são lidas como horário de São Paulo; antes, `new Date()` usava o fuso do servidor. O TME do relatório confere: 14:47:57 → 23:19 = 8,52 h.
+- **Comparação tolerante de nomes de técnico**, usada só quando não há nome idêntico. Exige o mesmo primeiro nome (3+ letras) e que os nomes do nome mais curto apareçam, na ordem, no mais longo. Tolera:
+  - sobrenome a mais ou a menos;
+  - "Sousa"/"Souza" (uma letra de diferença em nomes de 5+ letras);
+  - "Junio"/"Junior" (prefixo de 4+ letras).
+  - Com mais de um candidato, vale o único ativo; senão, não escolhe.
+  - Simulação com os 22 nomes da planilha contra os cadastros reais: 21 casaram e só "TIAGO DA SILVA" será cadastrado. "CARLOS ROBERTO OLIVEIRA JUNIO" casa com "Carlos Junior", cadastrado na importação anterior.
+
+### Não alterado (decisão pendente)
+- No IGP, "GUARULHOS" sem número conta como **SP** (regra coberta por teste: `classifyIgpArea`). Sete chamados FIELD desta planilha têm cidade "GUARULHOS" e vão contar em SP. "COTIA" (cluster Alto Tietê no relatório) também conta em SP.
+
+### Testes
+- Novos testes do layout do relatório (tipos, datas, região, técnico, observações) e da comparação tolerante de nomes (inclui casos que não devem casar).
+- Suíte: 125/125 (rodada duas vezes; na primeira, o teste do coletor OFS estourou o tempo de subida do servidor, e passou sozinho e na segunda rodada completa).
