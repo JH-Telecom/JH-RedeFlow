@@ -3530,3 +3530,16 @@ O status "Ativo" em Usuários deve ser real, para saber quem está logado ou nã
 ### Validação
 - Teste `presence.test.ts`. Suíte 132/132. tsc OK.
 - Demo local: admin Online e os outros Offline. `POST /api/auth/logout` responde 204.
+
+## 2026-11-04 — Barra do topo fixa
+
+### Pedido
+A barra de cima (menu, caminho, tema, notificações e perfil) deve ficar fixa e não descer junto com a página.
+
+### Implementado
+- `frontend/src/sidebar.css`: `.topbar` com `position: sticky; top: 0`. A camada fica em `z-index` 8 no desktop, abaixo da lateral (10) e acima do conteúdo (1–2), e em 3 no celular, abaixo do escurecimento (4) e do menu lateral (5).
+- Modais e avisos (z-index 20+) continuam por cima da barra.
+
+### Validação
+- Desktop 1366×700: com a página rolada 900 px, a barra continua em `top: 0`. Conferido no escuro.
+- Celular 375 px: barra fixa; com o menu aberto, o escurecimento cobre a barra.

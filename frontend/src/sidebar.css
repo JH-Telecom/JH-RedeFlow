@@ -90,3 +90,17 @@
   .sidebar.collapsed .nav-item { position: relative; }
   .sidebar.collapsed .nav-count { position: absolute; top: 2px; right: 6px; min-width: 16px; height: 16px; font-size: 9px; }
 }
+
+/* Barra do topo fixa ao rolar a pagina. Fica acima do conteudo (z-index 1-2) e abaixo da lateral
+   (10 no desktop) e do menu do celular (overlay 4, lateral 5). */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    z-index: 3;
+  }
+}
