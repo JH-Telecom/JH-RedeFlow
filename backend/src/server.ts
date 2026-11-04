@@ -12,6 +12,7 @@ import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistorica
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { countRowsForDate, parseOfsActivityExport } from './imports/ofs-export.js';
+import { registerMissingHistoricalTechnicians } from './imports/historical-technicians.js';
 import { addDays, toOperationalDate } from './timezone.js';
 import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
@@ -745,12 +746,7 @@ app.post('/api/importacoes/chamados-atuais/preview', auth, requirePermission('im
       if (technician) {
         candidate.call.technicianId = technician.id;
         candidate.call.technicianName = technician.name;
-      } else {
-        // Sem cadastro: o chamado entra sem tecnico vinculado e o nome da planilha fica registrado nas observacoes.
-        unmatchedTechnicians.add(name);
-        candidate.call.technicianName = undefined;
-        candidate.call.notes = `Técnico na planilha (sem cadastro): ${name}\n${candidate.call.notes}`;
-      }
+      } else unmatchedTechnicians.add(name);
     }
     const alreadyInSystem = uniqueCandidates.length - candidates.length;
     const previewId = crypto.randomUUID();
@@ -792,6 +788,8 @@ app.post('/api/importacoes/chamados-atuais/:previewId/confirmar', auth, requireP
     return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
   }
   if (!isSupabaseConfigured()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no ambiente conectado ao banco de destino.' });
+  const unmatchedTechnicians = [...new Set(pending.candidates.filter((candidate) => candidate.call.technicianName && !candidate.call.technicianId).map((candidate) => candidate.call.technicianName!))];
+  if (unmatchedTechnicians.length) return response.status(409).json({ message: `Cadastre ou corrija os tecnicos antes de confirmar a importacao: ${unmatchedTechnicians.join(', ')}.` });
   try {
     const existingIdentifiers = await findExistingCallIdentifiers();
     const toInsert = pending.candidates.filter((candidate) => !candidate.identifiers.some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier)))).map((candidate) => candidate.call);
@@ -867,14 +865,14 @@ app.post('/api/importacoes/acionamentos-historicos/:previewId/confirmar', auth, 
     return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
   }
   if (!isSupabaseConfigured()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no sistema conectado ao banco de producao.' });
-  const unmatchedTechnicians = [...new Set(pending.candidates.filter((candidate) => candidate.call.technicianName && !candidate.call.technicianId).map((candidate) => candidate.call.technicianName!))];
-  if (unmatchedTechnicians.length) return response.status(409).json({ message: `Cadastre ou corrija os tecnicos antes de confirmar a importacao: ${unmatchedTechnicians.join(', ')}.` });
   try {
+    // Nomes da planilha sem cadastro: cadastra o tecnico automaticamente (inativo, matricula HIST-...) e vincula os chamados.
+    const createdTechnicians = await registerMissingHistoricalTechnicians(pending.candidates.map((candidate) => candidate.call));
     const existingIdentifiers = await findExistingCallIdentifiers();
     const toInsert = pending.candidates.map((candidate) => candidate.call).filter((call) => ![call.orderNumber, call.officeTrack, call.bdesk].filter(Boolean).some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier))));
     const imported = await insertHistoricalCalls(toInsert);
     pendingHistoricalImports.delete(String(request.params.previewId));
-    return response.json({ imported, skippedAlreadyPresent: pending.candidates.length - toInsert.length, fileName: pending.fileName });
+    return response.json({ imported, skippedAlreadyPresent: pending.candidates.length - toInsert.length, fileName: pending.fileName, createdTechnicians });
   } catch (error) {
     return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel importar os chamados historicos.' });
   }

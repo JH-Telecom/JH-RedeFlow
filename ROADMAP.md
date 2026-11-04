@@ -3216,3 +3216,32 @@ Na versão nova do `Finalizados.xlsx` (4.836 chamados importáveis), 44 chamados
 
 ### Observação
 - Chamados sem técnico vinculado não entram nos rankings por técnico. Se os técnicos forem cadastrados depois, o vínculo precisa ser feito chamado a chamado (ou por uma importação/ajuste específico).
+
+## 2026-11-04 — Importação de finalizados: cadastro automático dos técnicos que divergem
+
+### Correção do commit 71cb5a0
+- A mudança "técnico sem cadastro não bloqueia" foi aplicada por engano no importador de **chamados atuais**, que tem um bloco idêntico. O importador de **finalizados** continuou bloqueando: a confirmação devolvia "Cadastre ou corrija os tecnicos…".
+- O importador de chamados atuais voltou exatamente ao comportamento anterior: ele continua exigindo técnico cadastrado.
+- Continua valendo o apelido da equipe ("Equipe JH", "JH TELECOM REDES" → cadastro "JH Telecom").
+
+### Pedido
+Cadastrar sozinho os técnicos que divergirem.
+
+### Implementado
+- `backend/src/imports/historical-technicians.ts` (novo), função `registerMissingHistoricalTechnicians`. Ao confirmar a importação de finalizados, cada nome da planilha sem cadastro vira um técnico:
+  - perfil Técnico, **inativo** (não aparece para atribuição);
+  - status Indisponível, turno "Nao informado";
+  - matrícula `HIST-XXXXXXXX`.
+  - Os chamados ficam vinculados a esse cadastro.
+  - Nomes iguais com caixa/acentos diferentes geram um cadastro só, e uma segunda importação não cadastra de novo.
+- `server.ts`: a confirmação de finalizados não bloqueia mais. A resposta traz `createdTechnicians`.
+- `ImportsPage.tsx`:
+  - a prévia avisa quais técnicos serão cadastrados automaticamente;
+  - a mensagem final lista os que foram cadastrados.
+
+### Testes
+- `backend/test/historical-technicians.test.ts` (novo): cadastro inativo com matrícula HIST, vínculo dos chamados, sem duplicar e sem recadastrar.
+- Suíte: 121/121. Build do frontend OK.
+
+### Ação do usuário
+- Depois de importar, em **Técnicos**, ativar quem ainda trabalha e ajustar supervisor/turno/matrícula se quiser.
