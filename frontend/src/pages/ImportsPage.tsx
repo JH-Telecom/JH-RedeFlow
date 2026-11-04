@@ -153,7 +153,11 @@ export function HistoricalActivationImportPanel() {
 
 // A sincronizacao pelo Google Drive foi removida (2026-11-03): os dados do OFS chegam pela extensao da Rede.
 export function ImportsPage() {
-  return <div className="page-heading"><div><span className="section-kicker">DADOS</span><h1>Importações</h1><p>As atualizações do OFS chegam automaticamente pela extensão "JH RedeFlow – Coletor OFS" (painel de hoje a cada hora e o dia anterior às 07:00).</p></div></div>;
+  return <>
+    <div className="page-heading"><div><span className="section-kicker">DADOS</span><h1>Importações</h1><p>As atualizações do OFS chegam automaticamente pela extensão "JH RedeFlow – Coletor OFS" (painel de hoje a cada hora e o dia anterior às 07:00).</p></div></div>
+    {/* Planilha antiga de chamados finalizados (ORDEM, Data Abertura, Data-Fim, ACIONAMENTO): prévia e confirmação */}
+    <HistoricalActivationImportPanel />
+  </>;
 }
 
 export function D0ImportPanel() {

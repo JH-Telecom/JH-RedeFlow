@@ -5,9 +5,17 @@ import { findHistoricalTechnician, parseHistoricalActivationWorkbook } from '../
 
 const headers = ['Tecnico', 'Data Abertura', 'Data Acionamento', 'Data-Fim', 'ACIONAMENTO'];
 
+// Celula de data como na planilha real: horario de Sao Paulo (UTC-3) gravado como serial do Excel,
+// independente do fuso da maquina que roda o teste.
+function saoPauloDateCell(instant: Date) {
+  const wallClockMs = instant.getTime() - 3 * 3_600_000;
+  return { t: 'n', v: wallClockMs / 86_400_000 + 25_569, z: 'm/d/yy h:mm:ss' };
+}
+
 function workbookBuffer(rows: unknown[][]) {
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([headers, ...rows]), 'Planilha1');
+  const cells = rows.map((row) => row.map((value) => (value instanceof Date ? saoPauloDateCell(value) : value)));
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([headers, ...cells]), 'Planilha1');
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
 }
 
@@ -87,7 +95,7 @@ test('reads the finalized historical workbook when columns use the newer naming 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
     ['Técnico', 'Data de Abertura', 'Data do Acionamento', 'Data de Fim', 'Mensagem de Acionamento'],
-    ['Técnico A', openedAt, activatedAt, executedAt, message],
+    ['Técnico A', saoPauloDateCell(openedAt), saoPauloDateCell(activatedAt), saoPauloDateCell(executedAt), message],
   ]), 'Planilha1');
 
   const parsed = parseHistoricalActivationWorkbook('historico-novo.xlsx', XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer);
@@ -107,4 +115,14 @@ test('matches workbook technician names to one registered technician, ignoring a
 
   assert.equal(findHistoricalTechnician('  JOSE   DA SILVA ', technicians)?.id, 'tech-jose');
   assert.equal(findHistoricalTechnician('Técnico inexistente', technicians), undefined);
+});
+test('picks the single active record when a technician name is registered twice', () => {
+  const base = { registration: '', region: '', shift: '', currentStatus: 'Disponivel' as const, teamRole: 'Tecnico' as const };
+  const duplicated = [
+    { ...base, id: 'ricardo-old', name: 'Ricardo Mendes de souza', active: false },
+    { ...base, id: 'ricardo-new', name: 'Ricardo Mendes de Souza', active: true },
+  ];
+  assert.equal(findHistoricalTechnician('Ricardo Mendes de souza', duplicated)?.id, 'ricardo-new');
+  const bothActive = duplicated.map((technician) => ({ ...technician, active: true }));
+  assert.equal(findHistoricalTechnician('Ricardo Mendes de souza', bothActive), undefined, 'dois ativos continua ambiguo');
 });

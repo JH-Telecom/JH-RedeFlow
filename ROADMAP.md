@@ -3137,3 +3137,28 @@ Trocar o efeito de "pisca" ao mudar de aba no menu. A tela antiga sumia de uma v
 - Build do frontend OK.
 - No navegador (modo demo), a navegação Visão geral → Em atendimento remonta a página com a animação `page-enter` (220 ms), e o estado final fica com opacidade 1, sem deslocamento e com a lista renderizada.
 - O efeito não foi visto rodando na tela: o painel do navegador estava oculto, e o Chrome não avança animações de páginas ocultas. O estado final foi conferido forçando o fim da animação.
+
+## 2026-11-03 — Importação da planilha de chamados finalizados (Finalizados.xlsx)
+
+### Análise da planilha (somente leitura)
+- Colunas: ORDEM, Tecnico, Data Abertura, Data Acionamento, Data-Fim, OLT, PL, PO, REGIAO, ACIONAMENTO. São 5.440 linhas, com Data-Fim de 11/05 a 30/09/2026.
+- A ORDEM aparece no Excel em notação científica (6.0002E+14), mas o valor guardado na célula está completo. É só exibição.
+- O importador de histórico existente (`/api/importacoes/acionamentos-historicos`) gera 3.764 chamados Finalizados (ACIONAMENTO FIELD, NOC ACESSO, NOC TX). Ficam de fora:
+  - 594 linhas sem o card (coluna ACIONAMENTO vazia);
+  - cerca de 1.080 linhas com Data Abertura e/ou Data-Fim vazias na própria planilha;
+  - 2 linhas com a mesma O.S. (602156053150102) e conteúdo diferente, que vão para revisão manual.
+- No banco havia apenas 2 chamados, então não há duplicidade com o que já existe.
+
+### Correções feitas antes de importar
+- **Fuso das datas** (`historical-activations.ts`): o SheetJS monta as datas no fuso do processo. Na máquina local (-03) o resultado saía certo, mas no Render (UTC) todos os horários seriam gravados 3 horas antes. Agora a data é convertida a partir do horário escrito na planilha, tratado como horário de São Paulo, qualquer que seja o fuso do servidor.
+  - Os testes passaram a gravar as células como serial do Excel no horário de São Paulo, e foram conferidos com `TZ=UTC` e `TZ=America/Sao_Paulo`.
+- **Técnico cadastrado em duplicidade**: Ricardo Mendes de souza, Gabriel Oliveira da Silva e Lucas Riquelme Barret de Souza têm dois cadastros cada (um ativo e um inativo). Isso deixava o nome ambíguo e bloqueava a confirmação (228 chamados). Agora vale o único cadastro ativo; com dois ativos, o nome continua ambíguo.
+- **Tela**: o painel "Acionamentos finalizados" (prévia e confirmação) existia no código, mas não aparecia em nenhuma página. Voltou para Importações.
+
+### Testes
+- Suíte do backend: 119/119.
+- Prévia completa rodada no servidor local (modo demo, sem gravar) com a planilha real: 3.764 importáveis, datas corretas, por exemplo 18/06 14:02 → `2026-06-18T17:02:58Z`.
+
+### Pendências
+- Fazer a importação em produção depois do deploy (Importações → Selecionar XLSX → conferir a prévia → Importar).
+- Decidir o que fazer com as linhas que ficam de fora: sem card (594) ou sem datas (cerca de 1.080).

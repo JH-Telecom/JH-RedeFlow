@@ -58,12 +58,20 @@ function normalizeTechnicianName(value: string) {
 export function findHistoricalTechnician(name: string, technicians: Technician[]) {
   const normalizedName = normalizeTechnicianName(name);
   const matches = technicians.filter((technician) => technician.teamRole === 'Tecnico' && normalizeTechnicianName(technician.name) === normalizedName);
-  return matches.length === 1 ? matches[0] : undefined;
+  if (matches.length === 1) return matches[0];
+  // Nome cadastrado em duplicidade (um ativo e outro inativo): vale o unico cadastro ativo.
+  const active = matches.filter((technician) => technician.active);
+  return active.length === 1 ? active[0] : undefined;
 }
 
 function parseWorkbookDate(value: unknown): string | undefined {
   // Celulas de data da planilha tem precisao de segundos; o SheetJS pode devolver o instante com 1 ms de erro de arredondamento.
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(Math.round(value.getTime() / 1000) * 1000).toISOString();
+  // O SheetJS monta a data com o fuso do processo (UTC no Render, -03 na maquina local). Os componentes locais sao o
+  // horario escrito na planilha, que e de Sao Paulo (UTC-3, sem horario de verao): converte a partir deles.
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const milliseconds = Date.UTC(value.getFullYear(), value.getMonth(), value.getDate(), value.getHours() + 3, value.getMinutes(), value.getSeconds(), value.getMilliseconds());
+    return new Date(Math.round(milliseconds / 1000) * 1000).toISOString();
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return undefined;
