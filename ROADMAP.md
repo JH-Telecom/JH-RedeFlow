@@ -3695,3 +3695,76 @@ As imagens geradas (fila de chamados e Painel diário) estavam ilegíveis e dife
   - fila "Em atendimento" gerou PNG de 4164×1419 (3×), aviso exibido e "Copiar imagem" funcionou;
   - modelo de Produção por técnico com 28 técnicos: 3504×5985, nomes e números legíveis, total destacado.
 - tsc e build OK.
+
+## 2026-11-04 — Contraste legível nos dois temas
+
+### Problema
+No modo TV, a tabela "Chamados ativos mais antigos" tinha texto azul-escuro sobre fundo escuro. O modo TV é escuro, mas herdava a cor de texto do tema claro. O usuário pediu contraste sempre: texto escuro no claro e texto claro no escuro.
+
+### Auditoria
+Ferramenta `frontend/scripts/contrast-audit.js`: mede o contraste WCAG de cada texto visível contra o fundo real, em 17 telas, nos dois temas.
+- **Escuro**:
+  - azul da marca usado como texto (rótulos, links, item ativo do menu, abas, avatar) a 3,8:1;
+  - contador amarelo com texto claro a 1,45:1;
+  - botões azuis e vermelhos com branco a 3,6–4,47:1;
+  - botão de cargo com o cinza padrão do navegador (1,75:1).
+- **Claro**: cinzas de texto (#9aa6b5, #8b98aa, `--muted` #6f7d93…) a 2,3–4,2:1; verde e laranja de texto a 2,97–3,35:1; botões Aceitar e Recusar a 4,0–4,3:1.
+
+### Implementado
+- `scripts/generate-dark-theme.mjs`:
+  - no escuro, `var(--blue)` e `var(--blue-deep)` em propriedades de **texto** viram `var(--accent-text)` (azul claro `#86b6ff`);
+  - **novo** `src/theme-light-contrast.css` (gerado): replica as declarações de cor de texto do tema claro (mesma ordem e peso) e escurece as claras demais, mantendo o matiz, até ~4,5:1. Branco em botão colorido e o modo TV ficam de fora.
+- `theme-dark-manual.css`: `--blue` dos botões mais fechado (`#1a5fd6`) e contador amarelo com texto escuro.
+- `src/contrast-fixes.css` (novo, vale nos dois temas e ganha versão escura gerada):
+  - fundo transparente no botão de cargo;
+  - contador vermelho `#c42e3b`;
+  - avatar e contagem da aba selecionada em azul escuro;
+  - `--muted` `#5b697e`;
+  - verde de texto `#137a52` ("Online", "Ativo", setas).
+- `tv-mode.css`: cores de texto próprias para tabela, cartões, listas e "sem técnico", e aba ativa `#1a5fd6`.
+- `UsersPage.tsx`: botão Apagar `#c42e3b`.
+
+### Validação
+- Auditoria nas 17 telas (Visão geral, as 3 filas, Repetidos, Acionamentos, Painel diário, IGP, Análise de prazo, Técnicos, Supervisores, Importações, Usuários, Cargos, Configurações, Detalhe do chamado, Modo TV, incluindo a visão "Mais antigos"), nos temas claro e escuro: **nenhum texto abaixo do mínimo**.
+- Build OK.
+
+## 2026-11-04 — Cargos e permissões redesenhado + abas visíveis por cargo
+
+### Pedido
+Poder ocultar abas do menu por cargo, deixando só as que o usuário escolher, e reformular a tela de Cargos e permissões.
+
+### Implementado
+- Migration `supabase/migrations/202611040002_roles_hidden_tabs.sql`: `roles.hidden_tabs text[] default '{}'`. Aplicada em produção com autorização do usuário; nenhum cargo mudou.
+- Backend:
+  - `Role.hiddenTabs`: lido em `listSupabaseRoles`, `getSupabaseRole` e no perfil logado; gravado em `addRole` e `updateRole`.
+  - `POST` e `PATCH /api/roles` aceitam `hiddenTabs` (caminhos `/...`, até 40).
+  - O próprio cargo não pode ocultar "Cargos e permissões" (409).
+- Frontend:
+  - `lib/nav-items.ts` (novo): a lista de abas saiu do `Shell` e é usada pelo menu e pela tela de Cargos.
+  - `Shell.tsx`: aba oculta some do menu e da busca Ctrl+K e **fica bloqueada pelo link** ("Acesso não permitido"). Se a Visão geral estiver oculta, o usuário vai para a primeira aba permitida.
+  - `pages/RolesPage.tsx` (redesenhada, sem janela por cima): lista de cargos à esquerda (abas visíveis, permissões, "seu cargo") e editor à direita:
+    - nome e descrição;
+    - **Abas do menu** por seção, com interruptor (aba sem a permissão necessária aparece travada com o motivo), "Mostrar todas" e "Ocultar todas";
+    - **Permissões** agrupadas (Indicadores, Chamados, Acionamentos…) com descrição e código;
+    - barra fixa com "Alterações não salvas", Descartar e Salvar.
+- Validação:
+  - novo `role-hidden-tabs.test.ts`; suíte 137/137;
+  - preview: IGP oculto no Administrador sumiu do menu e `/igp` mostrou "Acesso não permitido"; ao reativar, voltou; o interruptor de Cargos ficou travado no próprio cargo;
+  - contraste OK nos dois temas.
+
+## 2026-11-04 — Banner do perfil ao fundo das observações
+
+### Pedido
+Além da foto, colocar um banner no perfil, que aparece de fundo nas observações do usuário nos chamados.
+
+### Implementado
+- Migration `supabase/migrations/202611040003_user_banner.sql`: `user_avatars.banner_data_url text`, aplicada com autorização. Quem tem banner e não tem foto fica com `data_url = ''` (tratado como sem foto). Remover a foto não apaga o banner.
+- Backend:
+  - `getUserBanners` e `saveUserBanner` (Supabase e demo);
+  - `GET`, `PUT` e `DELETE /api/auth/banner` (JPEG/PNG/WebP até 700 KB);
+  - `GET /api/chamados/:id/observacoes` devolve `banners` (um por autor).
+- Frontend:
+  - Configurações → Meu perfil: o banner vira a capa do cartão, com "Adicionar/Trocar banner" e "Remover banner". `lib/banner-image.ts` recorta em 3:1 e reduz para 1500×500 JPEG.
+  - Detalhe do chamado: observação de autor com banner mostra o banner ao fundo; nome e hora em branco sobre faixa escurecida e texto em caixa quase opaca, para manter o contraste nos dois temas.
+  - Letra do avatar das observações em azul escuro (4,3 → acima de 4,5:1).
+- Validação: no preview, banner salvo pela API, observação nova com o banner ao fundo; auditoria de contraste do detalhe e de Configurações zerada nos dois temas; build OK.

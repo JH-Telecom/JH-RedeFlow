@@ -126,3 +126,25 @@
     align-items: flex-start;
   }
 }
+
+/* Banner do perfil: capa do cartao (faixa 3:1 no topo) com os botoes por cima */
+.settings-profile { flex-wrap: wrap; overflow: hidden; }
+.settings-profile-banner { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex: 0 0 calc(100% + 44px); height: 170px; margin: -22px -22px 0; padding: 14px 18px; background: linear-gradient(120deg, #e9f1fd, #f4f7fb) center / cover no-repeat; color: #4a5a70; font-size: 12px; }
+.settings-profile.has-banner .settings-profile-banner { background-size: cover; background-position: center; }
+.settings-profile-banner > span { align-self: center; max-width: 60%; }
+.settings-profile-banner-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.settings-profile-banner-actions .secondary-button { background: #ffffffeb; box-shadow: 0 2px 8px #17233b26; }
+.settings-profile-avatar { position: relative; margin-top: -54px; border: 4px solid #fff; box-sizing: content-box; }
+.settings-profile-info { padding-top: 6px; }
+@media (max-width: 600px) { .settings-profile-banner { height: 120px; } .settings-profile-banner > span { display: none; } }
+
+/* Observacoes com o banner do autor ao fundo (CallDetailPage.tsx). O nome fica em faixa escurecida
+   e o texto numa caixa quase opaca, para manter contraste nos dois temas. */
+.history-item.has-banner { display: block; overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 12px; background-color: #17233b; background-position: center; background-size: cover; }
+.history-banner-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: linear-gradient(90deg, #0b1220e6 0%, #0b1220b3 55%, #0b122040 100%); }
+.history-banner-head .history-avatar { flex: none; }
+.history-banner-head strong { color: #ffffff; text-shadow: 0 1px 2px #000000a0; }
+.history-banner-head small { color: #e4eaf3; text-shadow: 0 1px 2px #000000a0; }
+.history-banner-body { margin: 0 10px 10px; padding: 10px 12px; border-radius: 9px; background: #ffffffeb; }
+.history-banner-body p { margin: 0; }
+.history-banner-body .observation-attachments { margin-top: 8px; }

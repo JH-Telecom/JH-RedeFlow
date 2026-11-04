@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, ChevronDown, LogOut, Menu, Moon, Search, Repeat2, Settings, ShieldCheck, Sun, Tv, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
+import { isTabHidden, navItems } from "../lib/nav-items";
+export { navItems } from "../lib/nav-items";
 import { useTheme } from "../theme";
 import { UpdateNotice } from "./UpdateNotice";
 import { DueSoonBanner } from "./DueSoonBanner";
@@ -27,27 +29,7 @@ import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
 import { UsersPage } from "../pages/UsersPage";
 
-type NavItem = { label: string; to: string; icon: LucideIcon; permission: string; section: string; roles?: string[]; counter?: "unassigned" | "activations" };
 
-export const navItems: NavItem[] = [
-  { section: "Operação", label: "Visão geral", to: "/", icon: LayoutDashboard, permission: "dashboard.view" },
-  { section: "Operação", label: "Chamados abertos", to: "/chamados/abertos", icon: Inbox, permission: "calls.view", counter: "unassigned" },
-  { section: "Operação", label: "Em atendimento", to: "/chamados/atendimento", icon: Wrench, permission: "calls.view" },
-  { section: "Operação", label: "Finalizados e cancelados", to: "/chamados/finalizados", icon: Archive, permission: "calls.view" },
-  { section: "Operação", label: "Repetidos", to: "/repetidos", icon: Repeat2, permission: "calls.view" },
-  { section: "Operação", label: "Ordens da equipe", to: "/supervisor/ordens", icon: ClipboardCheck, permission: "calls.view", roles: ["Supervisor"] },
-  { section: "Operação", label: "Acionamentos", to: "/acionamentos", icon: BellRing, permission: "activations.view", counter: "activations" },
-  { section: "Indicadores", label: "Painel diário", to: "/painel-diario", icon: CalendarDays, permission: "dashboard.view" },
-  { section: "Indicadores", label: "IGP", to: "/igp", icon: Gauge, permission: "dashboard.view" },
-  { section: "Indicadores", label: "Análise de prazo", to: "/analise-prazo", icon: Hourglass, permission: "dashboard.view" },
-  { section: "Indicadores", label: "Modo TV", to: "/modo-tv", icon: Tv, permission: "dashboard.view" },
-  { section: "Equipes", label: "Técnicos", to: "/tecnicos", icon: HardHat, permission: "technicians.view" },
-  { section: "Equipes", label: "Supervisores", to: "/supervisores", icon: UserCog, permission: "supervisors.view" },
-  { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
-  { section: "Administração", label: "Usuários", to: "/usuarios", icon: Users, permission: "users.view" },
-  { section: "Administração", label: "Cargos e permissões", to: "/cargos", icon: ShieldCheck, permission: "roles.view" },
-  { section: "Administração", label: "Configurações", to: "/configuracoes", icon: Settings, permission: "" },
-];
 
 function navItemForPath(pathname: string) {
   if (pathname === "/") return navItems[0];
@@ -189,7 +171,9 @@ export function Shell({
   }
   const canAccess = (permission: string) => !permission || user.role.permissions.includes(permission);
   const guard = (permission: string, element: React.ReactNode) => (canAccess(permission) ? element : <AccessDenied />);
-  const firstAllowedPath = navItems.find((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)))?.to;
+  // Abas ocultas pelo cargo (Cargos e permissoes): saem do menu, da busca e a rota fica bloqueada.
+  const hiddenTabs = user.role.hiddenTabs ?? [];
+  const firstAllowedPath = navItems.find((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to))?.to;
   function toggleSidebar() {
     setDesktopCollapsed((current) => {
       const next = !current;
@@ -205,7 +189,8 @@ export function Shell({
     unassigned: notifications.find((item) => item.id === "unassigned-calls")?.count ?? 0,
     activations: activationCount,
   };
-  const visibleItems = navItems.filter((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)));
+  const visibleItems = navItems.filter((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to));
+  const currentTabHidden = Boolean(currentItem && isTabHidden(hiddenTabs, currentItem.to));
   const sections = [...new Set(visibleItems.map((item) => item.section))];
   useEffect(() => {
     document.title = `${title} · JH Telecom - Rede`;
@@ -324,6 +309,7 @@ export function Shell({
         <div className="content">
           {/* Troca de pagina com fade suave (page-transition.css) em vez do corte seco */}
           <div className="page-transition" key={location.pathname}>
+          {currentTabHidden ? (currentItem?.to === "/" && firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDenied />) : (
           <Routes>
             <Route path="/" element={canAccess("dashboard.view") ? <DashboardWithDateFilter user={user} /> : firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDenied />} />
             <Route
@@ -349,10 +335,11 @@ export function Shell({
             <Route path="/tecnicos" element={guard("technicians.view", <TechniciansPage />)} />
             <Route path="/supervisores" element={guard("supervisors.view", <SupervisorsPage user={user} />)} />
             <Route path="/usuarios" element={guard("users.view", <UsersPage />)} />
-            <Route path="/cargos" element={guard("roles.view", <RolesPage />)} />
+            <Route path="/cargos" element={guard("roles.view", <RolesPage currentRoleId={user.roleId} />)} />
             <Route path="/configuracoes" element={<SettingsPage user={user} canManage={canAccess("settings.manage")} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          )}
           </div>
         </div>
       </div>

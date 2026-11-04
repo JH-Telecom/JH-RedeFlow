@@ -19,3 +19,9 @@
 :root[data-theme="dark"] .sidebar nav::-webkit-scrollbar-thumb { background: #3a424e; }
 :root[data-theme="dark"] .cq-panel.is-fit .cq-scroll, :root[data-theme="dark"] .fit-table-panel.is-fit .fit-scroll { scrollbar-color: #3a424e transparent; }
 :root[data-theme="dark"] .cq-panel.is-fit .cq-scroll::-webkit-scrollbar-thumb, :root[data-theme="dark"] .fit-table-panel.is-fit .fit-scroll::-webkit-scrollbar-thumb { background: #3a424e padding-box; }
+
+/* Contraste no escuro: azul de fundo (botoes) um pouco mais fechado para o branco passar de 4.5:1,
+   e um azul claro proprio para TEXTO (o gerador troca var(--blue) em "color" por var(--accent-text)). */
+:root[data-theme="dark"] { --blue: #1a5fd6; --blue-deep: #2d6fe0; --accent-text: #86b6ff; }
+/* Texto sobre fundo colorido claro (amarelo) continua escuro. */
+:root[data-theme="dark"] .nav-count.is-warning { color: #17233b; }

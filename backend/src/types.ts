@@ -32,6 +32,8 @@ export type Role = {
   name: string;
   description: string;
   permissions: PermissionCode[];
+  /** Abas do menu (caminhos, ex. "/igp") ocultas e bloqueadas para este cargo. */
+  hiddenTabs?: string[];
 };
 
 export type User = {

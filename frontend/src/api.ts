@@ -1,7 +1,7 @@
 const isVercelDeployment = import.meta.env.PROD && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
 const API_URL = (isVercelDeployment ? '' : import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
 export type Permission = { code: string; description: string };
-export type Role = { id: string; name: string; description: string; permissions: string[] };
+export type Role = { id: string; name: string; description: string; permissions: string[]; hiddenTabs?: string[] };
 export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; mustChangePassword?: boolean; role?: Role; online?: boolean; lastSeenAt?: string };
 export type Technician = { id: string; supervisorId?: string; name: string; registration: string; supervisorName?: string; region: string; shift: string; currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel'; active: boolean; employmentStatus: 'Trabalhando' | 'Demitido'; activeOverride?: boolean; teamRole: 'Tecnico' | 'Auxiliar'; leadTechnicianId?: string | null; leadTechnicianName?: string };
 export type Supervisor = { id: string; userId?: string; name: string; region: string; active: boolean; technicianCount: number };
@@ -91,6 +91,9 @@ export const api = {
   profileAvatar: () => request<{ avatarDataUrl: string | null }>('/api/auth/avatar'),
   saveProfileAvatar: (avatarDataUrl: string) => request<{ avatarDataUrl: string }>('/api/auth/avatar', { method: 'PUT', body: JSON.stringify({ avatarDataUrl }) }),
   removeProfileAvatar: () => request<{ deleted: boolean }>('/api/auth/avatar', { method: 'DELETE' }),
+  profileBanner: () => request<{ bannerDataUrl: string | null }>('/api/auth/banner'),
+  saveProfileBanner: (bannerDataUrl: string) => request<{ bannerDataUrl: string }>('/api/auth/banner', { method: 'PUT', body: JSON.stringify({ bannerDataUrl }) }),
+  removeProfileBanner: () => request<{ deleted: boolean }>('/api/auth/banner', { method: 'DELETE' }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
@@ -134,7 +137,7 @@ export const api = {
   deleteCall: (id: string) => requestCallMutation<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),
   deleteAllCalls: () => requestCallMutation<{ deleted: number }>('/api/chamados', { method: 'DELETE' }),
   reopenCall: (id: string) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}/reabrir`, { method: 'POST' }),
-  observations: (id: string, filters?: { teamScope?: boolean }) => request<{ observations: CallObservation[] }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`),
+  observations: (id: string, filters?: { teamScope?: boolean }) => request<{ observations: CallObservation[]; banners?: Record<string, string> }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`),
   addObservation: (id: string, text: string, attachments: CallObservationAttachmentUpload[] = [], filters?: { teamScope?: boolean }) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`, { method: 'POST', body: JSON.stringify({ text, attachments }) }),
   observationAttachment: (callId: string, observationId: string, attachmentId: string, filters?: { teamScope?: boolean }) => request<{ attachment: CallObservationAttachmentContent }>(`/api/chamados/${callId}/observacoes/${observationId}/anexos/${attachmentId}${filters?.teamScope ? '?teamScope=true' : ''}`),
   auditLogs: (id: string) => request<{ logs: CallAuditLog[] }>(`/api/chamados/${id}/logs`),
@@ -154,8 +157,8 @@ export const api = {
   createUser: (data: { name: string; email: string; roleId: string; password: string }) => request<{ user: User }>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
   updateUser: (id: string, data: { name?: string; email?: string; roleId?: string; active?: boolean; password?: string }) => request<{ user: User }>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteUser: (id: string) => request<{ deleted: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),
-  createRole: (data: { name: string; description: string; permissions: string[] }) => request<{ role: Role }>('/api/roles', { method: 'POST', body: JSON.stringify(data) }),
-  updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[] }) => request<{ role: Role }>(`/api/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createRole: (data: { name: string; description: string; permissions: string[]; hiddenTabs?: string[] }) => request<{ role: Role }>('/api/roles', { method: 'POST', body: JSON.stringify(data) }),
+  updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[]; hiddenTabs?: string[] }) => request<{ role: Role }>(`/api/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
   updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) }),
   customOperationalRegions: () => request<{ regions: string[] }>('/api/configuracoes/regioes'),

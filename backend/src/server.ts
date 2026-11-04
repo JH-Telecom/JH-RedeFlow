@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserBanners, saveUserBanner, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics } from './igp.js';
@@ -230,6 +230,23 @@ app.delete('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
     return response.json({ deleted: true });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel remover a foto de perfil.' }); }
 });
+// Banner do perfil (1 imagem larga JPEG/PNG/WebP, ja reduzida no navegador).
+app.get('/api/auth/banner', auth, async (request: AuthRequest, response) => {
+  try { return response.json({ bannerDataUrl: (await getUserBanners([request.authUser!.id]))[request.authUser!.id] ?? null }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o banner.' }); }
+});
+app.put('/api/auth/banner', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({ bannerDataUrl: z.string().max(700_000).regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie um banner JPEG, PNG ou WebP com ate 700 KB depois da compactacao.' });
+  try {
+    await saveUserBanner(request.authUser!.id, parsed.data.bannerDataUrl);
+    return response.json({ bannerDataUrl: parsed.data.bannerDataUrl });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o banner.' }); }
+});
+app.delete('/api/auth/banner', auth, async (request: AuthRequest, response) => {
+  try { await saveUserBanner(request.authUser!.id, null); return response.json({ deleted: true }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel remover o banner.' }); }
+});
 app.post('/api/auth/change-password', auth, async (request: AuthRequest, response) => {
   if (!request.authUser?.mustChangePassword) return response.status(409).json({ message: 'A troca inicial de senha ja foi concluida.' });
   const parsed = z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8) }).safeParse(request.body);
@@ -324,15 +341,17 @@ app.delete('/api/users/:id', auth, requirePermission('users.edit'), async (reque
 });
 app.get('/api/roles', auth, requirePermission('roles.view'), async (_request, response) => response.json({ roles: await listRoles(), permissions: listPermissions() }));
 app.post('/api/roles', auth, requirePermission('roles.manage'), async (request, response) => {
-  const parsed = z.object({ name: z.string().min(2), description: z.string().min(2), permissions: z.array(z.string()) }).safeParse(request.body);
+  const parsed = z.object({ name: z.string().min(2), description: z.string().min(2), permissions: z.array(z.string()), hiddenTabs: z.array(z.string().regex(/^\/[a-z0-9\-/]*$/)).max(40).optional() }).safeParse(request.body);
   if (!parsed.success || parsed.data.permissions.some((code) => !listPermissions().some((permission) => permission.code === code))) return response.status(400).json({ message: 'Dados de cargo invalidos.' });
   const roles = await listRoles();
   if (roles.some((role) => role.name.toLowerCase() === parsed.data.name.toLowerCase())) return response.status(409).json({ message: 'Este cargo ja existe.' });
   return response.status(201).json({ role: await addRole({ ...parsed.data, permissions: parsed.data.permissions as PermissionCode[] }) });
 });
-app.patch('/api/roles/:id', auth, requirePermission('roles.manage'), async (request, response) => {
-  const parsed = z.object({ name: z.string().min(2).optional(), description: z.string().min(2).optional(), permissions: z.array(z.string()).optional() }).safeParse(request.body);
+app.patch('/api/roles/:id', auth, requirePermission('roles.manage'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ name: z.string().min(2).optional(), description: z.string().min(2).optional(), permissions: z.array(z.string()).optional(), hiddenTabs: z.array(z.string().regex(/^\/[a-z0-9\-/]*$/)).max(40).optional() }).safeParse(request.body);
   if (!parsed.success || parsed.data.permissions?.some((code) => !listPermissions().some((permission) => permission.code === code))) return response.status(400).json({ message: 'Dados de cargo invalidos.' });
+  // Nao deixa o proprio cargo esconder Cargos e permissoes (senao ninguem com ele consegue desfazer).
+  if (String(request.params.id) === request.authUser!.roleId && parsed.data.hiddenTabs?.includes('/cargos')) return response.status(409).json({ message: 'Voce nao pode ocultar Cargos e permissoes do seu proprio cargo.' });
   const role = await updateRole(String(request.params.id), { ...parsed.data, permissions: parsed.data.permissions as PermissionCode[] | undefined });
   if (!role) return response.status(404).json({ message: 'Cargo nao encontrado.' });
   return response.json({ role });
@@ -520,7 +539,10 @@ app.post('/api/chamados/:id/reabrir', auth, requirePermission('calls.reopen'), a
 app.get('/api/chamados/:id/observacoes', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const call = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
-  return response.json({ observations: await listObservations(call.id) });
+  const observations = await listObservations(call.id);
+  // Banner de cada autor, uma vez so por pessoa (fundo das observacoes).
+  const banners = await getUserBanners(observations.map((item) => item.userId)).catch(() => ({}));
+  return response.json({ observations, banners });
 });
 app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_observation'), async (request: AuthRequest, response) => {
   const parsed = z.object({

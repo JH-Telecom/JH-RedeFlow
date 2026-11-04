@@ -184,6 +184,7 @@ export function AuditedCallDetailPage() {
   const id = pathname.split("/").pop()!;
   const teamScoped = new URLSearchParams(search).get("teamScope") === "true";
   const [observations, setObservations] = useState<CallObservation[]>([]);
+  const [banners, setBanners] = useState<Record<string, string>>({});
   const [logs, setLogs] = useState<CallAuditLog[]>([]);
   const [text, setText] = useState("");
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
@@ -196,6 +197,7 @@ export function AuditedCallDetailPage() {
       api.auditLogs(id),
     ]);
     setObservations(observationData.observations);
+    setBanners(observationData.banners ?? {});
     setLogs(logData.logs);
   }
   useEffect(() => {
@@ -269,7 +271,24 @@ export function AuditedCallDetailPage() {
             {attachmentError && <div className="form-error observation-attachment-error">{attachmentError}</div>}
             <div className="history-list">
               {observations.length ? (
-                observations.map((item) => (
+                observations.map((item) => banners[item.userId] ? (
+                  // Autor com banner: banner ao fundo, nome sobre faixa escura e texto em caixa quase opaca.
+                  <div className="history-item has-banner" key={item.id} style={{ backgroundImage: `url(${banners[item.userId]})` }}>
+                    <div className="history-banner-head">
+                      <div className="history-avatar">{item.userName.slice(0, 1)}</div>
+                      <div>
+                        <strong>{item.userName}</strong>
+                        <small>{new Date(item.createdAt).toLocaleString("pt-BR")}</small>
+                      </div>
+                    </div>
+                    {(item.text || item.attachments?.length > 0) && (
+                      <div className="history-banner-body">
+                        {item.text && <p>{item.text}</p>}
+                        {item.attachments?.length > 0 && <div className="observation-attachments">{item.attachments.map((attachment) => <ObservationAttachmentItem key={attachment.id} callId={id} observationId={item.id} attachment={attachment} teamScoped={teamScoped}/>)}</div>}
+                      </div>
+                    )}
+                  </div>
+                ) : (
                   <div className="history-item" key={item.id}>
                     <div className="history-avatar">
                       {item.userName.slice(0, 1)}

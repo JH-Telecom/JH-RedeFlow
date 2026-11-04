@@ -142,7 +142,7 @@ export function UsersPage() {
                       <button className="secondary-button compact" type="button" onClick={() => openForm(user)} title="Editar usuario">
                         Editar
                       </button>
-                      <button className="secondary-button compact" type="button" onClick={() => handleDelete(user)} title="Apagar usuario" style={{ background: '#e63946', borderColor: '#e63946', color: '#fff' }}>
+                      <button className="secondary-button compact" type="button" onClick={() => handleDelete(user)} title="Apagar usuario" style={{ background: '#c42e3b', borderColor: '#c42e3b', color: '#fff' }}>
                         Apagar
                       </button>
                     </div>

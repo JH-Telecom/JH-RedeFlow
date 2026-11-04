@@ -14,6 +14,7 @@ const PREFIX = ':where(:root[data-theme="dark"])';
 const ROOT_PREFIX = ':root:where([data-theme="dark"])';
 // Ajustes feitos a mao (tokens, superficies especificas) ficam neste arquivo e entram depois do gerado.
 const MANUAL = 'theme-dark-manual.css';
+const LIGHT_OUTPUT = 'theme-light-contrast.css';
 
 // ---- cor: sRGB <-> OKLCH ----
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
@@ -145,25 +146,64 @@ function prefixSelector(selector) {
   }).join(', ');
 }
 
-function darkRulesFor(css, from) {
+// Tema claro: so texto. Cinzas e cores de texto claros demais para fundo claro sao escurecidos (mesmo matiz)
+// ate passar de 4.5:1 sobre branco; branco/quase branco (texto em botao colorido) nao muda.
+function lightTextFix({ L, C, h, alpha }) {
+  if (alpha < 0.999 || L >= 0.9) return [L, C, h, alpha];
+  if (C < 0.09) return L > 0.54 ? [0.52, C, h, alpha] : [L, C, h, alpha];
+  return L > 0.53 ? [0.5, C, h, alpha] : [L, C, h, alpha];
+}
+function lightConvert(text) {
+  const parsed = parseColor(text);
+  if (!parsed) return text;
+  const [L, C, h] = rgbToOklch(parsed.rgb);
+  const [nextL, nextC, nextH, nextAlpha] = lightTextFix({ L, C, h, alpha: parsed.alpha });
+  return formatColor(oklchToRgb([nextL, nextC, nextH]), nextAlpha);
+}
+// Superficies que sao escuras nos dois temas (modo TV) ficam fora do ajuste do tema claro.
+const LIGHT_SKIP = /\.tv-/;
+
+const LIGHT_PREFIX = ':where(:root:not([data-theme="dark"]))';
+function prefixLight(selector) {
+  return selector.split(',').map((part) => {
+    const trimmed = part.trim();
+    if (!trimmed) return trimmed;
+    if (/^:root\b/.test(trimmed)) return trimmed.replace(/^:root/, ':root:where(:not([data-theme="dark"]))');
+    if (/^html\b/.test(trimmed)) return trimmed.replace(/^html/, 'html:where(:not([data-theme="dark"]))');
+    return `${LIGHT_PREFIX} ${trimmed}`;
+  }).join(', ');
+}
+
+function darkRulesFor(css, from, mode = 'dark') {
   const source = postcss.parse(css, { from });
   const output = postcss.root();
   source.walkRules((rule) => {
     if (rule.parent?.type === 'atrule' && /keyframes$/i.test(rule.parent.name)) return;
+    if (mode === 'light' && LIGHT_SKIP.test(rule.selector)) return;
     const declarations = [];
     rule.each((node) => {
       if (node.type !== 'decl') return;
       const role = roleFor(node.prop);
       if (!role) return;
+      if (mode === 'light') {
+        // Tema claro: so propriedades de texto; tokens (--x) ficam como estao.
+        if (role !== 'text' || node.prop.startsWith('--')) return;
+        const value = node.value.replace(COLOR_PATTERN, (match) => lightConvert(match));
+        COLOR_PATTERN.lastIndex = 0;
+        declarations.push(postcss.decl({ prop: node.prop, value, important: node.important }));
+        return;
+      }
       // Declaracoes de cor sem cor literal (transparent, none, 0, var(...)) tambem sao replicadas sem mudanca:
       // assim a camada escura reproduz a cascata inteira das propriedades de cor, inclusive "border: 0".
-      const value = node.value.replace(COLOR_PATTERN, (match) => convert(match, role));
+      let value = node.value.replace(COLOR_PATTERN, (match) => convert(match, role));
       COLOR_PATTERN.lastIndex = 0;
+      // Azul da marca usado como TEXTO fica escuro demais sobre os cartoes escuros: usa o azul claro de texto.
+      if (role === 'text' && !node.prop.startsWith('--')) value = value.replace(/var\(--blue(?:-deep)?\)/g, 'var(--accent-text)');
       if (node.prop.startsWith('--') && value === node.value) return; // tokens sem cor ficam como estao
       declarations.push(postcss.decl({ prop: node.prop, value, important: node.important }));
     });
     if (!declarations.length) return;
-    const clone = postcss.rule({ selector: prefixSelector(rule.selector) });
+    const clone = postcss.rule({ selector: mode === 'light' ? prefixLight(rule.selector) : prefixSelector(rule.selector) });
     declarations.forEach((declaration) => clone.append(declaration));
     let target = output;
     const chain = [];
@@ -180,8 +220,9 @@ function darkRulesFor(css, from) {
 
 // Mesma ordem do main.tsx, para as regras escuras respeitarem a cascata original.
 const mainSource = readFileSync(join(root, 'main.tsx'), 'utf8');
-const ordered = [...mainSource.matchAll(/import '\.\/([^']+\.css)'/g)].map((match) => match[1]).filter((file) => file !== OUTPUT && file !== MANUAL);
-const extra = readdirSync(root).filter((file) => file.endsWith('.css') && !ordered.includes(file) && file !== OUTPUT && file !== MANUAL);
+const GENERATED = new Set([OUTPUT, MANUAL, LIGHT_OUTPUT]);
+const ordered = [...mainSource.matchAll(/import '\.\/([^']+\.css)'/g)].map((match) => match[1]).filter((file) => !GENERATED.has(file));
+const extra = readdirSync(root).filter((file) => file.endsWith('.css') && !ordered.includes(file) && !GENERATED.has(file));
 if (extra.length) console.warn(`[theme:dark] CSS fora do main.tsx (ignorados): ${extra.join(', ')}`);
 
 const header = '/* ARQUIVO GERADO por scripts/generate-dark-theme.mjs. Nao edite: ajustes manuais vao em theme-dark-manual.css. */\n';
@@ -191,3 +232,12 @@ const parts = ordered.map((file) => {
 }).filter(Boolean);
 writeFileSync(join(root, OUTPUT), header + parts.join('\n'));
 console.log(`[theme:dark] ${OUTPUT} gerado a partir de ${ordered.length} arquivos.`);
+
+// Contraste do tema claro: copia as declaracoes de cor de TEXTO (mesma ordem/peso) escurecendo as claras demais.
+const lightHeader = '/* ARQUIVO GERADO por scripts/generate-dark-theme.mjs: contraste minimo de texto no tema claro (4.5:1). Nao edite. */\n';
+const lightParts = ordered.map((file) => {
+  const generated = darkRulesFor(readFileSync(join(root, file), 'utf8'), file, 'light').toString().trim();
+  return generated ? `/* ${file} */\n${generated}\n` : '';
+}).filter(Boolean);
+writeFileSync(join(root, LIGHT_OUTPUT), lightHeader + lightParts.join('\n'));
+console.log(`[theme:dark] ${LIGHT_OUTPUT} gerado.`);

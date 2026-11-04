@@ -80,6 +80,7 @@ export const observations = new Map<string, CallObservation>();
 
 export const observationAttachments = new Map<string, StoredCallObservationAttachment>();
 
+export const userBanners = new Map<string, string>();
 export const userAvatars = new Map<string, string>();
 
 export const auditLogs = new Map<string, CallAuditLog>();

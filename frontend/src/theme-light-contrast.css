@@ -1,0 +1,1447 @@
+/* ARQUIVO GERADO por scripts/generate-dark-theme.mjs: contraste minimo de texto no tema claro (4.5:1). Nao edite. */
+/* styles.css */
+:root:where(:not([data-theme="dark"])) {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .brand-mark>span, :where(:root:not([data-theme="dark"])) .mini-mark {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .brand-mark small, :where(:root:not([data-theme="dark"])) .sidebar-brand small {
+    color: #5d6a7e
+}
+:where(:root:not([data-theme="dark"])) .eyebrow, :where(:root:not([data-theme="dark"])) .section-kicker {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .intro-copy>p:last-child {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .intro-foot {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .form-heading p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) label {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .primary-button {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .text-button, :where(:root:not([data-theme="dark"])) .link-button {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .demo-note {
+    color: #606a78
+}
+:where(:root:not([data-theme="dark"])) .form-error {
+    color: #ab3134
+}
+:where(:root:not([data-theme="dark"])) .workspace-switcher {
+    color: #5c6b81
+}
+:where(:root:not([data-theme="dark"])) .workspace-switcher>svg {
+    color: #5e6a7a
+}
+:where(:root:not([data-theme="dark"])) .nav-item, :where(:root:not([data-theme="dark"])) .help-link {
+    color: #5d6a7f
+}
+:where(:root:not([data-theme="dark"])) .nav-item svg, :where(:root:not([data-theme="dark"])) .help-link svg {
+    color: #5e6a7a
+}
+:where(:root:not([data-theme="dark"])) .nav-item.active {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .nav-item.active svg {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .avatar, :where(:root:not([data-theme="dark"])) .topbar-avatar {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .profile-mini small {
+    color: #5e6a7b
+}
+:where(:root:not([data-theme="dark"])) .icon-button {
+    color: #5c6a7d
+}
+:where(:root:not([data-theme="dark"])) .icon-button:hover {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .breadcrumbs {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .breadcrumbs svg {
+    color: #626a74
+}
+:where(:root:not([data-theme="dark"])) .breadcrumbs strong {
+    color: #34435c
+}
+:where(:root:not([data-theme="dark"])) .topbar-avatar {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .page-heading p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .secondary-button, :where(:root:not([data-theme="dark"])) .select-button {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .secondary-button:hover, :where(:root:not([data-theme="dark"])) .select-button:hover {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .metric-icon {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .metric>span {
+    color: #5e6a7b
+}
+:where(:root:not([data-theme="dark"])) .metric>small {
+    color: #606a77
+}
+:where(:root:not([data-theme="dark"])) .metric>small.positive {
+    color: var(--green)
+}
+:where(:root:not([data-theme="dark"])) .muted-icon {
+    color: #606a77
+}
+:where(:root:not([data-theme="dark"])) .chart-y {
+    color: #606a78
+}
+:where(:root:not([data-theme="dark"])) .chart-labels {
+    color: #606a78
+}
+:where(:root:not([data-theme="dark"])) .donut small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .legend span {
+    color: #5d6a7f
+}
+:where(:root:not([data-theme="dark"])) .legend b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .activity-row span, :where(:root:not([data-theme="dark"])) .activity-row time {
+    color: #5e6a7a
+}
+:where(:root:not([data-theme="dark"])) .search-field {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .table-panel th {
+    color: #5f6a79
+}
+:where(:root:not([data-theme="dark"])) .table-panel td {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .table-panel td strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .role-pill {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .status {
+    color: var(--green)
+}
+:where(:root:not([data-theme="dark"])) .empty-state {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .role-symbol {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .role-row span {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .role-row b {
+    color: #5e6a7d
+}
+:where(:root:not([data-theme="dark"])) .role-row>svg {
+    color: #616a76
+}
+:where(:root:not([data-theme="dark"])) .permission-row span {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .permission-row small {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .settings-icon {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .settings-panel p {
+    color: var(--muted)
+}
+
+/* password-change.css */
+:where(:root:not([data-theme="dark"])) .password-change-mark {
+    color: #0056d9
+}
+:where(:root:not([data-theme="dark"])) .password-change-card>p {
+    color: #5c6a7f
+}
+
+/* team.css */
+:where(:root:not([data-theme="dark"])) .team-member-list strong {
+    color: #31445d
+}
+:where(:root:not([data-theme="dark"])) .team-member-list span, :where(:root:not([data-theme="dark"])) .team-member-list small {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .team-status.ready {
+    color: var(--green)
+}
+:where(:root:not([data-theme="dark"])) .team-status.field {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .team-status.off {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .status.inactive {
+    color: #616a76
+}
+:where(:root:not([data-theme="dark"])) .supervisor-heading span {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .supervisor-avatar {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .team-member span {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .app-loading {
+    color: #5d6a7f
+}
+:where(:root:not([data-theme="dark"])) .table-subtext {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .result-count {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .call-badge {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .call-badge.aberto {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .call-badge.atribuido, :where(:root:not([data-theme="dark"])) .call-badge.deslocamento {
+    color: #974c00
+}
+:where(:root:not([data-theme="dark"])) .call-badge.em-campo {
+    color: #00774d
+}
+:where(:root:not([data-theme="dark"])) .call-badge.finalizado {
+    color: #007743
+}
+:where(:root:not([data-theme="dark"])) .call-badge.cancelado {
+    color: #a63840
+}
+:where(:root:not([data-theme="dark"])) .unassigned {
+    color: #944f00
+}
+:where(:root:not([data-theme="dark"])) .back-button {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .call-detail-heading p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .detail-item span {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .detail-label {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .detail-label select, :where(:root:not([data-theme="dark"])) .detail-label textarea {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .assignment-note {
+    color: #5d6a7d
+}
+:where(:root:not([data-theme="dark"])) .save-message {
+    color: var(--green)
+}
+:where(:root:not([data-theme="dark"])) .history-tab {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .history-tab.active {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .history-tab b {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .history-avatar {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .history-avatar.log {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .history-item small {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .history-item p {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .history-item p b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .status.presence-online {
+    color: var(--green)
+}
+:where(:root:not([data-theme="dark"])) .status.presence-offline {
+    color: #5d6a7d
+}
+:where(:root:not([data-theme="dark"])) .status.presence-offline small {
+    color: #5f6a78
+}
+
+/* supervisor-overrides.css */
+:where(:root:not([data-theme="dark"])) .supervisor-heading h2 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .supervisor-meta span {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .supervisor-meta strong {
+    color: #0056d9
+}
+:where(:root:not([data-theme="dark"])) .team-member .avatar {
+    color: #0056d9
+}
+:where(:root:not([data-theme="dark"])) .team-member strong {
+    color: #243653
+}
+:where(:root:not([data-theme="dark"])) .team-empty {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .team-empty svg {
+    color: #556a87
+}
+:where(:root:not([data-theme="dark"])) .team-empty span {
+    color: #526783
+}
+:where(:root:not([data-theme="dark"])) .team-link {
+    color: #0056d9
+}
+
+/* attendance.css */
+:where(:root:not([data-theme="dark"])) .calls-table.attendance-table .sla-cell strong, :where(:root:not([data-theme="dark"])) .calls-table.attendance-table .sla-cell small {
+    color: inherit !important
+}
+:where(:root:not([data-theme="dark"])) .calls-table.attendance-table .sla-cell.on-time {
+    color: #00774d !important
+}
+:where(:root:not([data-theme="dark"])) .calls-table.attendance-table .sla-cell.late {
+    color: #8f5400 !important
+}
+:where(:root:not([data-theme="dark"])) .calls-table.attendance-table .sla-cell.outlier {
+    color: #ac2f37 !important
+}
+:where(:root:not([data-theme="dark"])) .attendance-table td strong, :where(:root:not([data-theme="dark"])) .range-call-table td strong {
+    color: #263b5a
+}
+:where(:root:not([data-theme="dark"])) .range-call-table td small {
+    color: #5b6a82
+}
+:where(:root:not([data-theme="dark"])) .range-call-table .empty-state-cell {
+    color: #5b6983
+}
+:where(:root:not([data-theme="dark"])) .sla-cell.on-time {
+    color: #00774d
+}
+:where(:root:not([data-theme="dark"])) .sla-cell.late {
+    color: #8f5400
+}
+:where(:root:not([data-theme="dark"])) .sla-cell.outlier {
+    color: #ac2f37
+}
+:where(:root:not([data-theme="dark"])) .timer-cell.on-time {
+    color: #00774d
+}
+:where(:root:not([data-theme="dark"])) .timer-cell.late {
+    color: #8f5400
+}
+:where(:root:not([data-theme="dark"])) .timer-cell.outlier {
+    color: #ac2f37
+}
+:where(:root:not([data-theme="dark"])) .timer-cell.empty {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .muted-cell {
+    color: #5f6a78
+}
+
+/* attendance-sla.css */
+:where(:root:not([data-theme="dark"])) .sla-duration.on-time {
+    color: #00774d
+}
+:where(:root:not([data-theme="dark"])) .sla-duration.late {
+    color: #8f5400
+}
+:where(:root:not([data-theme="dark"])) .sla-duration.outlier {
+    color: #ac2f37
+}
+
+/* region-select.css */
+:where(:root:not([data-theme="dark"])) .region-detail-select {
+    color: var(--ink)
+}
+
+/* notifications-overrides.css */
+:where(:root:not([data-theme="dark"])) .nav-count {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .activation-toast {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .activation-toast>svg:first-child {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .activation-toast small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .activation-toast>svg:last-child {
+    color: #5f6a7a
+}
+
+/* outcome.css */
+:where(:root:not([data-theme="dark"])) .required-checks span {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .required-checks span:before {
+    color: var(--green)
+}
+:where(:root:not([data-theme="dark"])) .cancel-button {
+    color: #a43a41
+}
+:where(:root:not([data-theme="dark"])) .delete-button {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .validation-error {
+    color: #a33c3e
+}
+
+/* activation.css */
+:where(:root:not([data-theme="dark"])) .activation-panel>.save-message {
+    color: #00774d
+}
+:where(:root:not([data-theme="dark"])) .activation-panel>.save-message::before {
+    color: #00774d
+}
+:where(:root:not([data-theme="dark"])) .activation-summary {
+    color: #5e6a7d
+}
+:where(:root:not([data-theme="dark"])) .activation-summary b {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .activation-bulk-actions {
+    color: #5e6a7d
+}
+:where(:root:not([data-theme="dark"])) .activation-main span {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .activation-icon {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .accept-button {
+    color: #00774e
+}
+:where(:root:not([data-theme="dark"])) .reject-button {
+    color: #a43a41
+}
+:where(:root:not([data-theme="dark"])) .activation-detail b {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .activation-detail p {
+    color: #58677d
+}
+:where(:root:not([data-theme="dark"])) .extracted-grid small {
+    color: #5f6a78
+}
+
+/* call-detail-overrides.css */
+:where(:root:not([data-theme="dark"])) .editable-detail-item input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .call-confirmation {
+    color: #167a57
+}
+:where(:root:not([data-theme="dark"])) .call-confirmation span {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .call-confirmation small {
+    color: #387761
+}
+
+/* imports.css */
+:where(:root:not([data-theme="dark"])) .import-stats {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .import-stats b {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .import-table-wrap th {
+    color: #5f6a79
+}
+:where(:root:not([data-theme="dark"])) .import-history-row div span {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .import-history-row>small {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .call-badge.previsualizada {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .call-badge.confirmada {
+    color: #00774e
+}
+:where(:root:not([data-theme="dark"])) .call-badge.falhou {
+    color: #a43a41
+}
+:where(:root:not([data-theme="dark"])) .historical-import-panel>.panel-heading p, :where(:root:not([data-theme="dark"])) .d0-import-panel>.panel-heading p {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .historical-import-target {
+    color: #334155
+}
+:where(:root:not([data-theme="dark"])) .historical-import-target.is-ready {
+    color: #14532d
+}
+:where(:root:not([data-theme="dark"])) .historical-import-target.is-demo {
+    color: #7c4a03
+}
+:where(:root:not([data-theme="dark"])) .historical-import-stats span {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .historical-import-stats b {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .historical-import-note, :where(:root:not([data-theme="dark"])) .historical-import-warning {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .historical-import-warning {
+    color: #9a3412
+}
+:where(:root:not([data-theme="dark"])) .historical-import-type-counts span {
+    color: #334155
+}
+
+/* dashboard.css */
+:where(:root:not([data-theme="dark"])) .manual-total-row {
+    color: #173a68
+}
+:where(:root:not([data-theme="dark"])) .manual-total-row td {
+    color: #173a68
+}
+:where(:root:not([data-theme="dark"])) .bar-item span {
+    color: #5f6a7a
+}
+:where(:root:not([data-theme="dark"])) .rank-row>span {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .manual-file-picker {
+    color: #173a68
+}
+:where(:root:not([data-theme="dark"])) .selected-file-name {
+    color: #475b79
+}
+:where(:root:not([data-theme="dark"])) .summary-badge {
+    color: #19345e
+}
+:where(:root:not([data-theme="dark"])) .summary-badge span {
+    color: #4f6a92
+}
+:where(:root:not([data-theme="dark"])) .manual-table thead th {
+    color: #31445d
+}
+:where(:root:not([data-theme="dark"])) .manual-table tbody td {
+    color: #2f4059
+}
+:where(:root:not([data-theme="dark"])) .danger-button {
+    color: #9f2d2d
+}
+
+/* igp.css */
+:where(:root:not([data-theme="dark"])) .igp-month-picker, :where(:root:not([data-theme="dark"])) .igp-area-picker {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .igp-month-picker input, :where(:root:not([data-theme="dark"])) .igp-area-picker select {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-table thead th {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .igp-table thead th small {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .igp-table tbody th {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-table td {
+    color: #526179
+}
+:where(:root:not([data-theme="dark"])) .igp-goal.hit {
+    color: #18744e
+}
+:where(:root:not([data-theme="dark"])) .igp-goal.minimum {
+    color: #8a6200
+}
+:where(:root:not([data-theme="dark"])) .igp-goal.miss {
+    color: #a83b43
+}
+:where(:root:not([data-theme="dark"])) .igp-goal.empty {
+    color: #5b6a80
+}
+:where(:root:not([data-theme="dark"])) .igp-methodology {
+    color: #44536a
+}
+:where(:root:not([data-theme="dark"])) .igp-methodology span {
+    color: #007748
+}
+
+/* manual-dashboard.css */
+:where(:root:not([data-theme="dark"])) .manual-base-status.is-ready {
+    color: #17643a
+}
+:where(:root:not([data-theme="dark"])) .manual-base-status.is-empty {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .manual-update-meta span {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .manual-update-meta strong {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .manual-update-meta small {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .manual-area-switch button {
+    color: #334155
+}
+:where(:root:not([data-theme="dark"])) .manual-area-switch button b {
+    color: #334155
+}
+:where(:root:not([data-theme="dark"])) .manual-area-switch button.active {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .manual-area-switch button.active b {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .manual-area-note, :where(:root:not([data-theme="dark"])) .manual-area-caption, :where(:root:not([data-theme="dark"])) .manual-area-message {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .manual-area-message {
+    color: #334155
+}
+:where(:root:not([data-theme="dark"])) .manual-area-message.is-error {
+    color: #9f2525
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .panel-heading .section-kicker {
+    color: #1754db
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .panel-heading h2 {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-table th {
+    color: #334155
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-table td {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-metric-cell.is-zero span {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-metric-pending.is-active span {
+    color: #1d4ed8
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-metric-en-route.is-active span {
+    color: #0e7490
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-metric-started.is-active span {
+    color: #905200
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-metric-concluded.is-active span {
+    color: #166534
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-metric-cancelled.is-active span {
+    color: #b42332
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-metric-suspended.is-active span {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-total-row td {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-screen .manual-total-cell {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .manual-technician-search {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .manual-technician-search input {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .manual-technician-search input::placeholder {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .manual-order-time {
+    color: #1e40af
+}
+:where(:root:not([data-theme="dark"])) .manual-order-time.is-alert {
+    color: #b42332
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-export .manual-dashboard-screen {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-export .manual-table td {
+    color: #0f172a !important
+}
+:where(:root:not([data-theme="dark"])) .manual-dashboard-export .manual-table th {
+    color: #334155 !important
+}
+
+/* sidebar.css */
+:where(:root:not([data-theme="dark"])) .nav-section-title {
+    color: #606a78
+}
+:where(:root:not([data-theme="dark"])) .nav-item:hover {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .nav-item.active:hover {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .nav-count.is-warning {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .breadcrumbs a {
+    color: #5e6a7b
+}
+:where(:root:not([data-theme="dark"])) .breadcrumbs a:hover {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .breadcrumbs span {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .sidebar-search {
+    color: #5d6a7d
+}
+:where(:root:not([data-theme="dark"])) .sidebar-search kbd {
+    color: #5d6a7d
+}
+:where(:root:not([data-theme="dark"])) .sidebar-search:hover {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) button.nav-section-title:hover {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .palette-search {
+    color: #5d6a7d
+}
+:where(:root:not([data-theme="dark"])) .palette-search kbd {
+    color: #5d6a7d
+}
+:where(:root:not([data-theme="dark"])) .palette-results button {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .palette-results button > svg {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .palette-kind {
+    color: #5b6b80
+}
+:where(:root:not([data-theme="dark"])) .palette-kind.is-call {
+    color: #8f5400
+}
+:where(:root:not([data-theme="dark"])) .palette-text small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .palette-hint {
+    color: var(--muted)
+}
+
+/* profile-photo.css */
+:where(:root:not([data-theme="dark"])) .profile-photo-camera {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .profile-photo-error {
+    color: #b42318 !important
+}
+:where(:root:not([data-theme="dark"])) .profile-avatar-link {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-avatar {
+    color: #173a71
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-info p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-info small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-banner {
+    color: #4a5a70
+}
+:where(:root:not([data-theme="dark"])) .history-banner-head strong {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .history-banner-head small {
+    color: #e4eaf3
+}
+
+/* admin.css */
+:where(:root:not([data-theme="dark"])) .admin-form label, :where(:root:not([data-theme="dark"])) .settings-fields label {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .admin-form input, :where(:root:not([data-theme="dark"])) .admin-form select, :where(:root:not([data-theme="dark"])) .admin-form textarea, :where(:root:not([data-theme="dark"])) .settings-fields input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .admin-form small {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .checkbox-label {
+    color: var(--ink) !important
+}
+:where(:root:not([data-theme="dark"])) .admin-form legend {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .settings-fields p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-item {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-icon {
+    color: var(--blue-deep)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-text em {
+    color: #137a52
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-text small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-block-head p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-group-title {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-tab {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-tab > svg {
+    color: var(--blue-deep)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-tab small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-tab.is-hidden > svg, :where(:root:not([data-theme="dark"])) .roles-v2-tab.is-hidden strong {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-perm {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-perm small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-dirty {
+    color: #8a5300
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-saved {
+    color: #137a52
+}
+:where(:root:not([data-theme="dark"])) .roles-v2-error {
+    color: #b4232c
+}
+
+/* settings-olt.css */
+:where(:root:not([data-theme="dark"])) .settings-olt-heading p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-toolbar>span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-add label {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-add input, :where(:root:not([data-theme="dark"])) .settings-olt-add select, :where(:root:not([data-theme="dark"])) .settings-olt-table select {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-table th {
+    color: #5d6a7e
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-table td:nth-child(3) {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-remove {
+    color: #a5393b
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-requests-heading h3 {
+    color: #1e293b
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-requests-heading p {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-requests-heading>span {
+    color: #855700
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-request-details strong {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-request-details small {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-request-region {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-request-region select {
+    color: #0f172a
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-ignore {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-requests-empty {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-add-region label {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .settings-olt-add-region input {
+    color: var(--ink)
+}
+
+/* observation-attachments.css */
+:where(:root:not([data-theme="dark"])) .observation-selected-file {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .observation-selected-file button {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .observation-selected-file button:hover {
+    color: #a5393b
+}
+:where(:root:not([data-theme="dark"])) .observation-attachment {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .observation-image-loading {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .observation-download-state {
+    color: var(--muted)
+}
+
+/* calls-layout.css */
+:where(:root:not([data-theme="dark"])) .calls-pagination {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .calls-pagination-controls>span {
+    color: #334155
+}
+:where(:root:not([data-theme="dark"])) .call-badge.atrelado {
+    color: #7e22ce
+}
+
+/* repeated-calls.css */
+:where(:root:not([data-theme="dark"])) .repeated-heading p {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .repeated-filters label {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .repeated-filters input {
+    color: #172033
+}
+:where(:root:not([data-theme="dark"])) .repeated-tab {
+    color: #475569
+}
+:where(:root:not([data-theme="dark"])) .repeated-tab.active {
+    color: #173a71
+}
+:where(:root:not([data-theme="dark"])) .repeated-tab span {
+    color: #334155
+}
+:where(:root:not([data-theme="dark"])) .repeated-table th {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .repeated-table td a {
+    color: #174a86
+}
+:where(:root:not([data-theme="dark"])) .repeated-table td small {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .quartile-1 {
+    color: #14772f
+}
+:where(:root:not([data-theme="dark"])) .quartile-2 {
+    color: #9b4a00
+}
+:where(:root:not([data-theme="dark"])) .quartile-3 {
+    color: #905200
+}
+:where(:root:not([data-theme="dark"])) .quartile-4 {
+    color: #b8141b
+}
+:where(:root:not([data-theme="dark"])) .repeated-total td {
+    color: #102d5a
+}
+:where(:root:not([data-theme="dark"])) .repeated-empty, :where(:root:not([data-theme="dark"])) .repeated-message {
+    color: #5a6a81
+}
+:where(:root:not([data-theme="dark"])) .repeated-message.is-error {
+    color: #b42318
+}
+:where(:root:not([data-theme="dark"])) .repeated-footnote {
+    color: #5a6a81
+}
+
+/* permissions.css */
+:where(:root:not([data-theme="dark"])) .permissions-catalog .permission-row span {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .permissions-catalog .permission-row small {
+    color: var(--muted)
+}
+
+/* filters.css */
+:where(:root:not([data-theme="dark"])) .search-field input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .result-count {
+    color: #5b6a7f
+}
+:where(:root:not([data-theme="dark"])) .toolbar-select, :where(:root:not([data-theme="dark"])) .table-filter-row select, :where(:root:not([data-theme="dark"])) .table-filter-row .toolbar-select {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .status-select {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .date-range-filter label, :where(:root:not([data-theme="dark"])) .table-filter-row .date-range-filter label {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .date-range-filter input, :where(:root:not([data-theme="dark"])) .table-filter-row .date-range-filter input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .bulk-delete-button {
+    color: #a43a41
+}
+:where(:root:not([data-theme="dark"])) .access-denied {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .access-denied h2 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .settings-danger-zone .section-kicker {
+    color: #a43a41
+}
+:where(:root:not([data-theme="dark"])) .settings-danger-zone p {
+    color: #5c6a7f
+}
+:where(:root:not([data-theme="dark"])) .notification-heading span {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .notification-item b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .notification-item small, :where(:root:not([data-theme="dark"])) .notification-empty {
+    color: var(--muted)
+}
+
+/* dashboards.css */
+:where(:root:not([data-theme="dark"])) .dv-segmented button {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .dv-segmented button:hover {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .dv-segmented button.is-selected {
+    color: var(--blue-deep)
+}
+:where(:root:not([data-theme="dark"])) .dv-section-title {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-section-title small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi-label {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi-label svg {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi-value {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi-note {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi-good .dv-kpi-label svg {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi-warning .dv-kpi-label svg {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-kpi-critical .dv-kpi-label svg, :where(:root:not([data-theme="dark"])) .dv-kpi-critical .dv-kpi-value {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-panel-meta {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-panel-link {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .dv-footnote {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-empty {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-empty.is-error, :where(:root:not([data-theme="dark"])) .dv-inline-error {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-rank-label {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .dv-rank b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-link-button {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-legend b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-legend small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-legend strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-legend em {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-legend .is-onTime svg {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-legend .is-late svg {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-legend .is-outlier svg {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-badge.is-onTime {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-badge.is-late {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-sla-badge.is-outlier {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-oldest a {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .dv-oldest-main b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-oldest-main small, :where(:root:not([data-theme="dark"])) .dv-oldest-tech {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-oldest-tech.is-missing {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-oldest-age {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-oldest a > svg {
+    color: #606a79
+}
+:where(:root:not([data-theme="dark"])) .dv-legend {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .dv-daily-axis {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-daily-column small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .dv-tooltip {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .dv-tooltip b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .dv-tooltip strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-goal-inline.is-hit {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-goal-inline.is-minimum {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-goal-inline.is-miss {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-trend-line span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .igp-trend-line.is-target span {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-trend-value {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-trend-value.is-empty {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .igp-trend-column small {
+    color: var(--muted)
+}
+
+/* calls-queue.css */
+:where(:root:not([data-theme="dark"])) .cq-tally .is-on-time {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-tally .is-late {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-tally .is-outlier {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-search {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .cq-search input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-search-clear {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .cq-search-clear:hover {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-status-tabs button {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .cq-status-tabs button:hover {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .cq-status-tabs button.is-selected {
+    color: var(--blue-deep)
+}
+:where(:root:not([data-theme="dark"])) .cq-field > span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .cq-field select, :where(:root:not([data-theme="dark"])) .cq-field input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-field.is-active > span {
+    color: var(--blue-deep)
+}
+:where(:root:not([data-theme="dark"])) .cq-filters-summary {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .cq-clear {
+    color: var(--blue-deep)
+}
+:where(:root:not([data-theme="dark"])) .cq-table th {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .cq-table td {
+    color: #40516a
+}
+:where(:root:not([data-theme="dark"])) .cq-table td strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-table td .table-subtext {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .cq-olt {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-table td .cq-olt-line {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .cq-clock strong {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .cq-table td .cq-clock strong {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .cq-clock.is-on-time {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-clock.is-late {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-clock.is-outlier {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-status {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-empty {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .cq-empty strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-empty.is-error strong {
+    color: var(--dv-critical-ink)
+}
+@media (max-width: 760px) {
+    :where(:root:not([data-theme="dark"])) .cq-row > td::before {
+        color: var(--muted)
+    }
+}
+:where(:root:not([data-theme="dark"])) .cq-sort {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .cq-sort:hover {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .cq-sort.is-active {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .cq-tab-count {
+    color: #5b6b80
+}
+:where(:root:not([data-theme="dark"])) .cq-status-tabs .is-selected .cq-tab-count {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .cq-action-error {
+    color: #b4232c
+}
+:where(:root:not([data-theme="dark"])) .cq-action-error button {
+    color: inherit
+}
+
+/* sla-analysis.css */
+:where(:root:not([data-theme="dark"])) .sa-dates label, :where(:root:not([data-theme="dark"])) .sa-area {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-dates input, :where(:root:not([data-theme="dark"])) .sa-area select {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-aside {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-table th {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-table td {
+    color: #40516a
+}
+:where(:root:not([data-theme="dark"])) .sa-table td strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-table td small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-table td b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-table tfoot td {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-lost.is-good {
+    color: var(--dv-good-ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-lost.is-warning {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-lost.is-critical {
+    color: var(--dv-critical-ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-hours-max {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-hour small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-legend {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-night-key {
+    color: #53627a
+}
+:where(:root:not([data-theme="dark"])) .sa-weekdays li > span:first-child {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-weekdays b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-insights h3, :where(:root:not([data-theme="dark"])) .sa-subtitle {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-insights ul {
+    color: #40516a
+}
+:where(:root:not([data-theme="dark"])) .sa-heatmap th {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .sa-heatmap td b {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .sa-heatmap td small {
+    color: #5b6b80
+}
+:where(:root:not([data-theme="dark"])) .sa-heatmap td.is-empty {
+    color: #606a78
+}
+
+/* update-notice.css */
+:where(:root:not([data-theme="dark"])) .update-notice-icon {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .update-notice h2 {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .update-notice p {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .image-toast-text strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .image-toast-text > span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .image-toast-close {
+    color: #5d6a7d
+}
+:where(:root:not([data-theme="dark"])) .image-toast-close:hover {
+    color: var(--ink)
+}
+
+/* due-soon.css */
+:where(:root:not([data-theme="dark"])) .due-soon-banner {
+    color: #b4232c
+}
+:where(:root:not([data-theme="dark"])) .due-soon-list button, :where(:root:not([data-theme="dark"])) .due-soon-open {
+    color: #8f1d24
+}
+:where(:root:not([data-theme="dark"])) .due-soon-list span {
+    color: #b4232c
+}
+
+/* tv-mode.css */
+:where(:root:not([data-theme="dark"])) .help-tip-button {
+    color: #5f6a78
+}
+:where(:root:not([data-theme="dark"])) .help-tip-button:hover, :where(:root:not([data-theme="dark"])) .help-tip-button[aria-expanded="true"] {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .help-tip-popover {
+    color: #40516a
+}
+:where(:root:not([data-theme="dark"])) .help-tip-popover strong {
+    color: var(--ink)
+}
+
+/* contrast-fixes.css */
+:where(:root:not([data-theme="dark"])) .role-row-button {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .avatar, :where(:root:not([data-theme="dark"])) .history-avatar, :where(:root:not([data-theme="dark"])) .cq-status-tabs .is-selected .cq-tab-count {
+    color: var(--blue-deep)
+}
+:where(:root:not([data-theme="dark"])) .status, :where(:root:not([data-theme="dark"])) .status.presence-online, :where(:root:not([data-theme="dark"])) .metric > small.positive {
+    color: #137a52
+}

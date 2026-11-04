@@ -35,7 +35,7 @@
     color: #93979e
 }
 :where(:root[data-theme="dark"]) .eyebrow, :where(:root[data-theme="dark"]) .section-kicker {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .intro-copy>p:last-child {
     color: #a4a9b0
@@ -69,7 +69,7 @@
 }
 :where(:root[data-theme="dark"]) .text-button, :where(:root[data-theme="dark"]) .link-button {
     background: none;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .demo-note {
     border-top: 1px solid var(--line);
@@ -103,17 +103,17 @@
 }
 :where(:root[data-theme="dark"]) .nav-item.active {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .nav-item.active svg {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .profile-mini {
     border-top: 1px solid var(--line)
 }
 :where(:root[data-theme="dark"]) .avatar, :where(:root[data-theme="dark"]) .topbar-avatar {
     background: #09182f;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .profile-mini small {
     color: #8f9398
@@ -124,7 +124,7 @@
 }
 :where(:root[data-theme="dark"]) .icon-button:hover {
     background: #13161d;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .topbar {
     border-bottom: 1px solid var(--line);
@@ -157,14 +157,14 @@
 }
 :where(:root[data-theme="dark"]) .secondary-button:hover, :where(:root[data-theme="dark"]) .select-button:hover {
     border-color: #30425d;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .metric, :where(:root[data-theme="dark"]) .panel {
     background: #181c22;
     border: 1px solid var(--line)
 }
 :where(:root[data-theme="dark"]) .metric-icon {
-    color: var(--blue);
+    color: var(--accent-text);
     background: #0f1722
 }
 :where(:root[data-theme="dark"]) .metric>span {
@@ -282,7 +282,7 @@
 }
 :where(:root[data-theme="dark"]) .role-symbol {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .role-row span {
     color: #909499
@@ -297,13 +297,13 @@
     border-top: 1px solid #31353c
 }
 :where(:root[data-theme="dark"]) .permission-row span {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .permission-row small {
     color: #91959a
 }
 :where(:root[data-theme="dark"]) .settings-icon {
-    color: var(--blue);
+    color: var(--accent-text);
     background: #0f1722
 }
 :where(:root[data-theme="dark"]) .settings-panel p {
@@ -360,7 +360,7 @@
     background: var(--green)
 }
 :where(:root[data-theme="dark"]) .team-status.field {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .team-status.field i {
     background: var(--blue)
@@ -381,7 +381,7 @@
     color: #909499
 }
 :where(:root[data-theme="dark"]) .supervisor-avatar {
-    color: var(--blue);
+    color: var(--accent-text);
     background: #0f1722
 }
 :where(:root[data-theme="dark"]) .team-member {
@@ -413,11 +413,11 @@
 }
 :where(:root[data-theme="dark"]) .call-badge {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .call-badge.aberto {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .call-badge.atribuido, :where(:root[data-theme="dark"]) .call-badge.deslocamento {
     background: #1f1305;
@@ -440,7 +440,7 @@
 }
 :where(:root[data-theme="dark"]) .back-button {
     background: none;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .call-detail-heading p {
     color: var(--muted)
@@ -483,12 +483,12 @@
     border-bottom: 2px solid transparent
 }
 :where(:root[data-theme="dark"]) .history-tab.active {
-    color: var(--blue);
+    color: var(--accent-text);
     border-color: var(--blue)
 }
 :where(:root[data-theme="dark"]) .history-tab b {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .observation-compose textarea {
     border: 1px solid #333c48;
@@ -503,7 +503,7 @@
 }
 :where(:root[data-theme="dark"]) .history-avatar {
     background: #09182f;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .history-avatar.log {
     background: #13161d;
@@ -677,7 +677,7 @@
 }
 :where(:root[data-theme="dark"]) .activation-toast>svg:first-child {
     background: #0e1725;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .activation-toast small {
     color: var(--muted)
@@ -739,7 +739,7 @@
     color: #91959b
 }
 :where(:root[data-theme="dark"]) .activation-summary b {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .activation-bulk-actions {
     border-bottom: 1px solid var(--line);
@@ -754,7 +754,7 @@
 }
 :where(:root[data-theme="dark"]) .activation-icon {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .accept-button {
     background: #091a14;
@@ -810,7 +810,7 @@
     color: #91959a
 }
 :where(:root[data-theme="dark"]) .import-stats b {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .import-table-wrap {
     border: 1px solid var(--line)
@@ -833,7 +833,7 @@
 }
 :where(:root[data-theme="dark"]) .call-badge.previsualizada {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .call-badge.confirmada {
     background: #091a14;
@@ -1160,7 +1160,7 @@
 }
 :where(:root[data-theme="dark"]) .nav-item.active:hover {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .nav-item:focus-visible {
     outline: 2px solid var(--blue)
@@ -1173,7 +1173,7 @@
     color: #989ca2
 }
 :where(:root[data-theme="dark"]) .breadcrumbs a:hover {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .breadcrumbs span {
     color: #878a8f
@@ -1198,7 +1198,7 @@
 }
 :where(:root[data-theme="dark"]) .sidebar-search:hover {
     border-color: #30425d;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) button.nav-section-title {
     background: none
@@ -1241,7 +1241,7 @@
     background: #0f1722
 }
 :where(:root[data-theme="dark"]) .palette-results button > svg {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .palette-kind {
     background: #13161d;
@@ -1289,6 +1289,35 @@
 :where(:root[data-theme="dark"]) .settings-profile-info small {
     color: var(--muted)
 }
+:where(:root[data-theme="dark"]) .settings-profile-banner {
+    background: linear-gradient(120deg, #0e1724, #0f1319) center / cover no-repeat;
+    color: #b6bcc4
+}
+:where(:root[data-theme="dark"]) .settings-profile-banner-actions .secondary-button {
+    background: #181c22eb;
+    box-shadow: 0 2px 8px #00000054
+}
+:where(:root[data-theme="dark"]) .settings-profile-avatar {
+    border: 4px solid #2c3038
+}
+:where(:root[data-theme="dark"]) .history-item.has-banner {
+    border: 1px solid var(--line);
+    background-color: #17233b
+}
+:where(:root[data-theme="dark"]) .history-banner-head {
+    background: linear-gradient(90deg, #0b1220bf 0%, #0b1220bf 55%, #0b122073 100%)
+}
+:where(:root[data-theme="dark"]) .history-banner-head strong {
+    color: #ffffff;
+    text-shadow: 0 1px 2px #00000099
+}
+:where(:root[data-theme="dark"]) .history-banner-head small {
+    color: #e4eaf3;
+    text-shadow: 0 1px 2px #00000099
+}
+:where(:root[data-theme="dark"]) .history-banner-body {
+    background: #181c22eb
+}
 
 /* admin.css */
 :where(:root[data-theme="dark"]) .brand-logo-image {
@@ -1335,6 +1364,87 @@
 }
 :where(:root[data-theme="dark"]) .settings-fields p {
     color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .roles-v2-item {
+    background: transparent;
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .roles-v2-item:hover {
+    background: #13161d
+}
+:where(:root[data-theme="dark"]) .roles-v2-item.is-selected {
+    background: #0f1722;
+    box-shadow: inset 3px 0 0 var(--blue)
+}
+:where(:root[data-theme="dark"]) .roles-v2-icon {
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .roles-v2-text em {
+    background: #031c12;
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .roles-v2-text small {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .roles-v2-block-head p {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .roles-v2-tab-group, :where(:root[data-theme="dark"]) .roles-v2-perm-group {
+    border: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .roles-v2-group-title {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .roles-v2-tab {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .roles-v2-tab > svg {
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .roles-v2-tab small {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .roles-v2-tab.is-hidden > svg, :where(:root[data-theme="dark"]) .roles-v2-tab.is-hidden strong {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .role-toggle {
+    background: #121e2d
+}
+:where(:root[data-theme="dark"]) .role-toggle i {
+    background: #181c22;
+    box-shadow: 0 1px 3px #0000008d
+}
+:where(:root[data-theme="dark"]) .role-toggle.is-on {
+    background: #137a52
+}
+:where(:root[data-theme="dark"]) .role-toggle:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .roles-v2-perm {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .roles-v2-perm:hover {
+    background: #10141a
+}
+:where(:root[data-theme="dark"]) .roles-v2-perm input {
+    accent-color: var(--blue)
+}
+:where(:root[data-theme="dark"]) .roles-v2-perm small {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .roles-v2-savebar {
+    border-top: 1px solid var(--line);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .roles-v2-dirty {
+    color: #e6a968
+}
+:where(:root[data-theme="dark"]) .roles-v2-saved {
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .roles-v2-error {
+    color: #ff8a84
 }
 
 /* settings-olt.css */
@@ -1556,7 +1666,7 @@
     border-top: 1px solid var(--line)
 }
 :where(:root[data-theme="dark"]) .permissions-catalog .permission-row span {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .permissions-catalog .permission-row small {
     color: var(--muted)
@@ -1637,7 +1747,7 @@
 }
 :where(:root[data-theme="dark"]) .notification-heading span {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .notification-item {
     border-bottom: 1px solid #31353c;
@@ -1679,11 +1789,11 @@
     color: #b1b6be
 }
 :where(:root[data-theme="dark"]) .dv-segmented button:hover {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .dv-segmented button.is-selected {
     background: #0f1722;
-    color: var(--blue-deep);
+    color: var(--accent-text);
     box-shadow: inset 0 0 0 1px #0c1a32
 }
 :where(:root[data-theme="dark"]) .dv-segmented button:focus-visible, :where(:root[data-theme="dark"]) .dv-link-button:focus-visible, :where(:root[data-theme="dark"]) .dv-daily-column:focus-visible, :where(:root[data-theme="dark"]) .dv-kpi.is-link:focus-visible, :where(:root[data-theme="dark"]) .dv-oldest a:focus-visible {
@@ -1741,7 +1851,7 @@
     color: var(--muted)
 }
 :where(:root[data-theme="dark"]) .dv-panel-link {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .dv-footnote {
     color: var(--muted)
@@ -1775,7 +1885,7 @@
 }
 :where(:root[data-theme="dark"]) .dv-link-button {
     background: none;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .dv-sla-bar {
     background: var(--dv-track)
@@ -1992,11 +2102,11 @@
     color: #b1b6be
 }
 :where(:root[data-theme="dark"]) .cq-status-tabs button:hover {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .cq-status-tabs button.is-selected {
     background: #0f1722;
-    color: var(--blue-deep);
+    color: var(--accent-text);
     box-shadow: inset 0 0 0 1px #0c1a32
 }
 :where(:root[data-theme="dark"]) .cq-status-tabs button:focus-visible {
@@ -2011,7 +2121,7 @@
     color: var(--ink)
 }
 :where(:root[data-theme="dark"]) .cq-field.is-active > span {
-    color: var(--blue-deep)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .cq-field.is-active select, :where(:root[data-theme="dark"]) .cq-field.is-active input {
     border-color: #314a6f;
@@ -2025,7 +2135,7 @@
 }
 :where(:root[data-theme="dark"]) .cq-clear {
     background: none;
-    color: var(--blue-deep)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .cq-clear:hover {
     background: #0f1722
@@ -2156,7 +2266,7 @@
     color: var(--ink)
 }
 :where(:root[data-theme="dark"]) .cq-sort.is-active {
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .cq-sort:focus-visible {
     outline: 2px solid var(--blue)
@@ -2167,7 +2277,7 @@
 }
 :where(:root[data-theme="dark"]) .cq-status-tabs .is-selected .cq-tab-count {
     background: #0b182f;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .cq-action-error {
     border: 1px solid #623136;
@@ -2350,7 +2460,7 @@
 }
 :where(:root[data-theme="dark"]) .update-notice-icon {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .update-notice h2 {
     color: var(--ink)
@@ -2412,7 +2522,7 @@
 }
 :where(:root[data-theme="dark"]) .help-tip-button:hover, :where(:root[data-theme="dark"]) .help-tip-button[aria-expanded="true"] {
     background: #0f1722;
-    color: var(--blue)
+    color: var(--accent-text)
 }
 :where(:root[data-theme="dark"]) .help-tip-popover {
     border: 1px solid var(--line);
@@ -2438,7 +2548,7 @@
     color: #8e9297
 }
 :where(:root[data-theme="dark"]) .tv-tabs button.is-active {
-    background: #2170f5;
+    background: #1a5fd6;
     color: #ffffff
 }
 :where(:root[data-theme="dark"]) .tv-controls button {
@@ -2530,4 +2640,31 @@
 }
 :where(:root[data-theme="dark"]) .tv-rank li small {
     color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-mode .tv-oldest td, :where(:root[data-theme="dark"]) .tv-mode .tv-oldest td strong, :where(:root[data-theme="dark"]) .tv-mode .tv-card, :where(:root[data-theme="dark"]) .tv-mode .tv-bars li, :where(:root[data-theme="dark"]) .tv-mode .tv-rank li {
+    color: #e6ebf2
+}
+:where(:root[data-theme="dark"]) .tv-mode .tv-oldest td strong {
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .tv-mode .tv-muted, :where(:root[data-theme="dark"]) .tv-mode .tv-oldest td .tv-muted {
+    color: #878a8f
+}
+
+/* contrast-fixes.css */
+:where(:root[data-theme="dark"]) .role-row-button {
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-theme="dark"]) .nav-count {
+    background: #c42e3b
+}
+:where(:root[data-theme="dark"]) .avatar, :where(:root[data-theme="dark"]) .history-avatar, :where(:root[data-theme="dark"]) .cq-status-tabs .is-selected .cq-tab-count {
+    color: var(--accent-text)
+}
+:root:where([data-theme="dark"]) {
+    --muted: #adb1b8
+}
+:where(:root[data-theme="dark"]) .status, :where(:root[data-theme="dark"]) .status.presence-online, :where(:root[data-theme="dark"]) .metric > small.positive {
+    color: #73cda0
 }

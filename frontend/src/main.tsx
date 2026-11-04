@@ -36,7 +36,9 @@ import './sla-analysis.css';
 import './update-notice.css';
 import './due-soon.css';
 import './tv-mode.css';
+import './contrast-fixes.css';
 import './theme-dark.css';
 import './theme-dark-manual.css';
+import './theme-light-contrast.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

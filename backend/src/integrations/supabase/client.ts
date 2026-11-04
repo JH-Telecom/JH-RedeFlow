@@ -52,7 +52,7 @@ export async function authenticateSupabaseUser(email: string, password: string) 
 export async function getSupabaseProfile(id: string, createdAt?: string) {
   const { data: profile, error: profileError } = await getSupabaseAdmin()
     .from('profiles')
-    .select('id, name, email, role_id, active, password_change_required, created_at, roles(id, name, description, role_permissions(permissions(code)))')
+    .select('id, name, email, role_id, active, password_change_required, created_at, roles(id, name, description, hidden_tabs, role_permissions(permissions(code)))')
     .eq('id', id)
     .maybeSingle();
   if (profileError || !profile || profile.active === false) return null;
@@ -63,13 +63,13 @@ export async function getSupabaseProfile(id: string, createdAt?: string) {
     const permissionRows = Array.isArray(item.permissions) ? item.permissions : item.permissions ? [item.permissions] : [];
     return permissionRows.map((permission) => permission.code).filter(Boolean);
   });
-  return { id: profileRecord.id, name: profileRecord.name, email: profileRecord.email, roleId: profileRecord.role_id, active: profileRecord.active, createdAt: createdAt || profileRecord.created_at, mustChangePassword: profileRecord.password_change_required, role: { id: role?.id || profileRecord.role_id, name: role?.name || 'Sem cargo', description: role?.description || '', permissions } };
+  return { id: profileRecord.id, name: profileRecord.name, email: profileRecord.email, roleId: profileRecord.role_id, active: profileRecord.active, createdAt: createdAt || profileRecord.created_at, mustChangePassword: profileRecord.password_change_required, role: { id: role?.id || profileRecord.role_id, name: role?.name || 'Sem cargo', description: role?.description || '', permissions, hiddenTabs: Array.isArray(role?.hidden_tabs) ? role.hidden_tabs : [] } };
 }
 
 export async function getSupabaseUserAvatar(userId: string): Promise<string | null> {
   const { data, error } = await getSupabaseAdmin().from('user_avatars').select('data_url').eq('user_id', userId).maybeSingle();
   if (error) throw new Error(error.message);
-  return data?.data_url || null;
+  return data?.data_url || null; // "" = so tem banner, sem foto
 }
 
 export async function saveSupabaseUserAvatar(userId: string, dataUrl: string): Promise<boolean> {
@@ -79,14 +79,45 @@ export async function saveSupabaseUserAvatar(userId: string, dataUrl: string): P
 }
 
 export async function deleteSupabaseUserAvatar(userId: string): Promise<void> {
-  const { error } = await getSupabaseAdmin().from('user_avatars').delete().eq('user_id', userId);
+  // Com banner, so limpa a foto (data_url e obrigatorio: '' = sem foto); sem banner, apaga a linha.
+  const { data } = await getSupabaseAdmin().from('user_avatars').select('banner_data_url').eq('user_id', userId).maybeSingle();
+  const query = data?.banner_data_url
+    ? getSupabaseAdmin().from('user_avatars').update({ data_url: '', updated_at: new Date().toISOString() }).eq('user_id', userId)
+    : getSupabaseAdmin().from('user_avatars').delete().eq('user_id', userId);
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+}
+
+// Banner do perfil (fundo das observacoes do usuario nos chamados).
+export async function getSupabaseUserBanners(userIds: string[]): Promise<Record<string, string>> {
+  if (!userIds.length) return {};
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('user_id, banner_data_url').in('user_id', userIds).not('banner_data_url', 'is', null);
+  if (error) throw new Error(error.message);
+  return Object.fromEntries((data || []).filter((row) => row.banner_data_url).map((row) => [row.user_id, row.banner_data_url as string]));
+}
+
+export async function saveSupabaseUserBanner(userId: string, bannerDataUrl: string | null): Promise<void> {
+  const admin = getSupabaseAdmin();
+  const { data: existing, error: readError } = await admin.from('user_avatars').select('user_id, data_url').eq('user_id', userId).maybeSingle();
+  if (readError) throw new Error(readError.message);
+  const now = new Date().toISOString();
+  if (!existing) {
+    if (!bannerDataUrl) return;
+    const { error } = await admin.from('user_avatars').insert({ user_id: userId, data_url: '', banner_data_url: bannerDataUrl, updated_at: now });
+    if (error) throw new Error(error.message);
+    return;
+  }
+  // Sem foto e sem banner: a linha nao tem mais o que guardar.
+  const { error } = !bannerDataUrl && !existing.data_url
+    ? await admin.from('user_avatars').delete().eq('user_id', userId)
+    : await admin.from('user_avatars').update({ banner_data_url: bannerDataUrl, updated_at: now }).eq('user_id', userId);
   if (error) throw new Error(error.message);
 }
 
 export async function listSupabaseUsers() {
   const { data, error } = await getSupabaseAdmin()
     .from('profiles')
-    .select('id, name, email, role_id, active, password_change_required, created_at, roles(id, name, description, role_permissions(permissions(code)))')
+    .select('id, name, email, role_id, active, password_change_required, created_at, roles(id, name, description, hidden_tabs, role_permissions(permissions(code)))')
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
@@ -306,7 +337,7 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
 export async function getSupabaseRole(roleId: string) {
   const { data, error } = await getSupabaseAdmin()
     .from('roles')
-    .select('id, name, description, role_permissions(permissions(code))')
+    .select('id, name, description, hidden_tabs, role_permissions(permissions(code))')
     .eq('id', roleId)
     .is('deleted_at', null)
     .maybeSingle();
@@ -317,13 +348,13 @@ export async function getSupabaseRole(roleId: string) {
     const values = Array.isArray(item.permissions) ? item.permissions : item.permissions ? [item.permissions] : [];
     return values.map((permission) => permission.code).filter(Boolean);
   });
-  return { id: record.id, name: record.name, description: record.description || '', permissions };
+  return { id: record.id, name: record.name, description: record.description || '', permissions, hiddenTabs: Array.isArray(record.hidden_tabs) ? record.hidden_tabs : [] };
 }
 
 export async function listSupabaseRoles() {
   const { data, error } = await getSupabaseAdmin()
     .from('roles')
-    .select('id, name, description, role_permissions(permissions(code))')
+    .select('id, name, description, hidden_tabs, role_permissions(permissions(code))')
     .is('deleted_at', null)
     .order('name');
   if (error) throw new Error(error.message);
@@ -333,7 +364,7 @@ export async function listSupabaseRoles() {
       const values = Array.isArray(item.permissions) ? item.permissions : item.permissions ? [item.permissions] : [];
       return values.map((permission) => permission.code).filter(Boolean);
     });
-    return { id: record.id, name: record.name, description: record.description || '', permissions };
+    return { id: record.id, name: record.name, description: record.description || '', permissions, hiddenTabs: Array.isArray(record.hidden_tabs) ? record.hidden_tabs : [] };
   });
 }
 

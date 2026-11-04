@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
-import { changeSupabaseUserPassword, createSupabaseUser, deleteSupabaseUserAvatar, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseRoles, listSupabaseUsers, saveSupabaseUserAvatar, updateSupabaseUser } from "../integrations/supabase/client.js";
+import { changeSupabaseUserPassword, createSupabaseUser, deleteSupabaseUserAvatar, getSupabaseUserBanners, saveSupabaseUserBanner, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseRoles, listSupabaseUsers, saveSupabaseUserAvatar, updateSupabaseUser } from "../integrations/supabase/client.js";
 import type { AuthUser, PermissionCode, Role, User } from "../types.js";
-import { allPermissions, ensureDemoData, permissionDescriptions, roles, userAvatars, users } from "./demo-data.js";
+import { allPermissions, ensureDemoData, permissionDescriptions, roles, userAvatars, userBanners, users } from "./demo-data.js";
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 
@@ -114,11 +114,11 @@ export async function deleteUser(id: string): Promise<boolean> {
   return users.delete(id);
 }
 
-export async function addRole(input: { name: string; description: string; permissions: PermissionCode[] }): Promise<Role> {
+export async function addRole(input: { name: string; description: string; permissions: PermissionCode[]; hiddenTabs?: string[] }): Promise<Role> {
   if (isSupabaseConfigured()) {
     try {
       const admin = getSupabaseAdmin();
-      const { data: roleData, error: roleError } = await admin.from('roles').insert({ name: input.name, description: input.description }).select('id, name, description').single();
+      const { data: roleData, error: roleError } = await admin.from('roles').insert({ name: input.name, description: input.description, hidden_tabs: input.hiddenTabs ?? [] }).select('id, name, description').single();
       if (roleError || !roleData) throw new Error(roleError?.message || 'Nao foi possivel criar o cargo no Supabase.');
 
       if (input.permissions.length) {
@@ -131,27 +131,28 @@ export async function addRole(input: { name: string; description: string; permis
         }
       }
 
-      return { id: roleData.id, name: roleData.name, description: roleData.description || '', permissions: input.permissions };
+      return { id: roleData.id, name: roleData.name, description: roleData.description || '', permissions: input.permissions, hiddenTabs: input.hiddenTabs ?? [] };
     } catch (error) {
       const message = error instanceof Error && error.message ? error.message : 'Nao foi possivel criar o cargo no Supabase.';
         throw new Error(`Supabase indisponivel ao criar o cargo. ${message}`);
     }
   }
 
-  const role: Role = { id: `role-${crypto.randomUUID()}`, name: input.name, description: input.description, permissions: input.permissions };
+  const role: Role = { id: `role-${crypto.randomUUID()}`, name: input.name, description: input.description, permissions: input.permissions, hiddenTabs: input.hiddenTabs ?? [] };
   roles.push(role);
   return role;
 }
 
-export async function updateRole(id: string, input: { name?: string; description?: string; permissions?: PermissionCode[] }): Promise<Role | undefined> {
+export async function updateRole(id: string, input: { name?: string; description?: string; permissions?: PermissionCode[]; hiddenTabs?: string[] }): Promise<Role | undefined> {
   if (isSupabaseConfigured()) {
     try {
       const admin = getSupabaseAdmin();
 
-      if (input.name !== undefined || input.description !== undefined) {
-        const updatePayload: Record<string, string> = {};
+      if (input.name !== undefined || input.description !== undefined || input.hiddenTabs !== undefined) {
+        const updatePayload: Record<string, string | string[]> = {};
         if (input.name !== undefined) updatePayload.name = input.name;
         if (input.description !== undefined) updatePayload.description = input.description;
+        if (input.hiddenTabs !== undefined) updatePayload.hidden_tabs = input.hiddenTabs;
         const { error: updateRoleError } = await admin.from('roles').update(updatePayload).eq('id', id).is('deleted_at', null);
         if (updateRoleError) throw new Error(updateRoleError.message || 'Nao foi possivel atualizar o cargo no Supabase.');
       }
@@ -184,4 +185,16 @@ export async function updateRole(id: string, input: { name?: string; description
   if (!role) return undefined;
   Object.assign(role, input);
   return role;
+}
+
+// Banner do perfil: imagem larga ao fundo das observacoes do usuario nos chamados.
+export async function getUserBanners(userIds: string[]): Promise<Record<string, string>> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (isSupabaseConfigured()) return await getSupabaseUserBanners(ids);
+  return Object.fromEntries(ids.filter((id) => userBanners.has(id)).map((id) => [id, userBanners.get(id)!]));
+}
+
+export async function saveUserBanner(userId: string, bannerDataUrl: string | null): Promise<void> {
+  if (isSupabaseConfigured()) return await saveSupabaseUserBanner(userId, bannerDataUrl);
+  if (bannerDataUrl) userBanners.set(userId, bannerDataUrl); else userBanners.delete(userId);
 }

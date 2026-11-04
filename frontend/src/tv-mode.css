@@ -14,7 +14,7 @@
 .tv-brand span { color: #8d99ab; font-size: 13px; }
 .tv-tabs { display: flex; gap: 6px; margin: 0 auto; padding: 4px; border-radius: 10px; background: #171d27; }
 .tv-tabs button { padding: 8px 16px; border-radius: 7px; background: none; color: #8d99ab; font-size: 15px; font-weight: 600; }
-.tv-tabs button.is-active { background: #2170f5; color: #fff; }
+.tv-tabs button.is-active { background: #1a5fd6; color: #fff; }
 .tv-controls { display: flex; align-items: center; gap: 6px; }
 .tv-controls button { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: #171d27; color: #b7c1cf; }
 .tv-controls button:hover { background: #222a36; color: #fff; }
@@ -59,3 +59,8 @@
 .tv-rank li strong { display: inline-block; width: 15%; text-align: right; }
 .tv-rank li small { display: inline-block; width: 22%; color: #8d99ab; font-size: 15px; text-align: right; }
 @media (max-width: 1100px) { .tv-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tv-split { grid-template-columns: 1fr; } .tv-header { flex-wrap: wrap; } }
+
+/* O modo TV e escuro nos dois temas: o texto nao herda as cores do tema claro (ficava azul-escuro sobre escuro). */
+.tv-mode .tv-oldest td, .tv-mode .tv-oldest td strong, .tv-mode .tv-card, .tv-mode .tv-bars li, .tv-mode .tv-rank li { color: #e6ebf2; }
+.tv-mode .tv-oldest td strong { color: #fff; }
+.tv-mode .tv-muted, .tv-mode .tv-oldest td .tv-muted { color: #9aa6b6; }

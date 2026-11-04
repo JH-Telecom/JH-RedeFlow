@@ -1,0 +1,13 @@
+/* Correcoes de contraste encontradas na auditoria (texto >= 4.5:1). Vale para os dois temas;
+   a versao escura destas regras e gerada automaticamente. */
+
+/* Botao de cada cargo nao tinha fundo: aparecia o cinza padrao do navegador (#f0f0f0 / #6b6b6b no escuro). */
+.role-row-button { background: transparent; color: inherit; }
+/* Contador vermelho do menu: branco sobre vermelho mais fechado. */
+.nav-count { background: #c42e3b; }
+/* Azul sobre fundo azul clarinho: usa o azul escuro da marca. */
+.avatar, .history-avatar, .cq-status-tabs .is-selected .cq-tab-count { color: var(--blue-deep); }
+/* Texto secundario (--muted) passa de 4.1:1 para ~5.3:1 sobre branco. */
+:root { --muted: #5b697e; }
+/* Verde usado como texto ("Online", "Ativo", setas de alta): verde mais fechado; a bolinha continua no verde da marca. */
+.status, .status.presence-online, .metric > small.positive { color: #137a52; }
