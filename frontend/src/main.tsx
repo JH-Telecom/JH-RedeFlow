@@ -31,5 +31,6 @@ import './filters.css';
 import './refresh.css';
 import './dashboards.css';
 import './page-transition.css';
+import './calls-queue.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

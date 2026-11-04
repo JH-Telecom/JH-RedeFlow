@@ -3162,3 +3162,38 @@ Trocar o efeito de "pisca" ao mudar de aba no menu. A tela antiga sumia de uma v
 ### Pendências
 - Fazer a importação em produção depois do deploy (Importações → Selecionar XLSX → conferir a prévia → Importar).
 - Decidir o que fazer com as linhas que ficam de fora: sem card (594) ou sem datas (cerca de 1.080).
+
+## 2026-11-04 — Telas de chamados redesenhadas (Abertos, Em atendimento, Finalizados)
+
+### Pedido
+Redesenhar as telas de listas de chamados e os filtros.
+
+### Implementado (`frontend/src/pages/CallsPage.tsx`, novo `frontend/src/calls-queue.css`)
+- **Filtros sempre visíveis e com rótulo**: Região, Bairro, OLT e Período ("Abertos de"/"Encerrados de" e "Até"). Antes ficavam escondidos atrás de "Filtros", em caixas sem nome ("Todas"/"Todos").
+  - Busca com botão de limpar.
+  - Status como botões, só onde faz sentido (Em atendimento: Atribuído/Deslocamento/Em campo; Finalizados: Finalizado/Cancelado/Baixar).
+  - Filtro ativo fica destacado em azul; "Limpar filtros (n)" aparece quando há algum.
+  - Corrigido: as listas de Região e Bairro eram montadas só com os chamados da página atual e "sumiam" ao filtrar. Agora Região usa as regiões oficiais e Bairro mantém a opção selecionada.
+- **Relógio da regra 6h/9h** em cada linha:
+  - tempo na fila em destaque;
+  - barra até 9h com marca nas 6h;
+  - classificação No prazo / Fora do prazo / Outlier;
+  - faixa colorida na borda esquerda da linha.
+  - Em Finalizados, o mesmo relógio mostra o tempo total (abertura até a Data Fim) e a classificação no encerramento.
+- **Resumo no cabeçalho**: "X no prazo, Y fora do prazo e Z outliers" (da página atual quando há mais de uma página).
+- **Colunas enxutas**:
+  - Abertos tirou Técnico (sempre "Sem técnico") e Data Fim (sempre vazia).
+  - Em atendimento tirou Afet. e Data Fim (sempre vazias). A OLT foi para "Local e OLT", e a observação ficou junto do timer da última observação.
+  - Finalizados ganhou "Tempo total".
+- Status interno em caixa colorida por estado. A ordem vem em destaque, com BDESK e o selo "Atrelada" logo abaixo.
+- **Estados vazio e de erro com direção**: "Nenhum chamado com esses filtros" + "Limpar filtros"; erro com "Tentar de novo". A lista não pisca ao atualizar: fica esmaecida durante a carga.
+- **Acessibilidade e celular**:
+  - linhas abrem com Enter e têm foco visível;
+  - no celular cada chamado vira um cartão com rótulos.
+- "Copiar imagem" ajustado: as larguras acompanham as colunas novas, e a caixa de status exporta só o valor escolhido (antes trazia todas as opções).
+- Textos: "1 chamado"/"N chamados", "Técnico", "OPERAÇÃO" com acento.
+
+### Validação
+- Build do frontend OK.
+- Capturas em Chrome headless (modo demo) das três telas a 1440 px e do celular a 500 px.
+- Testado no navegador: filtro por status, estado vazio e "Limpar filtros".
