@@ -3426,3 +3426,20 @@ A abertura do chamado criado por acionamento usava o horário do clique em Aceit
 ### Validação
 - Testes do parser e da abertura no Aceitar. Suíte: 130/130. tsc backend e frontend OK.
 - Chamados já criados por acionamento: 3 (610151196050102, 610011417080102, 610011231680102), corrigidos com autorização do usuário: abertura = horário da mensagem e evento preenchido (11:39, 08:59, 08:59).
+
+## 2026-11-04 — Importação "Em campo hoje": status GIGA, abertura pelo envio no grupo e data do evento
+
+### Problema
+"Em campo hoje.xlsx" (23 linhas) tinha 8 linhas com STATUS "GIGA", que eram recusadas. Seis DATA EVENTO digitadas como "4/11/26" eram lidas como 11/04. A abertura vinha da DATA EVENTO, e não do envio do card no grupo.
+
+### Implementado (`backend/src/imports/current-calls.ts`)
+- STATUS **GIGA** (em campo, monitorado pela GIGA+) entra como Pendente (Aberto), por decisão do usuário.
+- Abertura = **DATA/HORA ACIONAMENTO** (envio no grupo), a mesma regra do Aceitar acionamento. A **DATA EVENTO** vai para `eventAt`. Sem acionamento, a abertura usa o evento.
+- `fixSwappedEventDate`: se o evento cair fora da janela de 3 dias antes do envio no grupo, tenta com dia e mês trocados, no relógio de São Paulo.
+- `store/calls.ts`: as inserções gravam `event_at`.
+
+### Validação
+- Planilha real: 23 de 23 linhas lidas (antes eram 15), com eventos de 04/11 corretos.
+- Os 9 Finalizados sem Data-Fim continuam sendo importados sem data fim, como antes, e não entram no IGP até ter a data.
+- Linha 4 (610150284850102) tem acionamento 08:08 antes do evento 17:38 e repete a O.S. da linha 6 (Cancelado); a prévia junta as duas.
+- Novo teste em `current-calls.test.ts`. Suíte 130/130 + novo teste. tsc OK.

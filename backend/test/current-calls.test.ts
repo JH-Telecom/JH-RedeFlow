@@ -69,3 +69,21 @@ test('reads the "Em campo" layout without STATUS, with the card in a CARD column
   assert.equal(withoutCard.olt, 'VIP-GZ1-SPO-OHW-03');
   assert.equal(withoutTechnician.status, 'Aberto');
 });
+
+test('GIGA counts as pending, opening is the group send time and swapped event dates are fixed', () => {
+  // Serial do Excel no relogio de Sao Paulo: 46123.37430555555 = "4/11/26 8:59" lido como 11 de abril.
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet([
+    ['STATUS', 'ORDEM', 'TÉCNICO', 'DATA EVENTO', 'DATA/HORA ACIONAMENTO', 'AREA', 'acionamento'],
+    ['GIGA', 610011231680102, 'Robson', 46123.37430555555, 46330.390648148146, 'PALMEIRAS', 'card'],
+    ['Pendente', 12665328, 'Antonio', 46330.475694444445, 46330.475694444445, 'CIDADE TIRADENTES 1', 'card'],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Planilha1');
+  const parsed = parseCurrentCallsWorkbook('Em campo hoje.xlsx', XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer);
+  assert.deepEqual(parsed.invalidRows, []);
+  const [giga, pending] = parsed.candidates.map(({ call }) => call);
+  assert.equal(giga.status, 'Aberto');
+  assert.equal(giga.openedAt, '2026-11-04T12:22:32.000Z', 'abertura = envio no grupo (09:22 SP)');
+  assert.equal(giga.eventAt, '2026-11-04T11:59:00.000Z', 'evento 04/11 08:59 SP, nao 11/04');
+  assert.equal(pending.eventAt, pending.openedAt);
+});

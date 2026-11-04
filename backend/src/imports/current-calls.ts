@@ -44,6 +44,23 @@ function parseWorkbookDate(value: unknown): string | undefined {
   return date.toISOString();
 }
 
+// Celulas digitadas como "4/11/26" (dia/mes) viram 11 de abril no Excel americano. Se o evento cair
+// fora da janela de 3 dias antes do envio no grupo, testamos com dia e mes trocados; o evento nao pode
+// ser depois do envio (com 1h de tolerancia). Sem data de envio, mantem o valor lido.
+function fixSwappedEventDate(eventAt: string | undefined, sentAt: string | undefined): string | undefined {
+  if (!eventAt || !sentAt) return eventAt;
+  const sent = new Date(sentAt).getTime();
+  const fits = (iso: string) => { const time = new Date(iso).getTime(); return time <= sent + 3_600_000 && time >= sent - 3 * 86_400_000; };
+  if (fits(eventAt)) return eventAt;
+  const event = new Date(new Date(eventAt).getTime() - 3 * 3_600_000); // relogio de Sao Paulo
+  const day = event.getUTCDate();
+  const month = event.getUTCMonth() + 1;
+  if (day > 12) return eventAt;
+  const swapped = new Date(Date.UTC(event.getUTCFullYear(), day - 1, month, event.getUTCHours() + 3, event.getUTCMinutes(), event.getUTCSeconds()));
+  const valid = new Date(swapped.getTime() - 3 * 3_600_000).getUTCDate() === month;
+  return valid && fits(swapped.toISOString()) ? swapped.toISOString() : eventAt;
+}
+
 function normalizeIdentifier(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
@@ -62,7 +79,8 @@ function getCell(row: unknown[], indexes: Map<string, number>, ...aliases: strin
 function parseStatus(value: unknown): CallStatus | undefined {
   const status = normalizeHeader(value);
   if (status === 'finalizado') return 'Finalizado';
-  if (status === 'pendente' || status === 'aberto') return 'Aberto';
+  // GIGA: em campo, monitorado pela GIGA+ -> tratado como Pendente (Aberto), por decisao do usuario.
+  if (status === 'pendente' || status === 'aberto' || status === 'giga') return 'Aberto';
   if (status === 'baixar') return 'Baixar';
   if (status === 'cancelado') return 'Cancelado';
   if (status === 'atribuido') return 'Atribuido';
@@ -98,7 +116,10 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
     const status = hasStatusColumn ? parseStatus(getCell(row, indexes, 'STATUS')) : rowTechnician ? 'Em campo' : 'Aberto';
     const rawOrder = getCell(row, indexes, 'ORDEM');
     const orderNumber = typeof rawOrder === 'number' && Number.isSafeInteger(rawOrder) ? String(rawOrder) : String(rawOrder ?? '').trim();
-    const openedAt = parseWorkbookDate(getCell(row, indexes, 'DATA EVENTO', 'DATA DE ABERTURA'));
+    // Abertura = envio do card no grupo (DATA/HORA ACIONAMENTO); DATA EVENTO fica guardada como evento.
+    const groupSentAt = parseWorkbookDate(getCell(row, indexes, 'DATA/HORA ACIONAMENTO', 'DATA DE ACIONAMENTO'));
+    const eventAt = fixSwappedEventDate(parseWorkbookDate(getCell(row, indexes, 'DATA EVENTO')), groupSentAt);
+    const openedAt = groupSentAt || eventAt || parseWorkbookDate(getCell(row, indexes, 'DATA DE ABERTURA'));
     if (!status || !orderNumber || !normalizeIdentifier(orderNumber) || !openedAt) {
       invalidRows.push(rowNumber);
       return;
@@ -120,7 +141,7 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
     const plate = String(getCell(row, indexes, 'PLACA')).trim();
     const pon = String(getCell(row, indexes, 'PON')).trim();
     const slotPon = analysis?.slot_pon?.join(', ') || legacy.slotPon || (plate && pon ? `${plate}/${pon}` : '');
-    const assignedAt = parseWorkbookDate(getCell(row, indexes, 'DATA/HORA ACIONAMENTO', 'DATA DE ACIONAMENTO'));
+    const assignedAt = groupSentAt;
     const eventType = String(getCell(row, indexes, 'TIPO DE EVENTO', 'TIPO')).trim();
     const type = analysis?.tipo_registro || legacy.type || eventType || 'NOC ACESSO';
     const observation = String(getCell(row, indexes, 'OBS', 'OBSERVACAO', 'OBSERVAÇÃO')).trim();
@@ -144,6 +165,7 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
       slotPon,
       status,
       openedAt,
+      eventAt,
       assignedAt,
       executedAt,
       technicianName: teamTechnician || undefined,
