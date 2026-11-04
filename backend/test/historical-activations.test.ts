@@ -181,3 +181,21 @@ test('matches technician names written differently in the report, without guessi
   assert.equal(id('OLIVEIRA SANTOS'), undefined, 'primeiro nome diferente nao casa');
   assert.equal(id('Carlos'), undefined, 'um nome so nao basta');
 });
+
+test('reads "Tarefa OFS" cards, falls back to the ORDEM column and to the REGIAO column', () => {
+  const workbook = XLSX.utils.book_new();
+  const open = new Date('2026-11-01T13:00:00Z');
+  const close = new Date('2026-11-01T16:00:00Z');
+  const ofsCard = ['⚠️VALIDAR COM NOC ACESSO⚠️', '- OLT: VIP-ITA-SPO-OHW-04', '- SLOT/PON: 02/07', '- BDESK: 670496', '- Tarefa OFS: 613123218810102'].join('\n');
+  const noOrderCard = ['⚠️VALIDAR COM NOC ACESSO⚠️', '- OLT: br.sp.cti.qua.gp.01', '- BDESK: 671400'].join('\n');
+  const sheet = XLSX.utils.aoa_to_sheet([
+    ['ORDEM', 'Tecnico', 'Data Abertura', 'Data-Fim', 'REGIAO', 'ACIONAMENTO'],
+    ['', 'Wesley', saoPauloDateCell(open), saoPauloDateCell(close), 'ITAIM PAULISTA', ofsCard],
+    [610123034740102, 'Wesley', saoPauloDateCell(open), saoPauloDateCell(close), 'CIDADE TIRADENTES', noOrderCard],
+  ]);
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Planilha1');
+  const preview = parseHistoricalActivationWorkbook('Finalizados.xlsx', XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer);
+  assert.equal(preview.missingOrder, 0);
+  assert.deepEqual(preview.candidates.map((item) => item.call.orderNumber), ['613123218810102', '610123034740102']);
+  assert.equal(preview.candidates[1].call.region, 'CIDADE TIRADENTES');
+});

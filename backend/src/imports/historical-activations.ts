@@ -43,6 +43,13 @@ function matchHeaderValue(header: string, aliases: readonly string[]) {
   return aliases.includes(header);
 }
 
+// Numeros longos (OFS de 15 digitos) chegam como number: vira texto sem notacao cientifica.
+function workbookOrder(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return Number.isInteger(value) ? value.toFixed(0) : '';
+  const text = String(value ?? '').trim();
+  return /^[0-9.,]+E\+\d+$/i.test(text) ? '' : text;
+}
+
 function resolveHeaderIndex(headers: string[], aliases: readonly string[]) {
   return headers.findIndex((header) => matchHeaderValue(header, aliases));
 }
@@ -195,6 +202,9 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
   const activationColumn = resolveHeaderIndex(headers, activationAliases);
   const finishedColumn = resolveHeaderIndex(headers, finishedAliases);
   const messageColumn = resolveHeaderIndex(headers, messageAliases);
+  // Coluna ORDEM (quando existir) so entra se a mensagem nao trouxer O.S./Office Track.
+  const regionColumn = headers.findIndex((header) => ['regiao', 'região'].includes(header));
+  const orderColumn = headers.findIndex((header) => ['ordem', 'ordem de servico', 'os', 'o s'].includes(header));
   const totalRows = rows.slice(headerIndex + 1).filter((row) => String(row[messageColumn] ?? '').trim()).length;
   const groups = new Map<string, HistoricalActivationCandidate[]>();
   const missing = { missingOpeningDate: 0, missingFinishedDate: 0, missingOrder: 0, missingReason: 0, missingOlt: 0, missingTechnician: 0, omittedLongNeighborhood: 0, omittedLongSlotPon: 0 };
@@ -214,7 +224,7 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
     const orderLabelPattern = /^[\t ]*[-*]?[\t ]*(?:O\.?S\.?[\t ]*OT|OFFICE[\t ]*TRACK|OFFICETRACK)[\t ]*[:=-][\t ]*(.*?)[\t ]*$/i;
     const orderLabel = message.split(/\r?\n/).find((line) => orderLabelPattern.test(line));
     const explicitOrder = orderLabel?.match(orderLabelPattern)?.[1]?.trim() || '';
-    const orderNumber = orderLabel ? explicitOrder : analysis.os_ot || analysis.office_track || legacy.orderNumber || legacy.officeTrack;
+    const orderNumber = orderLabel ? explicitOrder : analysis.os_ot || analysis.office_track || legacy.orderNumber || legacy.officeTrack || workbookOrder(row[orderColumn]);
     if (!orderNumber) missing.missingOrder += 1;
     if (!analysis.motivo && !legacy.reason) missing.missingReason += 1;
     if (!analysis.olt && !legacy.olt) missing.missingOlt += 1;
@@ -246,7 +256,7 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
       client: legacy.client || 'Cliente nao identificado',
       type,
       reason: analysis.motivo || legacy.reason || 'Motivo nao informado',
-      region: resolveOltRegion(olt).region || legacy.region || 'Nao informada',
+      region: resolveOltRegion(olt).region || legacy.region || (regionColumn >= 0 ? String(row[regionColumn] ?? '').trim().toUpperCase() : '') || 'Nao informada',
       city: legacy.city || '',
       address: analysis.endereco_principal || '',
       bairro,

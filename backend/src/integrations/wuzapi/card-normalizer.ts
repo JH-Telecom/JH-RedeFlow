@@ -23,7 +23,7 @@ const LABEL_ALIASES: Array<[RegExp, string]> = [
   [/^PLACA\s*(?:\/|E|-)\s*PON$/, 'PLACA/PON'],
   [/^(?:TIPO\s+(?:DA\s+)?FALHA|FALHA)$/, 'Tipo de Falha'],
   [/^(?:MOTIVO\s+(?:DO\s+)?ACIONAMENTO|DEFEITO|PROBLEMA)$/, 'MOTIVO'],
-  [/^(?:TAREFA\s+(?:DO\s+)?(?:OFFICE\s*TRACK|OT)|OFFICE\s*TRACK|N[º°O]?\s*OT|OT)$/, 'Tarefa Office Track'],
+  [/^(?:TAREFA\s+(?:DO\s+|DA\s+)?(?:OFFICE\s*TRACK|OT|OFS)|OFFICE\s*TRACK|N[º°O]?\s*OT|OT)$/, 'Tarefa Office Track'],
   [/^O\.?\s*S\.?\s*(?:DA\s+|DO\s+)?CASA\s+(?:DO\s+|DA\s+)?CLIENTE$/, 'O.S. CASA CLIENTE'],
   [/^(?:O\.?\s*S\.?\s*OT|OS\s*\/\s*OT)$/, 'OS OT'],
   [/^CONTRATOS?\s*(?:\(S\))?\s+(?:DE\s+)?EXEMPLOS?\s*(?:\(S\))?$|^CONTRATO\(S\)(?:\s+EXEMPLO\(S\))?$/, 'Contratos Exemplos'],

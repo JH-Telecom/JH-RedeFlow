@@ -3380,3 +3380,18 @@ Página com: técnico mais ofensor em prazo, bairros que mais perdem prazo, hor�
   - à noite 87,8% de perda contra 55% de dia;
   - 95 de 115 noturnos atrasados só fecharam depois das 06h.
 - Capturas em 1440 px e 500 px.
+
+## 2026-11-04 — Importação de finalizados: cards com "Tarefa OFS", coluna ORDEM e coluna REGIAO
+
+### Problema
+A nova Finalizados.xlsx (10 linhas) mostrava só 7 novas e "3 campos obrigatórios ausentes". As linhas 2, 3 e 9 trazem o número como `- Tarefa OFS: 6131...`, rótulo que o leitor de cards não reconhecia. Por isso ficavam sem O.S. e eram descartadas, embora a coluna ORDEM tivesse o número. A linha 7 (OLT `br.sp.cti...`) aparecia com região "Nao informada", mesmo com REGIAO = CIDADE TIRADENTES.
+
+### Implementado
+- `card-normalizer.ts`: "Tarefa OFS" (e "Tarefa da/do OFS") passa a ser lido como Tarefa Office Track. Vale também para cards recebidos pelo WhatsApp.
+- `historical-activations.ts`:
+  - Se a mensagem não trouxer O.S./Office Track, usa a coluna ORDEM. O número de 15 dígitos vira texto sem notação científica, e valores como "6.13E+14" são ignorados.
+  - Se a OLT e a mensagem não indicarem a região, usa a coluna REGIAO.
+
+### Validação
+- Planilha real: 10 de 10 reconhecidas, linha 7 com CIDADE TIRADENTES.
+- Novo teste em `historical-activations.test.ts`. Suíte: 129/129. tsc OK.
