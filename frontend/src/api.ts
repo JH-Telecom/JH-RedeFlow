@@ -2,7 +2,7 @@ const isVercelDeployment = import.meta.env.PROD && typeof window !== 'undefined'
 const API_URL = (isVercelDeployment ? '' : import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
 export type Permission = { code: string; description: string };
 export type Role = { id: string; name: string; description: string; permissions: string[] };
-export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; mustChangePassword?: boolean; role?: Role };
+export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; mustChangePassword?: boolean; role?: Role; online?: boolean; lastSeenAt?: string };
 export type Technician = { id: string; supervisorId?: string; name: string; registration: string; supervisorName?: string; region: string; shift: string; currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel'; active: boolean; employmentStatus: 'Trabalhando' | 'Demitido'; activeOverride?: boolean; teamRole: 'Tecnico' | 'Auxiliar'; leadTechnicianId?: string | null; leadTechnicianName?: string };
 export type Supervisor = { id: string; userId?: string; name: string; region: string; active: boolean; technicianCount: number };
 export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado' | 'Baixar';
@@ -85,6 +85,7 @@ async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
+  logout: () => request<void>('/api/auth/logout', { method: 'POST', keepalive: true }),
   profileAvatar: () => request<{ avatarDataUrl: string | null }>('/api/auth/avatar'),
   saveProfileAvatar: (avatarDataUrl: string) => request<{ avatarDataUrl: string }>('/api/auth/avatar', { method: 'PUT', body: JSON.stringify({ avatarDataUrl }) }),
   removeProfileAvatar: () => request<{ deleted: boolean }>('/api/auth/avatar', { method: 'DELETE' }),

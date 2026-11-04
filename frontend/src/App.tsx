@@ -50,6 +50,8 @@ export default function App() {
   }
 
   function logout() {
+    // Avisa o servidor (fica offline na hora); o token e lido antes de ser apagado abaixo.
+    void api.logout().catch(() => undefined);
     localStorage.removeItem("jh-redeflow-token");
     localStorage.removeItem("jh-redeflow-session");
     setSession(null);

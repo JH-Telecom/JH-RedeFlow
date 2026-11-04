@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, LogOut, Menu, Repeat2, Settings, ShieldCheck, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
+import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, LogOut, Menu, Moon, Repeat2, Settings, ShieldCheck, Sun, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
+import { useTheme } from "../theme";
+import { UpdateNotice } from "./UpdateNotice";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Role, type User, type AppNotification } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
@@ -85,6 +87,7 @@ export function Shell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => localStorage.getItem("jh-redeflow-sidebar-collapsed") === "true");
+  const { theme, toggle: toggleTheme } = useTheme();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activationCount, setActivationCount] = useState(0);
   const [activationToast, setActivationToast] = useState<AppNotification | null>(null);
@@ -183,6 +186,7 @@ export function Shell({
   }, [title]);
   return (
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
+      <UpdateNotice />
       <aside className={`${desktopCollapsed ? "sidebar collapsed" : "sidebar"}${mobileOpen ? " open" : ""}`}>
         <div className="sidebar-brand">
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
@@ -254,6 +258,7 @@ export function Shell({
             <strong aria-current="page">{title}</strong>
           </nav>
           <div className="topbar-actions">
+            <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"} aria-label={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>
             <div className="notification-wrap">
               <button className={`icon-button notification ${bellRinging ? "is-ringing" : ""}`} onClick={() => { setNotificationsOpen((current) => !current); void loadNotifications(); }} title="Notificacoes">
                 <Bell size={18} />

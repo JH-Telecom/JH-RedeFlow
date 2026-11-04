@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/generate-dark-theme.mjs && tsc -b && vite build",
+    "theme:dark": "node scripts/generate-dark-theme.mjs",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
+    "postcss": "^8.5.28",
     "typescript": "^5.7.3"
   }
 }

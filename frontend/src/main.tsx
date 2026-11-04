@@ -33,5 +33,8 @@ import './dashboards.css';
 import './page-transition.css';
 import './calls-queue.css';
 import './sla-analysis.css';
+import './update-notice.css';
+import './theme-dark.css';
+import './theme-dark-manual.css';
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

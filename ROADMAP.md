@@ -3456,3 +3456,77 @@ A lateral mostrava 4 e a lista "Chamados abertos" só 2. A lateral conta os cham
 ### Validação
 - Banco: 3 chamados sem técnico não fechados (12665760 e 12665731 Atribuido, 610127218160102 Aberto). Agora todos aparecem na lista.
 - Backend 131/131, build do frontend OK.
+
+## 2026-11-04 — Modo escuro com botão de tema no topo
+
+### Pedido
+Criar um modo escuro e colocar no topo um ícone para trocar de tema.
+
+### Como funciona
+- **Botão no topo** (`Shell.tsx`, ao lado do sino): lua no claro e sol no escuro. A escolha fica salva no navegador (`localStorage` `jh-redeflow:theme`). Sem escolha salva, segue o tema do sistema operacional e acompanha se ele mudar (`src/theme.ts`).
+- **Sem piscar ao abrir**: um script no `index.html` aplica `data-theme` antes do React carregar.
+- **Cores**: os 30 CSS originais **não foram alterados**.
+  - `frontend/scripts/generate-dark-theme.mjs` (PostCSS) gera `src/theme-dark.css`. Cada declaração de cor ganha uma cópia sob `:where(:root[data-theme="dark"])`, com a cor convertida em OKLCH conforme o papel:
+    - fundo: cartão `#181c22`, página `#12151b`;
+    - borda: `#33383f`;
+    - texto: tinta `#dfe5ef`;
+    - gráfico: cores de status mais claras.
+  - O `:where()` não soma especificidade, e o arquivo replica todas as declarações de cor na ordem do `main.tsx`. Por isso a cascata do escuro é idêntica à do claro, inclusive `border: 0`, `transparent` etc.
+  - O gerador roda no `npm run build` (e com `npm run theme:dark`), então CSS novo já ganha a versão escura sem trabalho manual.
+  - Ajustes manuais ficam em `src/theme-dark-manual.css`: `color-scheme`, campos sem fundo próprio, cores do indicador de prazo.
+- `call-cells.tsx`: as cores inline do indicador de prazo usam `var(--sla-*)` com o valor do claro como fallback.
+- A imagem do "Copiar imagem" continua clara de propósito, porque é para compartilhar.
+- `postcss` declarado como devDependency do frontend (antes vinha só pelo Vite).
+
+### Validação
+- Conferido no escuro (1366 px, dados demo): Visão geral, Chamados abertos, detalhe do chamado, IGP, Análise de prazo, Importações, Painel diário, Usuários e o modal de novo usuário.
+- Troca para claro e para escuro com a escolha salva. O claro ficou igual ao anterior.
+- Build OK. A tela de login no escuro não foi conferida visualmente; as regras dela são geradas igual às demais.
+
+## 2026-11-04 — Fila do mais antigo para o mais novo + aviso de atualização obrigatória
+
+### Pedidos
+1. Ordenar os chamados "do maior para o menor em quesito do prazo", ou seja, quem está há mais tempo na fila primeiro.
+2. Quando o sistema for atualizado, mostrar para cada pessoa logada um aviso de **atualização obrigatória** com o botão **Atualizar**, para ninguém ficar na versão anterior.
+
+### Implementado
+- **Ordem** (`CallsPage.tsx`): Chamados abertos, Em atendimento e as filas de equipe pedem `sort=openedAt&direction=asc`, do mais antigo (mais perto de estourar ou já estourado) para o mais novo. Finalizados e cancelados continuam do mais recente para o mais antigo. O servidor e a função SQL já aceitavam esse parâmetro; nada mudou no backend.
+- **Versão do build** (`vite.config.ts`):
+  - cada build ganha um identificador (commit da Vercel `VERCEL_GIT_COMMIT_SHA` ou, sem ele, o horário do build);
+  - o identificador vai no bundle (`__APP_BUILD__`) e em `/version.json`.
+- **Aviso** (`components/UpdateNotice.tsx` + `update-notice.css`, montado no `Shell`, só para quem está logado):
+  - confere `/version.json` a cada 60 s, ao voltar para a aba e ao focar a janela, sempre sem cache;
+  - se a versão publicada for outra, cobre a tela com "Atualização obrigatória — Nova versão do sistema", sem botão de fechar;
+  - **Atualizar** recarrega a página com a versão nova;
+  - desligado no modo dev.
+- Só deploys do frontend (Vercel) disparam o aviso. Atualizações apenas do backend (Render) não exigem recarregar a tela.
+
+### Validação
+- Build de produção servido localmente (API demo):
+  - com o `version.json` trocado para outra versão, o aviso apareceu em menos de 1 s ao focar a janela;
+  - depois de publicar o build novo, **Atualizar** carregou o bundle novo e o aviso não voltou.
+- A fila de abertos veio em ordem crescente de abertura (RF-240917 07:45 antes de RF-240918 08:12).
+- O aviso também tem versão escura (gerada).
+- Build OK.
+- Observação: o primeiro deploy com este recurso ainda não mostra aviso para quem já está com a versão antiga aberta, porque essa versão não tem o verificador. A partir do deploy seguinte, todos recebem o aviso.
+
+## 2026-11-04 — Status real (online/offline) em Usuários
+
+### Pedido
+O status "Ativo" em Usuários deve ser real, para saber quem está logado ou não.
+
+### Implementado
+- `backend/src/presence.ts` (novo): guarda em memória o último contato de cada usuário.
+  - O middleware `auth` registra o contato em toda requisição autenticada do sistema. O app aberto consulta notificações a cada 15 s, ou 1 min em aba de fundo.
+  - **Online** = último contato há até **2 min**.
+  - Fica em memória porque o Render tem uma instância só, então não precisou de migration. Se o servidor reiniciar, todos voltam a aparecer no próximo contato (≤ 15 s), mas o "visto há" de quem estava offline se perde.
+- `GET /api/users` devolve `online` e `lastSeenAt`. Novo `POST /api/auth/logout`: ao clicar em Sair, o usuário fica offline na hora.
+- `UsersPage.tsx`:
+  - coluna Status mostra **Online** (ponto verde pulsando), **Offline · visto há X min/h** ou **Conta inativa**;
+  - filtro com Online agora, Offline e Contas inativas;
+  - a lista recarrega a cada 30 s.
+- A extensão do OFS (escopo próprio) não conta como online.
+
+### Validação
+- Teste `presence.test.ts`. Suíte 132/132. tsc OK.
+- Demo local: admin Online e os outros Offline. `POST /api/auth/logout` responde 204.

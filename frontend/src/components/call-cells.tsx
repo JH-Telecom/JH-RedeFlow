@@ -30,7 +30,8 @@ export function getSlaState(elapsedMinutes: number) {
 export function SlaCell({ openedAt }: { openedAt: string }) {
   const state = getSlaState(getElapsedMinutes(openedAt));
   const label = state === "outlier" ? "Outlier" : state === "late" ? "Fora do prazo" : "No prazo";
-  const color = state === "outlier" ? "#bd3f45" : state === "late" ? "#a86b00" : "#138a5e";
+  // No tema escuro as variaveis --sla-* (theme-dark-manual.css) clareiam as cores; no claro vale o fallback.
+  const color = `var(--sla-${state}, ${state === "outlier" ? "#bd3f45" : state === "late" ? "#a86b00" : "#138a5e"})`;
   return <span className={`sla-cell ${state}`} data-prazo={`${label} - ${SLA_LIMIT_LABEL}`} style={{ color }}><strong style={{ color }}>{label}</strong><small style={{ color }}>{SLA_LIMIT_LABEL}</small></span>;
 }
 

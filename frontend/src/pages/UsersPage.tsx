@@ -3,13 +3,21 @@ import { ChevronRight, Search, SlidersHorizontal, Users } from "lucide-react";
 import { api, type Role, type User } from "../api";
 import { AdminModal } from "../components/ui";
 
+// "ha 5 min", "ha 2 h", ou a data quando passou de um dia.
+function formatLastSeen(iso: string) {
+  const minutes = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (minutes < 60) return `ha ${minutes} min`;
+  if (minutes < 24 * 60) return `ha ${Math.floor(minutes / 60)} h`;
+  return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
 export function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const [activeFilter, setActiveFilter] = useState<"all" | "online" | "offline" | "inactive">("all");
   const [showFilters, setShowFilters] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -23,6 +31,9 @@ export function UsersPage() {
   }
   useEffect(() => {
     load();
+    // Presenca muda sozinha: recarrega a lista a cada 30 s.
+    const timer = window.setInterval(() => void load(), 30_000);
+    return () => window.clearInterval(timer);
   }, []);
   function openForm(user?: User) {
     setEditing(user || null);
@@ -48,7 +59,7 @@ export function UsersPage() {
       setError(err instanceof Error ? err.message : "Nao foi possivel remover o usuario.");
     }
   }
-  const visibleUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(query.toLowerCase()) && (activeFilter === "all" || (activeFilter === "active" ? user.active : !user.active)));
+  const visibleUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(query.toLowerCase()) && (activeFilter === "all" || (activeFilter === "online" ? user.active && user.online : activeFilter === "offline" ? user.active && !user.online : !user.active)));
   return (
     <>
       <div className="page-heading">
@@ -70,7 +81,7 @@ export function UsersPage() {
           <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
-          {showFilters && <select className="toolbar-select" value={activeFilter} onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)}><option value="all">Todos os status</option><option value="active">Ativos</option><option value="inactive">Inativos</option></select>}
+          {showFilters && <select className="toolbar-select" value={activeFilter} onChange={(event) => setActiveFilter(event.target.value as typeof activeFilter)}><option value="all">Todos os status</option><option value="online">Online agora</option><option value="offline">Offline</option><option value="inactive">Contas inativas</option></select>}
         </div>
         {error ? (
           <div className="empty-state">{error}</div>
@@ -111,10 +122,13 @@ export function UsersPage() {
                     </span>
                   </td>
                   <td>
-                    <span className={`status ${user.active ? "active" : "inactive"}`}>
-                      <i />
-                      {user.active ? "Ativo" : "Inativo"}
-                    </span>
+                    {!user.active ? (
+                      <span className="status inactive"><i />Conta inativa</span>
+                    ) : user.online ? (
+                      <span className="status presence-online" title={user.lastSeenAt ? `Ultima atividade: ${new Date(user.lastSeenAt).toLocaleString("pt-BR")}` : undefined}><i />Online</span>
+                    ) : (
+                      <span className="status presence-offline" title="Sem o sistema aberto ou deslogado"><i />Offline{user.lastSeenAt && <small>visto {formatLastSeen(user.lastSeenAt)}</small>}</span>
+                    )}
                   </td>
                   <td>
                     {new Date(user.createdAt).toLocaleDateString("pt-BR")}

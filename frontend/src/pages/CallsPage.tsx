@@ -373,6 +373,10 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     window.setTimeout(() => setCopyState("idle"), 2200);
   }
 
+  // Filas em andamento: quem esta ha mais tempo esperando (mais perto de estourar o prazo) vem primeiro.
+  // Finalizados seguem do mais recente para o mais antigo.
+  const queueOrder = closedOnly ? {} : { sort: "openedAt" as const, direction: "asc" as const };
+
   async function refreshCalls() {
     setLoading(true);
     try {
@@ -388,6 +392,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
+        ...queueOrder,
       });
       setCalls(data.calls);
       setTotalCalls(data.total);
@@ -407,7 +412,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
-    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, closedOnly, assignedOnly, unassignedOnly });
+    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, order: queueOrder, closedOnly, assignedOnly, unassignedOnly });
     const cached = callsPageCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       if (active) {
@@ -433,6 +438,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
+        ...queueOrder,
       })
       .then((data) => {
         if (!active) return;

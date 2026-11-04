@@ -18,6 +18,7 @@ import { addDays, toOperationalDate } from './timezone.js';
 import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
+import { clearPresence, presenceOf, touchPresence } from './presence.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -131,6 +132,7 @@ async function auth(request: AuthRequest, response: Response, next: NextFunction
     if (request.authUser.mustChangePassword && request.path !== '/api/auth/me' && request.path !== '/api/auth/change-password') {
       return response.status(403).json({ code: 'PASSWORD_CHANGE_REQUIRED', message: 'Troque sua senha para continuar.' });
     }
+    touchPresence(request.authUser.id);
     next();
   } catch { return response.status(401).json({ message: 'Sessao expirada ou invalida.' }); }
 }
@@ -290,7 +292,12 @@ app.get('/api/notificacoes', auth, async (request: AuthRequest, response) => {
   const includeOperational = Boolean(request.authUser?.role.permissions.includes('dashboard.view'));
   return response.json({ notifications: await listNotifications(includeOperational) });
 });
-app.get('/api/users', auth, requirePermission('users.view'), async (_request, response) => response.json({ users: await listUsers() }));
+app.get('/api/users', auth, requirePermission('users.view'), async (_request, response) => response.json({ users: (await listUsers()).map((user) => ({ ...user, ...presenceOf(user.id) })) }));
+// Logout: tira o usuario da lista de online na hora (o token continua so no navegador, que o apaga).
+app.post('/api/auth/logout', auth, (request: AuthRequest, response) => {
+  clearPresence(request.authUser!.id);
+  response.status(204).end();
+});
 app.post('/api/users', auth, requirePermission('users.create'), async (request, response) => {
   const parsed = z.object({ name: z.string().min(2), email: z.string().email(), roleId: z.string(), password: z.string().min(8) }).safeParse(request.body);
   if (!parsed.success || !(await getRoleById(parsed.success ? parsed.data.roleId : ''))) return response.status(400).json({ message: 'Dados de usuario invalidos.' });

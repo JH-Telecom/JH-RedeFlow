@@ -1,0 +1,15 @@
+/* Ajustes manuais do tema escuro. Entram depois do theme-dark.css gerado (scripts/generate-dark-theme.mjs). */
+:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+/* Botao de tema no topo */
+.theme-toggle svg { transition: transform .35s ease; }
+.theme-toggle:hover svg { transform: rotate(-18deg); }
+
+/* Indicador de prazo da fila (cor inline em call-cells.tsx) */
+:root[data-theme="dark"] { --sla-outlier: #ff8a8f; --sla-late: #f2b45a; --sla-on-time: #4fd1a0; }
+
+/* Campos sem fundo proprio no CSS herdavam o cinza padrao do navegador no modo escuro.
+   :where() deixa especificidade de elemento: qualquer regra com classe continua valendo. */
+:where(:root[data-theme="dark"]) textarea, :where(:root[data-theme="dark"]) select { background-color: #181c22; color: var(--ink); border-color: #33383f; }
+:where(:root[data-theme="dark"]) input::placeholder, :where(:root[data-theme="dark"]) textarea::placeholder { color: #7d8794; }
