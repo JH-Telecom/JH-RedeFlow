@@ -332,13 +332,15 @@ export function prepareCallUpdate(current: Call, input: Partial<EditableCallFiel
   const nextStatus = input.status ?? current.status;
   const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
   const shouldSetCompletionDate = terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined;
+  const reopening = terminalStatuses.includes(current.status as typeof terminalStatuses[number]) && !terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]);
 
   return {
     ...input,
     region: resolveOltRegion(olt).region || input.region?.trim() || current.region,
     address: input.address?.trim() || current.address || '',
     bairro: input.bairro?.trim() || current.bairro || '',
-    executedAt: shouldSetCompletionDate ? (current.executedAt ?? new Date().toISOString()) : input.executedAt,
+    // Reaberto (encerrado -> ativo): limpa a Data Fim para nao contar como finalizado no IGP e na analise de prazo.
+    executedAt: shouldSetCompletionDate ? (current.executedAt ?? new Date().toISOString()) : reopening ? null : input.executedAt,
   };
 }
 

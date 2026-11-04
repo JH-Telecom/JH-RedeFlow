@@ -481,6 +481,8 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   const nextStatus = parsed.data.status ?? existing.status;
   const nextTechnician = parsed.data.technicianId !== undefined ? parsed.data.technicianId : existing.technicianId;
   const touchesAssignment = (parsed.data.status !== undefined && parsed.data.status !== existing.status) || parsed.data.technicianId !== undefined;
+  // Encerrado (Finalizado/Cancelado/Baixar): so a troca de status e permitida; antes respondia 404 "nao encontrado".
+  if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status) && (parsed.data.status === undefined || parsed.data.status === existing.status)) return response.status(409).json({ message: 'Chamado encerrado: so o status pode ser alterado (por exemplo, Baixar para Finalizado ou reabrir).' });
   if (touchesAssignment && ['Atribuido', 'Deslocamento', 'Em campo'].includes(nextStatus) && !nextTechnician) return response.status(422).json({ message: `Atribua um tecnico antes de colocar o chamado como ${nextStatus}.` });
   const call = await updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });

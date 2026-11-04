@@ -3649,3 +3649,24 @@ Nas telas com tabela, diminuir o cabeçalho (título e texto explicativo), subir
 ### Validação
 - 1600×900 (Em atendimento): o cartão da tabela passou a começar em 149 px do topo (antes ~290) e a ocupar 1312 px de largura; a página não rola.
 - Usuários e Técnicos conferidos no tema claro. Celular sem mudança.
+
+## 2026-11-04 — Correção: trocar status de chamado encerrado (Baixar → Finalizado)
+
+### Problema (vídeo do usuário)
+Em Finalizados e cancelados, trocar o status de 610150206690102 de "Baixar" para "Finalizado" sumia com a tabela e mostrava "Não foi possível carregar os chamados — Chamado não encontrado".
+- `updateSupabaseCall` bloqueava qualquer edição de chamado encerrado e devolvia vazio, que a rota transformava em 404 "não encontrado", embora a lista oferecesse a troca.
+- A tela usava o mesmo estado de "erro ao carregar" para o erro ao salvar, então a lista inteira sumia.
+
+### Implementado
+- `supabase/client.ts`: chamado encerrado (Finalizado/Cancelado/Baixar) aceita **troca de status**, para outro status encerrado ou para reabrir. As demais edições continuam travadas.
+- `store/calls.ts` (`prepareCallUpdate`): entre status encerrados, mantém a Data Fim original; ao **reabrir** (encerrado → ativo), limpa a Data Fim para não contar no IGP nem na Análise de prazo.
+- `PATCH /api/chamados/:id`: edição de encerrado sem troca de status responde **409** "Chamado encerrado: só o status pode ser alterado…" em vez de 404.
+- `CallsPage.tsx`:
+  - erro ao trocar status aparece como aviso fechável acima da tabela (com a ordem), sem esconder a lista;
+  - as contagens das abas recalculam depois de cada troca.
+
+### Validação
+- Novo `closed-status-change.test.ts` (Baixar → Finalizado mantém a Data Fim; reabrir limpa; ativo sem mudança). Suíte 136/136.
+- Preview (demo):
+  - Em campo → Baixar → Finalizado → Cancelado pela lista: PATCH 200, Data Fim mantida e abas atualizadas (Cancelado 1, Baixar 0);
+  - recusa simulada (409) mostrou o aviso com a tabela visível.

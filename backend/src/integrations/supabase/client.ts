@@ -255,7 +255,9 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
 
 export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; openedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string | null; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
   const current = (await listSupabaseCalls(undefined, { id }))[0];
-  if (!current || (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system')) return undefined;
+  // Chamado encerrado: so aceita troca de status (ex.: Baixar -> Finalizado, ou reabrir); o resto fica travado.
+  const changesStatus = input.status !== undefined && input.status !== current.status;
+  if (!current || (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system' && !changesStatus)) return undefined;
   const nextStatus = input.status ?? current.status;
   const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
   if (terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined) {

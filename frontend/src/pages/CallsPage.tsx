@@ -184,6 +184,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [sortState, setSortState] = useState<CallSortState | null>(initialState.sortState ?? defaultSort);
   const [statusCounts, setStatusCounts] = useState<Partial<Record<string, number>>>({});
   const [exporting, setExporting] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [countsVersion, setCountsVersion] = useState(0);
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState(initialState.query ?? "");
   const [loading, setLoading] = useState(false);
@@ -533,11 +535,13 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     if (nextStatus === call.status) return;
     try {
       await api.updateCall(call.id, { status: nextStatus });
-      setError('');
+      setActionError('');
       await refreshCalls();
+      setCountsVersion((current) => current + 1);
       window.dispatchEvent(new Event('jh-redeflow:calls-changed'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel alterar o status do chamado.');
+      // Erro ao salvar nao esconde a lista (o 'error' da pagina e so para falha ao carregar).
+      setActionError(`${call.orderNumber}: ${err instanceof Error ? err.message : 'nao foi possivel alterar o status.'}`);
     }
   }
 
@@ -561,7 +565,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls, countsVersion]);
   const activeFilters = [
     !unassignedOnly && statusFilter !== "Todos",
     regionFilter !== "Todas",
@@ -658,6 +662,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             </div>
           </div>
         </div>
+        {actionError && <div className="cq-action-error" role="alert"><span>{actionError}</span><button type="button" onClick={() => setActionError("")} aria-label="Fechar aviso"><X size={14} /></button></div>}
         {error ? (
           <div className="cq-empty is-error" role="alert"><strong>Não foi possível carregar os chamados.</strong><span>{error}</span><button type="button" className="secondary-button compact" onClick={() => void refreshCalls()}>Tentar de novo</button></div>
         ) : (

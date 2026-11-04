@@ -2169,6 +2169,18 @@
     background: #0b182f;
     color: var(--blue)
 }
+:where(:root[data-theme="dark"]) .cq-action-error {
+    border: 1px solid #623136;
+    background: #201212;
+    color: #ff8a84
+}
+:where(:root[data-theme="dark"]) .cq-action-error button {
+    background: none;
+    color: inherit
+}
+:where(:root[data-theme="dark"]) .cq-action-error button:hover {
+    background: #2b0d10
+}
 
 /* sla-analysis.css */
 :where(:root[data-theme="dark"]) .sa-dates label, :where(:root[data-theme="dark"]) .sa-area {
