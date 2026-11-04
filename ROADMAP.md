@@ -3269,3 +3269,20 @@ Cadastrar sozinho os técnicos que divergirem.
 - Novo teste HTTP da junção de ordem repetida.
 - Suíte: 123/123. Build do frontend OK.
 - Prévia com a planilha real no servidor local (modo demo, sem gravar): 7 linhas viram 6 chamados Em campo, sem linhas inválidas e com horários corretos (02/11 19:42 em São Paulo = 22:42 UTC).
+
+## 2026-11-04 — Correção: fundo escuro dos modais e preenchimento automático em "Novo usuário"
+
+### Problema
+- O fundo escuro dos modais (ex.: "Novo usuário") cobria só a área de conteúdo, e o botão da página ficava por cima dele. A causa foi a transição entre páginas (6b277e4): a animação usava `fill-mode: both`, então o `transform` continuava aplicado depois do fim. Com isso, o wrapper `.page-transition` virava o bloco de referência de todo `position: fixed` da página.
+- O Chrome preenchia e-mail e senha do formulário "Novo usuário" com o login salvo do próprio usuário.
+
+### Implementado (frontend)
+- `page-transition.css`: a animação passou para `backwards`, então o efeito só vale enquanto ela roda e não sobra transform depois.
+- `UsersPage.tsx`:
+  - o formulário e os campos de nome e e-mail ganharam `autoComplete="off"` e nomes próprios;
+  - a senha usa `autoComplete="new-password"`, para o navegador não preencher a senha salva.
+- Textos com acento: "Usuários", "Novo usuário", "Salvar usuário", "Usuário ativo", "ADMINISTRAÇÃO".
+
+### Validação
+- Build OK.
+- No navegador (modo demo), com o modal "Novo usuário" aberto, o fundo escuro ocupa a tela inteira e o wrapper fica com `transform: none`.

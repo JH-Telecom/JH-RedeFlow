@@ -1,7 +1,9 @@
 /* Troca de pagina: em vez do corte seco (a tela some e a nova aparece vazia de uma vez), a pagina nova
    entra com um fade curto e um leve deslize para cima. */
 .page-transition {
-  animation: page-enter 0.22s ease-out both;
+  /* "backwards": o efeito so vale durante a animacao. Com "both" o transform ficava aplicado e virava o
+     bloco de referencia de todo position:fixed da pagina (modais e fundo escuro ficavam presos ao conteudo). */
+  animation: page-enter 0.22s ease-out backwards;
 }
 
 @keyframes page-enter {

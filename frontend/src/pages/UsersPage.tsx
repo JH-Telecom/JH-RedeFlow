@@ -53,12 +53,12 @@ export function UsersPage() {
     <>
       <div className="page-heading">
         <div>
-          <span className="section-kicker">ADMINISTRACAO</span>
-          <h1>Usuarios</h1>
+          <span className="section-kicker">ADMINISTRAÇÃO</span>
+          <h1>Usuários</h1>
           <p>Controle quem acessa o O&amp;M e o que cada pessoa pode fazer.</p>
         </div>
         <button className="primary-button compact" onClick={() => openForm()}>
-          <Users size={16} /> Novo usuario
+          <Users size={16} /> Novo usuário
         </button>
       </div>
       <section className="panel table-panel">
@@ -136,14 +136,14 @@ export function UsersPage() {
         )}
       </section>
       {message && <div className="save-message">{message}</div>}
-      {showForm ? <AdminModal title={editing ? "Editar usuario" : "Novo usuario"} onClose={() => { setEditing(null); setShowForm(false); }}>
-        <form className="admin-form" onSubmit={save}>
-          <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
-          <label>E-mail<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></label>
+      {showForm ? <AdminModal title={editing ? "Editar usuário" : "Novo usuário"} onClose={() => { setEditing(null); setShowForm(false); }}>
+        <form className="admin-form" onSubmit={save} autoComplete="off">
+          <label>Nome<input name="new-user-name" autoComplete="off" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
+          <label>E-mail<input type="email" name="new-user-email" autoComplete="off" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></label>
           <label>Cargo<select value={form.roleId} onChange={(event) => setForm({ ...form, roleId: event.target.value })}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
-          <label>Senha {editing && <small>(deixe vazio para manter)</small>}<input type="password" minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required={!editing} /></label>
-          {editing && <label className="checkbox-label"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Usuario ativo</label>}
-          <button className="primary-button" type="submit">Salvar usuario <ChevronRight size={16} /></button>
+          <label>Senha {editing && <small>(deixe vazio para manter)</small>}<input type="password" name="new-user-password" autoComplete="new-password" minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required={!editing} /></label>
+          {editing && <label className="checkbox-label"><input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Usuário ativo</label>}
+          <button className="primary-button" type="submit">Salvar usuário <ChevronRight size={16} /></button>
         </form>
       </AdminModal> : null}
     </>
