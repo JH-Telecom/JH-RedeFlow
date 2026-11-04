@@ -3395,3 +3395,17 @@ A nova Finalizados.xlsx (10 linhas) mostrava só 7 novas e "3 campos obrigatóri
 ### Validação
 - Planilha real: 10 de 10 reconhecidas, linha 7 com CIDADE TIRADENTES.
 - Novo teste em `historical-activations.test.ts`. Suíte: 129/129. tsc OK.
+
+## 2026-11-04 — Acionamentos pendentes lidos antes do "Tarefa OFS"
+
+### Problema
+O card BDESK 673092 chegou às 12:11, antes do deploy que passou a reconhecer "Tarefa OFS" (12:13), e ficou como "Sem ordem identificada". A leitura fica gravada no banco, então aceitá-lo criaria o chamado com o BDESK no lugar da O.S.
+
+### Implementado
+- `supabase/client.ts`, função `refreshStoredAnalysis`: para acionamentos **pendentes** sem O.S./Office Track gravados, relê a mensagem original com o leitor atual e completa só esses campos, sem sobrescrever nada.
+- Isso vale na listagem (o card passa a mostrar a O.S.) e no Aceitar (o chamado é criado com a O.S. certa).
+- Nada é gravado no banco por causa disso; aceitos e recusados não mudam.
+
+### Validação
+- Mensagem do card da captura: office_track 610151196050102, BDESK 673092.
+- Suíte: 129/129. tsc OK.

@@ -2,6 +2,15 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
 import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
 import { addDays, operationalDayStartIso } from '../../timezone.js';
+import { analyzeOperationalMessage } from '../wuzapi/semantic.js';
+
+// Cards pendentes lidos antes de o leitor reconhecer um rotulo (ex.: "Tarefa OFS") ficam sem O.S. gravada:
+// relemos a mensagem original e completamos so o que faltou, sem sobrescrever o que ja foi extraido.
+function refreshStoredAnalysis(originalMessage: string, analysis: Partial<ActivationAnalysis>): Partial<ActivationAnalysis> {
+  if (analysis.office_track || analysis.os_ot || !originalMessage) return analysis;
+  const fresh = analyzeOperationalMessage(originalMessage);
+  return { ...analysis, office_track: fresh.office_track || null, os_ot: fresh.os_ot || null };
+}
 
 let adminClient: SupabaseClient | null = null;
 let authClient: SupabaseClient | null = null;
@@ -397,7 +406,12 @@ export async function listSupabaseActivations(status?: ActivationStatus): Promis
   const processingById = await latestProcessingByActivation((data || []).map((row) => row.id));
   for (const row of data || []) {
     const extracted = processingById.get(row.id) || {};
-    const { _analysis: analysis, ...extractedData } = extracted;
+    const { _analysis: storedAnalysis, ...extractedData } = extracted;
+    const analysis = row.status === 'Pendente' ? refreshStoredAnalysis(row.original_message || '', (storedAnalysis || {}) as Partial<ActivationAnalysis>) : storedAnalysis;
+    if (row.status === 'Pendente' && !extractedData.orderNumber) {
+      const order = (analysis as Partial<ActivationAnalysis>).office_track || (analysis as Partial<ActivationAnalysis>).os_ot;
+      if (order) Object.assign(extractedData, { orderNumber: order, officeTrack: order });
+    }
     activations.push({ id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, decisionBy: row.decision_by || undefined, decisionAt: row.decision_at || undefined, createdCallId: row.created_call_id || undefined, rejectionReason: row.rejection_reason || undefined, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined });
   }
   return activations;
@@ -414,7 +428,7 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
   const { _analysis: analysis, ...extractedData } = stored;
   let call: Call | undefined;
   if (decision === 'Aceito') {
-    const structured = (analysis || {}) as Partial<ActivationAnalysis>;
+    const structured = refreshStoredAnalysis(row.original_message || '', (analysis || {}) as Partial<ActivationAnalysis>);
     const value = (key: string) => typeof extractedData[key] === 'string' ? String(extractedData[key]) : '';
     const orderNumber = structured.office_track || structured.os_ot || value('officeTrack') || value('orderNumber') || value('bdesk') || `PEND-${id.slice(-6)}`;
     const olt = structured.olt || value('olt');
