@@ -3632,3 +3632,20 @@ Implementar as 9 sugestões tiradas do vídeo do outro sistema do usuário (agen
   - o Excel gerou "Chamados em atendimento 04-11-2026.xlsx" (18 KB; download interceptado no teste).
 - A faixa de vencimento e o mapa de calor foram conferidos com respostas simuladas no navegador, porque o demo não tem chamados perto das 6h nem finalizados.
 - Build OK.
+
+## 2026-11-04 — Telas de tabela: cabeçalho compacto e tabela maior
+
+### Pedido
+Nas telas com tabela, diminuir o cabeçalho (título e texto explicativo), subir os botões e usar mais a largura (mais para a esquerda), para a tabela ficar maior.
+
+### Implementado
+- `frontend/src/calls-queue.css`: regra com `.content:has(.cq-panel, .fit-table-panel)`, só no desktop (> 900 px), valendo para Chamados abertos, Em atendimento, Finalizados e cancelados, filas da equipe, Usuários e Técnicos.
+  - O rótulo "OPERAÇÃO"/"ADMINISTRAÇÃO" some, porque já aparece no caminho da barra do topo.
+  - Título de 29 para 22 px e texto de 13 para 12 px.
+  - Botões alinhados ao centro da linha do título.
+  - Margem do conteúdo de 42/48 px para 16/24 px e sem a largura máxima de 1400 px.
+- O ajuste de altura da tabela (`useFitToViewport`) aproveita o espaço ganho automaticamente.
+
+### Validação
+- 1600×900 (Em atendimento): o cartão da tabela passou a começar em 149 px do topo (antes ~290) e a ocupar 1312 px de largura; a página não rola.
+- Usuários e Técnicos conferidos no tema claro. Celular sem mudança.

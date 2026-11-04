@@ -144,3 +144,16 @@
 /* Contagem em cada aba de status */
 .cq-tab-count { display: inline-block; min-width: 20px; margin-left: 6px; padding: 1px 6px; border-radius: 9px; background: #eef2f7; color: #5b6b80; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; }
 .cq-status-tabs .is-selected .cq-tab-count { background: #dbe8ff; color: var(--blue); }
+
+/* Telas de tabela (fila de chamados, usuarios, tecnicos): cabecalho compacto em uma linha, botoes na altura
+   do titulo, menos margem e sem largura maxima, para sobrar mais altura e largura para a tabela.
+   O "OPERACAO"/"ADMINISTRACAO" some porque ja aparece no caminho da barra do topo. So no desktop. */
+@media (min-width: 901px) {
+  .content:has(.cq-panel, .fit-table-panel) { max-width: none; padding: 16px 24px 20px; }
+  .content:has(.cq-panel, .fit-table-panel) .page-heading { align-items: center; gap: 16px; margin-bottom: 12px; }
+  .content:has(.cq-panel, .fit-table-panel) .page-heading .section-kicker { display: none; }
+  .content:has(.cq-panel, .fit-table-panel) .page-heading h1 { margin: 0 0 3px; font-size: 22px; letter-spacing: -.4px; }
+  .content:has(.cq-panel, .fit-table-panel) .page-heading p { font-size: 12px; line-height: 1.4; }
+  .content:has(.cq-panel, .fit-table-panel) .cq-heading-actions .compact,
+  .content:has(.cq-panel, .fit-table-panel) .page-heading .primary-button { min-height: 34px; }
+}
