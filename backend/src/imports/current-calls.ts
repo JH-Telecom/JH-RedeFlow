@@ -62,8 +62,12 @@ function getCell(row: unknown[], indexes: Map<string, number>, ...aliases: strin
 function parseStatus(value: unknown): CallStatus | undefined {
   const status = normalizeHeader(value);
   if (status === 'finalizado') return 'Finalizado';
-  if (status === 'pendente') return 'Aberto';
+  if (status === 'pendente' || status === 'aberto') return 'Aberto';
   if (status === 'baixar') return 'Baixar';
+  if (status === 'cancelado') return 'Cancelado';
+  if (status === 'atribuido') return 'Atribuido';
+  if (status === 'deslocamento' || status === 'em deslocamento') return 'Deslocamento';
+  if (status === 'em campo' || status === 'em atendimento') return 'Em campo';
   return undefined;
 }
 
@@ -74,9 +78,11 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
   const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: '', raw: true });
   const headerIndex = rows.findIndex((row) => {
     const headers = new Set(row.map(normalizeHeader));
-    return headers.has('status') && headers.has('ordem') && headers.has('tecnico') && headers.has('data evento') && headers.has('acionamento');
+    return headers.has('ordem') && headers.has('tecnico') && headers.has('data evento') && (headers.has('acionamento') || headers.has('card'));
   });
-  if (headerIndex < 0) throw new Error('Não encontrei STATUS, ORDEM, TÉCNICO, DATA EVENTO e ACIONAMENTO.');
+  if (headerIndex < 0) throw new Error('Não encontrei ORDEM, TÉCNICO, DATA EVENTO e ACIONAMENTO (ou CARD).');
+  // Sem coluna STATUS (planilha "Em campo"): com tecnico entra Em campo; sem tecnico, Aberto.
+  const hasStatusColumn = rows[headerIndex].some((header) => normalizeHeader(header) === 'status');
 
   const indexes = new Map<string, number>();
   rows[headerIndex].forEach((header, index) => indexes.set(normalizeHeader(header), index));
@@ -88,7 +94,8 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
   rows.slice(headerIndex + 1).forEach((row, offset) => {
     const rowNumber = headerIndex + offset + 2;
     if (!row.some((value) => String(value ?? '').trim())) return;
-    const status = parseStatus(getCell(row, indexes, 'STATUS'));
+    const rowTechnician = String(getCell(row, indexes, 'TÉCNICO', 'TECNICO')).trim();
+    const status = hasStatusColumn ? parseStatus(getCell(row, indexes, 'STATUS')) : rowTechnician ? 'Em campo' : 'Aberto';
     const rawOrder = getCell(row, indexes, 'ORDEM');
     const orderNumber = typeof rawOrder === 'number' && Number.isSafeInteger(rawOrder) ? String(rawOrder) : String(rawOrder ?? '').trim();
     const openedAt = parseWorkbookDate(getCell(row, indexes, 'DATA EVENTO', 'DATA DE ABERTURA'));
@@ -97,10 +104,10 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
       return;
     }
 
-    const message = String(getCell(row, indexes, 'ACIONAMENTO', 'MENSAGEM DE ACIONAMENTO') ?? '').trim();
+    const message = String(getCell(row, indexes, 'ACIONAMENTO', 'MENSAGEM DE ACIONAMENTO', 'CARD') ?? '').trim();
     const legacy = message ? extractOperationalData(message) : {};
     const analysis = message ? analyzeOperationalMessage(message) : undefined;
-    const teamTechnician = String(getCell(row, indexes, 'TÉCNICO', 'TECNICO')).trim();
+    const teamTechnician = rowTechnician;
     const equipment = String(getCell(row, indexes, 'EQUIPAMENTO', 'OLT')).trim();
     const messageOlt = analysis?.olt || legacy.olt || '';
     const olt = messageOlt || (/^(VIP-|OLT-)/i.test(equipment) ? equipment : '');
@@ -114,9 +121,12 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
     const pon = String(getCell(row, indexes, 'PON')).trim();
     const slotPon = analysis?.slot_pon?.join(', ') || legacy.slotPon || (plate && pon ? `${plate}/${pon}` : '');
     const assignedAt = parseWorkbookDate(getCell(row, indexes, 'DATA/HORA ACIONAMENTO', 'DATA DE ACIONAMENTO'));
-    const type = analysis?.tipo_registro || legacy.type || 'NOC ACESSO';
+    const eventType = String(getCell(row, indexes, 'TIPO DE EVENTO', 'TIPO')).trim();
+    const type = analysis?.tipo_registro || legacy.type || eventType || 'NOC ACESSO';
+    const observation = String(getCell(row, indexes, 'OBS', 'OBSERVACAO', 'OBSERVAÇÃO')).trim();
     const officeTrack = analysis?.office_track || analysis?.os_ot || legacy.officeTrack || orderNumber;
-    const bdesk = analysis?.bdesk || legacy.bdesk || '';
+    const bdeskCell = getCell(row, indexes, 'BDESK');
+    const bdesk = analysis?.bdesk || legacy.bdesk || (typeof bdeskCell === 'number' && Number.isSafeInteger(bdeskCell) ? String(bdeskCell) : String(bdeskCell ?? '').trim());
     const identifiers = [...new Set([orderNumber, officeTrack, bdesk, analysis?.os_casa_cliente, analysis?.contrato].filter((value): value is string => Boolean(value?.trim())).map(normalizeIdentifier))];
     const call: Call = {
       id: randomUUID(),
@@ -129,7 +139,7 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
       region,
       city: legacy.city || '',
       address: analysis?.endereco_principal || '',
-      bairro: analysis?.bairro_principal || '',
+      bairro: analysis?.bairro_principal || String(getCell(row, indexes, 'BAIRRO')).trim(),
       olt,
       slotPon,
       status,
@@ -138,7 +148,7 @@ export function parseCurrentCallsWorkbook(fileName: string, buffer: Buffer): Cur
       executedAt,
       technicianName: teamTechnician || undefined,
       result: analysis?.tratativa_realizada || undefined,
-      notes: `Importado de ${fileName}, linha ${rowNumber}.${message ? `\n\n${message}` : ''}`,
+      notes: `Importado de ${fileName}, linha ${rowNumber}.${observation ? `\nObs. da planilha: ${observation}` : ''}${message ? `\n\n${message}` : ''}`,
       source: 'current-calls-workbook',
       sourceIdentity: `current-calls-workbook:${normalizeIdentifier(orderNumber)}`,
       sourceIdentifiers: identifiers,

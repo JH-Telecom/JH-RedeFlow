@@ -37,6 +37,35 @@ test('rejects workbooks without the required current-call columns', () => {
 
   assert.throws(
     () => parseCurrentCallsWorkbook('invalida.xlsx', XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer),
-    /STATUS, ORDEM, TÉCNICO, DATA EVENTO e ACIONAMENTO/,
+    /ORDEM, TÉCNICO, DATA EVENTO e ACIONAMENTO \(ou CARD\)/,
   );
+});
+test('reads the "Em campo" layout without STATUS, with the card in a CARD column', () => {
+  const workbook = XLSX.utils.book_new();
+  const header = ['ORDEM', 'TÉCNICO', 'DATA EVENTO', 'DATA/HORA ACIONAMENTO', 'TIPO DE EVENTO', 'AFETAÇÃO', 'EQUIPAMENTO', 'PLACA', 'PON', 'OBS', 'AREA', 'BDESK', 'BAIRRO', 'CARD'];
+  const card = 'VALIDAR COM NOC ACESSO\n- OLT: VIP-PAL-SPO-OHW-02\n- SLOT/PON: 01/07\n- BDESK: 672314\n- Tarefa Office Track: 610150284850102';
+  // 46329.735 = 03/11/2026 17:38 (horario de Sao Paulo gravado na celula)
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    header,
+    [610150284850102, 'Robson Jose da Silva Oliveira', 46329.735, 46329.735, 'ALARME DE PON', 27, 'VIP-PAL-SPO-OHW-02', 1, 7, 'GIGA+', 'PALMEIRAS', '', '', card],
+    [610030194750102, 'Jose Leidson da Silva Barbosa', 46329.3875, 46329.4, 'ALARME DE PON', 4, 'VIP-GZ1-SPO-OHW-03', 1, 12, 'na base', 'GUAIANASES 1', 671000, 'Jardim A', ''],
+    [610030194750199, '', 46329.3875, '', 'BACKBONE', '', 'GRU <> GZ1', '', '', '', 'GUARULHOS', '', '', ''],
+  ]), 'Planilha1');
+  const parsed = parseCurrentCallsWorkbook('Em campo.xlsx', XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer);
+
+  assert.deepEqual(parsed.invalidRows, []);
+  const [withCard, withoutCard, withoutTechnician] = parsed.candidates.map((candidate) => candidate.call);
+  assert.equal(withCard.orderNumber, '610150284850102');
+  assert.equal(withCard.status, 'Em campo');
+  assert.equal(withCard.technicianName, 'Robson Jose da Silva Oliveira');
+  assert.equal(withCard.olt, 'VIP-PAL-SPO-OHW-02');
+  assert.equal(withCard.bdesk, '672314');
+  assert.equal(withCard.region, 'PALMEIRAS');
+  assert.equal(withCard.openedAt, '2026-11-03T20:38:24.000Z');
+  assert.match(withCard.notes, /Obs\. da planilha: GIGA\+/);
+  assert.equal(withoutCard.type, 'ALARME DE PON');
+  assert.equal(withoutCard.bdesk, '671000');
+  assert.equal(withoutCard.bairro, 'Jardim A');
+  assert.equal(withoutCard.olt, 'VIP-GZ1-SPO-OHW-03');
+  assert.equal(withoutTechnician.status, 'Aberto');
 });

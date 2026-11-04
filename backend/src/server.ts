@@ -733,8 +733,16 @@ app.post('/api/importacoes/chamados-atuais/preview', auth, requirePermission('im
       group.push(candidate);
       groups.set(key, group);
     }
-    const duplicateRows = [...groups.values()].filter((group) => group.length > 1).reduce((total, group) => total + group.length, 0);
-    const uniqueCandidates = [...groups.values()].filter((group) => group.length === 1).map((group) => group[0]);
+    // Mesma ordem em mais de uma linha (ex.: dois tecnicos no mesmo evento): entra um chamado so, com o tecnico da
+    // primeira linha; os demais tecnicos ficam registrados nas observacoes.
+    const duplicateRows = [...groups.values()].filter((group) => group.length > 1).reduce((total, group) => total + group.length - 1, 0);
+    const uniqueCandidates = [...groups.values()].map((group) => {
+      const [first, ...others] = group;
+      const otherTechnicians = [...new Set(others.map((candidate) => candidate.call.technicianName).filter((name): name is string => Boolean(name) && name !== first.call.technicianName))];
+      if (otherTechnicians.length) first.call.notes = `Também acionado: ${otherTechnicians.join(', ')}.\n${first.call.notes}`;
+      first.identifiers = [...new Set(group.flatMap((candidate) => candidate.identifiers))];
+      return first;
+    });
     const existingIdentifiers = await findExistingCallIdentifiers();
     const candidates = uniqueCandidates.filter((candidate) => !candidate.identifiers.some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier))));
     const registeredTechnicians = await listTechnicians();

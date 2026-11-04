@@ -33,7 +33,7 @@ export function CurrentCallsImportPanel() {
 
   async function confirmCurrentCallsImport() {
     if (!preview?.canWrite || !preview.importableRows || preview.unmatchedTechnicians.length) return;
-    const accepted = window.confirm(`Importar ${preview.importableRows.toLocaleString("pt-BR")} chamados com os status da planilha em ${preview.target}? Os registros ja existentes e as ordens repetidas serao ignorados.`);
+    const accepted = window.confirm(`Importar ${preview.importableRows.toLocaleString("pt-BR")} chamados em ${preview.target}? Chamados que já existem no sistema serão ignorados.`);
     if (!accepted) return;
     setBusy(true);
     setError("");
@@ -50,7 +50,7 @@ export function CurrentCallsImportPanel() {
 
   return <section className="panel historical-import-panel">
     <div className="panel-heading">
-      <div><span className="section-kicker">BASE OPERACIONAL</span><h2>Importar chamados atuais</h2><p>Pré-visualize a planilha antes de inserir os chamados e seus status.</p></div>
+      <div><span className="section-kicker">BASE OPERACIONAL</span><h2>Chamados em aberto e em atendimento</h2><p>Planilha com ORDEM, TÉCNICO, DATA EVENTO e o card (ACIONAMENTO ou CARD). Sem coluna STATUS, quem tem técnico entra como Em campo.</p></div>
       <label className={`primary-button compact file-button ${busy ? "is-disabled" : ""}`}><ClipboardList size={15}/>{busy ? "Analisando..." : "Selecionar XLSX"}<input type="file" accept=".xlsx,.xls" onChange={(event) => void selectCurrentCallsFile(event)} disabled={busy}/></label>
     </div>
     {error && <div className="form-error import-error">{error}</div>}
@@ -61,16 +61,16 @@ export function CurrentCallsImportPanel() {
         <span><b>{preview.totalRows.toLocaleString("pt-BR")}</b> linhas na planilha</span>
         <span><b>{preview.importableRows.toLocaleString("pt-BR")}</b> novas</span>
         <span><b>{preview.alreadyInSystem.toLocaleString("pt-BR")}</b> já existentes</span>
-        <span><b>{preview.duplicateRows.toLocaleString("pt-BR")}</b> em ordens repetidas</span>
+        <span><b>{preview.duplicateRows.toLocaleString("pt-BR")}</b> linhas repetidas juntadas</span>
         <span><b>{preview.invalidRows.length.toLocaleString("pt-BR")}</b> inválidas</span>
         <span><b>{preview.missingFinishRows.length.toLocaleString("pt-BR")}</b> sem data fim</span>
       </div>
-      <p className="historical-import-note">Status importados: {Object.entries(preview.byStatus).map(([status, count]) => `${status} ${count}`).join(" · ") || "nenhum"}. Pendente vira Aberto; Data Fim de chamados abertos é ignorada.</p>
+      <p className="historical-import-note">Status importados: {Object.entries(preview.byStatus).map(([status, count]) => `${status} ${count}`).join(", ") || "nenhum"}. Pendente vira Aberto; Data Fim de chamados abertos é ignorada.</p>
       {preview.invalidRows.length > 0 && <p className="historical-import-warning">Linhas inválidas ignoradas: {preview.invalidRows.slice(0, 20).join(", ")}{preview.invalidRows.length > 20 ? "…" : ""}.</p>}
       {preview.missingFinishRows.length > 0 && <p className="historical-import-warning">Chamados Finalizado/Baixar sem Data Fim: {preview.missingFinishRows.slice(0, 20).join(", ")}{preview.missingFinishRows.length > 20 ? "…" : ""}. Eles serão importados sem Data Fim.</p>}
       {preview.ignoredFinishRows.length > 0 && <p className="historical-import-note">Data Fim ignorada para chamados Pendente nas linhas {preview.ignoredFinishRows.slice(0, 20).join(", ")}{preview.ignoredFinishRows.length > 20 ? "…" : ""}.</p>}
       {preview.unmatchedTechnicians.length > 0 && <p className="historical-import-warning">Técnicos não cadastrados: {preview.unmatchedTechnicians.join(", ")}. Cadastre-os ou corrija os nomes antes de importar.</p>}
-      {preview.duplicateRows > 0 && <p className="historical-import-warning">Todas as linhas de ordens repetidas dentro da planilha foram excluídas para evitar importação ambígua.</p>}
+      {preview.duplicateRows > 0 && <p className="historical-import-note">Ordens repetidas na planilha viram um chamado só, com o técnico da primeira linha. Os outros técnicos ficam nas observações ("Também acionado").</p>}
       <div className="historical-import-table import-table-wrap"><table><thead><tr><th>Linha</th><th>Ordem</th><th>Status</th><th>Abertura</th><th>Data Fim</th><th>Técnico</th><th>Região</th></tr></thead><tbody>{preview.sample.map((item) => <tr key={`${item.rowNumber}-${item.orderNumber}`}><td>{item.rowNumber}</td><td>{item.orderNumber}</td><td>{item.status}</td><td>{new Date(item.openedAt).toLocaleString("pt-BR")}</td><td>{item.executedAt ? new Date(item.executedAt).toLocaleString("pt-BR") : "-"}</td><td>{item.technicianName || "-"}</td><td>{item.region}</td></tr>)}</tbody></table></div>
       <button className="primary-button compact confirm-import" type="button" onClick={() => void confirmCurrentCallsImport()} disabled={busy || !preview.canWrite || !preview.importableRows || preview.unmatchedTechnicians.length > 0}>{busy ? "Importando..." : `Importar ${preview.importableRows.toLocaleString("pt-BR")} chamados`}<ChevronRight size={16}/></button>
     </div>}
@@ -156,6 +156,8 @@ export function HistoricalActivationImportPanel() {
 export function ImportsPage() {
   return <>
     <div className="page-heading"><div><span className="section-kicker">DADOS</span><h1>Importações</h1><p>As atualizações do OFS chegam automaticamente pela extensão "JH RedeFlow – Coletor OFS" (painel de hoje a cada hora e o dia anterior às 07:00).</p></div></div>
+    {/* Chamados em aberto/em atendimento (ORDEM, TECNICO, DATA EVENTO, CARD): previa e confirmacao */}
+    <CurrentCallsImportPanel />
     {/* Planilha antiga de chamados finalizados (ORDEM, Data Abertura, Data-Fim, ACIONAMENTO): prévia e confirmação */}
     <HistoricalActivationImportPanel />
   </>;

@@ -1038,3 +1038,26 @@ test('OFS collector export of a previous day updates that day panel and calls wi
   const call = await (await fetch(`${baseUrl}/api/chamados/call-240916-01`, { headers })).json() as { call: { ofsStatus?: string } };
   assert.equal(call.call.ofsStatus, 'Concluído');
 });
+
+test('current calls preview turns the same order on two rows into one call with the first technician', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const session = await loginResponse.json() as { token: string };
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['ORDEM', 'TÉCNICO', 'DATA EVENTO', 'AREA', 'CARD'],
+    [610150284850999, 'Carlos Mendes', 46329.735, 'PALMEIRAS', 'VALIDAR COM NOC ACESSO\n- Tarefa Office Track: 610150284850999'],
+    [610150284850999, 'Pedro Santos', 46329.735, 'PALMEIRAS', 'VALIDAR COM NOC ACESSO\n- Tarefa Office Track: 610150284850999'],
+  ]), 'Planilha1');
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  const response = await fetch(`${baseUrl}/api/importacoes/chamados-atuais/preview`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
+    body: JSON.stringify({ fileName: 'Em campo.xlsx', contentBase64: buffer.toString('base64') }),
+  });
+  const preview = await response.json() as { importableRows: number; duplicateRows: number; byStatus: Record<string, number>; sample: Array<{ orderNumber: string; technicianName?: string; status: string }> };
+  assert.equal(response.status, 200);
+  assert.equal(preview.importableRows, 1);
+  assert.equal(preview.duplicateRows, 1);
+  assert.deepEqual(preview.byStatus, { 'Em campo': 1 });
+  assert.equal(preview.sample[0]?.technicianName, 'Carlos Mendes');
+});

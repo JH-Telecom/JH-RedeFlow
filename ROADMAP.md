@@ -3245,3 +3245,27 @@ Cadastrar sozinho os técnicos que divergirem.
 
 ### Ação do usuário
 - Depois de importar, em **Técnicos**, ativar quem ainda trabalha e ajustar supervisor/turno/matrícula se quiser.
+
+## 2026-11-04 — Importação dos chamados em atendimento (Em campo.xlsx)
+
+### Situação
+- A importação dos finalizados foi concluída: 4.836 chamados no banco, nenhum ativo.
+- A planilha "Em campo.xlsx" tem 7 linhas, com as colunas ORDEM, TÉCNICO, DATA EVENTO, DATA/HORA ACIONAMENTO, TIPO DE EVENTO, AFETAÇÃO, EQUIPAMENTO, PLACA, PON, OBS, AREA, BDESK, BAIRRO e CARD.
+- O importador de chamados atuais (`current-calls.ts`) exigia a coluna STATUS e a coluna ACIONAMENTO, então recusaria o arquivo.
+- Duas linhas são a mesma OT (610150284850102, BDESK 672314), com técnicos diferentes (Robson e Lucas). O importador descartava todas as linhas de ordem repetida.
+- O painel "Importar chamados atuais" existia no código, mas não aparecia em nenhuma tela.
+
+### Implementado
+- `current-calls.ts`:
+  - STATUS passou a ser opcional. Sem a coluna, quem tem técnico entra como **Em campo** e quem não tem, como Aberto.
+  - Quando há a coluna STATUS, ela aceita também Aberto, Atribuído, Deslocamento, Em campo/Em atendimento e Cancelado.
+  - A coluna do card pode se chamar ACIONAMENTO ou CARD.
+  - Sem card, o chamado usa as colunas TIPO DE EVENTO, BDESK e BAIRRO. A OBS vai para as observações ("Obs. da planilha: …").
+- `server.ts` (prévia de chamados atuais): ordem repetida vira **um chamado só**, com o técnico da primeira linha. Os outros técnicos vão para as observações ("Também acionado: …"), e os identificadores das linhas são somados.
+- `ImportsPage.tsx`: o painel voltou para Importações como "Chamados em aberto e em atendimento", com os textos ajustados à nova regra.
+
+### Testes
+- Novo teste do layout "Em campo" (sem STATUS, com CARD, com e sem card, com e sem técnico).
+- Novo teste HTTP da junção de ordem repetida.
+- Suíte: 123/123. Build do frontend OK.
+- Prévia com a planilha real no servidor local (modo demo, sem gravar): 7 linhas viram 6 chamados Em campo, sem linhas inválidas e com horários corretos (02/11 19:42 em São Paulo = 22:42 UTC).
