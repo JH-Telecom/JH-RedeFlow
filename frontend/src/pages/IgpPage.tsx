@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Timer, XCircle } from "lucide-react";
-import { api, type IgpArea, type IgpMetrics } from "../api";
+import { api, type IgpArea, type IgpGoalPlan, type IgpMetrics, type IgpPlan } from "../api";
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount } from "../components/charts";
 
@@ -82,19 +82,71 @@ function OnTimeTrend({ months }: { months: { month: string; metrics: IgpMetrics 
   );
 }
 
+// "Para bater a meta": em linguagem direta, o que falta para cada meta (e para o minimo).
+const count = (value: number) => value.toLocaleString("pt-BR");
+const pct1 = (value: number | null) => (value === null ? "–" : `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
+type PlanKind = "onTime" | "outlier" | "mttr";
+
+function planSentence(kind: PlanKind, item: IgpGoalPlan, currentMonth: boolean, orders: number): { done: boolean; text: React.ReactNode } {
+  const p = item.projected;
+  if (!orders) return { done: false, text: "Ainda não há ordens finalizadas no mês." };
+  if (kind === "mttr") {
+    if (!p) return { done: item.met, text: item.met ? "Batida no fechamento do mês." : "Não bateu no fechamento do mês." };
+    if (!p.remainingOrders) return { done: item.met, text: item.met ? "Batida." : "Sem ordens previstas até o fim do mês para recuperar." };
+    if (!p.possible) return { done: false, text: <>No ritmo do mês <b>não dá mais</b> para chegar a {formatIgpHours(item.goal)}.</> };
+    return { done: item.met, text: <>{item.met ? "Batida. " : ""}As ~{count(p.remainingOrders)} ordens que ainda devem fechar precisam de <b>média de até {formatIgpHours(p.required)}</b> da abertura ao fim.</> };
+  }
+  const isOnTime = kind === "onTime";
+  if (item.met) {
+    if (!p) return { done: true, text: "Batida no fechamento do mês." };
+    return { done: true, text: isOnTime
+      ? <>Batida. Das ~{count(p.remainingOrders)} ordens que ainda devem fechar, <b>até {count(p.slack ?? 0)}</b> podem passar de 6h sem perder a meta.</>
+      : <>Batida. Cabem <b>até {count(p.slack ?? 0)} outliers</b> nas ~{count(p.remainingOrders)} ordens que ainda devem fechar.</> };
+  }
+  const streak = <>{currentMonth ? "Faltam" : "Faltaram"} <b>{count(item.streak ?? 0)} ordens seguidas {isOnTime ? "no prazo (até 6h)" : "sem passar de 9h"}</b>.</>;
+  if (!p) return { done: false, text: streak };
+  if (!p.possible) return { done: false, text: <>{streak} No ritmo do mês (~{count(p.remainingOrders)} ordens) <b>não dá mais</b> para fechar o mês na meta.</> };
+  return { done: false, text: isOnTime
+    ? <>{streak} No ritmo do mês, <b>{count(p.required)} das ~{count(p.remainingOrders)}</b> ordens restantes ({pct1(p.requiredPercent)}) precisam ficar no prazo.</>
+    : <>{streak} No ritmo do mês, cabem no máximo <b>{count(p.required)} outliers</b> nas ~{count(p.remainingOrders)} ordens restantes.</> };
+}
+
+function GoalPlanCard({ kind, title, current, plan }: { kind: PlanKind; title: string; current: string; plan: IgpPlan }) {
+  const goals = plan[kind];
+  const format = kind === "mttr" ? formatIgpHours : (value: number) => `${value.toLocaleString("pt-BR")}%`;
+  const rows = [{ label: "Meta", item: goals.target }, { label: "Mínimo", item: goals.minimum }];
+  return (
+    <div className="igp-plan-card">
+      <div className="igp-plan-head"><strong>{title}</strong><span>agora {current}</span></div>
+      {rows.map(({ label, item }) => {
+        const sentence = planSentence(kind, item, plan.currentMonth, plan.orders);
+        const Icon = sentence.done ? CheckCircle2 : XCircle;
+        return (
+          <div className={`igp-plan-row ${sentence.done ? "is-done" : "is-todo"}`} key={label}>
+            <span className="igp-plan-goal"><Icon size={14} aria-hidden="true" />{label} {kind === "onTime" ? "≥" : "≤"} {format(item.goal)}</span>
+            <p>{sentence.text}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function IGPPage() {
   const [month, setMonth] = useState(() => toOperationalDate().slice(0, 7));
   const [area, setArea] = useState<IgpArea>('ALL');
   const [metrics, setMetrics] = useState<IgpMetrics | null>(null);
+  const [plan, setPlan] = useState<IgpPlan | null>(null);
   const [trend, setTrend] = useState<{ month: string; metrics: IgpMetrics | null }[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
     setMetrics(null);
+    setPlan(null);
     setError("");
     api.igp(month, area)
-      .then((data) => { if (active) setMetrics(data.igp); })
+      .then((data) => { if (active) { setMetrics(data.igp); setPlan(data.plan ?? null); } })
       .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Não foi possível calcular o IGP."); });
     const months = Array.from({ length: trendMonths }, (_, index) => shiftMonth(month, index - (trendMonths - 1)));
     setTrend(months.map((item) => ({ month: item, metrics: null })));
@@ -121,6 +173,15 @@ export function IGPPage() {
           return <KpiTile key={row.key} label={row.key === "onTimePercent" ? "Dentro do prazo" : row.key === "mttrHours" ? "MTTR médio" : "Outlier"} value={row.format(value)} note={<GoalNote value={value} goal={row} />} icon={icon} tone={goalTone[state]} />;
         })}
       </div>
+
+      {plan && <Panel kicker="PARA BATER A META" title={plan.currentMonth ? "O que precisamos fazer até o fim do mês" : "Como o mês fechou"} aside={<span className="dv-panel-meta">{plan.currentMonth ? `ritmo de ${count(Math.round(plan.orders / Math.max(1, plan.elapsedDays)))} ordens/dia · faltam ${plan.daysInMonth - plan.elapsedDays} dias` : areaLabel}</span>}>
+        <div className="igp-plan-grid">
+          <GoalPlanCard kind="onTime" title="Dentro do prazo" current={formatIgpPercent(metrics.total.onTimePercent)} plan={plan} />
+          <GoalPlanCard kind="outlier" title="Outlier" current={formatIgpPercent(metrics.total.outlierPercent)} plan={plan} />
+          <GoalPlanCard kind="mttr" title="MTTR" current={formatIgpHours(metrics.total.mttrHours)} plan={plan} />
+        </div>
+        <p className="dv-footnote">"Seguidas" = quantas ordens finalizadas em sequência, todas dentro do critério, levam o mês à meta. "Ritmo do mês" projeta as ordens que ainda devem fechar pela média diária até hoje ({areaLabel}).</p>
+      </Panel>}
 
       <Panel kicker={`${monthLabel(month, "long").toUpperCase()} · ${areaLabel.toUpperCase()}`} title="Resultado por rede">
           {metrics.total.orders === 0 ? <div className="dv-empty">Não há ordens finalizadas e classificáveis neste mês.</div> : <div className="igp-table-wrap"><table className="igp-table"><thead><tr><th>Indicador</th><th>Acesso <small>{metrics.access.orders} OS</small></th><th>Backbone <small>{metrics.backbone.orders} OS</small></th><th>Total ponderado <small>{metrics.total.orders} OS</small></th><th>Meta 100%</th><th>Meta mínima</th><th>Resultado</th></tr></thead><tbody>{metricRows.map((row) => {

@@ -3779,3 +3779,25 @@ Além da foto, colocar um banner no perfil, que aparece de fundo nas observaçõ
 
 ### Validação
 - Preview: com a OS simulada com técnico, o botão mostrou "Ver em Em atendimento" e abriu `/chamados/atendimento`. Build OK.
+
+## 2026-11-04 — IGP: "Para bater a meta"
+
+### Pedido
+Na tela do IGP, mostrar o que precisamos fazer, e quanto, para chegar a cada meta.
+
+### Implementado
+- `backend/src/igp.ts`: `IGP_GOALS` (Prazo 89% / mínimo 85%; Outlier 4,9% / 5,2%; MTTR 5h / 6h) e `calculateIgpPlan(total, mês)`. Para a meta e para o mínimo, calcula:
+  - **ordens seguidas** que faltam: no prazo, `(a+k)/(n+k) ≥ p`; sem outlier, `o/(n+k) ≤ q`;
+  - no **mês corrente**, o **ritmo do mês**: ordens que ainda devem fechar = média diária até hoje × dias restantes. Com isso:
+    - Prazo: quantas das restantes precisam ficar no prazo, ou a folga de quantas podem passar de 6h;
+    - Outlier: quantos outliers ainda cabem;
+    - MTTR: média máxima das próximas ordens;
+  - avisa quando **não dá mais** para fechar o mês na meta.
+- `GET /api/dashboards/igp` devolve também `plan`, calculado com a região escolhida.
+- `IgpPage.tsx`: painel **"Para bater a meta"** abaixo dos indicadores, com 3 cartões (Dentro do prazo, Outlier, MTTR). Cada cartão tem a linha da meta e a do mínimo, em verde (batida) ou vermelho (falta), com a frase pronta, por exemplo: "Faltam **82 ordens seguidas no prazo**. No ritmo do mês, **187 das ~200** ordens restantes (93,5%) precisam ficar no prazo". Em mês passado, mostra como o mês fechou e quanto faltou.
+
+### Validação
+- Novo `igp-plan.test.ts` (seguidas, ritmo do mês, MTTR, mês passado, folga). Suíte 140/140.
+- Preview com resposta simulada (100 ordens até o dia 10): textos e números conferidos.
+- Contraste do painel OK nos dois temas. A auditoria acusou o número das colunas do gráfico de evolução, mas é falso positivo: o número fica acima da coluna, sobre o cartão.
+- Build OK.

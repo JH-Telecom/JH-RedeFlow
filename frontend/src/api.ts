@@ -48,6 +48,8 @@ export type SlaAnalysis = {
   incoming: { days: number; opened: number; avgPerDay: number | null; byWeekday: { weekday: number; avgPerDay: number | null; opened: number }[]; byHour: { hour: number; avgPerDay: number | null; opened: number }[]; nightShare: number | null };
   night: { day: SlaShiftStudy; night: SlaShiftStudy; crossedMorning: number; lostClosingHours: { hour: number; count: number }[]; byOpeningHour: SlaHourItem[]; byType: SlaRankItem[]; technicians: SlaRankItem[]; reasons: SlaRankItem[]; byWeekday: (SlaCounters & { weekday: number })[]; insights: string[] };
 };
+export type IgpGoalPlan = { goal: number; met: boolean; streak: number | null; projected: null | { remainingOrders: number; required: number; requiredPercent: number | null; possible: boolean; slack: number | null } };
+export type IgpPlan = { month: string; currentMonth: boolean; elapsedDays: number; daysInMonth: number; orders: number; onTime: { target: IgpGoalPlan; minimum: IgpGoalPlan }; outlier: { target: IgpGoalPlan; minimum: IgpGoalPlan }; mttr: { target: IgpGoalPlan; minimum: IgpGoalPlan } };
 export type IgpMetrics = { month: string; area: IgpArea; access: IgpGroup; backbone: IgpGroup; total: IgpGroup; excludedOrders: number };
 export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -98,7 +100,7 @@ export const api = {
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
   slaAnalysis: (from: string, to: string, area: SlaArea = 'ALL') => request<{ analysis: SlaAnalysis }>(`/api/dashboards/prazo?from=${from}&to=${to}&area=${area}`),
-  igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),
+  igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics; plan?: IgpPlan }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),
   dailyBase: () => request<{ base?: ManualDailyBase }>('/api/dashboards/painel-diario/base'),
   saveDailyBase: (fileName: string, data: ManualProductionData) => request<{ base: ManualDailyBase }>('/api/dashboards/painel-diario/base', { method: 'PUT', body: JSON.stringify({ fileName, data }) }),
   clearDailyBase: () => request<{ deleted: boolean }>('/api/dashboards/painel-diario/base', { method: 'DELETE' }),

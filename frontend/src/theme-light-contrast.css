@@ -593,6 +593,24 @@
 :where(:root:not([data-theme="dark"])) .igp-methodology span {
     color: #007748
 }
+:where(:root:not([data-theme="dark"])) .igp-plan-head strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .igp-plan-head span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .igp-plan-row.is-done .igp-plan-goal {
+    color: #137a52
+}
+:where(:root:not([data-theme="dark"])) .igp-plan-row.is-todo .igp-plan-goal {
+    color: #b4232c
+}
+:where(:root:not([data-theme="dark"])) .igp-plan-row p {
+    color: #24344c
+}
+:where(:root:not([data-theme="dark"])) .igp-plan-row p b {
+    color: #13223a
+}
 
 /* manual-dashboard.css */
 :where(:root:not([data-theme="dark"])) .manual-base-status.is-ready {

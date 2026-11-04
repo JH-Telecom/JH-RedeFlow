@@ -19,3 +19,18 @@
 .igp-methodology{padding:16px 18px;background:#f3f6fb;color:#44536a;font-size:12px;line-height:1.7}
 .igp-methodology span{color:#168051;font-weight:600}
 @media(max-width:560px){.igp-filter-controls{width:100%;align-items:stretch;flex-wrap:wrap}.igp-month-picker,.igp-area-picker{flex:1;min-width:140px}.igp-table th,.igp-table td{padding:11px 9px}.igp-methodology{padding:13px;font-size:11px}}
+/* "Para bater a meta" (IgpPage.tsx) */
+.igp-plan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.igp-plan-card { display: grid; align-content: start; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; }
+.igp-plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.igp-plan-head strong { color: var(--ink); font-size: 14px; }
+.igp-plan-head span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.igp-plan-row { display: grid; gap: 4px; padding: 10px 12px; border-radius: 8px; border-left: 3px solid; }
+.igp-plan-row.is-done { border-color: #1caa76; background: #eef9f3; }
+.igp-plan-row.is-todo { border-color: #d2414b; background: #fdf1f2; }
+.igp-plan-goal { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
+.igp-plan-row.is-done .igp-plan-goal { color: #137a52; }
+.igp-plan-row.is-todo .igp-plan-goal { color: #b4232c; }
+.igp-plan-row p { margin: 0; color: #24344c; font-size: 13px; line-height: 1.5; }
+.igp-plan-row p b { color: #13223a; }
+@media (max-width: 1100px) { .igp-plan-grid { grid-template-columns: 1fr; } }

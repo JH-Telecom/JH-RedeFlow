@@ -998,6 +998,38 @@
 :where(:root[data-theme="dark"]) .igp-methodology span {
     color: #70ce9a
 }
+:where(:root[data-theme="dark"]) .igp-plan-card {
+    border: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .igp-plan-head strong {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .igp-plan-head span {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .igp-plan-row {
+    border-left: 3px solid
+}
+:where(:root[data-theme="dark"]) .igp-plan-row.is-done {
+    border-color: #1caa76;
+    background: #0c1913
+}
+:where(:root[data-theme="dark"]) .igp-plan-row.is-todo {
+    border-color: #d2414b;
+    background: #1f1214
+}
+:where(:root[data-theme="dark"]) .igp-plan-row.is-done .igp-plan-goal {
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .igp-plan-row.is-todo .igp-plan-goal {
+    color: #ff8a84
+}
+:where(:root[data-theme="dark"]) .igp-plan-row p {
+    color: #d2d8e1
+}
+:where(:root[data-theme="dark"]) .igp-plan-row p b {
+    color: #e0e6f0
+}
 
 /* manual-dashboard.css */
 :where(:root[data-theme="dark"]) .manual-base-status.is-ready {
