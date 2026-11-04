@@ -3197,3 +3197,22 @@ Redesenhar as telas de listas de chamados e os filtros.
 - Build do frontend OK.
 - Capturas em Chrome headless (modo demo) das três telas a 1440 px e do celular a 500 px.
 - Testado no navegador: filtro por status, estado vazio e "Limpar filtros".
+
+## 2026-11-04 — Importação de finalizados: técnico sem cadastro não bloqueia mais
+
+### Contexto
+Na versão nova do `Finalizados.xlsx` (4.836 chamados importáveis), 44 chamados traziam 9 nomes sem cadastro de técnico: Equipe JH, Edson Luan Parras De Oliveira, Carlos Junior, Luan Edson, Enedino Assis Costa Neto, JH TELECOM REDES, Isac Bruno Cavalcante, Sergio Luis de Souza Correa e Victor Manoel. Isso bloqueava a confirmação. Decisão do usuário: importar sem vincular.
+
+### Implementado
+- `historical-activations.ts`: "Equipe JH", "JH TELECOM REDES", "JH Telecom Rede" e variações são a própria equipe e passam a casar com o cadastro "JH Telecom".
+- `server.ts`:
+  - Na prévia, um nome sem cadastro não bloqueia mais. O chamado entra sem técnico vinculado, e a observação começa com "Técnico na planilha (sem cadastro): <nome>", seguida do card.
+  - A confirmação não recusa mais por técnico sem cadastro.
+- `ImportsPage.tsx`: o aviso virou informativo ("Esses chamados entram sem técnico vinculado e o nome fica nas observações"), e o botão Importar fica habilitado.
+
+### Testes
+- Novo teste dos apelidos da equipe.
+- Suíte: 120/120. Build do frontend OK.
+
+### Observação
+- Chamados sem técnico vinculado não entram nos rankings por técnico. Se os técnicos forem cadastrados depois, o vínculo precisa ser feito chamado a chamado (ou por uma importação/ajuste específico).

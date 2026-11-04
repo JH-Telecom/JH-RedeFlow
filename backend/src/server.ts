@@ -745,7 +745,12 @@ app.post('/api/importacoes/chamados-atuais/preview', auth, requirePermission('im
       if (technician) {
         candidate.call.technicianId = technician.id;
         candidate.call.technicianName = technician.name;
-      } else unmatchedTechnicians.add(name);
+      } else {
+        // Sem cadastro: o chamado entra sem tecnico vinculado e o nome da planilha fica registrado nas observacoes.
+        unmatchedTechnicians.add(name);
+        candidate.call.technicianName = undefined;
+        candidate.call.notes = `Técnico na planilha (sem cadastro): ${name}\n${candidate.call.notes}`;
+      }
     }
     const alreadyInSystem = uniqueCandidates.length - candidates.length;
     const previewId = crypto.randomUUID();
@@ -787,8 +792,6 @@ app.post('/api/importacoes/chamados-atuais/:previewId/confirmar', auth, requireP
     return response.status(410).json({ message: 'A previa expirou ou nao pertence a esta sessao. Gere uma previa nova.' });
   }
   if (!isSupabaseConfigured()) return response.status(409).json({ message: 'Esta instancia esta em modo demo e nao grava no banco ativo. Abra esta importacao no ambiente conectado ao banco de destino.' });
-  const unmatchedTechnicians = [...new Set(pending.candidates.filter((candidate) => candidate.call.technicianName && !candidate.call.technicianId).map((candidate) => candidate.call.technicianName!))];
-  if (unmatchedTechnicians.length) return response.status(409).json({ message: `Cadastre ou corrija os tecnicos antes de confirmar a importacao: ${unmatchedTechnicians.join(', ')}.` });
   try {
     const existingIdentifiers = await findExistingCallIdentifiers();
     const toInsert = pending.candidates.filter((candidate) => !candidate.identifiers.some((identifier) => existingIdentifiers.has(normalizeHistoricalIdentifier(identifier)))).map((candidate) => candidate.call);

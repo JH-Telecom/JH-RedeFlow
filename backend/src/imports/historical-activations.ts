@@ -55,8 +55,12 @@ function normalizeTechnicianName(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+// "Equipe JH", "JH TELECOM REDES", "JH Telecom Rede": e a propria equipe, cadastrada como "JH Telecom".
+const TEAM_NAME_PATTERN = /^(?:equipe\s+)?jh(?:\s+telecom)?(?:\s+redes?)?$/;
+
 export function findHistoricalTechnician(name: string, technicians: Technician[]) {
-  const normalizedName = normalizeTechnicianName(name);
+  const rawName = normalizeTechnicianName(name);
+  const normalizedName = TEAM_NAME_PATTERN.test(rawName) ? 'jh telecom' : rawName;
   const matches = technicians.filter((technician) => technician.teamRole === 'Tecnico' && normalizeTechnicianName(technician.name) === normalizedName);
   if (matches.length === 1) return matches[0];
   // Nome cadastrado em duplicidade (um ativo e outro inativo): vale o unico cadastro ativo.

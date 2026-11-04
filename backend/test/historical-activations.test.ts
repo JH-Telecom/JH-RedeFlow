@@ -126,3 +126,10 @@ test('picks the single active record when a technician name is registered twice'
   const bothActive = duplicated.map((technician) => ({ ...technician, active: true }));
   assert.equal(findHistoricalTechnician('Ricardo Mendes de souza', bothActive), undefined, 'dois ativos continua ambiguo');
 });
+
+test('team names in the workbook resolve to the JH Telecom registration', () => {
+  const base = { registration: '', region: '', shift: '', currentStatus: 'Disponivel' as const, teamRole: 'Tecnico' as const, active: true };
+  const technicians = [{ ...base, id: 'jh-team', name: 'JH Telecom' }, { ...base, id: 'other', name: 'Outro Tecnico' }];
+  for (const name of ['Equipe JH', 'JH TELECOM REDES', 'JH Telecom Rede', 'jh telecom']) assert.equal(findHistoricalTechnician(name, technicians)?.id, 'jh-team', name);
+  assert.equal(findHistoricalTechnician('JH Telecom Engenharia', technicians), undefined);
+});
