@@ -3670,3 +3670,28 @@ Em Finalizados e cancelados, trocar o status de 610150206690102 de "Baixar" para
 - Preview (demo):
   - Em campo → Baixar → Finalizado → Cancelado pela lista: PATCH 200, Data Fim mantida e abas atualizadas (Cancelado 1, Baixar 0);
   - recusa simulada (409) mostrou o aviso com a tabela visível.
+
+## 2026-11-04 — Novo "Gerar imagem" (tabelas legíveis para WhatsApp)
+
+### Problema
+As imagens geradas (fila de chamados e Painel diário) estavam ilegíveis e diferentes do sistema de referência mostrado pelo usuário:
+- cabeçalho duplicado ("JH TELECOM / REDEFLOW" + título, e o título de novo dentro do cartão);
+- imagens largas demais (1200–1660 px) com letra de 10–12 px;
+- escala variável.
+
+### Implementado
+- `frontend/src/lib/report-image.ts` (novo, gerador único): monta a imagem a partir dos **dados**, não do HTML da tela.
+  - Um título só (rótulo + título + subtítulo + selo de contagem) e larguras de coluna de leitura.
+  - Letra de 17 px (sub 14 px, cabeçalho 14 px), etiquetas coloridas por tom (azul, ciano, âmbar, verde, vermelho, cinza; zero esmaecido), linha de total destacada e rodapé com data/hora.
+  - Sempre em **3×** (até 80 MP).
+  - Depois de gerar: copia para a área de transferência, baixa o PNG e dispara o aviso.
+- `components/ImageReadyToast.tsx` (novo, montado no Shell): aviso com miniatura, "Imagem copiada e baixada" (ou "Imagem baixada"), botões **Copiar imagem** e **Compartilhar** (menu do sistema com WhatsApp, quando o navegador permite). Some em 12 s.
+- `CallsPage.tsx` (Copiar imagem das filas): Ordem/BDESK, Técnico/Supervisor, Na fila ou Tempo total (etiqueta da regra 6h/9h + "desde"), Evento/Motivo, Local (bairro, região · OLT) e Status (etiqueta + OFS). Selo com o total; subtítulo com página/filtros e data.
+- `ManualProductionPage.tsx` (Painel diário): Produção por atividades, Produção por técnico (respeita a busca) e Ordens iniciadas no mesmo padrão. Subtítulo com arquivo e horário da base; total em destaque.
+- Removido `lib/image-export.ts` (sem uso).
+
+### Validação
+- Preview:
+  - fila "Em atendimento" gerou PNG de 4164×1419 (3×), aviso exibido e "Copiar imagem" funcionou;
+  - modelo de Produção por técnico com 28 técnicos: 3504×5985, nomes e números legíveis, total destacado.
+- tsc e build OK.

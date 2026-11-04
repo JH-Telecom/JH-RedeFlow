@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, Search, RefreshCcw } from "lucide-react";
 import { api, type Call } from "../api";
-import { getImageCaptureScale } from "../lib/image-export";
+import { shareReportImage, type ReportCell, type ReportColumn, type ReportSpec, type ReportTone } from "../lib/report-image";
 import { ManualDashboardArea, ManualProductionData, buildManualDashboardSegments, parseManualProductionData, sumProductionRows } from "../lib/manual-production";
 
 export function manualMetricCell(value: number, state: string) {
@@ -76,87 +76,61 @@ export function ManualProductionDashboard() {
     }
   }
 
+  // Imagem de cada quadro do painel (gerador unico em lib/report-image.ts): um titulo so, letra grande e
+  // as mesmas cores de status da tela. A busca por tecnico vale para a imagem de tecnicos.
   async function copyManualCard(cardKey: ManualProductionCardKey, title: string, fileName: string) {
-    const source = manualDashboardRef.current?.querySelector<HTMLElement>(`[data-manual-card="${cardKey}"]`);
-    if (!source) return;
-
-    const exportWidth = cardKey === "orders" ? 1000 : 1200;
-    const clone = source.cloneNode(true) as HTMLElement;
-    clone.classList.add("manual-card-export");
-    clone.querySelectorAll(".manual-technician-search, .manual-card-copy-button").forEach((element) => element.remove());
-    clone.style.cssText = "width:100%;height:auto;min-height:0;max-height:none;box-sizing:border-box;overflow:visible;border:1px solid #dce4ef;border-radius:10px;background:#fff;";
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "manual-card-export-frame manual-dashboard-screen";
-    wrapper.style.cssText = `position:fixed;left:-100000px;top:0;width:${exportWidth}px;box-sizing:border-box;padding:24px;background:#edf2f8;font-family:'Manrope','Segoe UI',Arial,sans-serif;color:#25364d;`;
-    const header = document.createElement("header");
-    header.style.cssText = "margin-bottom:16px;padding:0 2px 14px;border-bottom:1px solid #dce4ef";
-    const brand = document.createElement("div");
-    brand.textContent = "JH TELECOM  /  REDEFLOW";
-    brand.style.cssText = "margin-bottom:6px;color:#2375d8;font-size:11px;font-weight:800;letter-spacing:1px";
-    const heading = document.createElement("div");
-    heading.textContent = title;
-    heading.style.cssText = "color:#182b45;font-size:23px;font-weight:800;line-height:1.2";
-    const metadata = document.createElement("div");
-    metadata.textContent = `${selectedFileName || "Base operacional"}  |  ${data?.updatedAt || ""}  |  ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`;
-    metadata.style.cssText = "margin-top:6px;color:#475569;font-size:12px;font-weight:600";
-    header.append(brand, heading, metadata);
-    const exportStyles = document.createElement("style");
-    exportStyles.textContent = `
-      .manual-card-export-frame .manual-card-export{display:block!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;padding:0!important;box-shadow:none!important}
-      .manual-card-export-frame .panel-heading{min-height:0!important;padding:18px 22px!important;border-bottom:1px solid #e5ebf3!important}
-      .manual-card-export-frame .panel-heading h2{margin:0!important;color:#25364d!important;font-size:21px!important}
-      .manual-card-export-frame .manual-table-wrap{width:100%!important;max-height:none!important;overflow:visible!important}
-      .manual-card-export-frame .manual-table{width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important}
-      .manual-card-export-frame .manual-table th,.manual-card-export-frame .manual-table td{box-sizing:border-box!important;padding:15px 12px!important;overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:anywhere!important;font-size:15px!important;line-height:1.45!important}
-      .manual-card-export-frame .manual-table th{background:#f4f7fb!important;color:#334155!important;text-align:left!important;font-weight:800!important}
-      .manual-card-export-frame .manual-table td{color:#0f172a!important;text-align:right!important}
-      .manual-card-export-frame .manual-table th:not(:first-child),.manual-card-export-frame .manual-table td:not(:first-child){text-align:center!important}
-      .manual-card-export-frame .manual-table th:first-child,.manual-card-export-frame .manual-table td:first-child{width:34%!important;text-align:left!important;font-weight:700!important}
-      .manual-card-export-frame .orders-panel .manual-table th:nth-child(1),.manual-card-export-frame .orders-panel .manual-table td:nth-child(1){width:22%!important}
-      .manual-card-export-frame .orders-panel .manual-table th:nth-child(2),.manual-card-export-frame .orders-panel .manual-table td:nth-child(2){width:38%!important}
-      .manual-card-export-frame .orders-panel .manual-table th:nth-child(2),.manual-card-export-frame .orders-panel .manual-table td:nth-child(2){text-align:left!important}
-      .manual-card-export-frame .orders-panel .manual-table th:nth-child(3),.manual-card-export-frame .orders-panel .manual-table td:nth-child(3){width:22%!important}
-      .manual-card-export-frame .orders-panel .manual-table th:nth-child(4),.manual-card-export-frame .orders-panel .manual-table td:nth-child(4){width:18%!important}
-      .manual-card-export-frame .manual-total-row{background:#eaf2fc!important}
-    `;
-    wrapper.append(exportStyles, header, clone);
-    document.body.appendChild(wrapper);
+    if (!selectedData) return;
     setCopyStates((current) => ({ ...current, [cardKey]: "idle" }));
-
-    try {
-      await document.fonts.ready;
-      const captureHeight = wrapper.scrollHeight;
-      const { default: html2canvas } = await import("html2canvas");
-      const canvas = await html2canvas(wrapper, { backgroundColor: "#edf2f8", scale: getImageCaptureScale(exportWidth, captureHeight), width: exportWidth, height: captureHeight, windowWidth: exportWidth, windowHeight: captureHeight, logging: false });
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("Imagem indisponivel");
-      const downloadImage = () => {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
+    const metricColumns: ReportColumn[] = [
+      { label: "Pendente", width: 112, align: "center" },
+      { label: "Em Rota", width: 112, align: "center" },
+      { label: "Iniciado", width: 112, align: "center" },
+      { label: "Concluído", width: 120, align: "center" },
+      { label: "Cancelado", width: 120, align: "center" },
+      { label: "Suspenso", width: 116, align: "center" },
+      { label: "Total", width: 100, align: "center" },
+    ];
+    const tones: ReportTone[] = ["blue", "cyan", "amber", "green", "red", "gray"];
+    const metricCells = (row: { pending: number; enRoute: number; started: number; concluded: number; cancelled: number; suspended: number; total: number }): ReportCell[] => [
+      ...[row.pending, row.enRoute, row.started, row.concluded, row.cancelled, row.suspended].map((value, index) => ({ text: value.toLocaleString("pt-BR"), tone: value ? tones[index] : "muted" as ReportTone })),
+      { text: row.total.toLocaleString("pt-BR"), strong: true },
+    ];
+    const subtitle = [selectedFileName || "Base operacional", data?.updatedAt ? `base de ${data.updatedAt}` : ""].filter(Boolean).join(" · ");
+    let spec: ReportSpec;
+    if (cardKey === "orders") {
+      spec = {
+        kicker: "Ordens", title, subtitle, badge: `${selectedData.orders.length} ordens`,
+        columns: [{ label: "Ordem", width: 230 }, { label: "Técnico", width: 330 }, { label: "Início", width: 170 }, { label: "Tempo", width: 170 }],
+        rows: selectedData.orders.map((item) => [
+          { text: item.order, strong: true },
+          { text: item.technician || "-" },
+          { text: item.inicio || "-" },
+          item.tempo ? { text: item.tempo, tone: /atrasad|vencid|excedid|estourad|outlier|fora do prazo/i.test(item.tempo) ? "red" : "gray" } : { text: "-" },
+        ]),
+        empty: "Nenhuma ordem iniciada.",
       };
-      if (navigator.clipboard && window.ClipboardItem) {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-          setCopyStates((current) => ({ ...current, [cardKey]: "copied" }));
-        } catch {
-          downloadImage();
-          setCopyStates((current) => ({ ...current, [cardKey]: "downloaded" }));
-        }
-      } else {
-        downloadImage();
-        setCopyStates((current) => ({ ...current, [cardKey]: "downloaded" }));
-      }
+    } else {
+      const source = cardKey === "activities"
+        ? selectedData.activities.map((item) => ({ ...item, label: item.type }))
+        : selectedData.technicians.filter((item) => item.name.toLowerCase().includes(technicianQuery.trim().toLowerCase())).map((item) => ({ ...item, label: item.name }));
+      const totals = sumProductionRows(source);
+      spec = {
+        kicker: cardKey === "activities" ? "Produção" : "Técnicos",
+        title,
+        subtitle,
+        badge: `${totals.total.toLocaleString("pt-BR")} atividades`,
+        columns: [{ label: cardKey === "activities" ? "Tipo da atividade" : "Técnico", width: cardKey === "activities" ? 340 : 330 }, ...metricColumns],
+        rows: source.map((item) => [{ text: item.label, strong: true }, ...metricCells(item)]),
+        totalRow: [{ text: "Total", strong: true }, ...metricCells(totals)],
+        empty: "Nada para mostrar com o filtro atual.",
+      };
+    }
+    try {
+      const copied = await shareReportImage(spec, fileName);
+      setCopyStates((current) => ({ ...current, [cardKey]: copied ? "copied" : "downloaded" }));
     } catch {
       setCopyStates((current) => ({ ...current, [cardKey]: "error" }));
     } finally {
-      wrapper.remove();
       window.setTimeout(() => setCopyStates((current) => ({ ...current, [cardKey]: "idle" })), 2200);
     }
   }

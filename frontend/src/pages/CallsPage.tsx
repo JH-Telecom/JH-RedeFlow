@@ -4,7 +4,7 @@ import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileSpreadsheet, Searc
 import { api, type Call, type CallListQuery, type CallListResult, type CallStatus, type Role, type User } from "../api";
 import { SLA_ON_TIME_MAX_MINUTES, SLA_OUTLIER_AFTER_MINUTES, TimerCell, formatCallTimestamp, getSlaState } from "../components/call-cells";
 import { CALLS_PAGE_SIZE, operationalRegions } from "../lib/constants";
-import { getImageCaptureScale } from "../lib/image-export";
+import { shareReportImage, slugFileName, type ReportCell, type ReportColumn, type ReportTone } from "../lib/report-image";
 import { useFitToViewport } from "../hooks/useFitToViewport";
 
 export function RangeCallTable({ calls }: { calls: Call[] }) {
@@ -210,184 +210,50 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
   useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage, sortState }); }, [pageKey, sortState, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
   useEffect(() => { setCallsPage(1); }, [sortState, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
+  // Imagem para WhatsApp: montada a partir dos dados (gerador unico em lib/report-image.ts), com letra grande,
+  // poucas colunas e etiquetas coloridas para prazo e status.
   async function copyTableAsImage() {
-    const table = tableRef.current;
-    if (!table) return;
-
-    const readCellLines = (cell: HTMLTableCellElement) => {
-      const prazo = cell.dataset.prazo || cell.querySelector<HTMLElement>("[data-prazo]")?.dataset.prazo;
-      // Caixa de status: so o valor escolhido (innerText traria todas as opcoes) + a linha "OFS" quando houver.
-      const select = cell.querySelector("select");
-      const selectText = select ? [select.value, ...Array.from(cell.querySelectorAll<HTMLElement>(".table-subtext"), (item) => item.innerText)].join("\n") : "";
-      const text = prazo || selectText || cell.innerText || cell.textContent || "";
-      return text.split(/\n+/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
-    };
-    const headers = Array.from(table.querySelectorAll<HTMLTableCellElement>("thead th"), (cell) => readCellLines(cell).join(" "));
-    const dataRows = Array.from(table.querySelectorAll<HTMLTableRowElement>("tbody tr"))
-      .filter((row) => row.cells.length === headers.length)
-      .map((row) => Array.from(row.cells, readCellLines));
-    if (!headers.length) return;
-
-    const normalizedHeaders = headers.map((header) => header.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
-    const columnWidths = normalizedHeaders.map((header) => {
-      if (/ordem|protocolo/.test(header)) return 140;
-      if (/local/.test(header)) return 300;
-      if (/evento/.test(header)) return 210;
-      if (/na fila|tempo total/.test(header)) return 150;
-      if (/ultima observacao/.test(header)) return 210;
-      if (/cliente/.test(header)) return 235;
-      if (/tipo|motivo/.test(header)) return 210;
-      if (/bairro|endere/.test(header)) return 330;
-      if (/abertura|data fim/.test(header)) return 155;
-      if (/tempo aguardando|timer|sla/.test(header)) return 145;
-      if (/prazo/.test(header)) return 135;
-      if (/afet/.test(header)) return 82;
-      if (/status/.test(header)) return 138;
-      if (/regiao/.test(header)) return 145;
-      if (/tecnico/.test(header)) return 175;
-      if (/olt/.test(header)) return 130;
-      if (/cidade/.test(header)) return 140;
-      if (/obs/.test(header)) return 240;
-      return 150;
+    setCopyState("idle");
+    const slaTone = (state: SlaState): ReportTone => (state === "outlier" ? "red" : state === "late" ? "amber" : "green");
+    const statusTone = (value: CallStatus): ReportTone => (value === "Finalizado" ? "green" : value === "Cancelado" ? "red" : value === "Baixar" ? "gray" : value === "Aberto" ? "amber" : "blue");
+    const columns: ReportColumn[] = [
+      { label: "Ordem", width: 210 },
+      ...(showTechnician ? [{ label: "Técnico", width: 220 }] : []),
+      { label: closedView ? "Tempo total" : "Na fila", width: 180 },
+      { label: "Evento", width: 200 },
+      { label: "Local", width: 270 },
+      { label: "Status", width: 170 },
+    ];
+    const rows: ReportCell[][] = currentCalls.map((call) => {
+      const minutes = minutesBetween(call.openedAt, closedView ? call.executedAt : undefined);
+      const state = getSlaState(minutes) as SlaState;
+      const clock: ReportCell = closedView && !call.executedAt
+        ? { text: "Sem Data Fim", tone: "muted" }
+        : { text: formatDuration(minutes), tone: slaTone(state), sub: `${SLA_LABELS[state]} · desde ${shortDateTime(call.openedAt)}` };
+      return [
+        { text: call.orderNumber, strong: true, sub: call.bdesk && call.bdesk !== call.orderNumber ? `BDESK ${call.bdesk}` : undefined },
+        ...(showTechnician ? [{ text: call.technicianName || "Sem técnico", sub: call.supervisorName || undefined }] : []),
+        clock,
+        { text: call.type, sub: call.reason || undefined },
+        { text: call.bairro || call.city || call.region || "Sem bairro", sub: [call.bairro || call.city ? call.region : "", call.olt].filter(Boolean).join(" · ") || undefined },
+        { text: call.status, tone: statusTone(call.status), sub: call.ofsStatus ? `OFS: ${call.ofsStatus}` : undefined },
+      ];
     });
-    const tableWidth = columnWidths.reduce((total, width) => total + width, 0);
-    const hostWidth = tableWidth + 64;
-    const captureHost = document.createElement("div");
-    captureHost.style.cssText = `position:fixed;left:-100000px;top:0;width:${hostWidth}px;box-sizing:border-box;padding:32px;background:#edf2f8;color:#25364d;font-family:'Manrope','Segoe UI',Arial,sans-serif;`;
-
-    const card = document.createElement("div");
-    card.style.cssText = "overflow:hidden;border:1px solid #dce4ef;border-radius:12px;background:#fff;box-shadow:0 8px 24px rgba(32,51,77,.08)";
-    const heading = document.createElement("div");
-    heading.style.cssText = "display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding:26px 28px 22px;border-bottom:1px solid #e5ebf3";
-    const titleBlock = document.createElement("div");
-    const brand = document.createElement("div");
-    brand.textContent = "JH TELECOM  /  REDEFLOW";
-    brand.style.cssText = "margin-bottom:8px;color:#2375d8;font-size:11px;font-weight:800;letter-spacing:1px";
-    const headingTitle = document.createElement("div");
-    headingTitle.textContent = title;
-    headingTitle.style.cssText = "color:#182b45;font-size:25px;font-weight:800;line-height:1.2";
-    const metadata = document.createElement("div");
-    metadata.textContent = `${dataRows.length} ${dataRows.length === 1 ? "chamado" : "chamados"}  |  ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`;
-    metadata.style.cssText = "margin-top:8px;color:#718198;font-size:12px;font-weight:500";
-    titleBlock.append(brand, headingTitle, metadata);
-    const count = document.createElement("div");
-    count.style.cssText = "flex:none;padding:10px 14px;border:1px solid #d9e7f8;border-radius:8px;background:#f2f7fd;color:#315f96;font-size:13px;font-weight:700";
-    count.textContent = `${dataRows.length} REGISTROS`;
-    heading.append(titleBlock, count);
-
-    const imageTable = document.createElement("table");
-    imageTable.style.cssText = `width:${tableWidth}px;table-layout:fixed;border-collapse:collapse;font-family:'Manrope','Segoe UI',Arial,sans-serif`;
-    const colgroup = document.createElement("colgroup");
-    columnWidths.forEach((width) => {
-      const column = document.createElement("col");
-      column.style.width = `${width}px`;
-      colgroup.appendChild(column);
-    });
-    imageTable.appendChild(colgroup);
-    const thead = document.createElement("thead");
-    const headerRow = document.createElement("tr");
-    headers.forEach((header) => {
-      const cell = document.createElement("th");
-      cell.textContent = header;
-      cell.style.cssText = "padding:13px 12px;border-bottom:1px solid #dce4ef;background:#f4f7fb;color:#5b6b80;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;vertical-align:middle";
-      headerRow.appendChild(cell);
-    });
-    thead.appendChild(headerRow);
-    imageTable.appendChild(thead);
-    const tbody = document.createElement("tbody");
-    dataRows.forEach((row, rowIndex) => {
-      const tr = document.createElement("tr");
-      tr.style.background = rowIndex % 2 === 0 ? "#ffffff" : "#f9fbfe";
-      row.forEach((lines, columnIndex) => {
-        const cell = document.createElement("td");
-        cell.style.cssText = "padding:13px 12px;border-bottom:1px solid #e8edf4;color:#40516a;text-align:left;vertical-align:top;font-size:12px;line-height:1.45;overflow-wrap:anywhere;white-space:normal";
-        const header = normalizedHeaders[columnIndex] || "";
-        const value = lines.join(" ");
-        if (/status|prazo/.test(header) && value && value !== "-") {
-          const badge = document.createElement("span");
-          badge.textContent = value;
-          let badgeColors = "background:#edf4fd;color:#315f96";
-          if (/cancelad|outlier|fora do prazo/.test(value.toLowerCase())) badgeColors = "background:#fff0f0;color:#a83b43";
-          else if (/finalizado|no prazo/.test(value.toLowerCase())) badgeColors = "background:#eaf7f0;color:#18744e";
-          badge.style.cssText = `display:inline-block;padding:5px 8px;border-radius:5px;font-size:11px;font-weight:700;${badgeColors}`;
-          cell.appendChild(badge);
-        } else if (lines.length) {
-          lines.forEach((line, lineIndex) => {
-            const text = document.createElement("div");
-            text.textContent = line;
-            text.style.cssText = lineIndex === 0 ? "color:#273b55;font-weight:700" : "margin-top:4px;color:#78869a;font-size:10px;font-weight:500";
-            cell.appendChild(text);
-          });
-        } else {
-          cell.textContent = "-";
-          cell.style.color = "#a0aaba";
-        }
-        tr.appendChild(cell);
-      });
-      tbody.appendChild(tr);
-    });
-    if (!dataRows.length) {
-      const row = document.createElement("tr");
-      const cell = document.createElement("td");
-      cell.colSpan = headers.length;
-      cell.textContent = "Nenhum chamado para os filtros selecionados.";
-      cell.style.cssText = "padding:28px;color:#718198;text-align:center;font-size:13px";
-      row.appendChild(cell);
-      tbody.appendChild(row);
-    }
-    imageTable.appendChild(tbody);
-    const footer = document.createElement("div");
-    footer.textContent = "JH RedeFlow  |  Relatório operacional";
-    footer.style.cssText = "padding:12px 18px;background:#fbfcfe;color:#8a97a8;text-align:right;font-size:10px;font-weight:600";
-    card.append(heading, imageTable, footer);
-    captureHost.appendChild(card);
-    document.body.appendChild(captureHost);
-
+    const stamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
     try {
-      await document.fonts.ready;
-      const captureHeight = captureHost.scrollHeight;
-      const { default: html2canvas } = await import("html2canvas");
-      const canvas = await html2canvas(captureHost, {
-        backgroundColor: "#edf2f8",
-        scale: getImageCaptureScale(hostWidth, captureHeight),
-        width: hostWidth,
-        height: captureHeight,
-        windowWidth: hostWidth,
-        windowHeight: captureHeight,
-        useCORS: true,
-        logging: false,
-      });
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("Nao foi possivel gerar a imagem.");
-
-      if (navigator.clipboard?.write && window.ClipboardItem) {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-          setCopyState("copied");
-        } catch {
-          const downloadUrl = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = downloadUrl;
-          link.download = "redeflow-chamados.png";
-          link.click();
-          window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-          setCopyState("downloaded");
-        }
-      } else {
-        const downloadUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = "redeflow-chamados.png";
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-        setCopyState("downloaded");
-      }
+      const copied = await shareReportImage({
+        kicker: "JH Telecom · Rede",
+        title,
+        subtitle: `${totalPages > 1 ? `Página ${callsPage} de ${totalPages} · ` : ""}${activeFilters ? "com os filtros atuais · " : ""}${stamp}`,
+        badge: `${rows.length} ${rows.length === 1 ? "chamado" : "chamados"}`,
+        columns,
+        rows,
+        empty: "Nenhum chamado com os filtros atuais.",
+      }, `${slugFileName(title)}-${new Date().toISOString().slice(0, 10)}.png`);
+      setCopyState(copied ? "copied" : "downloaded");
     } catch {
       setCopyState("error");
-    } finally {
-      captureHost.remove();
     }
-
     window.setTimeout(() => setCopyState("idle"), 2200);
   }
 

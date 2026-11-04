@@ -6,6 +6,7 @@ import { UpdateNotice } from "./UpdateNotice";
 import { DueSoonBanner } from "./DueSoonBanner";
 import { CommandPalette } from "./CommandPalette";
 import { HelpTip, PAGE_HELP } from "./HelpTip";
+import { ImageReadyToast } from "./ImageReadyToast";
 import { TvModePage } from "../pages/TvModePage";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Role, type User, type AppNotification } from "../api";
@@ -214,6 +215,7 @@ export function Shell({
   return (
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       <UpdateNotice />
+      <ImageReadyToast />
       {paletteOpen && (
         <CommandPalette
           links={visibleItems.map((item) => ({ label: item.label, to: item.to, section: item.section, icon: item.icon }))}

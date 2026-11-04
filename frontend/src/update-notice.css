@@ -5,3 +5,16 @@
 .update-notice h2 { margin: 0; color: var(--ink); font-size: 20px; }
 .update-notice p { margin: 0 0 8px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .update-notice .primary-button { width: 100%; }
+
+/* Aviso depois de gerar imagem (ImageReadyToast.tsx) */
+.image-toast { position: fixed; right: 20px; bottom: 20px; z-index: 70; display: flex; align-items: flex-start; gap: 12px; width: min(400px, calc(100vw - 32px)); padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 18px 44px #17233b2e; animation: image-toast-in .18s ease-out; }
+.image-toast img { flex: none; width: 74px; height: 56px; border: 1px solid var(--line); border-radius: 6px; object-fit: cover; object-position: top left; background: #eef2f7; }
+.image-toast-text { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.image-toast-text strong { color: var(--ink); font-size: 13px; }
+.image-toast-text > span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.image-toast-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.image-toast-actions .primary-button { min-height: 32px; padding: 0 12px; font-size: 12px; box-shadow: none; }
+.image-toast-actions .secondary-button { min-height: 32px; }
+.image-toast-close { display: grid; place-items: center; padding: 4px; border-radius: 6px; background: none; color: #8592a6; }
+.image-toast-close:hover { background: #f1f5fa; color: var(--ink); }
+@keyframes image-toast-in { from { opacity: 0; transform: translateY(8px); } }

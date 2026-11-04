@@ -2358,6 +2358,32 @@
 :where(:root[data-theme="dark"]) .update-notice p {
     color: var(--muted)
 }
+:where(:root[data-theme="dark"]) .image-toast {
+    border: 1px solid var(--line);
+    background: #181c22;
+    box-shadow: 0 18px 44px #00000065
+}
+:where(:root[data-theme="dark"]) .image-toast img {
+    border: 1px solid var(--line);
+    background: #13171d
+}
+:where(:root[data-theme="dark"]) .image-toast-text strong {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .image-toast-text > span {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .image-toast-actions .primary-button {
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .image-toast-close {
+    background: none;
+    color: #92969c
+}
+:where(:root[data-theme="dark"]) .image-toast-close:hover {
+    background: #13161d;
+    color: var(--ink)
+}
 
 /* due-soon.css */
 :where(:root[data-theme="dark"]) .due-soon-banner {
