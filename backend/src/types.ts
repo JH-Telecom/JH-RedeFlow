@@ -105,6 +105,8 @@ export type Call = {
   technicianName?: string;
   supervisorName?: string;
   openedAt: string;
+  /** Data/Hora do Evento informada no card de acionamento, quando houver. */
+  eventAt?: string;
   assignedAt?: string;
   executedAt?: string | null;
   result?: string;

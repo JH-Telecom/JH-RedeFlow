@@ -6,6 +6,14 @@ import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
 import { operationalRegions } from "../lib/constants";
 
+// Tempo entre o evento informado no card e o envio do card no grupo (abertura).
+function formatEventGap(eventAt: string, openedAt: string) {
+  const minutes = Math.round((new Date(openedAt).getTime() - new Date(eventAt).getTime()) / 60_000);
+  if (!Number.isFinite(minutes)) return "—";
+  if (minutes < 0) return "Evento depois da abertura";
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}`;
+}
+
 export function CallDetailBase() {
   const { pathname, search } = useLocation();
   const id = pathname.split("/").pop()!;
@@ -101,6 +109,8 @@ export function CallDetailBase() {
             <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
             <label className="detail-item editable-detail-item"><span>Abertura</span><input type="datetime-local" value={openedAt} onChange={(event) => setOpenedAt(event.target.value)} required /></label>
+            {call.eventAt && <DetailItem label="Data/Hora do evento" value={new Date(call.eventAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} />}
+            {call.eventAt && <DetailItem label="Gap evento → acionamento" value={formatEventGap(call.eventAt, call.openedAt)} />}
             <DetailItem label="Status interno" value={status} />
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
             <DetailItem label="Data Fim" value={( ["Finalizado", "Cancelado", "Baixar"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />

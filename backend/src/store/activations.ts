@@ -1,3 +1,4 @@
+import { parseSaoPauloDateTime } from '../timezone.js';
 import { createSupabaseActivation, decideSupabaseActivation, isSupabaseConfigured, listSupabaseActivations } from "../integrations/supabase/client.js";
 import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, User } from "../types.js";
@@ -32,7 +33,7 @@ export async function decideActivation(id: string, decision: 'Aceito' | 'Recusad
     const analysis = activation.analysis;
     const olt = data.olt || analysis?.olt || '';
     const mappedRegion = resolveOltRegion(olt).region;
-    const call: Call = { id: `call-${crypto.randomUUID()}`, orderNumber: data.orderNumber || `PEND-${id.slice(-6)}`, bdesk: data.bdesk || '', officeTrack: data.orderNumber || '', client: data.client || 'Cliente nao identificado', type: data.type || analysis?.tipo_registro || 'NOC ACESSO', reason: data.reason || analysis?.motivo || 'Acionamento recebido', region: mappedRegion || data.region || 'Nao informada', city: data.city || '', olt, slotPon: data.slotPon || analysis?.slot_pon?.join(', ') || '', atrelada: analysis?.atrelada || undefined, address: analysis?.endereco_principal || '', bairro: analysis?.bairro_principal || '', status: 'Aberto', openedAt: new Date().toISOString(), notes: 'Criado a partir de acionamento aceito.' };
+    const call: Call = { id: `call-${crypto.randomUUID()}`, orderNumber: data.orderNumber || `PEND-${id.slice(-6)}`, bdesk: data.bdesk || '', officeTrack: data.orderNumber || '', client: data.client || 'Cliente nao identificado', type: data.type || analysis?.tipo_registro || 'NOC ACESSO', reason: data.reason || analysis?.motivo || 'Acionamento recebido', region: mappedRegion || data.region || 'Nao informada', city: data.city || '', olt, slotPon: data.slotPon || analysis?.slot_pon?.join(', ') || '', atrelada: analysis?.atrelada || undefined, address: analysis?.endereco_principal || '', bairro: analysis?.bairro_principal || '', status: 'Aberto', openedAt: activation.receivedAt || new Date().toISOString(), eventAt: parseSaoPauloDateTime(analysis?.data_hora_evento), notes: 'Criado a partir de acionamento aceito.' };
     calls.set(call.id, call); activation.createdCallId = call.id;
     return { activation, call };
   }

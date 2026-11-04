@@ -25,3 +25,16 @@ export function operationalDayStartIso(date: string): string {
 export function addDays(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
+
+// "04/11/2026 11:39" (ou com segundos, "*", "às", "h") no horario de Sao Paulo -> ISO em UTC.
+// Sao Paulo esta em UTC-3 o ano todo (sem horario de verao desde 2019).
+export function parseSaoPauloDateTime(value: string | null | undefined): string | undefined {
+  const match = String(value ?? '').match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\D{0,8}?(\d{1,2})[:h](\d{2})(?::(\d{2}))?/i);
+  if (!match) return undefined;
+  const [, day, month, rawYear, hour, minute, second = '0'] = match;
+  const year = rawYear.length === 2 ? 2000 + Number(rawYear) : Number(rawYear);
+  const ms = Date.UTC(year, Number(month) - 1, Number(day), Number(hour) + 3, Number(minute), Number(second));
+  const check = new Date(ms - 3 * 3_600_000);
+  if (Number.isNaN(ms) || check.getUTCDate() !== Number(day) || check.getUTCMonth() !== Number(month) - 1 || Number(hour) > 23 || Number(minute) > 59) return undefined;
+  return new Date(ms).toISOString();
+}

@@ -3409,3 +3409,20 @@ O card BDESK 673092 chegou às 12:11, antes do deploy que passou a reconhecer "T
 ### Validação
 - Mensagem do card da captura: office_track 610151196050102, BDESK 673092.
 - Suíte: 129/129. tsc OK.
+
+## 2026-11-04 — Abertura pelo horário do card no grupo + Data/Hora do Evento
+
+### Pedido
+A abertura do chamado criado por acionamento usava o horário do clique em Aceitar (ex.: 12:18), e não o envio do card no grupo (12:11). O usuário quer a abertura = horário da mensagem no grupo e a "Data/Hora do Evento" do card (11:39) guardada, para medir o gap entre o evento e o acionamento.
+
+### Implementado
+- Migration `supabase/migrations/202611040001_calls_event_at.sql`: coluna opcional `calls.event_at timestamptz`. Aplicada em produção com autorização do usuário.
+- `timezone.ts`, função `parseSaoPauloDateTime`: lê "DD/MM/AAAA HH:MM[:SS]" (aceita "*", "às", "h") como horário de São Paulo e devolve ISO em UTC. Datas inválidas viram vazio.
+- Aceitar acionamento (Supabase e memória):
+  - `opened_at` = `received_at` da mensagem, ou agora se não houver;
+  - `event_at` = Data/Hora do Evento do card, quando existir.
+- `Call.eventAt` no backend e no frontend. O detalhe do chamado mostra "Data/Hora do evento" e "Gap evento → acionamento" quando há evento.
+
+### Validação
+- Testes do parser e da abertura no Aceitar. Suíte: 130/130. tsc backend e frontend OK.
+- Chamados já criados por acionamento: 3 (610151196050102, 610011417080102, 610011231680102), corrigidos com autorização do usuário: abertura = horário da mensagem e evento preenchido (11:39, 08:59, 08:59).

@@ -439,6 +439,7 @@ test('accepted NOC and Drive FIELD calls persist the official neighborhood and a
     assert.equal(accepted.call?.bairro, 'COLOMBIA');
     assert.ok(accepted.call?.address);
     assert.equal(accepted.call?.region, 'CIDADE TIRADENTES 1');
+    assert.equal(accepted.call?.openedAt, activation.receivedAt, 'abertura = horario da mensagem no grupo');
     const actor = { id: 'user-matheus', name: 'Test Operator', email: 'operator@example.com', roleId: 'role-operator', active: true, createdAt: new Date().toISOString() };
     const originalNocAddress = accepted.call!.address;
     const updatedNoc = await updateCall(accepted.call!.id, { olt: 'VIP-SZN-SPO-OHW-01', bairro: '', address: '' }, actor);
