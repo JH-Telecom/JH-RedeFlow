@@ -7,6 +7,7 @@ import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, add
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics } from './igp.js';
+import { calculateSlaAnalysis } from './sla-analysis.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
@@ -239,6 +240,18 @@ app.post('/api/auth/change-password', auth, async (request: AuthRequest, respons
 app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   try { return response.json({ metrics: await getDashboardMetrics(await getScopedCallQuery(request)) }); }
   catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o dashboard.' }); }
+});
+// Analise de prazo: tecnicos/bairros que mais perdem, horario de abertura, entrantes e estudo noturno (18h-06h).
+app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'OUTRAS']).default('ALL') }).safeParse(request.query);
+  if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
+  try {
+    const scopedQuery = await getScopedCallQuery(request, true);
+    const calls = await listCalls(undefined, scopedQuery);
+    return response.json({ analysis: calculateSlaAnalysis(calls, parsed.data.from, parsed.data.to, parsed.data.area) });
+  } catch (error) {
+    return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular a analise de prazo.' });
+  }
 });
 app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   const parsed = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).safeParse(request.query.month);

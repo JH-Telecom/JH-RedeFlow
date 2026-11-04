@@ -1,0 +1,80 @@
+/* Analise de prazo: tabelas de ranking, colunas por hora e estudo noturno. Cores de status vem de dashboards.css. */
+
+.sa-filters { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: flex-end; gap: 10px; }
+.sa-dates { display: flex; gap: 8px; }
+.sa-dates label, .sa-area { display: grid; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.sa-dates input, .sa-area select { height: 36px; padding: 0 10px; border: 1px solid #d9e2ee; border-radius: 8px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+.sa-area select:focus-visible, .sa-dates input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+.sa-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.sa-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sa-aside { color: var(--muted); font-size: 12px; }
+
+/* Tabelas */
+.sa-table-wrap { overflow-x: auto; }
+.sa-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sa-table th { padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 600; text-align: left; white-space: nowrap; text-transform: none; letter-spacing: 0; }
+.sa-table td { padding: 9px 10px; border-bottom: 1px solid #eef2f7; color: #40516a; vertical-align: top; font-variant-numeric: tabular-nums; }
+.sa-table td strong { display: block; color: var(--ink); font-weight: 600; }
+.sa-table td small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.sa-table td b { color: var(--ink); }
+.sa-table tfoot td { border: 0; color: var(--muted); font-size: 12px; }
+
+.sa-lost { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 600; }
+.sa-lost i { position: relative; display: block; width: 54px; height: 6px; border-radius: 3px; background: var(--dv-track); overflow: hidden; }
+.sa-lost i b { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: currentColor; }
+.sa-lost.is-good { color: var(--dv-good-ink); }
+.sa-lost.is-good i b { background: var(--dv-good); }
+.sa-lost.is-warning { color: var(--dv-warning-ink); }
+.sa-lost.is-warning i b { background: var(--dv-warning); }
+.sa-lost.is-critical { color: var(--dv-critical-ink); }
+.sa-lost.is-critical i b { background: var(--dv-critical); }
+
+/* Colunas por hora */
+.sa-hours-plot { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; height: 180px; padding-top: 18px; }
+.sa-hours-max { position: absolute; top: 0; left: 0; color: var(--muted); font-size: 11px; }
+.sa-hour { display: grid; grid-template-rows: 1fr auto; gap: 4px; min-width: 0; padding: 0; border-radius: 4px; background: none; cursor: default; }
+.sa-hour.is-night { background: #f1f4fb; }
+.sa-hour:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.sa-hour-bar { position: relative; display: block; border-bottom: 1px solid #c9d3e1; }
+.sa-hour-bar i { position: absolute; right: 18%; bottom: 0; left: 18%; min-height: 0; border-radius: 4px 4px 0 0; background: #9fb4d2; }
+.sa-hour-bar i.is-good { background: var(--dv-good); }
+.sa-hour-bar i.is-warning { background: var(--dv-warning); }
+.sa-hour-bar i.is-critical { background: var(--dv-critical); }
+.sa-hour-bar i.is-neutral { background: var(--dv-series-opened); }
+.sa-hour-bar i.is-empty { background: transparent; }
+.sa-hour.is-active .sa-hour-bar i { filter: brightness(.9); }
+.sa-hour small { height: 14px; color: var(--muted); font-size: 10px; text-align: center; white-space: nowrap; }
+.sa-hours .dv-tooltip { top: 0; transform: translate(-50%, -100%); }
+
+.sa-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; color: var(--muted); font-size: 12px; }
+.sa-legend i { display: inline-block; width: 10px; height: 10px; margin-right: -4px; border-radius: 3px; }
+.sa-legend i.is-good { background: var(--dv-good); }
+.sa-legend i.is-warning { background: var(--dv-warning); }
+.sa-legend i.is-critical { background: var(--dv-critical); }
+.sa-night-key { padding: 2px 8px; border-radius: 4px; background: #f1f4fb; color: #53627a; }
+
+/* Dia da semana */
+.sa-weekdays { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sa-weekdays li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 13px; }
+.sa-weekdays li > span:first-child { color: var(--muted); font-weight: 600; }
+.sa-weekdays b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Estudo noturno */
+.sa-night .sa-grid { margin-top: 20px; }
+.sa-night-top { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.sa-shift td:nth-child(2), .sa-shift td:nth-child(3), .sa-shift th:nth-child(2), .sa-shift th:nth-child(3) { text-align: right; }
+.sa-insights { padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: #fbfcfe; }
+.sa-insights h3, .sa-subtitle { margin: 0 0 10px; color: var(--ink); font-size: 14px; }
+.sa-insights ul { display: grid; gap: 8px; margin: 0; padding-left: 18px; color: #40516a; font-size: 13px; line-height: 1.5; }
+.sa-night > div:last-child { margin-top: 20px; }
+
+@media (max-width: 1100px) {
+  .sa-grid-3 { grid-template-columns: 1fr; }
+  .sa-night-top { grid-template-columns: 1fr; }
+}
+@media (max-width: 860px) {
+  .sa-grid { grid-template-columns: 1fr; }
+  .sa-filters { justify-content: flex-start; }
+  .sa-hours-plot { height: 150px; }
+}

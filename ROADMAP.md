@@ -3338,3 +3338,45 @@ No IGP, a região SP mostrava 49 ordens em novembro, mas o relatório da operado
 
 ### Testes
 - Suíte: 125/125.
+
+## 2026-11-04 — Nova página "Análise de prazo" (Indicadores)
+
+### Pedido
+Página com: técnico mais ofensor em prazo, bairros que mais perdem prazo, horário que mais perde prazo, média de entrantes e um estudo de por que mais se perde prazo das 18h às 06h. Durante o trabalho, o usuário pediu também filtro de área igual aos clusters e a média de execução por técnico.
+
+### Regras
+- Base: chamados **Finalizados** com Data Fim no período, como no IGP.
+- Perde prazo quem passa de **6h** entre abertura e fim; outlier, acima de 9h.
+- Noite é a **abertura entre 18h e 06h**, no horário de São Paulo.
+- **Média de entrantes** usa todos os chamados abertos no período, de qualquer status, divididos pelos dias do período; no mês corrente, conta até hoje.
+- **Execução média (TME)** por técnico vai da abertura à Data Fim, como o TME do relatório da operadora. As planilhas repetem a abertura como "Data Acionamento", então o tempo "após acionamento" só é usado quando o acionamento é pelo menos 1 minuto depois da abertura. Sem isso, a coluna não aparece.
+- **Clusters** iguais aos do IGP: C.8 São Paulo, C.12 Guarulhos, C.11 Alto Tietê e Outras (ABC e sem cluster).
+
+### Implementado
+- Backend:
+  - `backend/src/sla-analysis.ts` (novo), função `calculateSlaAnalysis`. Calcula:
+    - totais;
+    - ranking de técnicos e de bairros (sem bairro, entra a região) por perdas;
+    - perda por hora de abertura;
+    - entrantes por dia, por dia da semana e por hora;
+    - estudo noturno.
+  - O estudo noturno traz:
+    - comparação dia × noite;
+    - quantos noturnos atrasados só fecharam depois das 06h e a hora em que fecharam;
+    - perda por hora de abertura noturna, por tipo, por técnico, por motivo e por dia da semana;
+    - frases automáticas com as conclusões.
+- Rota `GET /api/dashboards/prazo?from&to&area` (permissão `dashboard.view`, respeita o escopo de supervisor).
+- Frontend:
+  - Nova página `frontend/src/pages/SlaAnalysisPage.tsx` + `frontend/src/sla-analysis.css`, no menu Indicadores ("Análise de prazo", `/analise-prazo`).
+  - Período: Este mês, Mês anterior, Últimos 3 meses ou Personalizado. O link aceita `?de=AAAA-MM-DD&ate=AAAA-MM-DD`.
+  - Filtro por cluster.
+  - Cores de status: até 11% de perda (meta de 89% no prazo), até 15% (mínimo de 85%) e acima disso.
+
+### Validação
+- `backend/test/sla-analysis.test.ts` (novo, 3 testes, conferidos em UTC e em São Paulo).
+- Suíte: 128/128. Build OK.
+- Conferido com dados reais das planilhas (setembro/2026), num proxy local temporário que só lia as planilhas e foi apagado:
+  - 1.170 finalizados, 58,6% perderam prazo, 37,5 entrantes por dia;
+  - à noite 87,8% de perda contra 55% de dia;
+  - 95 de 115 noturnos atrasados só fecharam depois das 06h.
+- Capturas em 1440 px e 500 px.

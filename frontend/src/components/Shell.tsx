@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Inbox, LayoutDashboard, LogOut, Menu, Repeat2, Settings, ShieldCheck, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
+import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, LogOut, Menu, Repeat2, Settings, ShieldCheck, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Role, type User, type AppNotification } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
@@ -10,6 +10,7 @@ import { CallDetailRoute } from "../pages/CallDetailPage";
 import { CallsPage, SupervisorOrdersPage } from "../pages/CallsPage";
 import { DashboardWithDateFilter } from "../pages/DashboardPage";
 import { IGPPage } from "../pages/IgpPage";
+import { SlaAnalysisPage } from "../pages/SlaAnalysisPage";
 import { ImportsPage } from "../pages/ImportsPage";
 import { ManualProductionDashboard } from "../pages/ManualProductionPage";
 import { RolesPage } from "../pages/RolesPage";
@@ -31,6 +32,7 @@ export const navItems: NavItem[] = [
   { section: "Operação", label: "Acionamentos", to: "/acionamentos", icon: BellRing, permission: "activations.view", counter: "activations" },
   { section: "Indicadores", label: "Painel diário", to: "/painel-diario", icon: CalendarDays, permission: "dashboard.view" },
   { section: "Indicadores", label: "IGP", to: "/igp", icon: Gauge, permission: "dashboard.view" },
+  { section: "Indicadores", label: "Análise de prazo", to: "/analise-prazo", icon: Hourglass, permission: "dashboard.view" },
   { section: "Equipes", label: "Técnicos", to: "/tecnicos", icon: HardHat, permission: "technicians.view" },
   { section: "Equipes", label: "Supervisores", to: "/supervisores", icon: UserCog, permission: "supervisors.view" },
   { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
@@ -285,6 +287,7 @@ export function Shell({
             <Route path="/acionamentos" element={guard("activations.view", <ActivationsPage />)} />
             <Route path="/painel-diario" element={guard("dashboard.view", <ManualProductionDashboard />)} />
             <Route path="/igp" element={guard("dashboard.view", <IGPPage />)} />
+            <Route path="/analise-prazo" element={guard("dashboard.view", <SlaAnalysisPage />)} />
             <Route path="/importacoes" element={guard("imports.view", <ImportsPage />)} />
             <Route path="/chamados/:id" element={guard("calls.view", <CallDetailRoute />)} />
             <Route path="/tecnicos" element={guard("technicians.view", <TechniciansPage />)} />

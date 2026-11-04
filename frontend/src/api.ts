@@ -36,6 +36,16 @@ export type CallListQuery = { from?: string; to?: string; teamScope?: boolean; s
 export type CallListResult = { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] };
 export type IgpGroup = { orders: number; outliers: number; onTime: number; totalRepairHours: number; outlierPercent: number | null; onTimePercent: number | null; mttrHours: number | null };
 export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE';
+export type SlaArea = IgpArea | 'OUTRAS';
+export type SlaCounters = { orders: number; lost: number; outliers: number; lostPercent: number | null; outlierPercent: number | null; avgHours: number | null; avgExecutionHours: number | null; withExecution: number };
+export type SlaRankItem = SlaCounters & { name: string; detail?: string };
+export type SlaHourItem = SlaCounters & { hour: number };
+export type SlaShiftStudy = SlaCounters & { avgWaitHours: number | null; withAssignment: number };
+export type SlaAnalysis = {
+  from: string; to: string; area: SlaArea; total: SlaCounters; technicians: SlaRankItem[]; neighborhoods: SlaRankItem[]; byOpeningHour: SlaHourItem[];
+  incoming: { days: number; opened: number; avgPerDay: number | null; byWeekday: { weekday: number; avgPerDay: number | null; opened: number }[]; byHour: { hour: number; avgPerDay: number | null; opened: number }[]; nightShare: number | null };
+  night: { day: SlaShiftStudy; night: SlaShiftStudy; crossedMorning: number; lostClosingHours: { hour: number; count: number }[]; byOpeningHour: SlaHourItem[]; byType: SlaRankItem[]; technicians: SlaRankItem[]; reasons: SlaRankItem[]; byWeekday: (SlaCounters & { weekday: number })[]; insights: string[] };
+};
 export type IgpMetrics = { month: string; area: IgpArea; access: IgpGroup; backbone: IgpGroup; total: IgpGroup; excludedOrders: number };
 export type Session = { token: string; user: User & { role: Role } };
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -80,6 +90,7 @@ export const api = {
   removeProfileAvatar: () => request<{ deleted: boolean }>('/api/auth/avatar', { method: 'DELETE' }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
+  slaAnalysis: (from: string, to: string, area: SlaArea = 'ALL') => request<{ analysis: SlaAnalysis }>(`/api/dashboards/prazo?from=${from}&to=${to}&area=${area}`),
   igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),
   dailyBase: () => request<{ base?: ManualDailyBase }>('/api/dashboards/painel-diario/base'),
   saveDailyBase: (fileName: string, data: ManualProductionData) => request<{ base: ManualDailyBase }>('/api/dashboards/painel-diario/base', { method: 'PUT', body: JSON.stringify({ fileName, data }) }),
