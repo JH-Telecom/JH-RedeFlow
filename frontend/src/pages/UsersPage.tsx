@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, Search, SlidersHorizontal, Users } from "lucide-react";
 import { api, type Role, type User } from "../api";
+import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal } from "../components/ui";
 
 // "ha 5 min", "ha 2 h", ou a data quando passou de um dia.
@@ -12,6 +13,8 @@ function formatLastSeen(iso: string) {
 }
 
 export function UsersPage() {
+  // Lista longa rola dentro do cartao (cabecalho fixo); lista curta continua compacta.
+  const tableRef = useFitToViewport<HTMLElement>("max");
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [error, setError] = useState("");
@@ -72,7 +75,7 @@ export function UsersPage() {
           <Users size={16} /> Novo usuário
         </button>
       </div>
-      <section className="panel table-panel">
+      <section className="panel table-panel fit-table-panel" ref={tableRef}>
         <div className="table-toolbar">
           <div className="search-field">
             <Search size={16} />
@@ -86,6 +89,7 @@ export function UsersPage() {
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
+          <div className="fit-scroll">
           <table>
             <thead>
               <tr>
@@ -147,6 +151,7 @@ export function UsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
       {message && <div className="save-message">{message}</div>}

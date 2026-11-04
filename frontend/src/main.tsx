@@ -34,6 +34,8 @@ import './page-transition.css';
 import './calls-queue.css';
 import './sla-analysis.css';
 import './update-notice.css';
+import './due-soon.css';
+import './tv-mode.css';
 import './theme-dark.css';
 import './theme-dark-manual.css';
 

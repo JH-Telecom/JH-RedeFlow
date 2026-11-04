@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, LogOut, Menu, Moon, Repeat2, Settings, ShieldCheck, Sun, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
+import { Archive, Bell, BellRing, CalendarDays, ChevronRight, ClipboardCheck, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, ChevronDown, LogOut, Menu, Moon, Search, Repeat2, Settings, ShieldCheck, Sun, Tv, Upload, UserCog, Users, Wrench, X, type LucideIcon } from "lucide-react";
 import { useTheme } from "../theme";
 import { UpdateNotice } from "./UpdateNotice";
+import { DueSoonBanner } from "./DueSoonBanner";
+import { CommandPalette } from "./CommandPalette";
+import { HelpTip, PAGE_HELP } from "./HelpTip";
+import { TvModePage } from "../pages/TvModePage";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Role, type User, type AppNotification } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
@@ -35,6 +39,7 @@ export const navItems: NavItem[] = [
   { section: "Indicadores", label: "Painel diário", to: "/painel-diario", icon: CalendarDays, permission: "dashboard.view" },
   { section: "Indicadores", label: "IGP", to: "/igp", icon: Gauge, permission: "dashboard.view" },
   { section: "Indicadores", label: "Análise de prazo", to: "/analise-prazo", icon: Hourglass, permission: "dashboard.view" },
+  { section: "Indicadores", label: "Modo TV", to: "/modo-tv", icon: Tv, permission: "dashboard.view" },
   { section: "Equipes", label: "Técnicos", to: "/tecnicos", icon: HardHat, permission: "technicians.view" },
   { section: "Equipes", label: "Supervisores", to: "/supervisores", icon: UserCog, permission: "supervisors.view" },
   { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
@@ -88,6 +93,26 @@ export function Shell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(() => localStorage.getItem("jh-redeflow-sidebar-collapsed") === "true");
   const { theme, toggle: toggleTheme } = useTheme();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // Secoes do menu recolhidas pelo usuario (Operacao, Indicadores...), lembradas neste navegador.
+  const [collapsedSections, setCollapsedSections] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("jh-redeflow:nav-collapsed") || "[]"); } catch { return []; }
+  });
+  function toggleSection(name: string) {
+    setCollapsedSections((current) => {
+      const next = current.includes(name) ? current.filter((item) => item !== name) : [...current, name];
+      try { localStorage.setItem("jh-redeflow:nav-collapsed", JSON.stringify(next)); } catch { /* sem armazenamento */ }
+      return next;
+    });
+  }
+  useEffect(() => {
+    // Ctrl+K (ou Cmd+K) abre a busca rapida de qualquer tela.
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPaletteOpen((current) => !current); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activationCount, setActivationCount] = useState(0);
   const [activationToast, setActivationToast] = useState<AppNotification | null>(null);
@@ -184,9 +209,19 @@ export function Shell({
   useEffect(() => {
     document.title = `${title} · JH Telecom - Rede`;
   }, [title]);
+  // Modo TV: tela cheia, sem lateral nem barra do topo (o aviso de atualizacao continua valendo).
+  if (location.pathname === "/modo-tv") return canAccess("dashboard.view") ? <><UpdateNotice /><TvModePage /></> : <AccessDenied />;
   return (
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       <UpdateNotice />
+      {paletteOpen && (
+        <CommandPalette
+          links={visibleItems.map((item) => ({ label: item.label, to: item.to, section: item.section, icon: item.icon }))}
+          canSearchCalls={canAccess("calls.view")}
+          onClose={() => setPaletteOpen(false)}
+          onNavigate={(to) => { setMobileOpen(false); navigate(to); }}
+        />
+      )}
       <aside className={`${desktopCollapsed ? "sidebar collapsed" : "sidebar"}${mobileOpen ? " open" : ""}`}>
         <div className="sidebar-brand">
           <img className="brand-logo-image" src={faviconUrl} alt="JH Telecom" />
@@ -201,11 +236,22 @@ export function Shell({
             <X size={18} />
           </button>
         </div>
+        <button type="button" className="sidebar-search" onClick={() => setPaletteOpen(true)} title="Busca rápida (Ctrl+K)">
+          <Search size={15} aria-hidden="true" />
+          <span>Buscar...</span>
+          <kbd>Ctrl K</kbd>
+        </button>
         <nav aria-label="Menu principal">
-          {sections.map((sectionName) => (
-            <div className="nav-section" key={sectionName}>
-              <span className="nav-section-title">{sectionName}</span>
-              {visibleItems.filter((item) => item.section === sectionName).map((item) => {
+          {sections.map((sectionName) => {
+            // Com o menu so de icones as secoes ficam sempre abertas; recolhida, a secao ainda mostra a tela atual.
+            const sectionCollapsed = !desktopCollapsed && collapsedSections.includes(sectionName);
+            return (
+            <div className={`nav-section${sectionCollapsed ? " is-collapsed" : ""}`} key={sectionName}>
+              <button type="button" className="nav-section-title" onClick={() => toggleSection(sectionName)} aria-expanded={!sectionCollapsed}>
+                {sectionName}
+                <ChevronDown size={13} aria-hidden="true" />
+              </button>
+              {visibleItems.filter((item) => item.section === sectionName).filter((item) => !sectionCollapsed || item === currentItem || (item.to === "/chamados/atendimento" && isCallDetail)).map((item) => {
                 const count = item.counter ? counters[item.counter] : 0;
                 return (
                   <NavLink
@@ -223,7 +269,8 @@ export function Shell({
                 );
               })}
             </div>
-          ))}
+            );
+          })}
         </nav>
         <div className="sidebar-bottom">
           <div className="profile-mini">
@@ -256,6 +303,7 @@ export function Shell({
             <ChevronRight size={14} aria-hidden="true" />
             {isCallDetail ? <><NavLink to="/chamados/atendimento">Chamados</NavLink><ChevronRight size={14} aria-hidden="true" /></> : null}
             <strong aria-current="page">{title}</strong>
+            {(() => { const help = PAGE_HELP[isCallDetail ? "detalhe" : currentItem?.to ?? "/"]; return help ? <HelpTip lines={help} title={title} /> : null; })()}
           </nav>
           <div className="topbar-actions">
             <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"} aria-label={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>
@@ -270,6 +318,7 @@ export function Shell({
           </div>
         </header>
         {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
+        {canAccess("calls.view") && <DueSoonBanner />}
         <div className="content">
           {/* Troca de pagina com fade suave (page-transition.css) em vez do corte seco */}
           <div className="page-transition" key={location.pathname}>

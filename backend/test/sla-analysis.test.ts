@@ -36,6 +36,11 @@ test('ranks technicians and neighborhoods by lost deadlines, with execution aver
   assert.equal(analysis.neighborhoods[0].name, 'Jardim B');
   assert.equal(analysis.byOpeningHour[8].orders, 2);
   assert.equal(analysis.byOpeningHour[8].lost, 1);
+  // 02/11/2026 e segunda-feira (1); 08h e 09h caem na faixa 06-12 (1)
+  const monday = analysis.heatmap.find((cell) => cell.weekday === 1 && cell.band === 1);
+  assert.equal(monday?.orders, 4);
+  assert.equal(monday?.lost, 2);
+  assert.equal(analysis.heatmap.length, 28);
 });
 
 test('studies calls opened between 18h and 06h against the day shift', () => {

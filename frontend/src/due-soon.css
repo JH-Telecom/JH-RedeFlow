@@ -1,0 +1,12 @@
+/* Faixa de OS vencendo (DueSoonBanner.tsx) */
+.due-soon-banner { position: sticky; top: 72px; z-index: 7; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; padding: 9px 38px; border-bottom: 1px solid #f3c4c6; background: #fff1f1; color: #b4232c; font-size: 12px; }
+.due-soon-banner > svg { flex: none; }
+.due-soon-banner strong { white-space: nowrap; }
+.due-soon-list { display: flex; flex-wrap: wrap; gap: 4px 6px; min-width: 0; }
+.due-soon-list button, .due-soon-open { padding: 3px 8px; border-radius: 6px; background: #ffe0e1; color: #8f1d24; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.due-soon-list button:hover, .due-soon-open:hover { background: #ffd0d2; }
+.due-soon-list button b { font-weight: 700; }
+.due-soon-list span { align-self: center; color: #b4232c; font-weight: 600; }
+.due-soon-open { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; background: transparent; }
+@media (max-width: 900px) { .due-soon-banner { top: 72px; padding: 9px 20px; } }
+@media (max-width: 560px) { .due-soon-banner { top: 62px; } }

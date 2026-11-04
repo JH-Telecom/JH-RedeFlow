@@ -70,6 +70,41 @@ function RankTable({ items, nameLabel, empty, showExecution = false, limit = 10,
   );
 }
 
+// Mapa de calor: linhas = dias (segunda a domingo), colunas = faixas de 6h da abertura. Cor pela faixa de meta,
+// e o numero sempre escrito na celula (a cor nunca e o unico sinal).
+const BANDS = ["00h–06h", "06h–12h", "12h–18h", "18h–24h"];
+const HEAT_DAYS = [1, 2, 3, 4, 5, 6, 0];
+function HeatmapTable({ cells }: { cells: SlaAnalysis["heatmap"] }) {
+  if (!cells.some((cell) => cell.orders)) return <div className="dv-empty">Nenhum chamado finalizado no período.</div>;
+  const cell = (weekday: number, band: number) => cells.find((item) => item.weekday === weekday && item.band === band);
+  return (
+    <div className="sa-table-wrap">
+      <table className="sa-heatmap">
+        <thead><tr><th>Dia</th>{BANDS.map((band, index) => <th key={band} className={index === 0 || index === 3 ? "is-night" : ""}>{band}</th>)}<th>Dia todo</th></tr></thead>
+        <tbody>
+          {HEAT_DAYS.map((weekday) => {
+            const row = BANDS.map((_, band) => cell(weekday, band));
+            const orders = row.reduce((sum, item) => sum + (item?.orders ?? 0), 0);
+            const lost = row.reduce((sum, item) => sum + (item?.lost ?? 0), 0);
+            const dayPercent = orders ? (lost / orders) * 100 : null;
+            return (
+              <tr key={weekday}>
+                <th scope="row">{WEEKDAYS[weekday]}</th>
+                {row.map((item, band) => (
+                  <td key={band} className={item?.orders ? lostTone(item.lostPercent) : "is-empty"} title={item?.orders ? `${WEEKDAYS[weekday]} ${BANDS[band]}: ${formatPercent(item.lostPercent)} perderam prazo (${item.lost} de ${item.orders}) · tempo médio ${formatHours(item.avgHours)}` : `${WEEKDAYS[weekday]} ${BANDS[band]}: nenhum chamado`}>
+                    {item?.orders ? <><b>{formatPercent(item.lostPercent)}</b><small>{item.lost}/{item.orders}</small></> : <span>–</span>}
+                  </td>
+                ))}
+                <td className={`is-total ${orders ? lostTone(dayPercent) : "is-empty"}`}>{orders ? <><b>{formatPercent(dayPercent)}</b><small>{lost}/{orders}</small></> : <span>–</span>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // Colunas por hora com dica no hover/foco. `value` define a altura; `tone` a cor; noite com faixa de fundo.
 type HourColumn = { hour: number; value: number; tone: string; tooltip: string[] };
 function HourColumns({ columns, max, unit, ariaLabel }: { columns: HourColumn[]; max: number; unit: (value: number) => string; ariaLabel: string }) {
@@ -200,6 +235,11 @@ export function SlaAnalysisPage() {
             const worst = analysis.byOpeningHour.filter((item) => item.orders >= 3).sort((left, right) => (right.lostPercent ?? 0) - (left.lostPercent ?? 0))[0];
             return worst ? <p className="dv-footnote">Pior horário com pelo menos 3 chamados: <b>{hourLabel(worst.hour)}</b>, {formatPercent(worst.lostPercent)} de perda ({worst.lost} de {worst.orders}).</p> : null;
           })()}
+        </Panel>
+
+        <Panel kicker="DIA × HORÁRIO" title="Onde a semana perde prazo" aside={<span className="sa-legend"><i className="is-good" />até 11%<i className="is-warning" />até 15%<i className="is-critical" />acima de 15%</span>}>
+          <HeatmapTable cells={analysis.heatmap} />
+          <p className="dv-footnote">% de chamados finalizados que passaram de 6h, pelo dia da semana e faixa de horário da abertura. Embaixo, quantos perderam de quantos.</p>
         </Panel>
 
         <div className="sa-grid">

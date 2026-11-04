@@ -3557,3 +3557,78 @@ Na barra lateral, o perfil deve ficar fixo. Só as abas rolam quando não cabem,
 - 1280×560: as abas rolam, a marca fica no topo e o perfil fica visível no rodapé; a lateral em si não rola.
 - Lateral recolhida: o avatar continua no rodapé.
 - Celular 375×640 com menu aberto: as abas rolam e o perfil fica fixo embaixo.
+
+## 2026-11-04 — Tabelas com rolagem própria (só as linhas descem)
+
+### Pedido
+Nas telas com tabela, em vez de a página inteira descer, delimitar a área para que só os chamados rolem, como no vídeo de referência (outro sistema do usuário, agendamentos-jh).
+
+### Implementado
+- `frontend/src/hooks/useFitToViewport.ts` (novo): mede onde o cartão da tabela começa e ajusta a altura dele ao que sobra da janela.
+  - Acompanha redimensionamento, quebra de linha do cabeçalho e filtros abertos, e desconta o espaçamento inferior para a página não rolar alguns pixels.
+  - Modo `fill` (altura fixa) e `max` (só limite). Mínimo de 420 px.
+  - Só no desktop (> 900 px); no celular, onde a tabela vira cartões, nada muda.
+- `CallsPage.tsx` (Chamados abertos, Em atendimento, Finalizados e cancelados e as filas da equipe): o cartão preenche a tela. Busca, filtros e paginação ficam fixos, só as linhas rolam e o cabeçalho das colunas fica preso no topo.
+- `UsersPage.tsx` e `TechniciansPage.tsx` (modo `max`): lista longa rola dentro do cartão com cabeçalho preso; lista curta continua compacta.
+- `calls-queue.css`: regras `.is-fit`, `.fit-table-panel` e `.fit-scroll` e barra de rolagem fina (versão escura em `theme-dark-manual.css`).
+
+### Validação
+- 1366×900:
+  - Chamados abertos com lista longa (linhas clonadas no navegador): a área rola, o `<th>` fica no topo da área e a página não rola (0 px de sobra).
+  - Usuários: rolagem interna com cabeçalho preso.
+  - Técnicos: lista curta sem rolagem.
+- 1366×600: vale o mínimo de 420 px e a página rola o restante.
+- Celular 375 px: sem altura fixa.
+- Build OK.
+
+## 2026-11-04 — Preview local ao vivo (localhost:8000)
+
+### Pedido
+Ter um servidor local, como `python -m http.server 8000`, para acompanhar as mudanças em tempo real e opinar antes de elas irem para a main. A main só recebe o que o usuário autorizar.
+
+### Implementado
+- `scripts/preview-local.mjs` + `npm run preview` (raiz) + `Abrir preview.bat` (duplo clique: abre o navegador e sobe o preview).
+  - **Frontend** (Vite) em `http://localhost:8000`, que recarrega sozinho a cada arquivo salvo (HMR).
+  - **API** em `http://localhost:3333`, sempre com **dados de demonstração em memória**. As variáveis do Supabase são forçadas vazias, então nada lê ou grava em produção, mesmo com `backend/.env`. O backend reinicia sozinho (`tsx watch`).
+  - CORS da API local liberado para a porta 8000. Login demo: `admin@jhtelecom.com` / `RedeFlow@2026`.
+  - Ctrl+C encerra os dois.
+- Fluxo combinado: as mudanças aparecem no preview → o usuário avalia → commit/push só com autorização.
+
+### Validação
+- `npm run preview` subiu os dois. O login demo funcionou em localhost:8000 e o HMR do Vite conectou.
+- Ctrl+C liberou as portas 8000 e 3333 sem sobrar processo.
+
+## 2026-11-04 — 9 melhorias inspiradas no vídeo de referência
+
+### Pedido
+Implementar as 9 sugestões tiradas do vídeo do outro sistema do usuário (agendamentos-jh).
+
+### Implementado
+1. **Faixa "OS vencendo"**
+   - Backend: `backend/src/due-soon.ts` + `GET /api/chamados/vencendo`, com escopo de supervisor. Lista os chamados ativos que estouram as 6h nos próximos 30 min, do mais urgente ao menos, e conta os já estourados.
+   - Frontend: `components/DueSoonBanner.tsx` + `due-soon.css`. Faixa vermelha fixa embaixo da barra do topo, com cada OS e o tempo que falta; clicar abre o chamado e "Ver fila" leva aos abertos.
+   - Busca a lista a cada minuto e recalcula o "falta" a cada 30 s; some quando não há nada vencendo. Avisa as tabelas ajustadas à tela para recalcular a altura.
+2. **Ordenar clicando no cabeçalho** (`CallsPage.tsx`): Ordem/Protocolo, Técnico, Na fila/Abertura, Local e Status alternam crescente e decrescente (ícone ▲▼ e `aria-sort`), e a escolha é lembrada por tela. O padrão das filas continua o mais antigo primeiro.
+3. **Contagem nas abas de status**: cada aba (Todos, Finalizado, Cancelado, Baixar / Atribuído, Deslocamento, Em campo) mostra quantos chamados há com os filtros atuais, com uma consulta leve por aba (`pageSize=1`).
+4. **Busca rápida Ctrl+K** (`components/CommandPalette.tsx`, com botão "Buscar... Ctrl K" na lateral): acha telas do menu e chamados (ordem, BDESK, técnico, região, OLT; a partir de 3 caracteres). Navega com setas, Enter e Esc.
+5. **Seções da lateral recolhíveis**: clicar em Operação, Indicadores, Equipes ou Administração recolhe a seção, e a escolha fica salva no navegador. Recolhida, a seção ainda mostra a tela atual; com a lateral só de ícones, tudo fica aberto.
+6. **Exportar Excel** nas filas de chamados: exporta todas as páginas (100 por vez, 4 em paralelo, com progresso no botão) com os filtros e a ordem atuais.
+   - Colunas: ordem, BDESK, Office Track, tipo, motivo, região, bairro, endereço, OLT, Slot/PON, técnico, supervisor, status, status OFS, abertura, Data Fim, tempo (h) e situação do prazo.
+   - A biblioteca `xlsx` só carrega ao exportar.
+7. **Mapa de calor dia × horário** na Análise de prazo: o backend (`sla-analysis.ts`, campo `heatmap`) calcula a perda por dia da semana × faixa de 6h da abertura. A tela mostra a tabela com cores da meta (até 11% / até 15% / acima), o número escrito em cada célula e a coluna "Dia todo".
+8. **Modo TV** (`pages/TvModePage.tsx` + `tv-mode.css`, menu Indicadores → Modo TV, `/modo-tv`): tela cheia escura com letras grandes.
+   - Visões: Agora (KPIs, ativos por técnico, hoje), Mais antigos (top 10 com tempo na fila) e Prazo do mês (perda, outliers, entrantes, técnicos e bairros que mais perdem).
+   - Troca de visão a cada 20 s e atualiza a cada minuto, com faixa de OS vencendo, relógio e "ao vivo". Teclas: setas trocam a visão, espaço pausa, Esc sai; tem botão de tela cheia.
+9. **Ajuda "?"** ao lado do nome da tela na barra do topo (`components/HelpTip.tsx`): explica o que cada tela mostra e as regras dela (prazo 6h/9h, clusters, online etc.).
+
+### Validação
+- Backend: novo `due-soon.test.ts` e o heatmap coberto em `sla-analysis.test.ts`. Suíte 133/133. tsc OK.
+- Preview local (dados demo, tema escuro):
+  - Ctrl+K achou as RF-2409x e Enter abriu o chamado;
+  - seção Equipes recolheu e ficou salva;
+  - a ajuda abriu;
+  - modo TV com as 3 visões;
+  - ordenação alterna e as contagens das abas batem (Todos 2, Atribuído 1, Em campo 1);
+  - o Excel gerou "Chamados em atendimento 04-11-2026.xlsx" (18 KB; download interceptado no teste).
+- A faixa de vencimento e o mapa de calor foram conferidos com respostas simuladas no navegador, porque o demo não tem chamados perto das 6h nem finalizados.
+- Build OK.

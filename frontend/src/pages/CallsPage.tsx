@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Activity, Copy, Search, X } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileSpreadsheet, Search, X } from "lucide-react";
 import { api, type Call, type CallListQuery, type CallListResult, type CallStatus, type Role, type User } from "../api";
 import { SLA_ON_TIME_MAX_MINUTES, SLA_OUTLIER_AFTER_MINUTES, TimerCell, formatCallTimestamp, getSlaState } from "../components/call-cells";
 import { CALLS_PAGE_SIZE, operationalRegions } from "../lib/constants";
 import { getImageCaptureScale } from "../lib/image-export";
+import { useFitToViewport } from "../hooks/useFitToViewport";
 
 export function RangeCallTable({ calls }: { calls: Call[] }) {
   return (
@@ -165,9 +166,24 @@ function FilterField({ label, active, children }: { label: string; active: boole
   return <label className={`cq-field${active ? " is-active" : ""}`}><span>{label}</span>{children}</label>;
 }
 
+type CallSortKey = NonNullable<CallListQuery["sort"]>;
+type CallSortState = { sort: CallSortKey; direction: "asc" | "desc" };
+// "Na fila" e "Abertura" ordenam pela abertura: crescente = ha mais tempo esperando primeiro.
+const SORTABLE_COLUMNS: Partial<Record<string, CallSortKey>> = {
+  Ordem: "orderNumber", Protocolo: "orderNumber", "Técnico": "technicianName", "Na fila": "openedAt", Abertura: "openedAt",
+  Local: "region", "Local e OLT": "region", Status: "status",
+};
+
 export function CallsPage({ status, title, assignedOnly = false, unassignedOnly = false, teamScoped = false, closedOnly = false }: { status?: CallStatus; title: string; assignedOnly?: boolean; unassignedOnly?: boolean; teamScoped?: boolean; closedOnly?: boolean }) {
   const pageKey = `${teamScoped ? 'team' : 'global'}:${closedOnly ? 'closed' : assignedOnly ? 'assigned-v2' : unassignedOnly ? 'unassigned' : status ?? 'all'}:${title}`;
   const initialState = readCallsPageState(pageKey);
+  // Cartao da fila ocupa o resto da tela: filtros e paginacao fixos, so as linhas rolam.
+  const panelRef = useFitToViewport<HTMLElement>("fill");
+  // Ordenacao por coluna: filas em andamento comecam pelo mais antigo; finalizados pela ordem padrao do servidor.
+  const defaultSort: CallSortState | null = closedOnly ? null : { sort: "openedAt", direction: "asc" };
+  const [sortState, setSortState] = useState<CallSortState | null>(initialState.sortState ?? defaultSort);
+  const [statusCounts, setStatusCounts] = useState<Partial<Record<string, number>>>({});
+  const [exporting, setExporting] = useState<string | null>(null);
   const [calls, setCalls] = useState<Call[]>([]);
   const [query, setQuery] = useState(initialState.query ?? "");
   const [loading, setLoading] = useState(false);
@@ -190,8 +206,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const navigate = useNavigate();
 
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
-  useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage }); }, [pageKey, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
-  useEffect(() => { setCallsPage(1); }, [query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
+  useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage, sortState }); }, [pageKey, sortState, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
+  useEffect(() => { setCallsPage(1); }, [sortState, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
   async function copyTableAsImage() {
     const table = tableRef.current;
     if (!table) return;
@@ -373,9 +389,63 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     window.setTimeout(() => setCopyState("idle"), 2200);
   }
 
-  // Filas em andamento: quem esta ha mais tempo esperando (mais perto de estourar o prazo) vem primeiro.
-  // Finalizados seguem do mais recente para o mais antigo.
-  const queueOrder = closedOnly ? {} : { sort: "openedAt" as const, direction: "asc" as const };
+  // Filas em andamento: por padrao quem esta ha mais tempo esperando vem primeiro (clique no cabecalho muda).
+  const queueOrder: Pick<CallListQuery, "sort" | "direction"> = sortState ? { sort: sortState.sort, direction: sortState.direction } : {};
+  const statusesFor = (choice: CallStatus | "Todos"): CallStatus | CallStatus[] | undefined =>
+    unassignedOnly ? inProgressCallStatuses : choice === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : choice;
+  const listFilters = (): CallListQuery => ({
+    from: dateRange.from,
+    to: dateRange.to,
+    teamScope: teamScoped,
+    search: query.trim(),
+    region: regionFilter === "Todas" ? undefined : regionFilter,
+    neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
+    olt: oltFilter === "Todas" ? undefined : oltFilter,
+    hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
+    ...queueOrder,
+  });
+  function toggleSort(key: CallSortKey) {
+    setSortState((current) => current?.sort === key ? { sort: key, direction: current.direction === "asc" ? "desc" : "asc" } : { sort: key, direction: "asc" });
+  }
+
+  // Exporta todas as paginas com os filtros e a ordem atuais (o servidor entrega no maximo 100 por pagina).
+  async function exportExcel() {
+    setExporting("Preparando...");
+    try {
+      const requestStatus = statusesFor(statusFilter);
+      const first = await api.calls(requestStatus, { ...listFilters(), page: 1, pageSize: 100 });
+      const all = [...first.calls];
+      for (let page = 2; page <= first.totalPages; page += 4) {
+        const batch = Array.from({ length: Math.min(4, first.totalPages - page + 1) }, (_, index) => page + index);
+        setExporting("Exportando " + Math.min(page + 3, first.totalPages) + "/" + first.totalPages);
+        const results = await Promise.all(batch.map((item) => api.calls(requestStatus, { ...listFilters(), page: item, pageSize: 100 })));
+        results.forEach((result) => all.push(...result.calls));
+      }
+      const XLSX = await import("xlsx");
+      const spDate = (iso?: string | null) => iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "";
+      const rows = all.map((call) => {
+        const minutes = minutesBetween(call.openedAt, closedView ? call.executedAt : undefined);
+        const sla = getSlaState(minutes);
+        return {
+          Ordem: call.orderNumber, BDESK: call.bdesk, "Office Track": call.officeTrack, Tipo: call.type, Motivo: call.reason,
+          "Região": call.region, Bairro: call.bairro || "", "Endereço": call.address || "", OLT: call.olt, "Slot/PON": call.slotPon,
+          "Técnico": call.technicianName || "", Supervisor: call.supervisorName || "", Status: call.status, "Status OFS": call.ofsStatus || "",
+          Abertura: spDate(call.openedAt), "Data Fim": spDate(call.executedAt), "Tempo (h)": Math.round((minutes / 60) * 10) / 10,
+          Prazo: sla === "outlier" ? "Outlier" : sla === "late" ? "Fora do prazo" : "No prazo",
+        };
+      });
+      const sheet = XLSX.utils.json_to_sheet(rows);
+      const headers = Object.keys(rows[0] ?? { Ordem: "" });
+      sheet["!cols"] = headers.map((key) => ({ wch: Math.min(40, Math.max(10, key.length + 2, ...rows.slice(0, 200).map((row) => String((row as Record<string, unknown>)[key] ?? "").length))) }));
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, sheet, "Chamados");
+      XLSX.writeFile(book, title + " " + new Date().toLocaleDateString("pt-BR").replace(/\//g, "-") + ".xlsx");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel exportar os chamados.");
+    } finally {
+      setExporting(null);
+    }
+  }
 
   async function refreshCalls() {
     setLoading(true);
@@ -457,7 +527,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       });
 
     return () => { active = false; };
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage, sortState]);
 
   async function updateCallStatus(call: Call, nextStatus: CallStatus) {
     if (nextStatus === call.status) return;
@@ -481,6 +551,17 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const neighborhoods = [...new Set([...calls.map((call) => call.bairro).filter((item): item is string => Boolean(item)), ...(neighborhoodFilter === "Todos" ? [] : [neighborhoodFilter])])].sort((left, right) => left.localeCompare(right, "pt-BR"));
   const olts = [...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])];
   const statusChoices: (CallStatus | "Todos")[] = unassignedOnly ? [] : closedView ? ["Todos", "Finalizado", "Cancelado", "Baixar"] : assignedOnly ? ["Todos", ...attendanceStatusOptions] : ["Todos", ...CALL_STATUSES];
+  // Quantos chamados cada aba de status teria com os filtros atuais (uma consulta leve por aba: pageSize 1).
+  useEffect(() => {
+    if (!statusChoices.length) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void Promise.all(statusChoices.map((choice) => api.calls(statusesFor(choice), { ...listFilters(), page: 1, pageSize: 1 }).then((result) => [choice, result.total] as const).catch(() => [choice, undefined] as const)))
+        .then((entries) => { if (active) setStatusCounts(Object.fromEntries(entries)); });
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls]);
   const activeFilters = [
     !unassignedOnly && statusFilter !== "Todos",
     regionFilter !== "Todas",
@@ -529,6 +610,9 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           </p>
         </div>
         <div className="cq-heading-actions">
+          <button className="secondary-button compact" onClick={() => void exportExcel()} type="button" disabled={Boolean(exporting) || totalCalls === 0} title="Exportar todos os chamados com os filtros atuais">
+            <FileSpreadsheet size={15} /> {exporting ?? "Exportar Excel"}
+          </button>
           <button className="secondary-button compact" onClick={() => void copyTableAsImage()} type="button" aria-label="Copiar tabela como imagem">
             <Copy size={15} />
             {copyState === "copied" ? "Imagem copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao exportar" : "Copiar imagem"}
@@ -538,7 +622,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           </button>
         </div>
       </div>
-      <section className="panel cq-panel">
+      <section className="panel cq-panel" ref={panelRef}>
         <div className="cq-filters" role="search">
           <div className="cq-filters-top">
             <label className="cq-search">
@@ -548,7 +632,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             </label>
             {statusChoices.length > 0 && (
               <div className="cq-status-tabs" role="group" aria-label="Filtrar por status">
-                {statusChoices.map((item) => <button key={item} type="button" className={statusFilter === item ? "is-selected" : ""} aria-pressed={statusFilter === item} onClick={() => setStatusFilter(item)}>{item}</button>)}
+                {statusChoices.map((item) => <button key={item} type="button" className={statusFilter === item ? "is-selected" : ""} aria-pressed={statusFilter === item} onClick={() => setStatusFilter(item)}>{item}{statusCounts[item] !== undefined && <span className="cq-tab-count">{statusCounts[item]!.toLocaleString("pt-BR")}</span>}</button>)}
               </div>
             )}
           </div>
@@ -579,7 +663,13 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         ) : (
           <div className="table-scroll-container cq-scroll">
             <table ref={tableRef} className={`cq-table${loading ? " is-loading" : ""}`}>
-              <thead><tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+              <thead><tr>{columns.map((column) => {
+                const key = SORTABLE_COLUMNS[column];
+                if (!key) return <th key={column}>{column}</th>;
+                const active = sortState?.sort === key;
+                const Icon = !active ? ArrowUpDown : sortState?.direction === "asc" ? ArrowUp : ArrowDown;
+                return <th key={column} aria-sort={active ? (sortState?.direction === "asc" ? "ascending" : "descending") : "none"}><button type="button" className={`cq-sort${active ? " is-active" : ""}`} onClick={() => toggleSort(key)} title={`Ordenar por ${column.toLowerCase()}`}>{column}<Icon size={12} aria-hidden="true" /></button></th>;
+              })}</tr></thead>
               <tbody>
                 {currentCalls.map((call) => (
                   <tr key={call.id} className={`cq-row is-${rowSla(call)}`} tabIndex={0} onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)} onKeyDown={(event) => { if (event.key === "Enter") navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`); }}>

@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, Pencil, Search, SlidersHorizontal, Users } from "lucide-react";
 import { api, type Technician, type Supervisor } from "../api";
+import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal, DetailItem, Metric } from "../components/ui";
 
 export function TechniciansPage() {
+  // Lista longa rola dentro do cartao (cabecalho fixo); lista curta continua compacta.
+  const tableRef = useFitToViewport<HTMLElement>("max");
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -127,7 +130,7 @@ export function TechniciansPage() {
           note="Areas cobertas"
         />
       </div>
-      <section className="panel table-panel">
+      <section className="panel table-panel fit-table-panel" ref={tableRef}>
         <div className="table-toolbar">
           <div className="search-field">
             <Search size={16} />
@@ -141,6 +144,7 @@ export function TechniciansPage() {
         {error ? (
           <div className="empty-state">{error}</div>
         ) : (
+          <div className="fit-scroll">
           <table>
             <thead>
               <tr>
@@ -196,6 +200,7 @@ export function TechniciansPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
       {showForm && <AdminModal title="Novo tecnico" onClose={() => setShowForm(false)}><form className="admin-form" onSubmit={save}>

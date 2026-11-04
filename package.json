@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace frontend\" \"npm run dev --workspace backend\"",
     "build": "npm run build --workspace frontend && npm run typecheck --workspace backend",
-    "typecheck": "npm run typecheck --workspace frontend && npm run typecheck --workspace backend"
+    "typecheck": "npm run typecheck --workspace frontend && npm run typecheck --workspace backend",
+    "preview": "node scripts/preview-local.mjs"
   },
-  "workspaces": ["frontend", "backend"],
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "devDependencies": {
     "concurrently": "^9.1.2"
   }

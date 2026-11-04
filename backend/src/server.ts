@@ -19,6 +19,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
+import { dueSoonCalls } from './due-soon.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -452,6 +453,16 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
     const result = await listCallsPage(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, search, region, neighborhood, olt, hasTechnician, sort, direction }, page, pageSize);
     return response.json(result);
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
+});
+// Faixa de alerta: chamados ativos que estouram as 6h nos proximos 30 min (respeita o escopo do supervisor).
+app.get('/api/chamados/vencendo', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  try {
+    const scopedQuery = await getScopedCallQuery(request, true);
+    const calls = await listCalls(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo'], { ...scopedQuery, from: undefined, to: undefined });
+    return response.json(dueSoonCalls(calls));
+  } catch (error) {
+    return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel listar os chamados vencendo.' });
+  }
 });
 app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (request, response) => {
   const call = await getCall(String(request.params.id), await getScopedCallQuery(request as AuthRequest, request.query.teamScope === 'true'));

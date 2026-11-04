@@ -18,6 +18,8 @@ export type HistoricalActivationImportPreview = { previewId: string; fileName: s
 export type CurrentCallsImportPreview = { previewId: string; fileName: string; sheetName: string; target: string; canWrite: boolean; totalRows: number; parsedRows: number; importableRows: number; alreadyInSystem: number; duplicateRows: number; invalidRows: number[]; missingFinishRows: number[]; ignoredFinishRows: number[]; unmatchedTechnicians: string[]; byStatus: Partial<Record<CallStatus, number>>; sample: { rowNumber: number; orderNumber: string; status: CallStatus; openedAt: string; executedAt?: string; region: string; technicianName?: string }[] };
 export type D0BaseSummary = { fileName?: string; rowCount: number; uploadedBy?: string; uploadedAt?: string };
 export type SlaBreakdown = { onTime: number; late: number; outlier: number };
+export type DueSoonCall = { id: string; orderNumber: string; type: string; region: string; technicianName?: string; openedAt: string; status: CallStatus; minutesLeft: number };
+export type DueSoonResult = { dueSoon: DueSoonCall[]; late: number; windowMinutes: number };
 export type DashboardActiveCall = { id: string; orderNumber: string; type: string; region: string; status: CallStatus; technicianName?: string; openedAt: string };
 export type DashboardMetrics = {
   receivedToday: number; open: number; unassigned: number; inProgress: number; finished: number; cancelled: number; pendingActivations: number;
@@ -42,7 +44,7 @@ export type SlaRankItem = SlaCounters & { name: string; detail?: string };
 export type SlaHourItem = SlaCounters & { hour: number };
 export type SlaShiftStudy = SlaCounters & { avgWaitHours: number | null; withAssignment: number };
 export type SlaAnalysis = {
-  from: string; to: string; area: SlaArea; total: SlaCounters; technicians: SlaRankItem[]; neighborhoods: SlaRankItem[]; byOpeningHour: SlaHourItem[];
+  from: string; to: string; area: SlaArea; total: SlaCounters; technicians: SlaRankItem[]; neighborhoods: SlaRankItem[]; byOpeningHour: SlaHourItem[]; heatmap: (SlaCounters & { weekday: number; band: number })[];
   incoming: { days: number; opened: number; avgPerDay: number | null; byWeekday: { weekday: number; avgPerDay: number | null; opened: number }[]; byHour: { hour: number; avgPerDay: number | null; opened: number }[]; nightShare: number | null };
   night: { day: SlaShiftStudy; night: SlaShiftStudy; crossedMorning: number; lostClosingHours: { hour: number; count: number }[]; byOpeningHour: SlaHourItem[]; byType: SlaRankItem[]; technicians: SlaRankItem[]; reasons: SlaRankItem[]; byWeekday: (SlaCounters & { weekday: number })[]; insights: string[] };
 };
@@ -91,6 +93,7 @@ export const api = {
   removeProfileAvatar: () => request<{ deleted: boolean }>('/api/auth/avatar', { method: 'DELETE' }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
+  dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
   slaAnalysis: (from: string, to: string, area: SlaArea = 'ALL') => request<{ analysis: SlaAnalysis }>(`/api/dashboards/prazo?from=${from}&to=${to}&area=${area}`),
   igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),
   dailyBase: () => request<{ base?: ManualDailyBase }>('/api/dashboards/painel-diario/base'),

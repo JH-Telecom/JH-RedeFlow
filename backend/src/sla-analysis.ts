@@ -27,6 +27,8 @@ export type SlaAnalysis = {
   technicians: SlaRankItem[];
   neighborhoods: SlaRankItem[];
   byOpeningHour: SlaHourItem[];
+  /** Perda de prazo por dia da semana (0 = domingo) x faixa de 6h da abertura (0: 00-06, 1: 06-12, 2: 12-18, 3: 18-24). */
+  heatmap: (SlaCounters & { weekday: number; band: number })[];
   incoming: { days: number; opened: number; avgPerDay: number | null; byWeekday: { weekday: number; avgPerDay: number | null; opened: number }[]; byHour: { hour: number; avgPerDay: number | null; opened: number }[]; nightShare: number | null };
   night: {
     day: ShiftStudy;
@@ -174,7 +176,9 @@ export function calculateSlaAnalysis(calls: Call[], from: string, to: string, ar
   const technicians = new Map<string, Accumulator & { detail?: string }>();
   const neighborhoods = new Map<string, Accumulator & { detail?: string }>();
   const hours = Array.from({ length: 24 }, emptyAccumulator);
+  const heat = Array.from({ length: 28 }, emptyAccumulator);
   for (const { call, hours: repair } of finished) {
+    add(heat[localWeekday(call.openedAt) * 4 + Math.floor(localHour(call.openedAt) / 6)], repair, call);
     add(total, repair, call);
     bump(technicians, call.technicianName || 'Sem técnico', repair, call, call.supervisorName);
     const place = call.bairro?.trim() || call.region || 'Não informado';
@@ -233,6 +237,7 @@ export function calculateSlaAnalysis(calls: Call[], from: string, to: string, ar
     technicians: ranking(technicians),
     neighborhoods: ranking(neighborhoods),
     byOpeningHour: hours.map((accumulator, hour) => ({ hour, ...counters(accumulator) })),
+    heatmap: heat.map((accumulator, index) => ({ weekday: Math.floor(index / 4), band: index % 4, ...counters(accumulator) })),
     incoming: {
       days: dayCount,
       opened: opened.length,

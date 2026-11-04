@@ -117,3 +117,30 @@
 @media (prefers-reduced-motion: reduce) {
   .cq-table { transition: none; }
 }
+
+/* Cartoes de tabela ajustados a janela (hooks/useFitToViewport): filtros, cabecalho e rodape fixos,
+   so as linhas rolam. A classe is-fit so existe no desktop; no celular a pagina rola como antes. */
+.cq-panel.is-fit { min-height: 0; }
+.cq-panel.is-fit > :not(.cq-scroll) { flex-shrink: 0; }
+.cq-panel.is-fit .cq-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+
+.fit-table-panel.is-fit { display: flex; flex-direction: column; }
+.fit-table-panel.is-fit > :not(.fit-scroll) { flex-shrink: 0; }
+.fit-table-panel.is-fit .fit-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.fit-table-panel .fit-scroll thead th { position: sticky; top: 0; z-index: 1; }
+.cq-panel.is-fit .cq-scroll, .fit-table-panel.is-fit .fit-scroll { scrollbar-width: thin; scrollbar-color: #cfd8e4 transparent; }
+.cq-panel.is-fit .cq-scroll::-webkit-scrollbar, .fit-table-panel.is-fit .fit-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.cq-panel.is-fit .cq-scroll::-webkit-scrollbar-thumb, .fit-table-panel.is-fit .fit-scroll::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 6px; background: #cfd8e4 padding-box; }
+
+/* Cabecalho ordenavel (clique alterna crescente/decrescente) */
+.cq-table th[aria-sort] { padding: 0; }
+.cq-sort { display: inline-flex; align-items: center; gap: 5px; width: 100%; padding: 11px 12px; background: none; color: inherit; font: inherit; text-align: left; white-space: nowrap; }
+.cq-sort svg { flex: none; opacity: .45; }
+.cq-sort:hover { color: var(--ink); }
+.cq-sort:hover svg, .cq-sort.is-active svg { opacity: 1; }
+.cq-sort.is-active { color: var(--blue); }
+.cq-sort:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: 4px; }
+
+/* Contagem em cada aba de status */
+.cq-tab-count { display: inline-block; min-width: 20px; margin-left: 6px; padding: 1px 6px; border-radius: 9px; background: #eef2f7; color: #5b6b80; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; }
+.cq-status-tabs .is-selected .cq-tab-count { background: #dbe8ff; color: var(--blue); }

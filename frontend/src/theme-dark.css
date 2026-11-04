@@ -1186,6 +1186,77 @@
 :where(:root[data-theme="dark"]) .sidebar nav::-webkit-scrollbar-thumb {
     background: #121b27
 }
+:where(:root[data-theme="dark"]) .sidebar-search {
+    border: 1px solid var(--line);
+    background: #12151b;
+    color: #92969c
+}
+:where(:root[data-theme="dark"]) .sidebar-search kbd {
+    border: 1px solid var(--line);
+    background: #181c22;
+    color: #92969c
+}
+:where(:root[data-theme="dark"]) .sidebar-search:hover {
+    border-color: #30425d;
+    color: var(--blue)
+}
+:where(:root[data-theme="dark"]) button.nav-section-title {
+    background: none
+}
+:where(:root[data-theme="dark"]) button.nav-section-title:hover {
+    color: #9fa4ab
+}
+:where(:root[data-theme="dark"]) button.nav-section-title:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .palette-backdrop {
+    background: #17233ba0
+}
+:where(:root[data-theme="dark"]) .palette {
+    border: 1px solid var(--line);
+    background: #181c22;
+    box-shadow: 0 24px 60px #0000007b
+}
+:where(:root[data-theme="dark"]) .palette-search {
+    border-bottom: 1px solid var(--line);
+    color: #92969c
+}
+:where(:root[data-theme="dark"]) .palette-search input {
+    border: 0;
+    background: transparent;
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .palette-search input:focus {
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .palette-search kbd {
+    border: 1px solid var(--line);
+    color: #92969c
+}
+:where(:root[data-theme="dark"]) .palette-results button {
+    background: none;
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .palette-results button.is-selected {
+    background: #0f1722
+}
+:where(:root[data-theme="dark"]) .palette-results button > svg {
+    color: var(--blue)
+}
+:where(:root[data-theme="dark"]) .palette-kind {
+    background: #13161d;
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .palette-kind.is-call {
+    background: #201302;
+    color: #eaa956
+}
+:where(:root[data-theme="dark"]) .palette-text small {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .palette-hint {
+    color: var(--muted)
+}
 
 /* profile-photo.css */
 :where(:root[data-theme="dark"]) .profile-photo-button {
@@ -2073,6 +2144,31 @@
         color: var(--muted)
     }
 }
+:where(:root[data-theme="dark"]) .cq-panel.is-fit .cq-scroll::-webkit-scrollbar-thumb, :where(:root[data-theme="dark"]) .fit-table-panel.is-fit .fit-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    background: #111c29 padding-box
+}
+:where(:root[data-theme="dark"]) .cq-sort {
+    background: none;
+    color: inherit
+}
+:where(:root[data-theme="dark"]) .cq-sort:hover {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .cq-sort.is-active {
+    color: var(--blue)
+}
+:where(:root[data-theme="dark"]) .cq-sort:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .cq-tab-count {
+    background: #13171d;
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .cq-status-tabs .is-selected .cq-tab-count {
+    background: #0b182f;
+    color: var(--blue)
+}
 
 /* sla-analysis.css */
 :where(:root[data-theme="dark"]) .sa-dates label, :where(:root[data-theme="dark"]) .sa-area {
@@ -2202,6 +2298,34 @@
 :where(:root[data-theme="dark"]) .sa-insights ul {
     color: #bcc2cb
 }
+:where(:root[data-theme="dark"]) .sa-heatmap th {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .sa-heatmap thead th.is-night {
+    background: #13161d
+}
+:where(:root[data-theme="dark"]) .sa-heatmap td b {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .sa-heatmap td small {
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .sa-heatmap td.is-good {
+    background: #031c12
+}
+:where(:root[data-theme="dark"]) .sa-heatmap td.is-warning {
+    background: #211400
+}
+:where(:root[data-theme="dark"]) .sa-heatmap td.is-critical {
+    background: #2b0d11
+}
+:where(:root[data-theme="dark"]) .sa-heatmap td.is-empty {
+    background: #0f1319;
+    color: #83878b
+}
+:where(:root[data-theme="dark"]) .sa-heatmap td.is-total {
+    box-shadow: inset 0 0 0 1px #101a27
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {
@@ -2221,4 +2345,151 @@
 }
 :where(:root[data-theme="dark"]) .update-notice p {
     color: var(--muted)
+}
+
+/* due-soon.css */
+:where(:root[data-theme="dark"]) .due-soon-banner {
+    border-bottom: 1px solid #623136;
+    background: #201212;
+    color: #ff8a84
+}
+:where(:root[data-theme="dark"]) .due-soon-list button, :where(:root[data-theme="dark"]) .due-soon-open {
+    background: #2b0d10;
+    color: #ff8e89
+}
+:where(:root[data-theme="dark"]) .due-soon-list button:hover, :where(:root[data-theme="dark"]) .due-soon-open:hover {
+    background: #2d0f12
+}
+:where(:root[data-theme="dark"]) .due-soon-list span {
+    color: #ff8a84
+}
+:where(:root[data-theme="dark"]) .due-soon-open {
+    background: transparent
+}
+
+/* tv-mode.css */
+:where(:root[data-theme="dark"]) .help-tip-button {
+    background: none;
+    color: #878a8f
+}
+:where(:root[data-theme="dark"]) .help-tip-button:hover, :where(:root[data-theme="dark"]) .help-tip-button[aria-expanded="true"] {
+    background: #0f1722;
+    color: var(--blue)
+}
+:where(:root[data-theme="dark"]) .help-tip-popover {
+    border: 1px solid var(--line);
+    background: #181c22;
+    box-shadow: 0 14px 34px #0000004f;
+    color: #bcc2cb
+}
+:where(:root[data-theme="dark"]) .help-tip-popover strong {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .tv-mode {
+    background: #0e1219;
+    color: #e6ebf2
+}
+:where(:root[data-theme="dark"]) .tv-brand span {
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-tabs {
+    background: #171d27
+}
+:where(:root[data-theme="dark"]) .tv-tabs button {
+    background: none;
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-tabs button.is-active {
+    background: #2170f5;
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .tv-controls button {
+    background: #171d27;
+    color: #7e8084
+}
+:where(:root[data-theme="dark"]) .tv-controls button:hover {
+    background: #222a36;
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .tv-live {
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-live i {
+    background: #34d399;
+    box-shadow: 0 0 0 4px #27cb923d
+}
+:where(:root[data-theme="dark"]) .tv-progress {
+    background: #2170f5
+}
+:where(:root[data-theme="dark"]) .tv-alert {
+    background: #3a1418;
+    color: #ffb4b8
+}
+:where(:root[data-theme="dark"]) .tv-alert strong {
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .tv-empty, :where(:root[data-theme="dark"]) .tv-muted {
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-kpi {
+    background: #171d27;
+    border-top: 4px solid #2a3442
+}
+:where(:root[data-theme="dark"]) .tv-kpi span {
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-kpi small {
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-kpi.is-critical {
+    border-top-color: #f05d63
+}
+:where(:root[data-theme="dark"]) .tv-kpi.is-critical strong {
+    color: #ff979b
+}
+:where(:root[data-theme="dark"]) .tv-kpi.is-warning {
+    border-top-color: #e6a23c
+}
+:where(:root[data-theme="dark"]) .tv-kpi.is-warning strong {
+    color: #ffc167
+}
+:where(:root[data-theme="dark"]) .tv-kpi.is-good {
+    border-top-color: #22b37a
+}
+:where(:root[data-theme="dark"]) .tv-kpi.is-good strong {
+    color: #5edeac
+}
+:where(:root[data-theme="dark"]) .tv-card {
+    background: #171d27
+}
+:where(:root[data-theme="dark"]) .tv-card h2 {
+    color: #c4cdd9
+}
+:where(:root[data-theme="dark"]) .tv-bars i {
+    background: #222a36
+}
+:where(:root[data-theme="dark"]) .tv-bars i b {
+    background: #2170f5
+}
+:where(:root[data-theme="dark"]) .tv-today dt {
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-oldest th {
+    border-bottom: 1px solid #2a3442;
+    color: #8e9297
+}
+:where(:root[data-theme="dark"]) .tv-oldest td {
+    border-bottom: 1px solid #1f2733
+}
+:where(:root[data-theme="dark"]) .tv-oldest b.is-good {
+    color: #5edeac
+}
+:where(:root[data-theme="dark"]) .tv-oldest b.is-warning {
+    color: #ffc167
+}
+:where(:root[data-theme="dark"]) .tv-oldest b.is-critical {
+    color: #ff979b
+}
+:where(:root[data-theme="dark"]) .tv-rank li small {
+    color: #8e9297
 }
