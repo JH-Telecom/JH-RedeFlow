@@ -376,7 +376,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   async function refreshCalls() {
     setLoading(true);
     try {
-      const requestStatus = unassignedOnly ? "Aberto" : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
+      const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
       const data = await api.calls(requestStatus, {
         from: dateRange.from,
         to: dateRange.to,
@@ -403,7 +403,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
 
   useEffect(() => {
     let active = true;
-    const requestStatus = unassignedOnly ? "Aberto" : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
+    const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;

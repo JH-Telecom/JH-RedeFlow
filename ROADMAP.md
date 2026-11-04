@@ -3443,3 +3443,16 @@ A abertura do chamado criado por acionamento usava o horário do clique em Aceit
 - Os 9 Finalizados sem Data-Fim continuam sendo importados sem data fim, como antes, e não entram no IGP até ter a data.
 - Linha 4 (610150284850102) tem acionamento 08:08 antes do evento 17:38 e repete a O.S. da linha 6 (Cancelado); a prévia junta as duas.
 - Novo teste em `current-calls.test.ts`. Suíte 130/130 + novo teste. tsc OK.
+
+## 2026-11-04 — "Chamados abertos" com a mesma contagem da lateral
+
+### Problema
+A lateral mostrava 4 e a lista "Chamados abertos" só 2. A lateral conta os chamados **sem técnico em qualquer status não fechado**, e a lista só mostrava **status Aberto** sem técnico. Os chamados 12665760 e 12665731 tinham passado de Aberto para Atribuido pelo seletor de status às 12:50, sem técnico. Com isso sumiram de "Chamados abertos" e de "Em atendimento" (que exige técnico).
+
+### Implementado
+- `frontend/src/pages/CallsPage.tsx`: "Chamados abertos" lista os status Aberto, Atribuido, Deslocamento e Em campo **sem técnico**, a mesma regra da lateral. Os chamados nesse estado voltam a aparecer, com o status atual.
+- `backend/src/server.ts`, `PATCH /api/chamados/:id`: recusa (422) colocar o chamado como Atribuido, Deslocamento ou Em campo sem técnico, e também tirar o técnico de um chamado nesses status. A mensagem aparece na tela: "Atribua um tecnico antes de colocar o chamado como …".
+
+### Validação
+- Banco: 3 chamados sem técnico não fechados (12665760 e 12665731 Atribuido, 610127218160102 Aberto). Agora todos aparecem na lista.
+- Backend 131/131, build do frontend OK.

@@ -459,6 +459,11 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   if (parsed.data.technicianId && !technicians.some((technician) => technician.id === parsed.data.technicianId && technician.teamRole === 'Tecnico' && technician.active && technician.employmentStatus !== 'Demitido')) return response.status(422).json({ message: 'Somente tecnicos trabalhando e ativos podem receber chamados.' });
   const existing = await getCall(String(request.params.id));
   if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  // Status de atendimento sem tecnico deixava o chamado fora de Chamados abertos e de Em atendimento.
+  const nextStatus = parsed.data.status ?? existing.status;
+  const nextTechnician = parsed.data.technicianId !== undefined ? parsed.data.technicianId : existing.technicianId;
+  const touchesAssignment = (parsed.data.status !== undefined && parsed.data.status !== existing.status) || parsed.data.technicianId !== undefined;
+  if (touchesAssignment && ['Atribuido', 'Deslocamento', 'Em campo'].includes(nextStatus) && !nextTechnician) return response.status(422).json({ message: `Atribua um tecnico antes de colocar o chamado como ${nextStatus}.` });
   const call = await updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
