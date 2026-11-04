@@ -104,3 +104,25 @@
     z-index: 3;
   }
 }
+
+/* Lateral: marca e perfil fixos; so as abas (nav) rolam quando nao cabem na altura da tela. */
+.sidebar { overflow: hidden; }
+.sidebar-brand, .sidebar-bottom { flex-shrink: 0; }
+.sidebar nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-right: -8px;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #d5dde8 transparent;
+}
+.sidebar nav::-webkit-scrollbar { width: 6px; }
+.sidebar nav::-webkit-scrollbar-thumb { border-radius: 3px; background: #d5dde8; }
+.sidebar-bottom { margin-top: 0; padding-top: 12px; }
+
+@media (min-width: 901px) {
+  .sidebar { overflow: hidden; }
+}

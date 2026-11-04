@@ -3543,3 +3543,17 @@ A barra de cima (menu, caminho, tema, notificações e perfil) deve ficar fixa e
 ### Validação
 - Desktop 1366×700: com a página rolada 900 px, a barra continua em `top: 0`. Conferido no escuro.
 - Celular 375 px: barra fixa; com o menu aberto, o escurecimento cobre a barra.
+
+## 2026-11-04 — Lateral: perfil fixo, só as abas rolam
+
+### Pedido
+Na barra lateral, o perfil deve ficar fixo. Só as abas rolam quando não cabem, e o perfil não deve sumir.
+
+### Implementado
+- `frontend/src/sidebar.css`: a lateral não rola mais inteira (`overflow: hidden`). A marca (topo) e o perfil (rodapé) ficam fixos, e só o `nav` das abas rola (`flex: 1; min-height: 0; overflow-y: auto`), com barra de rolagem fina.
+- `theme-dark-manual.css`: cor da barra de rolagem no escuro (o gerador a trataria como fundo e ela ficaria invisível).
+
+### Validação
+- 1280×560: as abas rolam, a marca fica no topo e o perfil fica visível no rodapé; a lateral em si não rola.
+- Lateral recolhida: o avatar continua no rodapé.
+- Celular 375×640 com menu aberto: as abas rolam e o perfil fica fixo embaixo.

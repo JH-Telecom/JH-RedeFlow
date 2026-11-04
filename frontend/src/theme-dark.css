@@ -1183,6 +1183,9 @@
         border-top: 1px solid var(--line)
     }
 }
+:where(:root[data-theme="dark"]) .sidebar nav::-webkit-scrollbar-thumb {
+    background: #121b27
+}
 
 /* profile-photo.css */
 :where(:root[data-theme="dark"]) .profile-photo-button {

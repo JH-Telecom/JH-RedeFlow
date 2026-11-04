@@ -13,3 +13,7 @@
    :where() deixa especificidade de elemento: qualquer regra com classe continua valendo. */
 :where(:root[data-theme="dark"]) textarea, :where(:root[data-theme="dark"]) select { background-color: #181c22; color: var(--ink); border-color: #33383f; }
 :where(:root[data-theme="dark"]) input::placeholder, :where(:root[data-theme="dark"]) textarea::placeholder { color: #7d8794; }
+
+/* Barra de rolagem das abas da lateral (o gerador trataria como fundo e ela sumiria). */
+:root[data-theme="dark"] .sidebar nav { scrollbar-color: #3a424e transparent; }
+:root[data-theme="dark"] .sidebar nav::-webkit-scrollbar-thumb { background: #3a424e; }
