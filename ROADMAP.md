@@ -3842,3 +3842,18 @@ O card de backbone traz a ordem no rótulo `OFS:` e a abertura do ticket no rót
   - "Data/Hora do Evento" continua tendo prioridade sobre "ABERTO EM";
   - "Status OFS" não é lido como ordem.
 - Suíte 144/144. Typecheck OK.
+
+## 2026-11-05 — Detalhe do chamado mostra a Data Fim do OFS
+
+### Pedido
+Mesmo depois do envio do Coletor OFS, o detalhe do chamado 610011231680102 continuava com "Data Fim: Não informada".
+
+### Causa
+O backend já tinha gravado a Data Fim: `executed_at` = 04/11 22:11, vinda do OFS "concluído". Só que a tela só mostrava a Data Fim quando o status interno era Finalizado, Cancelado ou Baixar.
+
+### Implementado
+- `CallDetailPage.tsx`: a Data Fim aparece sempre que existir. Se o chamado ainda estiver aberto no sistema, vem marcada com "(OFS)".
+- As filas abertas não mudam: o relógio do SLA continua correndo até o status interno ser fechado.
+
+### Validação
+- Banco consultado só para leitura: 610011231680102 e 610032252280102 já têm `executed_at` preenchido. Typecheck do frontend (`tsc -b`) OK.

@@ -113,7 +113,10 @@ export function CallDetailBase() {
             {call.eventAt && <DetailItem label="Gap evento → acionamento" value={formatEventGap(call.eventAt, call.openedAt)} />}
             <DetailItem label="Status interno" value={status} />
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
-            <DetailItem label="Data Fim" value={( ["Finalizado", "Cancelado", "Baixar"].includes(call.status) && call.executedAt) ? new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Não informada"} />
+            <DetailItem label="Data Fim" value={call.executedAt
+              // Chamado ainda aberto aqui, mas concluido no OFS: mostra a Data Fim que veio do OFS.
+              ? `${new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}${["Finalizado", "Cancelado", "Baixar"].includes(call.status) ? "" : " (OFS)"}`
+              : "Não informada"} />
           </div>
           <label className="detail-label">
             Observacoes
