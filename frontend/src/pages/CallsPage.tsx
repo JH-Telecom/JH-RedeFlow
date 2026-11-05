@@ -298,7 +298,9 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           Ordem: call.orderNumber, BDESK: call.bdesk, "Office Track": call.officeTrack, Tipo: call.type, Motivo: call.reason,
           "Região": call.region, Bairro: call.bairro || "", "Endereço": call.address || "", OLT: call.olt, "Slot/PON": call.slotPon,
           "Técnico": call.technicianName || "", Supervisor: call.supervisorName || "", Status: call.status, "Status OFS": call.ofsStatus || "",
-          Abertura: spDate(call.openedAt), "Data Fim": spDate(call.executedAt), "Tempo (h)": Math.round((minutes / 60) * 10) / 10,
+          Abertura: spDate(call.openedAt), "Data Fim": spDate(call.executedAt),
+          "Motivo de fechamento": call.closingReason || "", Submotivo: call.closingSubreason || "", "Tipo do cabo": call.cableType || "",
+          "Tempo (h)": Math.round((minutes / 60) * 10) / 10,
           Prazo: sla === "outlier" ? "Outlier" : sla === "late" ? "Fora do prazo" : "No prazo",
         };
       });

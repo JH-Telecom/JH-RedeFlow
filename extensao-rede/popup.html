@@ -38,6 +38,8 @@
     <h2>Último envio</h2>
     <div id="status" class="status">Nenhum envio ainda.</div>
     <div id="proximas" class="hint"></div>
+    <div id="fechamentoStatus" class="hint"></div>
+    <button id="lerFechamentos" type="button">Ler fechamentos agora</button>
   </section>
 
   <section class="card">
@@ -64,6 +66,14 @@
         <option value="60">A cada 1 hora</option>
         <option value="120">A cada 2 horas</option>
       </select>
+    </label>
+    <label class="campo">Ler fechamentos do OFS (submotivo e tipo do cabo)
+      <select id="fechamentoMin">
+        <option value="0">Desligado</option>
+        <option value="10">A cada 10 min</option>
+        <option value="30">A cada 30 min</option>
+      </select>
+      <span class="hint">Abre cada atividade concluída numa aba fixada do OFS, só para ler.</span>
     </label>
     <label class="campo">Exportar o dia anterior todo dia às
       <input id="horaDiaAnterior" type="time">

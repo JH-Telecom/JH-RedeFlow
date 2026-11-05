@@ -12,6 +12,7 @@ import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
 import { hasD0Identifiers } from './imports/d0.js';
+import { matchOfsClosing, pendingClosingOrders } from './imports/ofs-closing.js';
 import { countRowsForDate, parseOfsActivityExport } from './imports/ofs-export.js';
 import { registerMissingHistoricalTechnicians } from './imports/historical-technicians.js';
 import { addDays, toOperationalDate } from './timezone.js';
@@ -665,6 +666,27 @@ app.post('/api/integrations/ofs/export', async (request, response) => {
   } finally {
     ofsIngestRunning = false;
   }
+});
+// Fechamento do OFS (Motivo, Submotivo, Tipo do Cabo): nao vem no CSV. A extensao pergunta quais chamados ja
+// terminaram e ainda nao tem o Submotivo, abre cada atividade concluida no OFS e devolve os tres campos.
+app.get('/api/integrations/ofs/fechamentos/pendentes', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  return response.json({ ordens: pendingClosingOrders(await listCalls()) });
+});
+app.post('/api/integrations/ofs/fechamentos', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  const field = z.string().trim().max(500).nullish();
+  const parsed = z.object({ itens: z.array(z.object({ ordem: z.string().trim().min(1).max(60), motivo: field, submotivo: field, tipoCabo: field })).max(100) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie os fechamentos lidos do OFS.' });
+  const { matches, unmatched } = matchOfsClosing(parsed.data.itens, await listCalls());
+  const actorName = `Coletor OFS${identity.label ? ` – ${identity.label}` : ''}`;
+  const actor = { id: 'system-ofs-closing', name: actorName, email: 'system-ofs@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date().toISOString() };
+  let updated = 0;
+  for (const match of matches) if (await updateCall(match.callId, match.fields, actor)) updated += 1;
+  console.log(`[Coletor OFS] ${actorName}: fechamentos recebidos ${parsed.data.itens.length}, atualizados ${updated}, sem chamado ${unmatched.length}`);
+  return response.json({ recebidos: parsed.data.itens.length, atualizados: updated, semChamado: unmatched });
 });
 // Diagnostico dos grupos: quais grupos mandam mensagens e quantas parecem acionamento. Ajuda a achar o ID
 // certo para WUZAPI_ACTIVATION_GROUP_ID quando o grupo muda (novo grupo, numero removido etc.).

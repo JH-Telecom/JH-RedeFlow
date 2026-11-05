@@ -3857,3 +3857,45 @@ O backend já tinha gravado a Data Fim: `executed_at` = 04/11 22:11, vinda do OF
 
 ### Validação
 - Banco consultado só para leitura: 610011231680102 e 610032252280102 já têm `executed_at` preenchido. Typecheck do frontend (`tsc -b`) OK.
+
+## 2026-11-05 — Coletor OFS lê o fechamento (Motivo, Submotivo, Tipo do Cabo)
+
+### Pedido
+A cada 10 minutos, a extensão deve olhar os chamados finalizados e trazer do formulário "Fechamento" do OFS o submotivo e o tipo do cabo, porque esses dados não vêm no relatório (CSV).
+
+### Investigação (OFS, só leitura)
+- O formulário "Fechamento" guarda tudo em propriedades da atividade:
+  - **725** = Motivo de Fechamento;
+  - **916** = Submotivo;
+  - **1062** = Tipo do Cabo.
+- Elas só ficam disponíveis na página (`$app.model().activityService()`) depois que a atividade é aberta.
+- A pesquisa do OFS (`index.php?m=search&a=search`) lista as atividades da ordem com `aid` e `astatus`, na mesma ordem dos resultados na tela.
+- Uma ordem pode ter mais de uma atividade. Exemplo: 610011231680102 tinha uma suspensa e uma concluída.
+- Conferido com 2 chamados reais:
+  - 610011231680102 → CTO SEM SINAL / ADEQUAÇÃO DE CTO/CEO/CABOS / 12;
+  - 610032252280102 → CABO ROMPIDO / TROCA DE POSTES / 12.
+
+### Implementado
+- **Migration** `202611050001_calls_ofs_closing.sql`: colunas `closing_reason`, `closing_subreason` e `cable_type` em `calls`, todas opcionais.
+- **Backend** (`imports/ofs-closing.ts`):
+  - `pendingClosingOrders`: chamados Finalizados, Baixar ou concluídos no OFS, dos últimos 10 dias, ainda sem Motivo e sem Submotivo. Ordens numéricas, mais recentes primeiro, até 40.
+  - `matchOfsClosing`: cruza pela ordem ou pelo Office Track. Ignora ordem que bate em mais de um chamado e só grava o que mudou.
+  - Rotas novas, com a mesma autenticação do Coletor:
+    - `GET /api/integrations/ofs/fechamentos/pendentes`;
+    - `POST /api/integrations/ofs/fechamentos`.
+  - A gravação usa um ator de sistema (funciona em chamado fechado) e fica no histórico do chamado.
+- **Extensão v1.2.0**:
+  - Alarme `rf-fechamentos` (10 min por padrão; também 30 min ou desligado).
+  - Usa uma aba própria do OFS, fixada e em segundo plano, e roda no contexto da página.
+  - Para cada ordem: pesquisa, escolhe a atividade concluída mais recente, abre e lê as propriedades.
+  - Até 12 por ciclo; a mesma ordem só é tentada de novo depois de 1 h.
+  - O popup mostra a última leitura e tem o botão "Ler fechamentos agora".
+  - A exportação ignora a aba fixada.
+- **Frontend**:
+  - O detalhe do chamado mostra Motivo de fechamento, Submotivo e Tipo do cabo, marcados como (OFS).
+  - A exportação Excel ganhou as 3 colunas.
+
+### Validação
+- A leitura foi testada no OFS real (Claude no Chrome, só leitura) com as duas ordens acima: os resultados batem com o formulário.
+- Novo `ofs-closing.test.ts`. Suíte 148/148. Typecheck do backend e do frontend OK.
+- Rotas testadas no servidor local (demo): pedem login, validam o envio e devolvem a ordem que não tem chamado.

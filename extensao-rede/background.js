@@ -7,12 +7,18 @@
 const API_BASE = "https://jh-redeflow-api.onrender.com";
 const API_URL = `${API_BASE}/api/integrations/ofs/export`;
 const LOGIN_URL = `${API_BASE}/api/integrations/ofs/login`;
+const FECH_PENDENTES_URL = `${API_BASE}/api/integrations/ofs/fechamentos/pendentes`;
+const FECH_URL = `${API_BASE}/api/integrations/ofs/fechamentos`;
 const OFS_MATCH = "https://alloha.fs.ocs.oraclecloud.com/*";
 const ALARME_HOJE = "rf-coleta-hoje";
 const ALARME_ONTEM = "rf-coleta-dia-anterior";
+const ALARME_FECH = "rf-fechamentos";
+const OFS_ORIGEM = "https://alloha.fs.ocs.oraclecloud.com/";
+const FECH_POR_CICLO = 12; // atividades abertas por ciclo
+const FECH_ESPERA_MS = 60 * 60_000; // a mesma ordem so e tentada de novo depois de 1 h
 const JANELA_CAPTURA_MS = 90_000;
 const LIMITE_AVISO_FALHAS = 3;
-const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true };
+const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10 };
 
 // ---------- datas no fuso de Sao Paulo ----------
 const fmtSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
@@ -183,7 +189,9 @@ function acaoNaPagina({ alvo, alocacaoId, exportar }) {
 }
 
 async function abaDoOfs() {
-  const abas = await chrome.tabs.query({ url: OFS_MATCH });
+  // A aba fixada dos fechamentos nao entra na exportacao.
+  const { abaFechamento } = await chrome.storage.local.get("abaFechamento");
+  const abas = (await chrome.tabs.query({ url: OFS_MATCH })).filter((aba) => aba.id !== abaFechamento);
   return abas.find((aba) => aba.active) || abas[0] || null;
 }
 
@@ -254,6 +262,126 @@ async function conferirCapturaVencida() {
   await voltarParaHoje(captura.tabId, captura.data);
 }
 
+// ---------- fechamentos (Motivo, Submotivo e Tipo do Cabo do formulario "Fechamento") ----------
+// Nao vem no CSV. Numa aba propria do OFS (fixada, em segundo plano), pesquisa cada ordem, abre a atividade
+// concluida e le as propriedades 725 (Motivo de Fechamento), 916 (Submotivo) e 1062 (Tipo do Cabo). So leitura.
+
+// Roda no mundo da pagina (precisa do $app do OFS). Autocontida.
+async function lerFechamentoNaPagina(ordem) {
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  const ate = async (fn, ms) => { const fim = Date.now() + ms; while (Date.now() < fim) { const v = fn(); if (v) return v; await esperar(250); } return null; };
+  if (typeof $app === "undefined" || !$app.model) return { ordem, erro: "OFS ainda carregando" };
+  // Guarda a resposta da pesquisa do OFS: ela traz o status de cada atividade da ordem, na ordem da lista.
+  if (!window.__rfBusca) {
+    window.__rfBusca = { seq: 0, texto: "" };
+    const abrir = XMLHttpRequest.prototype.open, mandar = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (_metodo, url) { this.__rfUrl = String(url); return abrir.apply(this, arguments); };
+    XMLHttpRequest.prototype.send = function () {
+      if ((this.__rfUrl || "").includes("m=search")) this.addEventListener("load", () => { window.__rfBusca = { seq: window.__rfBusca.seq + 1, texto: this.responseText }; });
+      return mandar.apply(this, arguments);
+    };
+  }
+  const campoAberto = () => [...document.querySelectorAll("input.search-bar-input")].find((i) => !i.classList.contains("global-search-bar-input-button") && i.offsetParent !== null);
+  const antes = window.__rfBusca.seq;
+  if (!campoAberto()) document.querySelector("input.global-search-bar-input-button")?.click();
+  const campo = await ate(campoAberto, 5000);
+  if (!campo) return { ordem, erro: "Não achei a pesquisa do OFS" };
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(campo, ordem);
+  campo.dispatchEvent(new Event("input", { bubbles: true }));
+  for (const tipo of ["keydown", "keypress", "keyup"]) campo.dispatchEvent(new KeyboardEvent(tipo, { key: "Enter", keyCode: 13, which: 13, bubbles: true }));
+  if (!(await ate(() => window.__rfBusca.seq > antes, 12000))) return { ordem, erro: "A pesquisa do OFS não respondeu" };
+  let grupos = [];
+  try { grupos = JSON.parse(window.__rfBusca.texto); } catch (_) { return { ordem, erro: "Resposta da pesquisa ilegível" }; }
+  const linhas = (grupos.find((g) => g.key === "appt_number")?.value?.rows) || [];
+  if (!linhas.length) return { ordem, naoEncontrada: true };
+  // A mesma ordem pode ter varias atividades (ex.: uma suspensa e outra concluida): usa a concluida mais recente.
+  const concluidas = linhas.map((linha, i) => ({ ...linha, i })).filter((linha) => linha.astatus === "complete").sort((a, b) => String(b.end_time).localeCompare(String(a.end_time)));
+  if (!concluidas.length) return { ordem, semConcluida: true };
+  const alvo = concluidas[0];
+  const itens = await ate(() => { const l = [...document.querySelectorAll(".global-search-found-item")].filter((el) => el.offsetParent !== null && (el.textContent || "").includes(ordem)); return l.length >= linhas.length ? l : null; }, 6000);
+  if (!itens) return { ordem, erro: "Os resultados da pesquisa não apareceram" };
+  itens[alvo.i].click();
+  const p = await ate(() => { try { return $app.model().activityService().getAll().map((a) => a._properties || {}).find((x) => String(x.aid) === String(alvo.aid)); } catch (_) { return null; } }, 15000);
+  if (!p) return { ordem, erro: "A atividade não abriu" };
+  return { ordem, aid: String(p.aid), motivo: p["725"] || null, submotivo: p["916"] || null, tipoCabo: p["1062"] || null };
+}
+
+async function abaDeFechamento() {
+  const { abaFechamento } = await chrome.storage.local.get("abaFechamento");
+  if (abaFechamento) {
+    try { const aba = await chrome.tabs.get(abaFechamento); if (String(aba?.url || aba?.pendingUrl || "").startsWith(OFS_ORIGEM)) return aba; } catch (_) { /* aba fechada */ }
+  }
+  const aba = await chrome.tabs.create({ url: OFS_ORIGEM, active: false, pinned: true });
+  await chrome.storage.local.set({ abaFechamento: aba.id });
+  return aba;
+}
+
+async function ofsPronto(tabId) {
+  const fim = Date.now() + 90_000;
+  while (Date.now() < fim) {
+    try {
+      const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, world: "MAIN", func: () => typeof $app !== "undefined" && Boolean(document.querySelector("input.global-search-bar-input-button")) });
+      if (result) return true;
+    } catch (_) { /* ainda carregando */ }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return false;
+}
+
+async function registrarFechamento(resultado) {
+  const registro = { quando: Date.now(), ...resultado };
+  await chrome.storage.local.set({ ultimoFechamento: registro });
+  return registro;
+}
+
+async function coletarFechamentos(automatico) {
+  const auth = await autenticacao();
+  if (!auth) return registrarFechamento({ ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" });
+  const { fechRodando, captura } = await chrome.storage.local.get(["fechRodando", "captura"]);
+  if (fechRodando && Date.now() < fechRodando) return { ok: false, erro: "Leitura de fechamentos já em andamento" };
+  if (automatico && captura && Date.now() < captura.ate) return { ok: false, erro: "Exportação em andamento; fica para o próximo ciclo" };
+  await chrome.storage.local.set({ fechRodando: Date.now() + 10 * 60_000 });
+  try {
+    const r = await fetch(FECH_PENDENTES_URL, { headers: auth.headers });
+    const corpo = await r.json().catch(() => ({}));
+    if (auth.sessao && (r.status === 401 || r.status === 403)) await chrome.storage.local.remove("sessao");
+    if (!r.ok) return registrarFechamento({ ok: false, erro: corpo?.message || `HTTP ${r.status}` });
+    const ordens = Array.isArray(corpo.ordens) ? corpo.ordens : [];
+    const { fechTentativas = {} } = await chrome.storage.local.get("fechTentativas");
+    for (const [ordem, quando] of Object.entries(fechTentativas)) if (Date.now() - quando > 86_400_000) delete fechTentativas[ordem];
+    const fila = ordens.filter((ordem) => !fechTentativas[ordem] || Date.now() - fechTentativas[ordem] > FECH_ESPERA_MS).slice(0, FECH_POR_CICLO);
+    if (!fila.length) return registrarFechamento({ ok: true, lidos: 0, atualizados: 0, pendentes: ordens.length });
+
+    const aba = await abaDeFechamento();
+    if (!(await ofsPronto(aba.id))) return registrarFechamento({ ok: false, erro: "O OFS não carregou na aba de fechamentos (confira o login)" });
+    const itens = [];
+    let semConcluida = 0;
+    let erros = 0;
+    for (const ordem of fila) {
+      let res;
+      try { [{ result: res } = {}] = await chrome.scripting.executeScript({ target: { tabId: aba.id }, world: "MAIN", func: lerFechamentoNaPagina, args: [ordem] }); }
+      catch (e) { res = { ordem, erro: e?.message || String(e) }; }
+      fechTentativas[ordem] = Date.now();
+      if (res?.motivo || res?.submotivo || res?.tipoCabo) itens.push({ ordem, motivo: res.motivo, submotivo: res.submotivo, tipoCabo: res.tipoCabo });
+      else if (res?.semConcluida || res?.naoEncontrada) semConcluida += 1;
+      else erros += 1;
+    }
+    await chrome.storage.local.set({ fechTentativas });
+    let atualizados = 0;
+    if (itens.length) {
+      const envio = await fetch(FECH_URL, { method: "POST", headers: { "Content-Type": "application/json", ...auth.headers }, body: JSON.stringify({ itens }) });
+      const resposta = await envio.json().catch(() => ({}));
+      if (!envio.ok) return registrarFechamento({ ok: false, erro: resposta?.message || `HTTP ${envio.status}`, lidos: fila.length });
+      atualizados = resposta.atualizados ?? 0;
+    }
+    return registrarFechamento({ ok: true, lidos: fila.length, comDados: itens.length, atualizados, semConcluida, erros, pendentes: ordens.length });
+  } catch (e) {
+    return registrarFechamento({ ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` });
+  } finally {
+    await chrome.storage.local.remove("fechRodando");
+  }
+}
+
 // ---------- agendamento ----------
 function proximaHora(hhmm) {
   const [h, m] = String(hhmm || "").split(":").map(Number);
@@ -272,6 +400,8 @@ async function agendar() {
   if (cfg.ativo && +cfg.intervaloMin > 0) chrome.alarms.create(ALARME_HOJE, { periodInMinutes: Math.max(15, +cfg.intervaloMin), delayInMinutes: 1 });
   const quando = cfg.ativo ? proximaHora(cfg.horaDiaAnterior) : null;
   if (quando) chrome.alarms.create(ALARME_ONTEM, { when: quando });
+  await chrome.alarms.clear(ALARME_FECH);
+  if (cfg.ativo && +cfg.fechamentoMin > 0) chrome.alarms.create(ALARME_FECH, { periodInMinutes: Math.max(5, +cfg.fechamentoMin), delayInMinutes: 2 });
   chrome.alarms.create("rf-vigia", { periodInMinutes: 1 });
   atualizarSelo();
 }
@@ -280,6 +410,7 @@ chrome.alarms.onAlarm.addListener(async (alarme) => {
   if (alarme.name === "rf-vigia") return conferirCapturaVencida();
   const cfg = await config();
   if (!cfg.ativo) return;
+  if (alarme.name === ALARME_FECH) return coletarFechamentos(true);
   if (alarme.name === ALARME_HOJE) await exportarDia(hojeSP(), true);
   if (alarme.name === ALARME_ONTEM) {
     await exportarDia(somarDias(hojeSP(), -1), true);
@@ -317,7 +448,8 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
         return { ok: false, erro: `Resposta inesperada (HTTP ${r.status})` };
       } catch (e) { return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` }; }
     },
-    proximas: async () => ({ hoje: (await chrome.alarms.get(ALARME_HOJE))?.scheduledTime || null, ontem: (await chrome.alarms.get(ALARME_ONTEM))?.scheduledTime || null }),
+    proximas: async () => ({ hoje: (await chrome.alarms.get(ALARME_HOJE))?.scheduledTime || null, ontem: (await chrome.alarms.get(ALARME_ONTEM))?.scheduledTime || null, fechamentos: (await chrome.alarms.get(ALARME_FECH))?.scheduledTime || null }),
+    fechamentos: () => coletarFechamentos(false),
   };
   const tarefa = tarefas[msg?.tipo];
   if (!tarefa) return false;

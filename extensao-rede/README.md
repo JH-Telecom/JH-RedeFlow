@@ -16,6 +16,16 @@ Extensão do Chrome da Rede, separada da extensão do JH Agendamentos. Ela expor
 - **Envio manual:** se o automático falhar, exporte no OFS e selecione o CSV no popup.
 - Só captura o download que ela mesma pediu (janela de 90 s); exportações feitas à mão no OFS baixam normalmente.
 - Avisa por notificação depois de 3 falhas seguidas e mostra o histórico dos últimos envios.
+- **Fechamentos (v1.2):** a cada 10 minutos (pode ser 30 min ou desligado), pergunta ao RedeFlow quais chamados já
+  terminaram e ainda estão sem o fechamento do OFS (`GET /api/integrations/ofs/fechamentos/pendentes`). Entram os
+  Finalizados, os Baixar e os concluídos no OFS, dos últimos 10 dias. Para cada um:
+  - numa **aba própria do OFS** (fixada e em segundo plano), pesquisa a ordem e abre a atividade **concluída**;
+  - se a ordem tiver mais de uma atividade (por exemplo, uma suspensa e uma concluída), usa a concluída mais recente;
+  - lê o **Motivo de Fechamento** (propriedade 725), o **Submotivo** (916) e o **Tipo do Cabo** (1062) e envia
+    (`POST /api/integrations/ofs/fechamentos`).
+
+  Só lê: nada é alterado no OFS. São até 12 atividades por ciclo, e a mesma ordem só é tentada de novo depois de 1 h.
+  A exportação nunca usa essa aba fixada.
 
 ## Instalação
 

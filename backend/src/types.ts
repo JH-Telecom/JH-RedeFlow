@@ -113,6 +113,10 @@ export type Call = {
   executedAt?: string | null;
   result?: string;
   cancellationReason?: string;
+  /** Fechamento no OFS (formulario "Fechamento"), lido pelo Coletor OFS. */
+  closingReason?: string;
+  closingSubreason?: string;
+  cableType?: string;
   notes: string;
   lastObservationAt?: string;
   source?: string;
@@ -125,7 +129,7 @@ export type Call = {
   sourceProcessedAt?: string;
 };
 
-export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'openedAt' | 'executedAt' | 'result' | 'notes'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
+export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'openedAt' | 'executedAt' | 'result' | 'notes' | 'closingReason' | 'closingSubreason' | 'cableType'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
 
 export type CallObservationAttachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; createdAt: string };
 export type CallObservationAttachmentInput = Omit<CallObservationAttachment, 'id' | 'createdAt'> & { contentBase64: string };

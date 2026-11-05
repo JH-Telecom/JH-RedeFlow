@@ -117,6 +117,12 @@ export function CallDetailBase() {
               // Chamado ainda aberto aqui, mas concluido no OFS: mostra a Data Fim que veio do OFS.
               ? `${new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}${["Finalizado", "Cancelado", "Baixar"].includes(call.status) ? "" : " (OFS)"}`
               : "Não informada"} />
+            {/* Fechamento lido do formulario "Fechamento" do OFS pelo Coletor OFS. */}
+            {(call.closingReason || call.closingSubreason || call.cableType) && <>
+              <DetailItem label="Motivo de fechamento (OFS)" value={call.closingReason || "Não informado"} />
+              <DetailItem label="Submotivo (OFS)" value={call.closingSubreason || "Não informado"} />
+              <DetailItem label="Tipo do cabo (OFS)" value={call.cableType || "Não informado"} />
+            </>}
           </div>
           <label className="detail-label">
             Observacoes

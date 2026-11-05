@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true };
+const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10 };
 const fmtSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
 const hojeSP = () => fmtSP.format(new Date());
 const somarDias = (iso, dias) => new Date(Date.parse(`${iso}T12:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10);
@@ -35,6 +35,12 @@ async function mostrarStatus() {
   if (prox?.hoje) partes.push(`hoje às ${new Date(prox.hoje).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`);
   if (prox?.ontem) partes.push(`dia anterior em ${quando(prox.ontem)}`);
   $("proximas").textContent = partes.length ? `Próximas exportações: ${partes.join(" · ")}` : "Nenhuma exportação automática agendada.";
+  const { ultimoFechamento: f } = await chrome.storage.local.get("ultimoFechamento");
+  const texto = !f ? "Fechamentos: nenhuma leitura ainda."
+    : !f.ok ? `Fechamentos (${quando(f.quando)}): ✗ ${f.erro}`
+    : f.lidos ? `Fechamentos (${quando(f.quando)}): ${f.lidos} lidos · ${f.atualizados} chamados atualizados${f.semConcluida ? ` · ${f.semConcluida} sem atividade concluída` : ""}${f.erros ? ` · ${f.erros} com erro` : ""}.`
+    : `Fechamentos (${quando(f.quando)}): nada novo para ler${f.pendentes ? ` (${f.pendentes} aguardando nova tentativa)` : ""}.`;
+  $("fechamentoStatus").textContent = texto + (prox?.fechamentos ? ` Próxima leitura às ${new Date(prox.fechamentos).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
 }
 
 function mostrarConta(sessao) {
@@ -55,6 +61,7 @@ async function carregar() {
   const cfg = { ...PADRAO, ...(await chrome.storage.sync.get(Object.keys(PADRAO))) };
   $("token").value = cfg.token;
   $("intervaloMin").value = String(cfg.intervaloMin);
+  $("fechamentoMin").value = String(cfg.fechamentoMin);
   $("horaDiaAnterior").value = cfg.horaDiaAnterior;
   $("alocacaoId").value = cfg.alocacaoId;
   $("ativo").checked = cfg.ativo !== false;
@@ -88,6 +95,7 @@ $("salvar").onclick = async () => {
   await chrome.storage.sync.set({
     token: $("token").value.trim(),
     intervaloMin: +$("intervaloMin").value || 0,
+    fechamentoMin: +$("fechamentoMin").value || 0,
     horaDiaAnterior: $("horaDiaAnterior").value,
     alocacaoId: $("alocacaoId").value.trim(),
     ativo: $("ativo").checked,
@@ -127,6 +135,15 @@ $("testarConexao").onclick = async () => {
   if (!r?.ok) carregarConta();
 };
 
+$("lerFechamentos").onclick = async (e) => {
+  const botao = e.currentTarget;
+  botao.disabled = true;
+  $("fechamentoStatus").textContent = "Lendo fechamentos no OFS…";
+  await enviar({ tipo: "fechamentos" });
+  botao.disabled = false;
+  mostrarStatus();
+};
+
 $("arquivo").onchange = async (e) => {
   const arquivo = e.target.files[0];
   e.target.value = "";
@@ -139,7 +156,7 @@ $("arquivo").onchange = async (e) => {
 };
 
 chrome.storage.onChanged.addListener((mudancas, area) => {
-  if (area === "local" && (mudancas.ultimoEnvio || mudancas.captura)) mostrarStatus();
+  if (area === "local" && (mudancas.ultimoEnvio || mudancas.captura || mudancas.ultimoFechamento)) mostrarStatus();
   if (area === "local" && mudancas.sessao) carregarConta();
 });
 carregar();
