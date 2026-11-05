@@ -415,6 +415,15 @@
 :where(:root:not([data-theme="dark"])) .validation-error {
     color: #a33c3e
 }
+:where(:root:not([data-theme="dark"])) .field-hint {
+    color: #4a5a70
+}
+:where(:root:not([data-theme="dark"])) .delete-link {
+    color: #a8323a
+}
+:where(:root:not([data-theme="dark"])) .delete-link:hover {
+    color: #8a2028
+}
 
 /* activation.css */
 :where(:root:not([data-theme="dark"])) .activation-panel>.save-message {

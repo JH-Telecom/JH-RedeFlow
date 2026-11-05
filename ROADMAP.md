@@ -3966,3 +3966,25 @@ O que é gravado:
 - Teste novo de `callsReadyToFinish`, cobrindo cada condição.
 - Suíte 150/150. O teste de subida HTTP falhou uma vez por tempo e passou ao rodar de novo.
 - Typecheck OK. Sintaxe da extensão OK.
+
+## 2026-11-05 — Detalhe do chamado: encerramento no card de Atendimento
+
+### Pedido
+Não separar o card "Encerramento". Deixar tudo no card de Atendimento e mostrar só os campos necessários conforme o status, por exemplo o motivo para cancelar e os dados de finalização. Ao finalizar, a data deve vir preenchida com a do OFS.
+
+### Implementado (`CallDetailPage.tsx`)
+- O status passou a ter todas as opções: Aberto, Atribuído, Deslocamento, Em campo, Finalizado, Baixar e Cancelado.
+- **Finalizado** (chamado ainda ativo) mostra:
+  - Resultado, já sugerido: o resultado existente, se for texto, ou "Motivo — Submotivo" do fechamento do OFS;
+  - Data e hora de execução, **já preenchida com a Data Fim do OFS** e com a dica "Data Fim do OFS: …";
+  - Observação final.
+  - O botão vira "Finalizar chamado". Primeiro salva os dados (por exemplo, o técnico escolhido na hora) e depois finaliza (`/finalizar`), com a data enviada em ISO, com fuso.
+- **Cancelado** mostra o motivo do cancelamento. O botão vira "Cancelar chamado" e chama `/cancelar`.
+- **Chamado encerrado**: trocar para um status ativo e salvar reabre o chamado (o botão vira "Reabrir chamado"). Trocar Baixar → Finalizado continua funcionando.
+- **"Apagar chamado"** virou um link discreto no fim do card. Continua exigindo a permissão `calls.delete` e a confirmação.
+- O card separado "Encerramento / Finalizar ou cancelar" foi removido. Todas as funções dele (finalizar, cancelar, reabrir e apagar) estão no card de Atendimento.
+
+### Validação
+- Typecheck do frontend (`tsc -b`) OK.
+- Preview em localhost:8000: com Finalizado, os campos aparecem no card.
+- O tema escuro e o contraste do tema claro foram gerados para os estilos novos (`field-hint`, `delete-link`).

@@ -14,6 +14,15 @@ function formatEventGap(eventAt: string, openedAt: string) {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}`;
 }
 
+const CLOSED_STATUSES: CallStatus[] = ["Finalizado", "Cancelado", "Baixar"];
+// Chave de lista do OFS (ex.: "13", "CTO_SEM_SINAL_EVENTO_PRODUTIVO") nao serve de Resultado.
+const looksLikeCode = (value?: string) => /^\d+$/.test(value?.trim() || "") || /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/.test(value?.trim() || "");
+// Resultado sugerido ao finalizar: o que ja houver (se for texto) ou "Motivo — Submotivo" do fechamento do OFS.
+function defaultResult(call: Call) {
+  if (call.result?.trim() && !looksLikeCode(call.result)) return call.result.trim();
+  return [call.closingReason, call.closingSubreason].filter((part) => part?.trim() && !looksLikeCode(part)).join(" — ");
+}
+
 export function CallDetailBase() {
   const { pathname, search } = useLocation();
   const id = pathname.split("/").pop()!;
@@ -39,12 +48,31 @@ export function CallDetailBase() {
   const [slotPon, setSlotPon] = useState("");
   const [openedAt, setOpenedAt] = useState("");
   const [saving, setSaving] = useState(false);
+  // Encerramento no proprio card de Atendimento: os campos aparecem conforme o status escolhido.
+  const [result, setResult] = useState("");
+  const [executedAt, setExecutedAt] = useState("");
+  const [finishNotes, setFinishNotes] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [missing, setMissing] = useState<string[]>([]);
+  const [canDeleteCall, setCanDeleteCall] = useState(false);
   const navigate = useNavigate();
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("jh-redeflow-session");
+      const session = raw ? JSON.parse(raw) : null;
+      setCanDeleteCall(Boolean(session?.user?.role?.permissions?.includes("calls.delete")));
+    } catch {
+      setCanDeleteCall(false);
+    }
+  }, []);
   useEffect(() => {
     Promise.all([api.call(id, { teamScope: teamScoped }), api.technicians()]).then(
       ([callData, technicianData]) => {
         setCall(callData.call);
         setStatus(callData.call.status);
+        setResult(defaultResult(callData.call));
+        // Concluido no OFS: a data de execucao ja vem preenchida com a Data Fim do OFS.
+        setExecutedAt(callData.call.executedAt ? toLocalDateTimeInput(callData.call.executedAt) : "");
         setTechnicianId(callData.call.technicianId || "");
         setNotes(callData.call.notes);
         setOpenedAt(toLocalDateTimeInput(callData.call.openedAt));
@@ -60,14 +88,61 @@ export function CallDetailBase() {
       setMessage("Informe uma data e hora de abertura validas.");
       return;
     }
+    const current = call!;
+    const wasClosed = CLOSED_STATUSES.includes(current.status);
+    const finishing = status === "Finalizado" && !wasClosed;
+    const cancelling = status === "Cancelado" && !wasClosed;
+    setMessage("");
+    setMissing([]);
+    if (wasClosed && status === current.status) {
+      setMessage("Chamado encerrado: troque o status para reabrir ou mudar o encerramento.");
+      return;
+    }
+    const executionDate = new Date(executedAt);
+    if (finishing) {
+      const pending = [!technicianId && "Tecnico", !result.trim() && "Resultado", (!executedAt || Number.isNaN(executionDate.getTime())) && "Data e hora de execucao", !finishNotes.trim() && "Observacao final"].filter(Boolean) as string[];
+      if (pending.length) { setMissing(pending); setMessage("Preencha os campos para finalizar."); return; }
+    }
+    if (cancelling && cancelReason.trim().length < 3) { setMessage("Informe o motivo do cancelamento."); return; }
     setSaving(true);
     try {
-      const data = await api.updateCall(id, { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, status, technicianId: technicianId || null, openedAt: openingDate.toISOString(), notes });
-      setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || "");
-      setMessage("Chamado atualizado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel salvar alteracoes."); }
+      const fields = { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, technicianId: technicianId || null, openedAt: openingDate.toISOString(), notes };
+      if (finishing || cancelling) {
+        // Primeiro salva os dados (ex.: tecnico escolhido agora), depois encerra.
+        await api.updateCall(id, { ...fields, status: current.status });
+        if (finishing) await api.finishCall(id, { result: result.trim(), executedAt: executionDate.toISOString(), notes: finishNotes.trim() });
+        else await api.cancelCall(id, cancelReason.trim());
+        setMessage(finishing ? "Chamado finalizado com sucesso." : "Chamado cancelado com sucesso.");
+      } else {
+        const data = await api.updateCall(id, { ...fields, status });
+        setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || "");
+        setMessage(wasClosed && !CLOSED_STATUSES.includes(status) ? "Chamado reaberto com sucesso." : "Chamado atualizado com sucesso.");
+      }
+      setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
+    } catch (error) {
+      const typedError = error as Error & { missing?: string[] };
+      setMessage(typedError.message || "Nao foi possivel salvar alteracoes.");
+      setMissing(typedError.missing || []);
+    }
     finally { setSaving(false); }
   }
+  async function remove() {
+    if (!window.confirm("Deseja apagar este chamado de teste? Essa acao nao pode ser desfeita.")) return;
+    setSaving(true);
+    try {
+      await api.deleteCall(id);
+      setMessage("Chamado removido com sucesso.");
+      setTimeout(() => { window.location.href = "/chamados/abertos"; }, 600);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Nao foi possivel apagar o chamado.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  const closedNow = CLOSED_STATUSES.includes(call.status);
+  const showFinish = status === "Finalizado" && !closedNow;
+  const showCancel = status === "Cancelado" && !closedNow;
+  const saveLabel = saving ? "Salvando..." : showFinish ? "Finalizar chamado" : showCancel ? "Cancelar chamado" : closedNow && !CLOSED_STATUSES.includes(status) ? "Reabrir chamado" : "Salvar alteracoes";
   return (
     <>
       <button className="back-button" onClick={() => navigate(-1)}>
@@ -146,12 +221,7 @@ export function CallDetailBase() {
               value={status}
               onChange={(event) => setStatus(event.target.value as CallStatus)}
             >
-              {[
-                "Aberto",
-                "Atribuido",
-                "Deslocamento",
-                "Em campo",
-              ].map((item) => (
+              {["Aberto", "Atribuido", "Deslocamento", "Em campo", "Finalizado", "Baixar", "Cancelado"].map((item) => (
                 <option key={item}>{item}</option>
               ))}
             </select>
@@ -177,10 +247,28 @@ export function CallDetailBase() {
               ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`
               : "Este chamado ainda nao possui tecnico."}
           </div>
-          <button className="primary-button save-call" onClick={save} disabled={saving}>
-            {saving ? "Salvando..." : "Salvar alteracoes"} <ChevronRight size={17} />
+          {showFinish && (
+            <div className="status-fields">
+              <label className="detail-label">Resultado<input value={result} onChange={(event) => setResult(event.target.value)} placeholder="Ex.: reparo realizado" /></label>
+              <label className="detail-label">
+                Data e hora de execucao
+                <input type="datetime-local" value={executedAt} onChange={(event) => setExecutedAt(event.target.value)} />
+                {call.executedAt && <span className="field-hint">Data Fim do OFS: {new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>}
+              </label>
+              <label className="detail-label">Observacao final<textarea value={finishNotes} onChange={(event) => setFinishNotes(event.target.value)} rows={3} placeholder="Descreva a execucao" /></label>
+            </div>
+          )}
+          {showCancel && (
+            <div className="status-fields">
+              <label className="detail-label">Motivo do cancelamento<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
+            </div>
+          )}
+          <button className={showCancel ? "cancel-button save-call" : "primary-button save-call"} onClick={save} disabled={saving}>
+            {saveLabel} {!showCancel && <ChevronRight size={17} />}
           </button>
+          {missing.length > 0 && <div className="validation-error">Faltando: {missing.join(", ")}</div>}
           {message && <div className="save-message">{message}</div>}
+          {canDeleteCall && <button type="button" className="delete-link" onClick={remove} disabled={saving}>Apagar chamado</button>}
         </aside>
       </div>
       {confirmed && <div className="call-confirmation" role="status"><span>✓</span><strong>Alteração confirmada</strong><small>A ordem foi atualizada. Recarregando os dados...</small></div>}
@@ -242,7 +330,6 @@ export function AuditedCallDetailPage() {
   return (
     <>
       <CallDetailBase />
-      <CallOutcomeActions />
       <section className="panel history-panel">
         <div className="history-tabs">
           <button
@@ -412,107 +499,6 @@ export function ObservationAttachmentItem({ callId, observationId, attachment, t
     {isImage ? previewUrl ? <img src={previewUrl} alt={`Prévia de ${attachment.fileName}`}/> : <span className="observation-image-loading">{attachmentError ? "Prévia indisponível" : "Carregando prévia..."}</span> : <FileText size={22}/>}
     <span className="observation-attachment-name">{attachment.fileName}</span><Download size={14}/>{downloading && <span className="observation-download-state">Baixando...</span>}
   </button>;
-}
-
-export function CallOutcomeActions() {
-  const { pathname } = useLocation();
-  const id = pathname.split("/").pop()!;
-  const [call, setCall] = useState<Call | null>(null);
-  const [result, setResult] = useState("");
-  const [executedAt, setExecutedAt] = useState("");
-  const [notes, setNotes] = useState("");
-  const [cancelReason, setCancelReason] = useState("");
-  const [message, setMessage] = useState("");
-  const [missing, setMissing] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
-  const [canDeleteCall, setCanDeleteCall] = useState(false);
-  useEffect(() => { api.call(id).then((data) => setCall(data.call)).catch(() => setCall(null)); }, [id]);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('jh-redeflow-session');
-      const session = raw ? JSON.parse(raw) : null;
-      setCanDeleteCall(Boolean(session?.user?.role?.permissions?.includes('calls.delete')));
-    } catch {
-      setCanDeleteCall(false);
-    }
-  }, []);
-  async function finish() {
-    setMessage("");
-    setMissing([]);
-    setSaving(true);
-    try {
-      await api.finishCall(id, { result, executedAt, notes });
-      setMessage("Chamado finalizado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
-    } catch (error) {
-      const typedError = error as Error & { missing?: string[] };
-      setMessage(typedError.message);
-      setMissing(typedError.missing || []);
-    } finally { setSaving(false); }
-  }
-  async function cancel() {
-    if (!cancelReason.trim()) {
-      setMessage("Informe o motivo do cancelamento.");
-      return;
-    }
-    setSaving(true);
-    try { await api.cancelCall(id, cancelReason); setMessage("Chamado cancelado com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel cancelar o chamado."); }
-    finally { setSaving(false); }
-  }
-  async function reopen() {
-    try { setSaving(true); const data = await api.reopenCall(id); setCall(data.call); setMessage("Chamado reaberto com sucesso."); setConfirmed(true); setTimeout(() => window.location.reload(), 1100); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel reabrir o chamado."); }
-    finally { setSaving(false); }
-  }
-  async function remove() {
-    if (!window.confirm('Deseja apagar este chamado de teste? Essa acao nao pode ser desfeita.')) return;
-    setSaving(true);
-    try {
-      await api.deleteCall(id);
-      setMessage('Chamado removido com sucesso.');
-      setTimeout(() => { window.location.href = '/chamados/abertos'; }, 600);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Nao foi possivel apagar o chamado.');
-    } finally {
-      setSaving(false);
-    }
-  }
-  const closed = call ? ["Finalizado", "Cancelado", "Baixar"].includes(call.status) : false;
-  return (
-    <section className="panel outcome-panel">
-      <div className="panel-heading">
-        <div>
-          <span className="section-kicker">ENCERRAMENTO</span>
-          <h2>Finalizar ou cancelar</h2>
-        </div>
-      </div>
-      {closed ? <div className="closed-call-action"><p>Este chamado está encerrado e não pode mais ser alterado.</p><button className="primary-button compact" onClick={reopen} disabled={saving}>{saving ? "Reabrindo..." : "Reabrir chamado"} <ChevronRight size={16} /></button></div> : <div className="outcome-grid">
-        <div>
-          <div className="required-checks">
-            <span>Tecnico</span><span>Resultado</span><span>Data/hora</span><span>Observacao</span>
-          </div>
-          <div className="outcome-fields">
-            <label className="detail-label">Resultado<input value={result} onChange={(event) => setResult(event.target.value)} placeholder="Ex.: reparo realizado" /></label>
-            <label className="detail-label">Data e hora de execucao<input type="datetime-local" value={executedAt} onChange={(event) => setExecutedAt(event.target.value)} /></label>
-            <label className="detail-label">Observacao final<textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} placeholder="Descreva a execucao" /></label>
-          </div>
-          <button className="primary-button compact" onClick={finish} disabled={saving}>{saving ? "Finalizando..." : "Finalizar chamado"} <ChevronRight size={16} /></button>
-          {missing.length > 0 && <div className="validation-error">Faltando: {missing.join(", ")}</div>}
-        </div>
-        <div className="cancel-box">
-          <span className="section-kicker">CANCELAMENTO</span>
-          <label className="detail-label">Motivo<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
-          <button className="cancel-button" onClick={cancel} disabled={saving}>{saving ? "Cancelando..." : "Cancelar chamado"}</button>
-          {canDeleteCall && (
-            <button className="delete-button" onClick={remove} disabled={saving}>{saving ? "Excluindo..." : "Apagar chamado"}</button>
-          )}
-        </div>
-      </div>}
-      {message && <div className="save-message">{message}</div>}
-      {confirmed && <div className="call-confirmation" role="status"><span>✓</span><strong>Alteração confirmada</strong><small>Atualizando a ordem...</small></div>}
-    </section>
-  );
 }
 
 export function CallDetailRoute() {

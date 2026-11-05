@@ -722,6 +722,20 @@
         border-top: 1px solid var(--line)
     }
 }
+:where(:root[data-theme="dark"]) .detail-actions .status-fields {
+    border-top: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .field-hint {
+    color: #b6bcc4
+}
+:where(:root[data-theme="dark"]) .delete-link {
+    border: 0;
+    background: transparent;
+    color: #ff8c8c
+}
+:where(:root[data-theme="dark"]) .delete-link:hover {
+    color: #ff918e
+}
 
 /* activation.css */
 :where(:root[data-theme="dark"]) .activation-panel>.save-message {
