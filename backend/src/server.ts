@@ -720,7 +720,7 @@ app.post('/api/integrations/ofs/fechamentos', async (request, response) => {
   const identity = await ofsCollectorIdentity(request);
   if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
   const field = z.string().trim().max(500).nullish();
-  const parsed = z.object({ itens: z.array(z.object({ ordem: z.string().trim().min(1).max(60), motivo: field, submotivo: field, tipoCabo: field })).max(100) }).safeParse(request.body);
+  const parsed = z.object({ itens: z.array(z.object({ ordem: z.string().trim().min(1).max(60), motivo: field, submotivo: field, tipoCabo: field, semFechamento: z.boolean().nullish() })).max(100) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Envie os fechamentos lidos do OFS.' });
   const { matches, unmatched } = matchOfsClosing(parsed.data.itens, await listCalls());
   const actor = ofsClosingActor(identity.label);

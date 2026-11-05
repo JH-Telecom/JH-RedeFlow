@@ -4,7 +4,10 @@ import { pickSingleCall } from './d0.js';
 // Fechamento do OFS (formulario "Fechamento" da atividade): Motivo de Fechamento, Submotivo e Tipo do Cabo.
 // Nao vem no export CSV; o Coletor OFS abre cada atividade concluida e envia esses tres campos.
 
-export type OfsClosingItem = { ordem: string; motivo?: string | null; submotivo?: string | null; tipoCabo?: string | null };
+// semFechamento: a atividade esta concluida no OFS, mas o formulario de fechamento ficou vazio (acontece bastante).
+export type OfsClosingItem = { ordem: string; motivo?: string | null; submotivo?: string | null; tipoCabo?: string | null; semFechamento?: boolean | null };
+// Gravado no Motivo quando o fechamento do OFS veio vazio: tira o chamado da fila de leitura e deixa ele finalizar.
+export const OFS_EMPTY_CLOSING = 'Não preenchido no OFS';
 export type OfsClosingFields = Pick<EditableCallFields, 'closingReason' | 'closingSubreason' | 'cableType'>;
 export type OfsClosingMatch = { callId: string; orderNumber: string; fields: Partial<OfsClosingFields> };
 
@@ -83,6 +86,10 @@ export function matchOfsClosing(items: OfsClosingItem[], calls: Call[]): { match
     const call = pickSingleCall(candidates);
     if (!call) { unmatched.push(order || String(item.ordem)); continue; }
     const next: Partial<OfsClosingFields> = { closingReason: clean(item.motivo), closingSubreason: clean(item.submotivo), cableType: clean(item.tipoCabo) };
+    // Fechamento vazio no OFS: so marca se o chamado ainda nao tem nenhum fechamento em texto.
+    const empty = !next.closingReason && !next.closingSubreason && !next.cableType;
+    const hasText = Boolean(call.closingReason?.trim() || call.closingSubreason?.trim()) && !looksLikeOfsCode(call.closingReason) && !looksLikeOfsCode(call.closingSubreason);
+    if (item.semFechamento && empty && !hasText) next.closingReason = OFS_EMPTY_CLOSING;
     const fields = Object.fromEntries(Object.entries(next).filter(([field, value]) => value !== undefined && value !== call[field as keyof OfsClosingFields])) as Partial<OfsClosingFields>;
     if (Object.keys(fields).length) matches.push({ callId: call.id, orderNumber: call.orderNumber, fields });
   }

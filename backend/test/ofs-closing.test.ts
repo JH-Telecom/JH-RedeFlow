@@ -86,3 +86,14 @@ test('Atrelado is auto-finished like Atribuido', () => {
   const linked: Call = { ...base, id: 'linked', status: 'Atrelado', technicianId: 'tech-1', closingReason: 'CTO sem sinal', closingSubreason: 'Troca de cordões' };
   assert.deepEqual(callsReadyToFinish([linked]).map((item) => item.callId), ['linked']);
 });
+
+test('an activity concluded with an empty closing form is marked and then finished', () => {
+  const technicianCall = { ...base, technicianId: 'tec-1' };
+  const { matches } = matchOfsClosing([{ ordem: base.orderNumber, semFechamento: true }], [technicianCall]);
+  assert.deepEqual(matches[0]?.fields, { closingReason: 'Não preenchido no OFS' });
+  const marked = { ...technicianCall, ...matches[0]!.fields };
+  assert.deepEqual(pendingClosingOrders([marked], { now }), []);
+  assert.equal(callsReadyToFinish([marked])[0]?.fields.result, 'Não preenchido no OFS');
+  // Ja tem fechamento em texto: o vazio nao sobrescreve.
+  assert.equal(matchOfsClosing([{ ordem: base.orderNumber, semFechamento: true }], [{ ...technicianCall, closingReason: 'CTO sem sinal' }]).matches.length, 0);
+});

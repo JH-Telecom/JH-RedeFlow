@@ -393,6 +393,8 @@ async function coletarFechamentos(automatico) {
       catch (e) { res = { ordem, erro: e?.message || String(e) }; }
       fechTentativas[ordem] = Date.now();
       if (res?.motivo || res?.submotivo || res?.tipoCabo) itens.push({ ordem, motivo: res.motivo, submotivo: res.submotivo, tipoCabo: res.tipoCabo });
+      // Concluida no OFS, mas sem nada no formulario de fechamento: o RedeFlow marca "Não preenchido no OFS" e finaliza.
+      else if (res?.aid && !res?.erro) { itens.push({ ordem, semFechamento: true }); falhas.push({ ordem, tipo: "aviso", motivo: `Atividade ${res.aid} concluída sem Motivo, Submotivo e Tipo do cabo: finalizada como "Não preenchido no OFS"` }); }
       else if (res?.semConcluida || res?.naoEncontrada) { semConcluida += 1; falhas.push({ ordem, tipo: "aviso", motivo: res.naoEncontrada ? "Não encontrada na pesquisa do OFS" : "Nenhuma atividade concluída no OFS ainda" }); }
       else { erros += 1; falhas.push({ ordem, tipo: "erro", motivo: res?.erro || (res?.aid ? `Atividade ${res.aid} concluída, mas sem Motivo, Submotivo e Tipo do cabo preenchidos` : "Sem resposta da aba do OFS") }); }
     }

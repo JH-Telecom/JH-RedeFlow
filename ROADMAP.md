@@ -4238,3 +4238,17 @@ O chamado 610147425970102 não recebia o Status OFS.
   - "OLT VIP-GRU-4-…" acha GUARULHOS 4.
 - Suíte 163/163.
 - Hoje há 9 chamados com a OLT gravada com o prefixo, 3 deles sem região. Os dados não foram alterados.
+
+## Fechamento vazio no OFS finaliza o chamado (2026-11-05)
+
+### Problema
+Várias atividades são concluídas no OFS sem Motivo, Submotivo e Tipo do cabo. Esses chamados ficavam no popup como erro ("concluída, mas sem Motivo...") e nunca eram finalizados automaticamente.
+
+### Implementado
+- Extensão v1.3.1: atividade concluída e com o fechamento vazio é enviada com `semFechamento: true`. No popup, aparece como aviso.
+- `matchOfsClosing`: com `semFechamento`, grava o Motivo "Não preenchido no OFS". Isso só acontece se o chamado ainda não tem fechamento em texto.
+- Com o Motivo gravado, o chamado sai da fila de leitura. Ele finaliza pela regra de sempre (OFS concluído, Data Fim e técnico), com o resultado "Não preenchido no OFS".
+- A rota `POST /api/integrations/ofs/fechamentos` aceita o campo `semFechamento`.
+
+### Validação
+- Teste novo: fechamento vazio → marca, sai da fila e finaliza. Um fechamento em texto que já existe não é sobrescrito. Suíte 164/164.
