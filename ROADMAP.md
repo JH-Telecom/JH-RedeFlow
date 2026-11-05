@@ -4102,3 +4102,26 @@ Saber quais são os "2 sem tipo reconhecido" que aparecem no IGP.
 
 ### Validação
 - Novo `timezone-local.test.ts`. Suíte 155/155. Typecheck do backend e do frontend OK.
+
+## 2026-11-05 — IGP: "Como está o período" (MTTR)
+
+### Pedido
+Adicionar ao IGP um quadro igual ao do print: MTTR do período, Meta, Diferença, Situação, Total de ordens, Total de horas e uma linha explicando.
+
+### Implementado (`IgpPage.tsx` + `igp.css`)
+- Componente `MttrPeriod`, logo abaixo dos indicadores. Usa a região e o mês escolhidos e o total ponderado.
+- Os seis cartões:
+  - **MTTR do período**;
+  - **Meta**: 5,0h, com "mínimo 6,0h";
+  - **Diferença**: +/−, com "acima/abaixo da meta";
+  - **Situação**: verde "Na meta" até 5h, amarelo "Acima da meta" até 6h, vermelho "Acima do mínimo" depois disso;
+  - **Total de ordens**;
+  - **Total de horas** (soma de Data Fim − Abertura).
+- Linha final na cor da situação. Por exemplo: "→ O período está 0,6h acima da meta: 5,6h contra 5,0h. Para voltar à meta, o total teria Xh a menos nas mesmas N ordens."
+- Responsivo: 6 colunas, 3 em telas médias e 2 no celular.
+- Tema escuro gerado.
+- Mês sem ordens: o quadro não aparece.
+
+### Validação
+- Typecheck OK.
+- Preview em localhost:8000/igp: um chamado de demonstração foi finalizado só em memória para ter dados. O quadro apareceu com 3,3h, Meta 5,0h, −1,7h, "Na meta", 1 ordem e 3,3h, e a mensagem em verde. Depois o chamado foi reaberto.

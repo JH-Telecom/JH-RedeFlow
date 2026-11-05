@@ -1073,6 +1073,61 @@
 :where(:root[data-theme="dark"]) .igp-plan-row p b {
     color: #e0e6f0
 }
+:where(:root[data-theme="dark"]) .igp-period h2 {
+    color: #dbe0e6
+}
+:where(:root[data-theme="dark"]) .igp-period-tile {
+    border: 1px solid #343d49;
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .igp-period-tile span {
+    color: #b6bcc4
+}
+:where(:root[data-theme="dark"]) .igp-period-tile strong {
+    color: #79b6ff
+}
+:where(:root[data-theme="dark"]) .igp-period-tile small {
+    color: #b6bcc4
+}
+:where(:root[data-theme="dark"]) .igp-period-tile.is-situation.is-good {
+    background: #081b10;
+    border-color: #225135
+}
+:where(:root[data-theme="dark"]) .igp-period-tile.is-situation.is-good strong {
+    color: #7ccd8f
+}
+:where(:root[data-theme="dark"]) .igp-period-tile.is-situation.is-warning {
+    background: #1f1400;
+    border-color: #513f0c
+}
+:where(:root[data-theme="dark"]) .igp-period-tile.is-situation.is-warning strong {
+    color: #e1ad66
+}
+:where(:root[data-theme="dark"]) .igp-period-tile.is-situation.is-critical {
+    background: #231112;
+    border-color: #683738
+}
+:where(:root[data-theme="dark"]) .igp-period-tile.is-situation.is-critical strong {
+    color: #ff8b7f
+}
+:where(:root[data-theme="dark"]) .igp-period-message {
+    border-left: 4px solid
+}
+:where(:root[data-theme="dark"]) .igp-period-message.is-good {
+    background: #0b1a11;
+    border-color: #2e9e57;
+    color: #7ccd8f
+}
+:where(:root[data-theme="dark"]) .igp-period-message.is-warning {
+    background: #1b1300;
+    border-color: #d99a00;
+    color: #deae6e
+}
+:where(:root[data-theme="dark"]) .igp-period-message.is-critical {
+    background: #201212;
+    border-color: #c53030;
+    color: #ff8b7f
+}
 
 /* manual-dashboard.css */
 :where(:root[data-theme="dark"]) .manual-base-status.is-ready {

@@ -29,6 +29,38 @@ const igpGoals = {
 };
 const trendMonths = 6;
 
+const formatHoursValue = (value: number, digits = 1) => `${value.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits })}h`;
+
+// "Como está o período": MTTR do mês contra a meta, a diferença e a situação, com o total de ordens e de horas.
+function MttrPeriod({ total }: { total: IgpMetrics["total"] }) {
+  const { target, minimum } = igpGoals.mttrHours;
+  const mttr = total.mttrHours;
+  if (mttr === null) return null;
+  const diff = mttr - target;
+  const state = mttr <= target ? "good" : mttr <= minimum ? "warning" : "critical";
+  const situation = state === "good" ? "Na meta" : state === "warning" ? "Acima da meta" : "Acima do mínimo";
+  // Horas a menos no total para o MTTR do mes chegar na meta (mesmas ordens).
+  const excessHours = Math.max(0, total.totalRepairHours - target * total.orders);
+  const sign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+  const message = state === "good"
+    ? `O período está ${formatHoursValue(Math.abs(diff))} abaixo da meta: ${formatHoursValue(mttr)} contra ${formatHoursValue(target)}.`
+    : `O período está ${formatHoursValue(diff)} acima da meta: ${formatHoursValue(mttr)} contra ${formatHoursValue(target)}. Para voltar à meta, o total teria ${formatHoursValue(excessHours)} a menos nas mesmas ${total.orders} ordens.`;
+  return (
+    <section className="igp-period" aria-label="Como está o período">
+      <h2>Como está o período</h2>
+      <div className="igp-period-grid">
+        <div className="igp-period-tile"><span>MTTR do período</span><strong>{formatHoursValue(mttr)}</strong><small>Data Fim − Abertura, média</small></div>
+        <div className="igp-period-tile"><span>Meta</span><strong>{formatHoursValue(target)}</strong><small>mínimo {formatHoursValue(minimum)}</small></div>
+        <div className="igp-period-tile"><span>Diferença</span><strong>{sign}{formatHoursValue(Math.abs(diff))}</strong><small>{diff > 0 ? "acima da meta" : diff < 0 ? "abaixo da meta" : "na meta"}</small></div>
+        <div className={`igp-period-tile is-situation is-${state}`}><span>Situação</span><strong>{situation}</strong></div>
+        <div className="igp-period-tile"><span>Total de ordens</span><strong>{total.orders.toLocaleString("pt-BR")}</strong></div>
+        <div className="igp-period-tile"><span>Total de horas</span><strong>{formatHoursValue(total.totalRepairHours)}</strong></div>
+      </div>
+      <p className={`igp-period-message is-${state}`}>→ {message}</p>
+    </section>
+  );
+}
+
 function shiftMonth(month: string, delta: number) {
   const [year, monthNumber] = month.split("-").map(Number);
   const date = new Date(Date.UTC(year, monthNumber - 1 + delta, 1));
@@ -173,6 +205,8 @@ export function IGPPage() {
           return <KpiTile key={row.key} label={row.key === "onTimePercent" ? "Dentro do prazo" : row.key === "mttrHours" ? "MTTR médio" : "Outlier"} value={row.format(value)} note={<GoalNote value={value} goal={row} />} icon={icon} tone={goalTone[state]} />;
         })}
       </div>
+
+      <MttrPeriod total={metrics.total} />
 
       {plan && <Panel kicker="PARA BATER A META" title={plan.currentMonth ? "O que precisamos fazer até o fim do mês" : "Como o mês fechou"} aside={<span className="dv-panel-meta">{plan.currentMonth ? `ritmo de ${count(Math.round(plan.orders / Math.max(1, plan.elapsedDays)))} ordens/dia · faltam ${plan.daysInMonth - plan.elapsedDays} dias` : areaLabel}</span>}>
         <div className="igp-plan-grid">

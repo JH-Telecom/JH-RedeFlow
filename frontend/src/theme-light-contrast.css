@@ -638,6 +638,36 @@
 :where(:root:not([data-theme="dark"])) .igp-plan-row p b {
     color: #13223a
 }
+:where(:root:not([data-theme="dark"])) .igp-period h2 {
+    color: #1f2a3a
+}
+:where(:root:not([data-theme="dark"])) .igp-period-tile span {
+    color: #4a5a70
+}
+:where(:root:not([data-theme="dark"])) .igp-period-tile strong {
+    color: #1559c7
+}
+:where(:root:not([data-theme="dark"])) .igp-period-tile small {
+    color: #4a5a70
+}
+:where(:root:not([data-theme="dark"])) .igp-period-tile.is-situation.is-good strong {
+    color: #146c34
+}
+:where(:root:not([data-theme="dark"])) .igp-period-tile.is-situation.is-warning strong {
+    color: #8a5a00
+}
+:where(:root:not([data-theme="dark"])) .igp-period-tile.is-situation.is-critical strong {
+    color: #b42323
+}
+:where(:root:not([data-theme="dark"])) .igp-period-message.is-good {
+    color: #146c34
+}
+:where(:root:not([data-theme="dark"])) .igp-period-message.is-warning {
+    color: #7a4f00
+}
+:where(:root:not([data-theme="dark"])) .igp-period-message.is-critical {
+    color: #a61f1f
+}
 
 /* manual-dashboard.css */
 :where(:root:not([data-theme="dark"])) .manual-base-status.is-ready {
