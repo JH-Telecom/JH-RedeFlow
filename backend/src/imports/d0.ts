@@ -84,6 +84,14 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   return fields;
 }
 
+// Ordem que bate em mais de um chamado: se so um nao estiver Cancelado (ex.: card mandado duas vezes e a copia
+// cancelada), e esse. Senao, nao adivinha.
+export function pickSingleCall<T extends { status: Call['status'] }>(candidates: T[]): T | undefined {
+  if (candidates.length === 1) return candidates[0];
+  const active = candidates.filter((candidate) => candidate.status !== 'Cancelado');
+  return active.length === 1 ? active[0] : undefined;
+}
+
 export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
   const callKeys = calls.map((call) => ({ call, identifiers: new Set(callIdentifiers(call)) }));
   const updates = new Map<string, D0CallFields>();
@@ -92,11 +100,12 @@ export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
   for (const row of rows) {
     const identifiers = rowIdentifiers(row);
     const candidates = callKeys.filter(({ identifiers: keys }) => identifiers.some((identifier) => keys.has(identifier)));
-    if (candidates.length !== 1) {
+    const chosen = pickSingleCall(candidates.map((candidate) => candidate.call));
+    if (!chosen) {
       unmatchedRows += 1;
       continue;
     }
-    const candidate = candidates[0];
+    const candidate = { call: chosen };
     const fields = mapFields(row, candidate.call);
     if (Object.keys(fields).length) updates.set(candidate.call.id, { ...updates.get(candidate.call.id), ...fields });
   }
@@ -115,7 +124,8 @@ export function matchRowsToCalls(rows: D0Row[], calls: Call[]): Array<{ row: D0R
     const identifiers = rowIdentifiers(row);
     if (!identifiers.length) continue;
     const candidates = callKeys.filter(({ identifiers: keys }) => identifiers.some((identifier) => keys.has(identifier)));
-    if (candidates.length === 1) matches.push({ row, call: candidates[0].call });
+    const chosen = pickSingleCall(candidates.map((candidate) => candidate.call));
+    if (chosen) matches.push({ row, call: chosen });
   }
   return matches;
 }

@@ -153,3 +153,14 @@ test('D-0 replaces the stored base and clearing it preserves enriched call data'
     if (previousSupabaseServiceRole === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = previousSupabaseServiceRole;
   }
 });
+test('an order repeated by a cancelled copy updates the active call', () => {
+  // Card mandado duas vezes: o segundo chamado foi cancelado; o OFS tem que chegar no que ficou ativo.
+  const active = { ...call, id: 'call-active', status: 'Atribuido' as const };
+  const cancelled = { ...call, id: 'call-cancelled', status: 'Cancelado' as const };
+  const result = matchD0Rows([{ 'Ordem de Serviço': `BDESK-${call.orderNumber}`, 'Status da Atividade': 'em rota' }], [active, cancelled]);
+  assert.equal(result.unmatchedRows, 0);
+  assert.equal(result.matches[0]?.callId, 'call-active');
+  assert.equal(result.matches[0]?.fields.ofsStatus, 'em rota');
+  // Dois ativos: continua sem adivinhar.
+  assert.equal(matchD0Rows([{ 'Ordem de Serviço': call.orderNumber }], [active, { ...active, id: 'other' }]).unmatchedRows, 1);
+});

@@ -4216,3 +4216,25 @@ Separar as áreas pelos baldes de cluster do OFS, exportando de cada balde, em v
 1. Migration.
 2. Push.
 3. Recarregar a extensão (v1.3.0).
+
+## 2026-11-05 — Status OFS não chegava em ordem repetida; OLT com "OLT " na frente
+
+### Pedido
+O chamado 610147425970102 não recebia o Status OFS.
+
+### Causa
+- O card foi enviado duas vezes ao grupo, os dois acionamentos foram aceitos e a segunda cópia foi cancelada. Ficaram **dois chamados com a mesma ordem**: um Atribuído e um Cancelado.
+- O cruzamento com o OFS (D-0) não atualiza quando uma ordem bate em mais de um chamado, para não adivinhar. Por isso nenhum dos dois recebia o status. A ordem estava no export das 11:42, "em rota".
+- No mesmo chamado, a OLT foi gravada como "OLT VIP-GRU-4-SPO-ONK-01", porque o card repetia o rótulo no valor. Com isso o mapa OLT → região não achava Guarulhos 4, e a região ficou "Nao informada".
+
+### Implementado
+- `d0.ts`: `pickSingleCall`. Quando a ordem bate em vários chamados e **só um não está Cancelado**, é esse que recebe. Vale para o cruzamento da D-0/OFS, o cluster e o fechamento do OFS. Dois chamados ativos continuam sem adivinhar.
+- `normalizeOltCode` e o leitor do card (`semantic.ts`) tiram o "OLT " ou "OLT:" do começo do valor da OLT.
+
+### Validação
+- Testes novos:
+  - cópia cancelada → atualiza o ativo;
+  - dois ativos → não atualiza;
+  - "OLT VIP-GRU-4-…" acha GUARULHOS 4.
+- Suíte 163/163.
+- Hoje há 9 chamados com a OLT gravada com o prefixo, 3 deles sem região. Os dados não foram alterados.

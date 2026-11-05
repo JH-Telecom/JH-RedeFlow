@@ -41,3 +41,12 @@ test('"Status OFS" is not read as the order number', () => {
   const analysis = analyzeOperationalMessage('⚠️VALIDAR COM NOC ACESSO⚠️\n- BDESK: 670496\n- Status OFS: Pendente');
   assert.equal(analysis.office_track, null);
 });
+
+test('OLT written as "OLT VIP-..." still finds the region', async () => {
+  const { normalizeOltCode, resolveOltRegion } = await import('../src/integrations/wuzapi/noc-consolidation.js');
+  assert.equal(normalizeOltCode('OLT VIP-GRU-4-SPO-ONK-01'), 'VIP-GRU-4-SPO-ONK-01');
+  assert.equal(normalizeOltCode('OLT: VIP-GRU-4-SPO-ONK-01'), 'VIP-GRU-4-SPO-ONK-01');
+  assert.equal(resolveOltRegion('OLT VIP-GRU-4-SPO-ONK-01').region, resolveOltRegion('VIP-GRU-4-SPO-ONK-01').region);
+  const analysis = analyzeOperationalMessage('⚠️VALIDAR COM NOC ACESSO⚠️\n- OLT: OLT VIP-GRU-4-SPO-ONK-01\n- BDESK: 674153');
+  assert.equal(analysis.olt, 'VIP-GRU-4-SPO-ONK-01');
+});

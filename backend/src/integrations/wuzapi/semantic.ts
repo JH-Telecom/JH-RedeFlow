@@ -107,7 +107,7 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
     os_casa_cliente: labelValue(text, ['O\\.S\\. CASA CLIENTE', 'OS CASA CLIENTE']),
     contrato: contract,
     sn: labelValue(text, ['S/N', 'SN']),
-    olt: labelValue(text, ['OLT']) || nullValue(legacy.olt),
+    olt: (labelValue(text, ['OLT']) || nullValue(legacy.olt))?.replace(/^OLT\s*:\s*|^OLT\s+/i, '') || null,
     slot_pon: splitSlots(slotValue),
     placa_pon: labelValue(text, ['PLACA']),
     tipo_falha: labelValue(text, ['TIPO DE FALHA', 'TIPO']),

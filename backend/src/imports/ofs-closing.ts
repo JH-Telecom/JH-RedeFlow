@@ -1,4 +1,5 @@
 import type { Call, EditableCallFields } from '../types.js';
+import { pickSingleCall } from './d0.js';
 
 // Fechamento do OFS (formulario "Fechamento" da atividade): Motivo de Fechamento, Submotivo e Tipo do Cabo.
 // Nao vem no export CSV; o Coletor OFS abre cada atividade concluida e envia esses tres campos.
@@ -79,8 +80,8 @@ export function matchOfsClosing(items: OfsClosingItem[], calls: Call[]): { match
   for (const item of items) {
     const order = orderDigits(item.ordem);
     const candidates = byOrder.get(order) || [];
-    if (candidates.length !== 1) { unmatched.push(order || String(item.ordem)); continue; }
-    const call = candidates[0];
+    const call = pickSingleCall(candidates);
+    if (!call) { unmatched.push(order || String(item.ordem)); continue; }
     const next: Partial<OfsClosingFields> = { closingReason: clean(item.motivo), closingSubreason: clean(item.submotivo), cableType: clean(item.tipoCabo) };
     const fields = Object.fromEntries(Object.entries(next).filter(([field, value]) => value !== undefined && value !== call[field as keyof OfsClosingFields])) as Partial<OfsClosingFields>;
     if (Object.keys(fields).length) matches.push({ callId: call.id, orderNumber: call.orderNumber, fields });

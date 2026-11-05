@@ -68,7 +68,8 @@ function normalizeText(value: string | null | undefined) {
 
 export function normalizeOltCode(value: string | null | undefined) {
   if (!value) return null;
-  return value.trim().toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
+  // "OLT VIP-GRU-4-SPO-ONK-01" / "OLT: VIP-...": o card repetia o rotulo no valor e a OLT nao achava a regiao.
+  return value.trim().replace(/^OLT\s*:\s*|^OLT\s+/i, '').toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9-]/g, '');
 }
 
 export function getDefaultOltRegionMap() {
