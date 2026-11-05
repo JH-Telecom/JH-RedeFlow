@@ -353,10 +353,12 @@ async function coletarFechamentos(automatico) {
     if (auth.sessao && (r.status === 401 || r.status === 403)) await chrome.storage.local.remove("sessao");
     if (!r.ok) return registrarFechamento({ ok: false, erro: corpo?.message || `HTTP ${r.status}` });
     const ordens = Array.isArray(corpo.ordens) ? corpo.ordens : [];
+    // Chamados que o RedeFlow finalizou sozinho (OFS concluido + Data Fim + tecnico + fechamento lido).
+    const finalizados = Array.isArray(corpo.finalizados) ? [...corpo.finalizados] : [];
     const { fechTentativas = {} } = await chrome.storage.local.get("fechTentativas");
     for (const [ordem, quando] of Object.entries(fechTentativas)) if (Date.now() - quando > 86_400_000) delete fechTentativas[ordem];
     const fila = ordens.filter((ordem) => !fechTentativas[ordem] || Date.now() - fechTentativas[ordem] > FECH_ESPERA_MS).slice(0, FECH_POR_CICLO);
-    if (!fila.length) return registrarFechamento({ ok: true, lidos: 0, atualizados: 0, pendentes: ordens.length });
+    if (!fila.length) return registrarFechamento({ ok: true, lidos: 0, atualizados: 0, finalizados, pendentes: ordens.length });
 
     const aba = await abaDeFechamento();
     if (!(await ofsPronto(aba.id))) return registrarFechamento({ ok: false, erro: "O OFS não carregou na aba de fechamentos (confira o login)" });
@@ -381,9 +383,10 @@ async function coletarFechamentos(automatico) {
       const resposta = await envio.json().catch(() => ({}));
       if (!envio.ok) return registrarFechamento({ ok: false, erro: resposta?.message || `HTTP ${envio.status}`, lidos: fila.length, falhas });
       atualizados = resposta.atualizados ?? 0;
+      finalizados.push(...(resposta.finalizados || []));
       for (const ordem of resposta.semChamado || []) falhas.push({ ordem, tipo: "erro", motivo: "Lida no OFS, mas não achei o chamado no RedeFlow (ou há mais de um com essa ordem)" });
     }
-    return registrarFechamento({ ok: true, lidos: fila.length, comDados: itens.length, atualizados, semConcluida, erros, falhas, pendentes: ordens.length });
+    return registrarFechamento({ ok: true, lidos: fila.length, comDados: itens.length, atualizados, finalizados, semConcluida, erros, falhas, pendentes: ordens.length });
   } catch (e) {
     return registrarFechamento({ ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` });
   } finally {

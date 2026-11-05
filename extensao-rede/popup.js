@@ -54,7 +54,9 @@ async function mostrarStatus() {
     li.onclick = () => navigator.clipboard?.writeText(falha.ordem);
     $("fechamentoFalhas").appendChild(li);
   }
-  $("fechamentoStatus").textContent = texto +(prox?.fechamentos ? ` Próxima leitura às ${new Date(prox.fechamentos).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
+  const fins = Array.isArray(f?.finalizados) ? f.finalizados : [];
+  const textoFins = fins.length ? ` ${fins.length} finalizado(s) automaticamente: ${fins.join(", ")}.` : "";
+  $("fechamentoStatus").textContent = texto + textoFins + (prox?.fechamentos ? ` Próxima leitura às ${new Date(prox.fechamentos).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
 }
 
 function mostrarConta(sessao) {

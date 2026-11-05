@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isOfsConcluded, matchOfsClosing, orderDigits, pendingClosingOrders } from '../src/imports/ofs-closing.js';
+import { callsReadyToFinish, isOfsConcluded, matchOfsClosing, orderDigits, pendingClosingOrders } from '../src/imports/ofs-closing.js';
 import type { Call } from '../src/types.js';
 
 const now = Date.parse('2026-11-05T12:00:00Z');
@@ -33,6 +33,25 @@ test('calls saved with OFS list codes instead of the text go back to the queue',
   assert.deepEqual(pendingClosingOrders(calls, { now }).sort(), ['12665731', '12667479']);
   const fixed = matchOfsClosing([{ ordem: '12667479', motivo: 'CTO sem sinal', submotivo: 'Realizado nova fusão na CTO/CEO', tipoCabo: '12' }], calls);
   assert.deepEqual(fixed.matches[0].fields, { closingReason: 'CTO sem sinal', closingSubreason: 'Realizado nova fusão na CTO/CEO' });
+});
+
+test('auto-finish: only active calls the OFS concluded, with Data Fim, technician and closing text', () => {
+  const ready: Call = { ...base, technicianId: 'tech-1', closingReason: 'CTO sem sinal', closingSubreason: 'Realizado nova fusão na CTO/CEO', result: 'CTO_SEM_SINAL_EVENTO_PRODUTIVO' };
+  const calls: Call[] = [
+    ready,
+    { ...ready, id: 'keep-result', result: 'Fusão refeita na CTO' },
+    { ...ready, id: 'no-tech', technicianId: undefined },
+    { ...ready, id: 'no-end', executedAt: undefined },
+    { ...ready, id: 'pending-ofs', ofsStatus: 'pendente' },
+    { ...ready, id: 'code', closingSubreason: '13' },
+    { ...ready, id: 'no-closing', closingReason: undefined, closingSubreason: undefined },
+    { ...ready, id: 'already', status: 'Finalizado' },
+    { ...ready, id: 'baixar', status: 'Baixar' },
+  ];
+  assert.deepEqual(callsReadyToFinish(calls), [
+    { callId: 'c1', orderNumber: '610011231680102', fields: { status: 'Finalizado', executedAt: '2026-11-05T01:11:00Z', result: 'CTO sem sinal — Realizado nova fusão na CTO/CEO' } },
+    { callId: 'keep-result', orderNumber: '610011231680102', fields: { status: 'Finalizado', executedAt: '2026-11-05T01:11:00Z', result: 'Fusão refeita na CTO' } },
+  ]);
 });
 
 test('OFS status and order number normalization', () => {

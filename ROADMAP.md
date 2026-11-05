@@ -3933,3 +3933,36 @@ No OFS, "Tipo de Fechamento de Redes" (725) e "Submotivos de Fechamento de Redes
 
 ### Validação
 - Teste novo de releitura dos códigos. Suíte 149/149. Typecheck OK. Sintaxe da extensão OK.
+
+## 2026-11-05 — Finalização automática pelo fechamento do OFS
+
+### Pedido
+Finalizar o chamado sozinho toda vez que ele já tiver as informações do OFS.
+
+### Regra (`callsReadyToFinish`, em `imports/ofs-closing.ts`)
+O chamado é finalizado quando todas estas condições valem:
+- ainda está ativo no sistema (Aberto, Atribuído, Deslocamento ou Em campo);
+- o Status OFS é "concluído";
+- já tem a Data Fim do OFS;
+- tem técnico (a finalização manual também exige);
+- já tem o fechamento do OFS (Motivo ou Submotivo), em texto e não em código.
+
+O que é gravado:
+- Status passa a Finalizado.
+- A Data Fim é a do OFS.
+- O Resultado é o que já existia, se for texto. Se não for, vira "Motivo — Submotivo" (ex.: "CTO sem sinal — Realizado nova fusão na CTO/CEO").
+- A alteração entra no histórico do chamado com o ator "Coletor OFS – usuário".
+- Chamados em Baixar, Finalizado ou Cancelado não mudam.
+
+### Implementado
+- Backend: `finishCallsReadyFromOfs` roda a cada ciclo do Coletor, tanto no `GET .../fechamentos/pendentes` quanto no `POST .../fechamentos`. As duas rotas devolvem `finalizados`, com as ordens finalizadas.
+- Extensão v1.2.2: o popup mostra quantos chamados foram finalizados automaticamente e quais.
+
+### Impacto no primeiro ciclo (consulta só de leitura)
+- 6 chamados já se encaixam e serão finalizados: 610032252280102, 610105329510102, 610150268770102, 610111249990102, 610147222490102 e 610137180570102.
+- Os 3 FIELD gravados com código (12667479, 12665731 e 12665487) só serão finalizados depois de relidos com o texto.
+
+### Validação
+- Teste novo de `callsReadyToFinish`, cobrindo cada condição.
+- Suíte 150/150. O teste de subida HTTP falhou uma vez por tempo e passou ao rodar de novo.
+- Typecheck OK. Sintaxe da extensão OK.

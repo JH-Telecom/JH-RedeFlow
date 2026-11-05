@@ -43,6 +43,23 @@ export function pendingClosingOrders(calls: Call[], options: { now?: number; day
     .slice(0, limit);
 }
 
+const ACTIVE = new Set(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo']);
+export type OfsAutoFinish = { callId: string; orderNumber: string; fields: Pick<EditableCallFields, 'status' | 'executedAt' | 'result'> };
+
+// Finaliza sozinho o chamado que ja tem tudo do OFS: ainda ativo aqui, OFS "concluido", Data Fim do OFS, tecnico
+// e o fechamento lido (Motivo/Submotivo em texto, nao codigo). Resultado = o que ja havia (se for texto) ou
+// "Motivo — Submotivo" do fechamento. Sem tecnico nao finaliza (o encerramento manual tambem exige).
+export function callsReadyToFinish(calls: Call[]): OfsAutoFinish[] {
+  return calls
+    .filter((call) => ACTIVE.has(call.status) && isOfsConcluded(call.ofsStatus) && Boolean(call.executedAt) && Boolean(call.technicianId))
+    .filter((call) => Boolean(call.closingReason?.trim() || call.closingSubreason?.trim()) && !looksLikeOfsCode(call.closingReason) && !looksLikeOfsCode(call.closingSubreason))
+    .map((call) => {
+      const currentResult = call.result?.trim();
+      const result = currentResult && !looksLikeOfsCode(currentResult) ? currentResult : [call.closingReason, call.closingSubreason].map((part) => part?.trim()).filter(Boolean).join(' — ');
+      return { callId: call.id, orderNumber: call.orderNumber, fields: { status: 'Finalizado' as const, executedAt: call.executedAt!, result: result.slice(0, 255) } };
+    });
+}
+
 const clean = (value: unknown) => {
   // Tira virgula/ponto e virgula soltos nas pontas (ex.: Tipo do Cabo ",12" digitado no OFS).
   const text = String(value ?? '').replace(/\s+/g, ' ').trim().replace(/^[,;]+\s*|\s*[,;]+$/g, '');
