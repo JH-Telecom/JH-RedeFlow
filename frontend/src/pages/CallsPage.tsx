@@ -95,7 +95,7 @@ export function invalidateCallsPageCache() {
 if (typeof window !== "undefined") window.addEventListener("jh-redeflow:calls-changed", invalidateCallsPageCache);
 
 export function readCallsPageState(pageKey: string) {
-  const fallback = { query: "", statusFilter: "Todos" as CallStatus | "Todos", regionFilter: "Todas", neighborhoodFilter: "Todos", oltFilter: "Todas", dateRange: { from: "", to: "" }, showFilters: false, callsPage: 1 };
+  const fallback = { query: "", statusFilter: "Todos" as CallStatus | "Todos", regionFilter: "Todas", areaFilter: "Todas", neighborhoodFilter: "Todos", oltFilter: "Todas", dateRange: { from: "", to: "" }, showFilters: false, callsPage: 1 };
   try {
     const raw = document.cookie
       .split('; ')
@@ -122,6 +122,7 @@ export function writeCallsPageState(pageKey: string, state: Record<string, unkno
   }
 }
 
+type AreaFilter = "Todas" | "SP" | "GRU" | "ALTO_TIETE";
 export const inProgressCallStatuses: CallStatus[] = ["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo"];
 // Filtro de status de "Em atendimento": so lista chamados com tecnico, entao "Aberto" (sem tecnico) sempre vinha vazio.
 const attendanceStatusOptions: CallStatus[] = ["Atribuido", "Atrelado", "Deslocamento", "Em campo"];
@@ -190,6 +191,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [query, setQuery] = useState(initialState.query ?? "");
   const [loading, setLoading] = useState(false);
   const [regionFilter, setRegionFilter] = useState(initialState.regionFilter ?? "Todas");
+  // Area do IGP (SP, GRU, Alto Tiete): conjunto de regioes, igual ao filtro do IGP.
+  const [areaFilter, setAreaFilter] = useState<AreaFilter>((initialState as { areaFilter?: AreaFilter }).areaFilter ?? "Todas");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState(initialState.neighborhoodFilter ?? "Todos");
   const [oltFilter, setOltFilter] = useState(initialState.oltFilter ?? "Todas");
   const [availableOlts, setAvailableOlts] = useState<string[]>([]);
@@ -208,8 +211,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const navigate = useNavigate();
 
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
-  useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage, sortState }); }, [pageKey, sortState, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
-  useEffect(() => { setCallsPage(1); }, [sortState, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
+  useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage, sortState }); }, [pageKey, sortState, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
+  useEffect(() => { setCallsPage(1); }, [sortState, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
   // Imagem para WhatsApp: montada a partir dos dados (gerador unico em lib/report-image.ts), com letra grande,
   // poucas colunas e etiquetas coloridas para prazo e status.
   async function copyTableAsImage() {
@@ -267,6 +270,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     teamScope: teamScoped,
     search: query.trim(),
     region: regionFilter === "Todas" ? undefined : regionFilter,
+    area: areaFilter === "Todas" ? undefined : areaFilter,
     neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
     olt: oltFilter === "Todas" ? undefined : oltFilter,
     hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
@@ -327,6 +331,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         teamScope: teamScoped,
         search: query.trim(),
         region: regionFilter === "Todas" ? undefined : regionFilter,
+    area: areaFilter === "Todas" ? undefined : areaFilter,
         neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
         olt: oltFilter === "Todas" ? undefined : oltFilter,
         hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
@@ -352,7 +357,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
-    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, order: queueOrder, closedOnly, assignedOnly, unassignedOnly });
+    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, area: areaFilter, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, order: queueOrder, closedOnly, assignedOnly, unassignedOnly });
     const cached = callsPageCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       if (active) {
@@ -373,6 +378,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         teamScope: teamScoped,
         search: query.trim(),
         region: requestRegion,
+        area: areaFilter === "Todas" ? undefined : areaFilter,
         neighborhood: requestNeighborhood,
         olt: requestOlt,
         hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
@@ -397,7 +403,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       });
 
     return () => { active = false; };
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage, sortState]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage, sortState]);
 
   async function updateCallStatus(call: Call, nextStatus: CallStatus) {
     if (nextStatus === call.status) return;
@@ -433,10 +439,11 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, regionFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls, countsVersion]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls, countsVersion]);
   const activeFilters = [
     !unassignedOnly && statusFilter !== "Todos",
     regionFilter !== "Todas",
+    areaFilter !== "Todas",
     neighborhoodFilter !== "Todos",
     oltFilter !== "Todas",
     Boolean(dateRange.from || dateRange.to),
@@ -445,6 +452,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   function clearFilters() {
     if (!unassignedOnly) setStatusFilter("Todos");
     setRegionFilter("Todas");
+    setAreaFilter("Todas");
     setNeighborhoodFilter("Todos");
     setOltFilter("Todas");
     setDateRange({ from: "", to: "" });
@@ -509,6 +517,9 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             )}
           </div>
           <div className="cq-filters-grid">
+            <FilterField label="Área" active={areaFilter !== "Todas"}>
+              <select value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as AreaFilter)}><option value="Todas">Todas as áreas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option></select>
+            </FilterField>
             <FilterField label="Região" active={regionFilter !== "Todas"}>
               <select value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option value="Todas">Todas as regiões</option>{regions.map((region) => <option key={region} value={region}>{region}</option>)}</select>
             </FilterField>

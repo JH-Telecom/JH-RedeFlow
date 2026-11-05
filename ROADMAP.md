@@ -4125,3 +4125,32 @@ Adicionar ao IGP um quadro igual ao do print: MTTR do período, Meta, Diferença
 ### Validação
 - Typecheck OK.
 - Preview em localhost:8000/igp: um chamado de demonstração foi finalizado só em memória para ter dados. O quadro apareceu com 3,3h, Meta 5,0h, −1,7h, "Na meta", 1 ordem e 3,3h, e a mensagem em verde. Depois o chamado foi reaberto.
+
+## 2026-11-05 — Filtro "Área" do IGP nas filas de chamados
+
+### Pedido
+Colocar nas filas, começando por Finalizados e cancelados, o filtro de área do IGP: Todas, SP, GRU e Alto Tietê.
+
+### Implementado
+- **Migration** `202611050002_calls_page_area_filter.sql`:
+  - cria `redeflow_region_key(texto)`, que deixa a região em maiúsculas, sem acento e com espaços simples, igual ao IGP;
+  - recria `list_calls_page_with_assignment` e `list_calls_page_with_atrelada` com o parâmetro opcional `p_regions text[] DEFAULT NULL` no fim. O resto do SQL ficou idêntico, e quem chama sem o parâmetro continua com o mesmo resultado.
+- **Backend:**
+  - `igpAreaRegionKeys(area)` gera a lista de regiões a partir das mesmas listas de `classifyIgpArea`;
+  - `GET /api/chamados?area=SP|GRU|ALTO_TIETE` (valor inválido → 400);
+  - `listCallsPage` manda `p_regions` ao Supabase; no modo local, filtra com `classifyIgpArea`.
+- **Frontend** (`CallsPage`):
+  - campo **Área** antes de Região, em todas as filas;
+  - vale também para as contagens das abas, a exportação Excel e "Limpar filtros", e fica salvo com os outros filtros;
+  - a grade de filtros ganhou uma coluna.
+- Regiões fora das três áreas (por exemplo, Diadema e "Não informada") aparecem só em "Todas as áreas", como no IGP.
+
+### Validação
+- Simulação só de leitura com a mesma expressão SQL: 58 finalizados em novembro = SP 32 + GRU 9 + Alto Tietê 14 + 3 fora das áreas.
+- Testes novos:
+  - as chaves de cada área batem com `classifyIgpArea`;
+  - teste HTTP do filtro de área e da área inválida (400).
+- Typecheck do backend e do frontend OK.
+
+### Ordem para subir
+Aplicar a migration **antes** do push. O backend novo manda `p_regions`, e a função antiga não conhece esse parâmetro.

@@ -1078,3 +1078,18 @@ test('changing only the status keeps the technician, and Atrelado is accepted li
   const withoutTechnician = await fetch(`${baseUrl}/api/chamados/call-240917-01`, { method: 'PATCH', headers, body: JSON.stringify({ status: 'Atrelado', technicianId: null }) });
   assert.equal(withoutTechnician.status, 422);
 });
+
+test('calls list filters by IGP area (SP, GRU, Alto Tiete)', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { authorization: `Bearer ${session.token}` };
+  const all = await (await fetch(`${baseUrl}/api/chamados?pageSize=100`, { headers })).json() as { calls: Array<{ region: string }>; total: number };
+  const byArea: Record<string, number> = {};
+  for (const area of ['SP', 'GRU', 'ALTO_TIETE']) {
+    const response = await fetch(`${baseUrl}/api/chamados?pageSize=100&area=${area}`, { headers });
+    assert.equal(response.status, 200);
+    byArea[area] = ((await response.json()) as { total: number }).total;
+  }
+  assert.ok(byArea.SP + byArea.GRU + byArea.ALTO_TIETE <= all.total);
+  assert.equal((await fetch(`${baseUrl}/api/chamados?area=XYZ`, { headers })).status, 400);
+});

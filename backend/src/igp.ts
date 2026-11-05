@@ -91,6 +91,12 @@ export function classifyIgpArea(region: string): Exclude<IgpArea, 'ALL'> | 'OUTR
   return 'OUTRAS';
 }
 
+// Regioes (ja normalizadas: maiusculas, sem acento) de cada area do IGP. Usado no filtro "Area" das filas.
+export function igpAreaRegionKeys(area: Exclude<IgpArea, 'ALL'>): string[] {
+  if (area === 'GRU') return ['GUARULHOS', 'GUARULHOS 1', 'GUARULHOS 2', 'GUARULHOS 3', 'GUARULHOS 4', 'GUARULHOS 5'];
+  return [...(area === 'ALTO_TIETE' ? altoTieteRegions : saoPauloRegions)];
+}
+
 export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea = 'ALL'): IgpMetrics {
   const groups = { access: createGroup(), backbone: createGroup() };
   const total = createGroup();

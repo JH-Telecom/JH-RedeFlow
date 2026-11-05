@@ -40,3 +40,13 @@ test('past month has no projection and a met goal shows the slack', () => {
   assert.equal(plan.onTime.target.projected?.slack, 28);
   assert.equal(plan.outlier.target.projected?.slack, 12); // 14 - 2
 });
+
+test('IGP area region keys match the area classifier', async () => {
+  const { classifyIgpArea, igpAreaRegionKeys } = await import('../src/igp.js');
+  for (const area of ['SP', 'GRU', 'ALTO_TIETE'] as const) {
+    const keys = igpAreaRegionKeys(area);
+    assert.ok(keys.length > 0);
+    for (const key of keys) assert.equal(classifyIgpArea(key), area);
+  }
+  assert.equal(classifyIgpArea('São Rafael'), classifyIgpArea('SAO RAFAEL'));
+});
