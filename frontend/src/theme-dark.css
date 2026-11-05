@@ -793,6 +793,21 @@
 :where(:root[data-theme="dark"]) .extracted-grid small {
     color: #878a8f
 }
+:where(:root[data-theme="dark"]) .activation-row.is-atrelada {
+    background: #16111b;
+    box-shadow: inset 4px 0 0 #9333ea80
+}
+:where(:root[data-theme="dark"]) .activation-row.is-atrelada .activation-icon {
+    background: #1d1029;
+    color: #cb9dff
+}
+:where(:root[data-theme="dark"]) .activation-row.is-atrelada .activation-main span {
+    color: #c5becd
+}
+:where(:root[data-theme="dark"]) .activation-atrelada-badge {
+    background: #1d1029;
+    color: #cd9cff
+}
 
 /* call-detail-overrides.css */
 :where(:root[data-theme="dark"]) .editable-detail-item input {

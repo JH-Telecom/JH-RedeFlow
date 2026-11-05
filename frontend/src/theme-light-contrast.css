@@ -462,6 +462,15 @@
 :where(:root:not([data-theme="dark"])) .extracted-grid small {
     color: #5f6a78
 }
+:where(:root:not([data-theme="dark"])) .activation-row.is-atrelada .activation-icon {
+    color: #7e22ce
+}
+:where(:root:not([data-theme="dark"])) .activation-row.is-atrelada .activation-main span {
+    color: #5b4570
+}
+:where(:root:not([data-theme="dark"])) .activation-atrelada-badge {
+    color: #6b21a8
+}
 
 /* call-detail-overrides.css */
 :where(:root:not([data-theme="dark"])) .editable-detail-item input {

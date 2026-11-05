@@ -4014,3 +4014,22 @@ Todos os casos vêm da importação **Finalizados.xlsx** (`legacy-activation`). 
 
 ### Validação
 - Teste novo com os casos reais: print, abertura no futuro, fim trocado, correto e sem solução. Suíte 151/151.
+
+## 2026-11-05 — Acionamentos: atrelado em roxo
+
+### Pedido
+Na tela de Acionamentos, o acionamento atrelado a outra ordem deve ficar roxo, para ser identificado logo. A mudança é só nessa tela.
+
+### Implementado
+- `ActivationsPage.tsx`: quando `analysis.atrelada` está preenchido, a linha ganha a classe `is-atrelada`. Ao lado da ordem aparece o selo "Atrelada <ordem>". O texto "· Atrelado à OS …" na linha de detalhes continua lá.
+- `activation.css`:
+  - fundo roxo claro;
+  - barra roxa à esquerda;
+  - ícone roxo;
+  - selo roxo (#6b21a8 sobre #f3e8ff).
+- O tema escuro foi gerado com fundo #16111b e texto #cd9cff.
+- As filas de chamados não mudam: lá continua o selo "Atrelada" que já existia.
+
+### Validação
+- Typecheck OK.
+- Preview em localhost:8000/acionamentos: a classe foi aplicada numa linha só no navegador, porque a demo não tem acionamento atrelado. Barra, ícone e selo aparecem em roxo.
