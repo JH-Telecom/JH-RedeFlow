@@ -40,7 +40,21 @@ async function mostrarStatus() {
     : !f.ok ? `Fechamentos (${quando(f.quando)}): ✗ ${f.erro}`
     : f.lidos ? `Fechamentos (${quando(f.quando)}): ${f.lidos} lidos · ${f.atualizados} chamados atualizados${f.semConcluida ? ` · ${f.semConcluida} sem atividade concluída` : ""}${f.erros ? ` · ${f.erros} com erro` : ""}.`
     : `Fechamentos (${quando(f.quando)}): nada novo para ler${f.pendentes ? ` (${f.pendentes} aguardando nova tentativa)` : ""}.`;
-  $("fechamentoStatus").textContent = texto + (prox?.fechamentos ? ` Próxima leitura às ${new Date(prox.fechamentos).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
+  // Ordens que nao trouxeram fechamento na ultima leitura: vermelho = erro, amarelo = ainda sem atividade concluida.
+  const falhas = Array.isArray(f?.falhas) ? f.falhas : [];
+  $("fechamentoFalhas").hidden = !falhas.length;
+  $("fechamentoFalhas").innerHTML = "";
+  for (const falha of falhas) {
+    const li = document.createElement("li");
+    li.className = falha.tipo === "aviso" ? "aviso" : "erro";
+    const ordem = document.createElement("strong");
+    ordem.textContent = falha.ordem;
+    li.append(ordem, ` — ${falha.motivo}`);
+    li.title = "Clique para copiar a ordem";
+    li.onclick = () => navigator.clipboard?.writeText(falha.ordem);
+    $("fechamentoFalhas").appendChild(li);
+  }
+  $("fechamentoStatus").textContent = texto +(prox?.fechamentos ? ` Próxima leitura às ${new Date(prox.fechamentos).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
 }
 
 function mostrarConta(sessao) {

@@ -14,6 +14,13 @@ const normalize = (value: unknown) => String(value ?? '').normalize('NFD').repla
 // "BDESK-610011231680102", "610011231680102" -> "610011231680102"
 export const orderDigits = (value: unknown) => String(value ?? '').replace(/^\s*(?:bdesk|bd)[-\s]*/i, '').replace(/\D/g, '');
 
+// Valor gravado como chave da lista do OFS (ex.: Submotivo "13", Motivo "CTO_SEM_SINAL_EVENTO_PRODUTIVO") em vez do
+// texto: a extensao v1.2.0 lia a chave. Esses chamados voltam para a fila e sao relidos ja com o texto.
+export function looksLikeOfsCode(value?: string) {
+  const text = value?.trim() || '';
+  return /^\d+$/.test(text) || /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/.test(text);
+}
+
 export function isOfsConcluded(ofsStatus?: string) {
   return /^(conclu|finaliz|encerrad|executad)/.test(normalize(ofsStatus));
 }
@@ -27,7 +34,8 @@ export function pendingClosingOrders(calls: Call[], options: { now?: number; day
   const limit = options.limit ?? 40;
   const seen = new Set<string>();
   return calls
-    .filter((call) => (CLOSED.has(call.status) || (call.status !== 'Cancelado' && isOfsConcluded(call.ofsStatus))) && !call.closingSubreason?.trim() && !call.closingReason?.trim())
+    .filter((call) => CLOSED.has(call.status) || (call.status !== 'Cancelado' && isOfsConcluded(call.ofsStatus)))
+    .filter((call) => (!call.closingSubreason?.trim() && !call.closingReason?.trim()) || looksLikeOfsCode(call.closingSubreason) || looksLikeOfsCode(call.closingReason))
     .filter((call) => Date.parse(call.executedAt || call.openedAt) >= since)
     .sort((left, right) => Date.parse(right.executedAt || right.openedAt) - Date.parse(left.executedAt || left.openedAt))
     .map((call) => orderDigits(call.orderNumber) || orderDigits(call.officeTrack))
@@ -36,7 +44,8 @@ export function pendingClosingOrders(calls: Call[], options: { now?: number; day
 }
 
 const clean = (value: unknown) => {
-  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  // Tira virgula/ponto e virgula soltos nas pontas (ex.: Tipo do Cabo ",12" digitado no OFS).
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim().replace(/^[,;]+\s*|\s*[,;]+$/g, '');
   return text ? text.slice(0, MAX_LENGTH) : undefined;
 };
 

@@ -24,6 +24,17 @@ test('pending list: finished here or concluded in the OFS, without Submotivo, ne
   assert.deepEqual(pendingClosingOrders(calls, { now, limit: 1 }), ['610032252280102']);
 });
 
+test('calls saved with OFS list codes instead of the text go back to the queue', () => {
+  const calls: Call[] = [
+    { ...base, id: 'k1', orderNumber: '12667479', officeTrack: '12667479', status: 'Finalizado', closingReason: 'CTO_SEM_SINAL_EVENTO_PRODUTIVO', closingSubreason: '13', cableType: '12' },
+    { ...base, id: 'k2', orderNumber: '12665731', officeTrack: '12665731', status: 'Finalizado', closingReason: 'CTO SEM SINAL', closingSubreason: '1' },
+    { ...base, id: 'k3', orderNumber: '610105329510102', officeTrack: '', status: 'Finalizado', closingReason: 'CABO ATENUADO (Massiva de atenuação)', closingSubreason: 'REALIZADO NOVA FUSÃO NA CTO/CEO' },
+  ];
+  assert.deepEqual(pendingClosingOrders(calls, { now }).sort(), ['12665731', '12667479']);
+  const fixed = matchOfsClosing([{ ordem: '12667479', motivo: 'CTO sem sinal', submotivo: 'Realizado nova fusão na CTO/CEO', tipoCabo: '12' }], calls);
+  assert.deepEqual(fixed.matches[0].fields, { closingReason: 'CTO sem sinal', closingSubreason: 'Realizado nova fusão na CTO/CEO' });
+});
+
 test('OFS status and order number normalization', () => {
   assert.equal(isOfsConcluded('concluído'), true);
   assert.equal(isOfsConcluded('Concluída'), true);

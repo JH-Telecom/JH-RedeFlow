@@ -303,7 +303,13 @@ async function lerFechamentoNaPagina(ordem) {
   itens[alvo.i].click();
   const p = await ate(() => { try { return $app.model().activityService().getAll().map((a) => a._properties || {}).find((x) => String(x.aid) === String(alvo.aid)); } catch (_) { return null; } }, 15000);
   if (!p) return { ordem, erro: "A atividade não abriu" };
-  return { ordem, aid: String(p.aid), motivo: p["725"] || null, submotivo: p["916"] || null, tipoCabo: p["1062"] || null };
+  // 725 e 916 sao listas no OFS: a atividade guarda a chave (ex.: "13", "CTO_SEM_SINAL_EVENTO_PRODUTIVO") e a tela
+  // mostra o texto ("Realizado nova fusão na CTO/CEO", "CTO sem sinal"). Traduz pela lista do proprio OFS.
+  const rotulo = (id, valor) => {
+    if (valor == null || valor === "") return null;
+    try { return $app.model().attributeService().getEntity(id)?._description?.enum?.[valor]?.text || String(valor); } catch (_) { return String(valor); }
+  };
+  return { ordem, aid: String(p.aid), motivo: rotulo(725, p["725"]), submotivo: rotulo(916, p["916"]), tipoCabo: rotulo(1062, p["1062"]) };
 }
 
 async function abaDeFechamento() {
@@ -355,6 +361,8 @@ async function coletarFechamentos(automatico) {
     const aba = await abaDeFechamento();
     if (!(await ofsPronto(aba.id))) return registrarFechamento({ ok: false, erro: "O OFS não carregou na aba de fechamentos (confira o login)" });
     const itens = [];
+    // Ordens que nao trouxeram fechamento, com o motivo, para mostrar no popup.
+    const falhas = [];
     let semConcluida = 0;
     let erros = 0;
     for (const ordem of fila) {
@@ -363,18 +371,19 @@ async function coletarFechamentos(automatico) {
       catch (e) { res = { ordem, erro: e?.message || String(e) }; }
       fechTentativas[ordem] = Date.now();
       if (res?.motivo || res?.submotivo || res?.tipoCabo) itens.push({ ordem, motivo: res.motivo, submotivo: res.submotivo, tipoCabo: res.tipoCabo });
-      else if (res?.semConcluida || res?.naoEncontrada) semConcluida += 1;
-      else erros += 1;
+      else if (res?.semConcluida || res?.naoEncontrada) { semConcluida += 1; falhas.push({ ordem, tipo: "aviso", motivo: res.naoEncontrada ? "Não encontrada na pesquisa do OFS" : "Nenhuma atividade concluída no OFS ainda" }); }
+      else { erros += 1; falhas.push({ ordem, tipo: "erro", motivo: res?.erro || (res?.aid ? `Atividade ${res.aid} concluída, mas sem Motivo, Submotivo e Tipo do cabo preenchidos` : "Sem resposta da aba do OFS") }); }
     }
     await chrome.storage.local.set({ fechTentativas });
     let atualizados = 0;
     if (itens.length) {
       const envio = await fetch(FECH_URL, { method: "POST", headers: { "Content-Type": "application/json", ...auth.headers }, body: JSON.stringify({ itens }) });
       const resposta = await envio.json().catch(() => ({}));
-      if (!envio.ok) return registrarFechamento({ ok: false, erro: resposta?.message || `HTTP ${envio.status}`, lidos: fila.length });
+      if (!envio.ok) return registrarFechamento({ ok: false, erro: resposta?.message || `HTTP ${envio.status}`, lidos: fila.length, falhas });
       atualizados = resposta.atualizados ?? 0;
+      for (const ordem of resposta.semChamado || []) falhas.push({ ordem, tipo: "erro", motivo: "Lida no OFS, mas não achei o chamado no RedeFlow (ou há mais de um com essa ordem)" });
     }
-    return registrarFechamento({ ok: true, lidos: fila.length, comDados: itens.length, atualizados, semConcluida, erros, pendentes: ordens.length });
+    return registrarFechamento({ ok: true, lidos: fila.length, comDados: itens.length, atualizados, semConcluida, erros, falhas, pendentes: ordens.length });
   } catch (e) {
     return registrarFechamento({ ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` });
   } finally {

@@ -34,3 +34,6 @@ summary { cursor: pointer; font-size: 12px; color: var(--mudo); }
 .historico li.ok { border-left: 3px solid #0ca30c; }
 .historico li.erro { border-left: 3px solid #d03b3b; }
 [hidden] { display: none !important; }
+.historico li.aviso { border-left: 3px solid #b7791f; }
+#fechamentoFalhas { margin: 6px 0 8px; }
+#fechamentoFalhas li { cursor: copy; }

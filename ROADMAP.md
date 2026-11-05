@@ -3899,3 +3899,37 @@ A cada 10 minutos, a extensão deve olhar os chamados finalizados e trazer do fo
 - A leitura foi testada no OFS real (Claude no Chrome, só leitura) com as duas ordens acima: os resultados batem com o formulário.
 - Novo `ofs-closing.test.ts`. Suíte 148/148. Typecheck do backend e do frontend OK.
 - Rotas testadas no servidor local (demo): pedem login, validam o envio e devolvem a ordem que não tem chamado.
+
+## 2026-11-05 — Coletor OFS v1.2.1: mostra quais fechamentos falharam
+
+### Pedido
+No popup, mostrar quais ordens deram erro na leitura dos fechamentos, e não só a contagem ("2 com erro").
+
+### Implementado
+- `background.js`: cada leitura passa a guardar `falhas`, com a ordem, o tipo e o motivo. Os casos registrados são:
+  - erro da aba ou da pesquisa do OFS;
+  - atividade concluída sem Motivo, Submotivo e Tipo do cabo preenchidos (antes contava como erro sem explicação);
+  - ordem sem atividade concluída ou não encontrada na pesquisa;
+  - fechamento lido, mas sem chamado correspondente no RedeFlow (`semChamado` do backend).
+- `popup`: abaixo do resumo dos fechamentos, lista cada ordem com o motivo, em vermelho (erro) ou amarelo (ainda sem atividade concluída). Clicar copia a ordem.
+
+### Validação
+- Sintaxe da extensão conferida (`node --check`). A lista começa a aparecer na próxima leitura, depois de recarregar a extensão.
+
+## 2026-11-05 — Fechamento do OFS: texto da lista em vez do código (FIELD)
+
+### Pedido
+O submotivo do chamado 12667479 foi coletado errado: apareceu "13" em vez de "Realizado nova fusão na CTO/CEO", e o motivo apareceu como "CTO_SEM_SINAL_EVENTO_PRODUTIVO".
+
+### Causa
+No OFS, "Tipo de Fechamento de Redes" (725) e "Submotivos de Fechamento de Redes" (916) são listas. A atividade guarda a **chave** do item, e a tela mostra o **texto**. Nas atividades de Rede, a chave antiga já é o próprio texto (por exemplo, "ADEQUAÇÃO DE CTO/CEO/CABOS"). Nas FIELD, a chave é um código ("13", "CTO_SEM_SINAL_EVENTO_PRODUTIVO"). A lista fica em `$app.model().attributeService().getEntity(id)._description.enum`.
+
+### Implementado
+- Extensão: lê o texto pela lista do próprio OFS (`enum[valor].text`). Se o valor não estiver na lista, mantém o valor como está.
+  - Conferido no OFS real: 12667479 → "CTO sem sinal" / "Realizado nova fusão na CTO/CEO" / 12.
+- Backend (`ofs-closing.ts`):
+  - `looksLikeOfsCode` reconhece Submotivo só com números ou Motivo no formato `MAIUSCULO_COM_UNDERLINE`. Esses chamados voltam para a fila e são relidos já com o texto, sem editar o banco à mão. São 3 hoje: 12665487, 12665731 e 12667479.
+  - Vírgula ou ponto e vírgula soltos nas pontas são removidos (Tipo do Cabo ",12" passa a ser "12").
+
+### Validação
+- Teste novo de releitura dos códigos. Suíte 149/149. Typecheck OK. Sintaxe da extensão OK.
