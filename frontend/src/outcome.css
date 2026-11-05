@@ -8,3 +8,11 @@
 .delete-link{display:block;margin:14px auto 0;padding:4px 6px;border:0;background:transparent;color:#a8323a;font-size:12px;font-weight:600;text-decoration:underline;cursor:pointer}
 .delete-link:hover{color:#8a2028}
 .delete-link:disabled{opacity:.6;cursor:not-allowed}
+
+/* Detalhe: ordem atrelada com copiar/abrir */
+.linked-order-item strong{color:#6b21a8}
+.linked-order-actions{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.linked-order-actions button{padding:3px 10px;border:1px solid #d8b4fe;border-radius:6px;background:#faf5ff;color:#6b21a8;font-size:11px;font-weight:700;cursor:pointer}
+.linked-order-actions button:hover{background:#f3e8ff}
+.linked-order-actions button:disabled{opacity:.6;cursor:wait}
+.linked-order-actions small{font-size:11px;color:#4a5a70}

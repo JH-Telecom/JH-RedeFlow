@@ -23,6 +23,38 @@ function defaultResult(call: Call) {
   return [call.closingReason, call.closingSubreason].filter((part) => part?.trim() && !looksLikeCode(part)).join(" — ");
 }
 
+// Ordem a que este chamado esta atrelado: copiar (para conferir no OFS) ou abrir o chamado dela, se existir aqui.
+function LinkedOrderItem({ order }: { order: string }) {
+  const navigate = useNavigate();
+  const [feedback, setFeedback] = useState("");
+  const [opening, setOpening] = useState(false);
+  const show = (text: string) => { setFeedback(text); window.setTimeout(() => setFeedback(""), 2500); };
+  async function copy() {
+    try { await navigator.clipboard.writeText(order); show("Copiada"); } catch { show("Não consegui copiar"); }
+  }
+  async function open() {
+    setOpening(true);
+    try {
+      const { calls } = await api.calls(undefined, { search: order, page: 1, pageSize: 10 });
+      const linked = calls.find((item) => item.orderNumber === order || item.officeTrack === order || item.bdesk === order);
+      if (linked) navigate(`/chamados/${linked.id}`);
+      else show("Essa ordem não está no sistema");
+    } catch { show("Não consegui buscar a ordem"); }
+    finally { setOpening(false); }
+  }
+  return (
+    <div className="detail-item linked-order-item">
+      <span>Ordem atrelada</span>
+      <strong>{order}</strong>
+      <div className="linked-order-actions">
+        <button type="button" onClick={() => void copy()}>Copiar</button>
+        <button type="button" onClick={() => void open()} disabled={opening}>{opening ? "Abrindo..." : "Abrir"}</button>
+        {feedback && <small role="status">{feedback}</small>}
+      </div>
+    </div>
+  );
+}
+
 export function CallDetailBase() {
   const { pathname, search } = useLocation();
   const id = pathname.split("/").pop()!;
@@ -188,6 +220,7 @@ export function CallDetailBase() {
             {call.eventAt && <DetailItem label="Gap evento → acionamento" value={formatEventGap(call.eventAt, call.openedAt)} />}
             <DetailItem label="Status interno" value={status} />
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
+            {call.atrelada && <LinkedOrderItem order={call.atrelada} />}
             <DetailItem label="Data Fim" value={call.executedAt
               // Chamado ainda aberto aqui, mas concluido no OFS: mostra a Data Fim que veio do OFS.
               ? `${new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}${["Finalizado", "Cancelado", "Baixar"].includes(call.status) ? "" : " (OFS)"}`

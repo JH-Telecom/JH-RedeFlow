@@ -736,6 +736,20 @@
 :where(:root[data-theme="dark"]) .delete-link:hover {
     color: #ff918e
 }
+:where(:root[data-theme="dark"]) .linked-order-item strong {
+    color: #cd9cff
+}
+:where(:root[data-theme="dark"]) .linked-order-actions button {
+    border: 1px solid #503c64;
+    background: #16111b;
+    color: #cd9cff
+}
+:where(:root[data-theme="dark"]) .linked-order-actions button:hover {
+    background: #1d1029
+}
+:where(:root[data-theme="dark"]) .linked-order-actions small {
+    color: #b6bcc4
+}
 
 /* activation.css */
 :where(:root[data-theme="dark"]) .activation-panel>.save-message {

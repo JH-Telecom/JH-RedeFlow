@@ -489,7 +489,8 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
       // Abertura = horario em que o card foi enviado no grupo (timestamp do WhatsApp), nao o clique em Aceitar.
       opened_at: row.received_at || new Date().toISOString(),
       event_at: parseSaoPauloDateTime(structured.data_hora_evento) || null,
-      notes: 'Criado a partir de acionamento aceito.',
+      // Atrelada a outra ordem: fica escrito nas observacoes para quem abrir o chamado.
+      notes: structured.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${structured.atrelada}` : 'Criado a partir de acionamento aceito.',
     };
     const { data: callRow, error: callError } = await admin.from('calls').insert(callInput).select('id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, atrelada_order, technician_id, opened_at, event_at, assigned_at, executed_at, result, cancellation_reason, notes').single();
     if (callError || !callRow) throw new Error(callError?.message || 'Nao foi possivel criar o chamado.');

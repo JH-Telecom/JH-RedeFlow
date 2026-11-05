@@ -4033,3 +4033,19 @@ Na tela de Acionamentos, o acionamento atrelado a outra ordem deve ficar roxo, p
 ### Validação
 - Typecheck OK.
 - Preview em localhost:8000/acionamentos: a classe foi aplicada numa linha só no navegador, porque a demo não tem acionamento atrelado. Barra, ícone e selo aparecem em roxo.
+
+## 2026-11-05 — Ordem atrelada no detalhe e nas observações
+
+### Pedido
+Mostrar nas observações que o chamado é atrelado ("atrelada > 12666735") e ter, dentro do chamado, um campo para copiar a ordem atrelada e conferir.
+
+### Implementado
+- **Observações:** ao aceitar um acionamento atrelado, as observações do chamado passam a ser "Criado a partir de acionamento aceito." com a linha **"Atrelada > <ordem>"** logo abaixo. Isso vale no Supabase (`decideSupabaseActivation`) e no modo local (`store/activations.ts`). Os chamados criados antes desta mudança não são alterados.
+- **Detalhe do chamado:** campo **"Ordem atrelada"**, em roxo, com dois botões:
+  - **Copiar**: copia a ordem para a área de transferência;
+  - **Abrir**: procura o chamado dessa ordem no sistema (por ordem, Office Track ou BDESK) e abre. Se não encontrar, avisa "Essa ordem não está no sistema".
+- Os estilos estão em `outcome.css`, com o tema escuro gerado.
+
+### Validação
+- Typecheck do frontend e do backend OK. Suíte 151/151.
+- Não deu para ver no preview, porque a demo não tem chamado atrelado.

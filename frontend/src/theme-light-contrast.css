@@ -424,6 +424,15 @@
 :where(:root:not([data-theme="dark"])) .delete-link:hover {
     color: #8a2028
 }
+:where(:root:not([data-theme="dark"])) .linked-order-item strong {
+    color: #6b21a8
+}
+:where(:root:not([data-theme="dark"])) .linked-order-actions button {
+    color: #6b21a8
+}
+:where(:root:not([data-theme="dark"])) .linked-order-actions small {
+    color: #4a5a70
+}
 
 /* activation.css */
 :where(:root:not([data-theme="dark"])) .activation-panel>.save-message {
