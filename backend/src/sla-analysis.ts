@@ -1,6 +1,6 @@
 // Analise de prazo (regra 6h/9h) dos chamados finalizados: tecnicos e bairros que mais perdem prazo, horario de
 // abertura que mais perde, media de entrantes e um estudo do periodo noturno (abertos entre 18h e 06h).
-import { classifyIgpArea, type IgpArea } from './igp.js';
+import { classifyCallArea, type IgpArea } from './igp.js';
 import { OPERATIONAL_TIME_ZONE, toOperationalDate } from './timezone.js';
 import type { Call } from './types.js';
 
@@ -159,7 +159,7 @@ function nightInsights(day: ShiftStudy, night: ShiftStudy, crossedMorning: numbe
 
 export function calculateSlaAnalysis(calls: Call[], from: string, to: string, area: SlaArea = 'ALL', today = toOperationalDate()): SlaAnalysis {
   // Mesmos clusters do IGP: C.8 Sao Paulo, C.12 Guarulhos, C.11 Alto Tiete; OUTRAS = ABC e sem cluster.
-  const inArea = (call: Call) => area === 'ALL' || classifyIgpArea(call.region) === area;
+  const inArea = (call: Call) => area === 'ALL' || classifyCallArea(call) === area;
   const inRange = (iso: string | null | undefined) => {
     if (!iso) return false;
     const date = toOperationalDate(iso);

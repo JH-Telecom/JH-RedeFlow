@@ -122,7 +122,7 @@ export function writeCallsPageState(pageKey: string, state: Record<string, unkno
   }
 }
 
-type AreaFilter = "Todas" | "SP" | "GRU" | "ALTO_TIETE";
+type AreaFilter = "Todas" | "SP" | "GRU" | "ALTO_TIETE" | "ABC";
 export const inProgressCallStatuses: CallStatus[] = ["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo"];
 // Filtro de status de "Em atendimento": so lista chamados com tecnico, entao "Aberto" (sem tecnico) sempre vinha vazio.
 const attendanceStatusOptions: CallStatus[] = ["Atribuido", "Atrelado", "Deslocamento", "Em campo"];
@@ -518,7 +518,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           </div>
           <div className="cq-filters-grid">
             <FilterField label="Área" active={areaFilter !== "Todas"}>
-              <select value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as AreaFilter)}><option value="Todas">Todas as áreas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option></select>
+              <select value={areaFilter} onChange={(event) => setAreaFilter(event.target.value as AreaFilter)}><option value="Todas">Todas as áreas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option><option value="ABC">ABC</option></select>
             </FilterField>
             <FilterField label="Região" active={regionFilter !== "Todas"}>
               <select value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option value="Todas">Todas as regiões</option>{regions.map((region) => <option key={region} value={region}>{region}</option>)}</select>

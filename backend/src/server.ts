@@ -6,13 +6,14 @@ import { z } from 'zod';
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserBanners, saveUserBanner, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
-import { calculateIgpMetrics, calculateIgpPlan } from './igp.js';
+import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis } from './sla-analysis.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { callsReadyToFinish, matchOfsClosing, pendingClosingOrders } from './imports/ofs-closing.js';
+import { applyClusterExport, assignClustersFromWorkzones } from './store/clusters.js';
 import { countRowsForDate, parseOfsActivityExport } from './imports/ofs-export.js';
 import { registerMissingHistoricalTechnicians } from './imports/historical-technicians.js';
 import { addDays, normalizeSaoPauloLocal, toOperationalDate } from './timezone.js';
@@ -264,7 +265,7 @@ app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), a
 });
 // Analise de prazo: tecnicos/bairros que mais perdem, horario de abertura, entrantes e estudo noturno (18h-06h).
 app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
-  const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'OUTRAS']).default('ALL') }).safeParse(request.query);
+  const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC', 'OUTRAS']).default('ALL') }).safeParse(request.query);
   if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
   try {
     const scopedQuery = await getScopedCallQuery(request, true);
@@ -277,7 +278,7 @@ app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), asyn
 app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   const parsed = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).safeParse(request.query.month);
   if (!parsed.success) return response.status(400).json({ message: 'Informe um mes valido no formato AAAA-MM.' });
-  const parsedArea = z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE']).safeParse(request.query.area ?? 'ALL');
+  const parsedArea = z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC']).safeParse(request.query.area ?? 'ALL');
   if (!parsedArea.success) return response.status(400).json({ message: 'Selecione Todas, SP, GRU ou Alto Tiete para o IGP.' });
   const [year, monthNumber] = parsed.data.split('-').map(Number);
   const from = `${parsed.data}-01`;
@@ -457,8 +458,8 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
   const neighborhood = typeof request.query.neighborhood === 'string' && request.query.neighborhood.trim() ? request.query.neighborhood.trim() : undefined;
   const olt = typeof request.query.olt === 'string' && request.query.olt.trim() ? request.query.olt.trim() : undefined;
   const rawArea = typeof request.query.area === 'string' ? request.query.area.trim().toUpperCase() : '';
-  if (rawArea && !['SP', 'GRU', 'ALTO_TIETE'].includes(rawArea)) return response.status(400).json({ message: 'Area invalida.' });
-  const area = rawArea ? rawArea as 'SP' | 'GRU' | 'ALTO_TIETE' : undefined;
+  if (rawArea && !['SP', 'GRU', 'ALTO_TIETE', 'ABC'].includes(rawArea)) return response.status(400).json({ message: 'Area invalida.' });
+  const area = rawArea ? rawArea as 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC' : undefined;
   const rawHasTechnician = request.query.hasTechnician;
   if (rawHasTechnician !== undefined && rawHasTechnician !== 'true' && rawHasTechnician !== 'false') return response.status(400).json({ message: 'Filtro de tecnico invalido.' });
   const hasTechnician = rawHasTechnician === undefined ? undefined : rawHasTechnician === 'true';
@@ -653,22 +654,45 @@ app.post('/api/integrations/ofs/export', async (request, response) => {
     const base = await saveManualDailyBase(fileName, data, uploadedBy, businessDate);
     let d0: { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number } | undefined;
     let d0Error: string | undefined;
+    let clusteredCalls = 0;
     try {
       const d0File = parseImport(fileName, Buffer.from(parsed.data.csv, 'utf8').toString('base64'));
       if (d0File.errors.length) d0Error = d0File.errors.join(' ');
       else if (!hasD0Identifiers(d0File.rows)) d0Error = 'O CSV nao tem OS, BDESK, Office Track ou Contrato para cruzar os chamados.';
       // Hoje: substitui a base D-0 (snapshot do dia) e atualiza os chamados. Dia anterior: so atualiza os chamados
       // (Status OFS, Data Fim etc.), sem sobrescrever a D-0 de hoje.
-      else d0 = isToday ? await replaceD0Base(fileName, uploadedBy, d0File.rows) : await applyOfsRowsToCalls(d0File.rows, uploadedBy);
+      else {
+        d0 = isToday ? await replaceD0Base(fileName, uploadedBy, d0File.rows) : await applyOfsRowsToCalls(d0File.rows, uploadedBy);
+        // Ordens ja atribuidas nao estao nos baldes de cluster: o cluster vem pela Workzone aprendida.
+        clusteredCalls = await assignClustersFromWorkzones(d0File.rows).catch(() => 0);
+      }
     } catch (error) {
       d0Error = error instanceof Error ? error.message : 'Nao foi possivel atualizar a base D-0.';
     }
-    console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${businessDate}; chamados ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados` : `nao atualizados (${d0Error})`}`);
-    return response.json({ ok: true, painel: { businessDate: base.businessDate, records: data.records.length, technicians: data.technicians.length, orders: data.orders.length }, d0, d0Error });
+    console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${businessDate}; chamados ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados, ${clusteredCalls} com cluster pela Workzone` : `nao atualizados (${d0Error})`}`);
+    return response.json({ ok: true, painel: { businessDate: base.businessDate, records: data.records.length, technicians: data.technicians.length, orders: data.orders.length }, d0, d0Error, clusteredCalls });
   } catch (error) {
     return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do OFS.' });
   } finally {
     ofsIngestRunning = false;
+  }
+});
+// Export de um balde de cluster (CLUSTER_C08, C09, C11, C12): marca o cluster das ordens que estao nele e aprende
+// Workzone -> cluster. Nao mexe no Painel diario nem na base D-0 (sao so as ordens daquele balde).
+app.post('/api/integrations/ofs/cluster', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  const parsed = z.object({ csv: z.string().min(1).max(14_000_000), balde: z.string().trim().min(2).max(80), nome: z.string().trim().max(255).optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie o CSV e o nome do balde do cluster.' });
+  if (!normalizeCluster(parsed.data.balde)) return response.status(400).json({ message: `Balde sem cluster reconhecivel: ${parsed.data.balde}` });
+  try {
+    const file = parseImport(parsed.data.nome || `${parsed.data.balde}.csv`, Buffer.from(parsed.data.csv, 'utf8').toString('base64'));
+    if (file.errors.length) return response.status(422).json({ message: file.errors.join(' ') });
+    const result = await applyClusterExport(file.rows, parsed.data.balde);
+    console.log(`[Coletor OFS] ${identity.label || 'token'}: ${parsed.data.balde} ${result.rows} linhas, ${result.matchedCalls} chamados, ${result.updatedCalls} com cluster novo, ${result.learnedWorkzones} workzones`);
+    return response.json({ ok: true, cluster: normalizeCluster(parsed.data.balde), ...result });
+  } catch (error) {
+    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do cluster.' });
   }
 });
 // Fechamento do OFS (Motivo, Submotivo, Tipo do Cabo): nao vem no CSV. A extensao pergunta quais chamados ja

@@ -113,6 +113,8 @@ export type Call = {
   executedAt?: string | null;
   result?: string;
   cancellationReason?: string;
+  /** Cluster do OFS (balde CLUSTER_C08...), ex.: "C08". Define a area (SP, ABC, Alto Tiete, GRU). */
+  cluster?: string;
   /** Fechamento no OFS (formulario "Fechamento"), lido pelo Coletor OFS. */
   closingReason?: string;
   closingSubreason?: string;

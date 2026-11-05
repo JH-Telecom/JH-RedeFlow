@@ -1,12 +1,12 @@
 import { cancelSupabaseCall, finishSupabaseCall, getSupabaseAdmin, isSupabaseConfigured, listSupabaseCalls, reopenSupabaseCall, updateSupabaseCall } from "../integrations/supabase/client.js";
 import { resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
 import { toOperationalDate } from "../timezone.js";
-import { classifyIgpArea, igpAreaRegionKeys } from "../igp.js";
+import { classifyCallArea, igpAreaClusters, igpAreaRegionKeys } from "../igp.js";
 import type { Call, CallAuditLog, CallStatus, EditableCallFields, User } from "../types.js";
 import { activations, auditLogs, calls, ensureDemoData, observations, supervisors, technicians } from "./demo-data.js";
 import { captureUnknownOltRequests } from "./settings.js";
 
-export type CallQuery = { id?: string; from?: string; to?: string; supervisorId?: string; status?: CallStatus | CallStatus[]; search?: string; region?: string; neighborhood?: string; olt?: string; hasTechnician?: boolean; area?: 'SP' | 'GRU' | 'ALTO_TIETE'; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
+export type CallQuery = { id?: string; from?: string; to?: string; supervisorId?: string; status?: CallStatus | CallStatus[]; search?: string; region?: string; neighborhood?: string; olt?: string; hasTechnician?: boolean; area?: 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC'; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 
 export function matchesCallStatus(status: CallStatus, filter?: CallStatus | CallStatus[]) {
   return !filter || (Array.isArray(filter) ? filter : [filter]).includes(status);
@@ -105,6 +105,8 @@ export async function listCallsPage(status: CallStatus | CallStatus[] | undefine
       p_page_size: pageSize,
       // Area do IGP = conjunto de regioes (comparadas sem acento/maiusculas no banco).
       p_regions: query.area ? igpAreaRegionKeys(query.area) : null,
+      // Com cluster do OFS o chamado entra pela area do cluster; sem cluster, pela regiao.
+      p_clusters: query.area ? igpAreaClusters(query.area) : null,
     });
     if (error) throw new Error(error.message);
     return emptyResult(data as CallPageResult | undefined);
@@ -112,7 +114,7 @@ export async function listCallsPage(status: CallStatus | CallStatus[] | undefine
 
 
   const matchingCalls = (await listCalls(status, { ...query, id: undefined, olt: undefined, page: undefined, pageSize: undefined }))
-    .filter((call) => !query.area || classifyIgpArea(call.region) === query.area);
+    .filter((call) => !query.area || classifyCallArea(call) === query.area);
   const olts = [...new Set(matchingCalls.map((call) => call.olt.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
   const filteredCalls = query.olt ? matchingCalls.filter((call) => call.olt.trim().toLocaleUpperCase() === query.olt!.toLocaleUpperCase()) : matchingCalls;
   const total = filteredCalls.length;

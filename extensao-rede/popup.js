@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10 };
+const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10, clusterMin: 60 };
 const fmtSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
 const hojeSP = () => fmtSP.format(new Date());
 const somarDias = (iso, dias) => new Date(Date.parse(`${iso}T12:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10);
@@ -54,6 +54,11 @@ async function mostrarStatus() {
     li.onclick = () => navigator.clipboard?.writeText(falha.ordem);
     $("fechamentoFalhas").appendChild(li);
   }
+  const { ultimoCluster: c } = await chrome.storage.local.get("ultimoCluster");
+  const resumoCluster = !c ? "Clusters: nenhuma leitura ainda."
+    : c.erro ? `Clusters (${quando(c.quando)}): ✗ ${c.erro}`
+    : `Clusters (${quando(c.quando)}): ` + (c.resultados || []).map((r) => `${String(r.balde).replace("CLUSTER_", "")} ${r.ok ? `${r.linhas} ordens` : `✗ ${r.erro}`}`).join(" · ");
+  $("clusterStatus").textContent = resumoCluster + (prox?.clusters ? ` Próxima às ${new Date(prox.clusters).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
   const fins = Array.isArray(f?.finalizados) ? f.finalizados : [];
   const textoFins = fins.length ? ` ${fins.length} finalizado(s) automaticamente: ${fins.join(", ")}.` : "";
   $("fechamentoStatus").textContent = texto + textoFins + (prox?.fechamentos ? ` Próxima leitura às ${new Date(prox.fechamentos).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
@@ -78,6 +83,7 @@ async function carregar() {
   $("token").value = cfg.token;
   $("intervaloMin").value = String(cfg.intervaloMin);
   $("fechamentoMin").value = String(cfg.fechamentoMin);
+  $("clusterMin").value = String(cfg.clusterMin);
   $("horaDiaAnterior").value = cfg.horaDiaAnterior;
   $("alocacaoId").value = cfg.alocacaoId;
   $("ativo").checked = cfg.ativo !== false;
@@ -112,6 +118,7 @@ $("salvar").onclick = async () => {
     token: $("token").value.trim(),
     intervaloMin: +$("intervaloMin").value || 0,
     fechamentoMin: +$("fechamentoMin").value || 0,
+    clusterMin: +$("clusterMin").value || 0,
     horaDiaAnterior: $("horaDiaAnterior").value,
     alocacaoId: $("alocacaoId").value.trim(),
     ativo: $("ativo").checked,
@@ -160,6 +167,15 @@ $("lerFechamentos").onclick = async (e) => {
   mostrarStatus();
 };
 
+$("lerClusters").onclick = async (e) => {
+  const botao = e.currentTarget;
+  botao.disabled = true;
+  $("clusterStatus").textContent = "Exportando os baldes de cluster no OFS…";
+  await enviar({ tipo: "clusters" });
+  botao.disabled = false;
+  mostrarStatus();
+};
+
 $("arquivo").onchange = async (e) => {
   const arquivo = e.target.files[0];
   e.target.value = "";
@@ -172,7 +188,7 @@ $("arquivo").onchange = async (e) => {
 };
 
 chrome.storage.onChanged.addListener((mudancas, area) => {
-  if (area === "local" && (mudancas.ultimoEnvio || mudancas.captura || mudancas.ultimoFechamento)) mostrarStatus();
+  if (area === "local" && (mudancas.ultimoEnvio || mudancas.captura || mudancas.ultimoFechamento || mudancas.ultimoCluster)) mostrarStatus();
   if (area === "local" && mudancas.sessao) carregarConta();
 });
 carregar();

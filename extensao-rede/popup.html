@@ -41,6 +41,8 @@
     <div id="fechamentoStatus" class="hint"></div>
     <ol id="fechamentoFalhas" class="historico" hidden></ol>
     <button id="lerFechamentos" type="button">Ler fechamentos agora</button>
+    <div id="clusterStatus" class="hint"></div>
+    <button id="lerClusters" type="button">Ler clusters agora</button>
   </section>
 
   <section class="card">
@@ -75,6 +77,14 @@
         <option value="30">A cada 30 min</option>
       </select>
       <span class="hint">Abre cada atividade concluída numa aba fixada do OFS, só para ler.</span>
+    </label>
+    <label class="campo">Ler clusters (C08 SP, C09 ABC, C11 Alto Tietê, C12 GRU)
+      <select id="clusterMin">
+        <option value="0">Desligado</option>
+        <option value="60">A cada 1 hora</option>
+        <option value="120">A cada 2 horas</option>
+      </select>
+      <span class="hint">Exporta cada balde de cluster na aba fixada do OFS para saber a área de cada ordem.</span>
     </label>
     <label class="campo">Exportar o dia anterior todo dia às
       <input id="horaDiaAnterior" type="time">

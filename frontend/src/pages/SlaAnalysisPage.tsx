@@ -12,7 +12,8 @@ const AREAS: { value: SlaArea; label: string }[] = [
   { value: "SP", label: "C.8 São Paulo" },
   { value: "GRU", label: "C.12 Guarulhos" },
   { value: "ALTO_TIETE", label: "C.11 Alto Tietê" },
-  { value: "OUTRAS", label: "Outras (ABC e sem cluster)" },
+  { value: "ABC", label: "C.9 ABC" },
+  { value: "OUTRAS", label: "Outras (sem cluster)" },
 ];
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const LOST_GOOD_MAX = 11; // meta de 89% no prazo

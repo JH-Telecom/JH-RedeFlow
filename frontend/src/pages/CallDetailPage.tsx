@@ -220,6 +220,7 @@ export function CallDetailBase() {
             {call.eventAt && <DetailItem label="Gap evento → acionamento" value={formatEventGap(call.eventAt, call.openedAt)} />}
             <DetailItem label="Status interno" value={status} />
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
+            {call.cluster && <DetailItem label="Cluster (OFS)" value={({ C08: "C.8 São Paulo", C09: "C.9 ABC", C11: "C.11 Alto Tietê", C12: "C.12 Guarulhos" } as Record<string, string>)[call.cluster] || call.cluster} />}
             {call.atrelada && <LinkedOrderItem order={call.atrelada} />}
             <DetailItem label="Data Fim" value={call.executedAt
               // Chamado ainda aberto aqui, mas concluido no OFS: mostra a Data Fim que veio do OFS.

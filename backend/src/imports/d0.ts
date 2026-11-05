@@ -107,3 +107,20 @@ export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
 export function hasD0Identifiers(rows: D0Row[]) {
   return rows.some((row) => rowIdentifiers(row).length > 0);
 }
+// Linha do export do OFS -> chamado, so quando bate em um unico chamado (mesma regra da D-0).
+export function matchRowsToCalls(rows: D0Row[], calls: Call[]): Array<{ row: D0Row; call: Call }> {
+  const callKeys = calls.map((call) => ({ call, identifiers: new Set(callIdentifiers(call)) }));
+  const matches: Array<{ row: D0Row; call: Call }> = [];
+  for (const row of rows) {
+    const identifiers = rowIdentifiers(row);
+    if (!identifiers.length) continue;
+    const candidates = callKeys.filter(({ identifiers: keys }) => identifiers.some((identifier) => keys.has(identifier)));
+    if (candidates.length === 1) matches.push({ row, call: candidates[0].call });
+  }
+  return matches;
+}
+
+// "SP-000GRS3-WZ001": zona de trabalho do OFS. Cada uma pertence a um cluster.
+export function rowWorkzone(row: D0Row) {
+  return value(row, 'Chave Workzone', 'Workzone', 'Chave da Workzone').trim().toUpperCase();
+}

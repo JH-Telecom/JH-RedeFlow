@@ -78,5 +78,7 @@ test('counts incoming calls per day and filters by cluster area', () => {
   assert.equal(all.total.orders, 3, 'so finalizados entram no prazo');
   assert.equal(calculateSlaAnalysis(calls, '2026-11-01', '2026-11-30', 'SP', '2026-11-04').total.orders, 1);
   assert.equal(calculateSlaAnalysis(calls, '2026-11-01', '2026-11-30', 'GRU', '2026-11-04').total.orders, 1);
-  assert.equal(calculateSlaAnalysis(calls, '2026-11-01', '2026-11-30', 'OUTRAS', '2026-11-04').total.orders, 1);
+  // Diadema agora e ABC (C.9); OUTRAS = sem cluster e fora das listas.
+  assert.equal(calculateSlaAnalysis(calls, '2026-11-01', '2026-11-30', 'ABC', '2026-11-04').total.orders, 1);
+  assert.equal(calculateSlaAnalysis(calls, '2026-11-01', '2026-11-30', 'OUTRAS', '2026-11-04').total.orders, 0);
 });

@@ -4171,3 +4171,48 @@ Juntar o campo "Observações" do chamado com o histórico de Observações, par
 ### Validação
 - Typecheck OK.
 - Preview: no chamado de demonstração, o campo antigo sumiu, "Registro do chamado" aparece com "Equipe acionada para diagnostico." e a caixa mostra "(Ctrl+Enter salva)".
+
+## 2026-11-05 — Área pelo cluster do OFS (C.8 SP, C.9 ABC, C.11 Alto Tietê, C.12 GRU)
+
+### Pedido
+Separar as áreas pelos baldes de cluster do OFS, exportando de cada balde, em vez de usar só a lista de regiões. Os clusters são C.8 São Paulo, C.9 ABC, C.11 Alto Tietê e C.12 Guarulhos.
+
+### Investigação (OFS, só leitura)
+- Na árvore do Console de Alocação: JH TELECOM REDES (4899), com os baldes CLUSTER_C08 (5066), C09 (5399), C11 (5063) e C12 (5064).
+- Os técnicos ficam direto em JH TELECOM REDES. O balde do cluster só guarda as ordens **ainda não distribuídas**.
+- Toda atividade de rede tem **Chave Workzone** (31 de 31 no export do dia), inclusive as já atribuídas.
+
+### Implementado
+- **Migration** `202611050003_calls_cluster.sql`:
+  - `calls.cluster` (com índice);
+  - tabela `ofs_workzone_clusters` (Workzone → cluster, com RLS);
+  - as funções de página das filas ganham `p_clusters`: chamado com cluster entra pela área do cluster, chamado sem cluster entra pela região. A lista também devolve o `cluster`.
+- **Backend:**
+  - `igp.ts`:
+    - `CLUSTER_AREAS` e `normalizeCluster` ("CLUSTER_C08 (21)" → C08);
+    - `classifyCallArea`, que usa o cluster primeiro e a região depois;
+    - nova área **ABC**, com lista de regiões de reserva (Diadema, Santo André, São Bernardo, São Caetano, Mauá, Ribeirão Pires, Rio Grande da Serra).
+  - IGP, análise de prazo e filtro das filas passam a usar a área pelo cluster.
+  - `POST /api/integrations/ofs/cluster` (`store/clusters.ts`): o export de um balde marca o cluster das ordens que estão nele e aprende Workzone → cluster.
+  - O export principal (JH TELECOM REDES) dá o cluster, pela Workzone, aos chamados ainda sem cluster.
+- **Extensão v1.3.0:**
+  - alarme `rf-clusters` (1 h por padrão; 2 h ou desligado);
+  - exporta os 4 baldes, um por vez, na aba fixada do OFS, voltando ao Console de Alocação se ela estiver numa atividade. A tela de trabalho não muda;
+  - o popup mostra o resultado de cada cluster e tem o botão "Ler clusters agora".
+- **Telas:**
+  - opção ABC no IGP, no filtro Área das filas e na Análise de prazo, onde "Outras" passa a ser "sem cluster";
+  - "Cluster (OFS)" no detalhe do chamado.
+
+### Validação
+- Testes novos (`clusters.test.ts`):
+  - nomes dos baldes viram código de cluster;
+  - a área vem do cluster e, sem ele, da região;
+  - o IGP por área usa o cluster;
+  - o export do balde marca o cluster e ensina a Workzone para uma ordem já atribuída.
+- Dois testes antigos foram ajustados, porque Diadema agora é ABC. Suíte 161/161.
+- Typecheck do backend e do frontend OK. Sintaxe da extensão OK.
+
+### Ordem para subir
+1. Migration.
+2. Push.
+3. Recarregar a extensão (v1.3.0).

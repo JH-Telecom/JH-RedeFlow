@@ -20,7 +20,7 @@ export type IgpMetrics = {
   excludedOrders: number;
 };
 
-export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE';
+export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC';
 // Regra operacional: ate 6h = PRAZO; acima de 6h ate 9h = FORA DO PRAZO; acima de 9h = OUTLIER.
 export const SLA_ON_TIME_MAX_HOURS = 6;
 export const SLA_OUTLIER_AFTER_HOURS = 9;
@@ -61,6 +61,40 @@ const saoPauloRegions = new Set([
   'PENHA',
 ]);
 
+// Cluster C.9 | ABC: usado so quando o chamado ainda nao tem cluster do OFS.
+const abcRegions = new Set([
+  'ABC',
+  'DIADEMA',
+  'SANTO ANDRE',
+  'SAO BERNARDO',
+  'SAO BERNARDO DO CAMPO',
+  'SAO CAETANO',
+  'SAO CAETANO DO SUL',
+  'MAUA',
+  'RIBEIRAO PIRES',
+  'RIO GRANDE DA SERRA',
+]);
+
+// Balde do OFS -> area. C.8 Sao Paulo, C.9 ABC, C.11 Alto Tiete, C.12 Guarulhos.
+export const CLUSTER_AREAS: Record<string, Exclude<IgpArea, 'ALL'>> = { C08: 'SP', C09: 'ABC', C11: 'ALTO_TIETE', C12: 'GRU' };
+
+// "CLUSTER_C08 (21)", "C.8", "c8" -> "C08". Sem cluster reconhecivel -> undefined.
+export function normalizeCluster(value: unknown): string | undefined {
+  const match = String(value ?? '').toUpperCase().match(/C\.?\s*0?(\d{1,2})\b/);
+  return match ? `C${match[1].padStart(2, '0')}` : undefined;
+}
+
+export function igpAreaClusters(area: Exclude<IgpArea, 'ALL'>): string[] {
+  return Object.entries(CLUSTER_AREAS).filter(([, value]) => value === area).map(([cluster]) => cluster);
+}
+
+// Area do chamado: pelo cluster do OFS quando houver; sem cluster, pela regiao (listas acima).
+export function classifyCallArea(call: { cluster?: string; region: string }): Exclude<IgpArea, 'ALL'> | 'OUTRAS' {
+  const cluster = normalizeCluster(call.cluster);
+  if (cluster && CLUSTER_AREAS[cluster]) return CLUSTER_AREAS[cluster];
+  return classifyIgpArea(call.region);
+}
+
 function createGroup(): IgpGroup {
   return { orders: 0, outliers: 0, onTime: 0, totalRepairHours: 0, outlierPercent: null, onTimePercent: null, mttrHours: null };
 }
@@ -88,13 +122,14 @@ export function classifyIgpArea(region: string): Exclude<IgpArea, 'ALL'> | 'OUTR
   if (/^GUARULHOS( [1-5])?$/.test(normalized)) return 'GRU';
   if (altoTieteRegions.has(normalized)) return 'ALTO_TIETE';
   if (saoPauloRegions.has(normalized)) return 'SP';
+  if (abcRegions.has(normalized)) return 'ABC';
   return 'OUTRAS';
 }
 
 // Regioes (ja normalizadas: maiusculas, sem acento) de cada area do IGP. Usado no filtro "Area" das filas.
 export function igpAreaRegionKeys(area: Exclude<IgpArea, 'ALL'>): string[] {
   if (area === 'GRU') return ['GUARULHOS', 'GUARULHOS 1', 'GUARULHOS 2', 'GUARULHOS 3', 'GUARULHOS 4', 'GUARULHOS 5'];
-  return [...(area === 'ALTO_TIETE' ? altoTieteRegions : saoPauloRegions)];
+  return [...(area === 'ALTO_TIETE' ? altoTieteRegions : area === 'ABC' ? abcRegions : saoPauloRegions)];
 }
 
 export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea = 'ALL'): IgpMetrics {
@@ -104,7 +139,7 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
 
   for (const call of calls) {
     if (call.status !== 'Finalizado' || !call.executedAt || toOperationalDate(call.executedAt).slice(0, 7) !== month) continue;
-    if (area !== 'ALL' && classifyIgpArea(call.region) !== area) continue;
+    if (area !== 'ALL' && classifyCallArea(call) !== area) continue;
     const groupKey = classifyIgpGroup(call.type);
     const openedAt = Date.parse(call.openedAt);
     const executedAt = Date.parse(call.executedAt);

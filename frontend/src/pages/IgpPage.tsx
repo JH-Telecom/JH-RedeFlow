@@ -188,12 +188,12 @@ export function IGPPage() {
   }, [month, area]);
 
   const metricRows = metrics ? Object.values(igpGoals).map((goal, index) => ({ ...goal, key: (Object.keys(igpGoals) as (keyof typeof igpGoals)[])[index] })) : [];
-  const areaLabel = area === 'ALL' ? 'SP + GRU + Alto Tietê' : area === 'ALTO_TIETE' ? 'Alto Tietê' : area;
+  const areaLabel = area === 'ALL' ? 'SP + ABC + Alto Tietê + GRU' : area === 'ALTO_TIETE' ? 'Alto Tietê' : area;
 
   return <div className="dv-dashboard">
     <div className="page-heading dv-heading">
       <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso e Backbone, ponderado pela quantidade de ordens.</p></div>
-      <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
+      <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option><option value="ABC">ABC</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
     </div>
     {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !metrics ? <div className="dv-empty" role="status">Calculando indicadores do mês...</div> : <>
       <div className="dv-kpi-grid">

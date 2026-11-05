@@ -18,7 +18,7 @@ const FECH_POR_CICLO = 12; // atividades abertas por ciclo
 const FECH_ESPERA_MS = 60 * 60_000; // a mesma ordem so e tentada de novo depois de 1 h
 const JANELA_CAPTURA_MS = 90_000;
 const LIMITE_AVISO_FALHAS = 3;
-const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10 };
+const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10, clusterMin: 60 };
 
 // ---------- datas no fuso de Sao Paulo ----------
 const fmtSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
@@ -124,7 +124,7 @@ async function enviarCsv(csv, nome, data) {
 
 // ---------- automacao na pagina do OFS (injetada com chrome.scripting) ----------
 // Precisa ser autocontida: roda dentro da aba do OFS, sem acesso ao escopo da extensao.
-function acaoNaPagina({ alvo, alocacaoId, exportar }) {
+function acaoNaPagina({ alvo, alocacaoId, exportar, abrirConsole }) {
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   const porTexto = (texto) => Array.from(document.querySelectorAll('button, a, [role="menuitem"], [role="button"]')).find((el) => (el.textContent || "").trim() === texto);
   const MESES = { janeiro: 0, fevereiro: 1, marco: 2, abril: 3, maio: 4, junho: 5, julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11 };
@@ -160,6 +160,15 @@ function acaoNaPagina({ alvo, alocacaoId, exportar }) {
   }
 
   async function fluxo() {
+    // Aba fixada (clusters/fechamentos) pode estar numa atividade: volta para o Console de Alocacao.
+    if (abrirConsole && !document.querySelector(".edt-item")) {
+      const link = Array.from(document.querySelectorAll('a, button, [role="link"], [role="menuitem"]')).find((el) => (el.textContent || "").trim() === "Console de Alocação");
+      if (!link) return { ok: false, erro: "Não achei o Console de Alocação na aba fixada do OFS" };
+      link.click();
+      for (let i = 0; i < 40 && !document.querySelector(".edt-item"); i += 1) await esperar(500);
+      if (!document.querySelector(".edt-item")) return { ok: false, erro: "O Console de Alocação não abriu na aba fixada" };
+      await esperar(1500);
+    }
     const data = await irParaData();
     if (data.erro) return { ok: false, erro: data.erro };
     let alocacao = null;
@@ -201,20 +210,24 @@ async function rodarNaPagina(tabId, args) {
 }
 
 // Exporta um dia (hoje por padrao). O envio acontece quando o download chega (chrome.downloads.onCreated).
-async function exportarDia(data, automatico) {
+// Com `cluster` ({ id, nome }), exporta o balde do cluster na aba fixada e manda para /ofs/cluster.
+async function exportarDia(data, automatico, cluster) {
   const cfg = await config();
-  if (!(await autenticacao())) return registrar({ ok: false, data, automatico, erro: "Entre com seu usuário do JH RedeFlow no popup" });
-  const aba = await abaDoOfs();
+  if (!(await autenticacao())) return cluster ? { ok: false, erro: "Sem login" } : registrar({ ok: false, data, automatico, erro: "Entre com seu usuário do JH RedeFlow no popup" });
+  const aba = cluster ? await abaDeFechamento() : await abaDoOfs();
   if (!aba) return registrar({ ok: false, data, automatico, erro: "Nenhuma aba do OFS aberta (abra o Console de Alocação e faça login)" });
   const { captura } = await chrome.storage.local.get("captura");
   if (captura && Date.now() < captura.ate) return { ok: false, erro: `Já há uma exportação em andamento (${diaBR(captura.data)})` };
-  await chrome.storage.local.set({ captura: { ate: Date.now() + JANELA_CAPTURA_MS, data, tabId: aba.id, automatico } });
-  atualizarSelo();
+  await chrome.storage.local.set({ captura: { ate: Date.now() + JANELA_CAPTURA_MS, data, tabId: aba.id, automatico, balde: cluster?.nome } });
+  if (!cluster) atualizarSelo();
   let res;
-  try { res = await rodarNaPagina(aba.id, { alvo: data, alocacaoId: cfg.alocacaoId.trim(), exportar: true }); }
-  catch (e) { res = { ok: false, erro: e?.message || String(e) }; }
+  try {
+    if (cluster && !(await ofsPronto(aba.id))) throw new Error("O OFS não carregou na aba fixada (confira o login)");
+    res = await rodarNaPagina(aba.id, { alvo: data, alocacaoId: cluster ? cluster.id : cfg.alocacaoId.trim(), exportar: true, abrirConsole: Boolean(cluster) });
+  } catch (e) { res = { ok: false, erro: e?.message || String(e) }; }
   if (!res.ok) {
     await chrome.storage.local.remove("captura");
+    if (cluster) return { ok: false, erro: res.erro };
     await voltarParaHoje(aba.id, data);
     return registrar({ ok: false, data, automatico, erro: res.erro });
   }
@@ -248,6 +261,12 @@ chrome.downloads.onCreated.addListener(async (item) => {
   try {
     csv = item.url.startsWith("blob:") ? await lerBlobNaAba(captura.tabId, item.url) : await (await fetch(item.url, { credentials: "include" })).text();
   } catch (_) { /* tratado abaixo */ }
+  if (captura.balde) {
+    // Balde de cluster: so marca o cluster das ordens (nao mexe no Painel nem no "Último envio").
+    const res = csv ? await enviarCluster(csv, captura.balde) : { ok: false, erro: "Não consegui ler o CSV exportado" };
+    await chrome.storage.local.set({ ultimoClusterEnvio: { ...res, balde: captura.balde, quando: Date.now() } });
+    return;
+  }
   let res = csv ? await enviarCsv(csv, item.filename?.split(/[\\/]/).pop(), captura.data) : { ok: false, erro: "Não consegui ler o CSV exportado" };
   await registrar({ ...res, data: captura.data, automatico: captura.automatico });
   await voltarParaHoje(captura.tabId, captura.data);
@@ -258,6 +277,7 @@ async function conferirCapturaVencida() {
   const { captura } = await chrome.storage.local.get("captura");
   if (!captura || Date.now() <= captura.ate) return;
   await chrome.storage.local.remove("captura");
+  if (captura.balde) { await chrome.storage.local.set({ ultimoClusterEnvio: { ok: false, erro: "O OFS não gerou o arquivo a tempo (90 s)", balde: captura.balde, quando: Date.now() } }); return; }
   await registrar({ ok: false, data: captura.data, automatico: captura.automatico, erro: "O OFS não gerou o arquivo a tempo (90 s)" });
   await voltarParaHoje(captura.tabId, captura.data);
 }
@@ -394,6 +414,70 @@ async function coletarFechamentos(automatico) {
   }
 }
 
+// ---------- clusters (baldes CLUSTER_C08/C09/C11/C12) ----------
+// Exporta cada balde de cluster na aba fixada e manda ao RedeFlow, que marca o cluster das ordens que estao no
+// balde e aprende Workzone -> cluster (as ordens ja atribuidas recebem o cluster pela Workzone no export principal).
+const CLUSTER_URL = `${API_BASE}/api/integrations/ofs/cluster`;
+const ALARME_CLUSTERS = "rf-clusters";
+// data-id na arvore do OFS (Console de Alocacao) -> C.8 Sao Paulo, C.9 ABC, C.11 Alto Tiete, C.12 Guarulhos.
+const CLUSTERS = [
+  { id: "5066", nome: "CLUSTER_C08" },
+  { id: "5399", nome: "CLUSTER_C09" },
+  { id: "5063", nome: "CLUSTER_C11" },
+  { id: "5064", nome: "CLUSTER_C12" },
+];
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function enviarCluster(csv, balde) {
+  const auth = await autenticacao();
+  if (!auth) return { ok: false, erro: "Sem login" };
+  try {
+    const r = await fetch(CLUSTER_URL, { method: "POST", headers: { "Content-Type": "application/json", ...auth.headers }, body: JSON.stringify({ csv, balde, nome: `${balde}.csv` }) });
+    const corpo = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, erro: corpo?.message || `HTTP ${r.status}` };
+    return { ok: true, linhas: corpo.rows ?? 0, chamados: corpo.matchedCalls ?? 0, novos: corpo.updatedCalls ?? 0, workzones: corpo.learnedWorkzones ?? 0 };
+  } catch (e) {
+    return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` };
+  }
+}
+
+async function esperarCapturaLivre(ms) {
+  const fim = Date.now() + ms;
+  while (Date.now() < fim) {
+    const { captura } = await chrome.storage.local.get("captura");
+    if (!captura || Date.now() > captura.ate) return true;
+    await dormir(1000);
+  }
+  return false;
+}
+
+async function coletarClusters(automatico) {
+  const registrarClusters = async (resultado) => { const registro = { quando: Date.now(), ...resultado }; await chrome.storage.local.set({ ultimoCluster: registro }); return registro; };
+  if (!(await autenticacao())) return registrarClusters({ ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" });
+  const { fechRodando } = await chrome.storage.local.get("fechRodando");
+  if (fechRodando && Date.now() < fechRodando) return { ok: false, erro: "A aba fixada do OFS está ocupada; fica para o próximo ciclo" };
+  await chrome.storage.local.set({ fechRodando: Date.now() + 10 * 60_000 });
+  const resultados = [];
+  try {
+    for (const cluster of CLUSTERS) {
+      if (!(await esperarCapturaLivre(120_000))) { resultados.push({ balde: cluster.nome, ok: false, erro: "Outra exportação não terminou" }); continue; }
+      await chrome.storage.local.remove("ultimoClusterEnvio");
+      const inicio = await exportarDia(hojeSP(), automatico, cluster);
+      if (!inicio?.ok) { resultados.push({ balde: cluster.nome, ok: false, erro: inicio?.erro || "Não exportou" }); continue; }
+      await esperarCapturaLivre(JANELA_CAPTURA_MS + 5000);
+      let envio = null;
+      for (let i = 0; i < 30 && !envio; i += 1) {
+        const { ultimoClusterEnvio } = await chrome.storage.local.get("ultimoClusterEnvio");
+        if (ultimoClusterEnvio?.balde === cluster.nome) envio = ultimoClusterEnvio; else await dormir(1000);
+      }
+      resultados.push(envio || { balde: cluster.nome, ok: false, erro: "O envio do balde não respondeu" });
+    }
+  } finally {
+    await chrome.storage.local.remove("fechRodando");
+  }
+  return registrarClusters({ ok: resultados.length > 0 && resultados.every((item) => item.ok), resultados });
+}
+
 // ---------- agendamento ----------
 function proximaHora(hhmm) {
   const [h, m] = String(hhmm || "").split(":").map(Number);
@@ -413,6 +497,8 @@ async function agendar() {
   const quando = cfg.ativo ? proximaHora(cfg.horaDiaAnterior) : null;
   if (quando) chrome.alarms.create(ALARME_ONTEM, { when: quando });
   await chrome.alarms.clear(ALARME_FECH);
+  await chrome.alarms.clear(ALARME_CLUSTERS);
+  if (cfg.ativo && +cfg.clusterMin > 0) chrome.alarms.create(ALARME_CLUSTERS, { periodInMinutes: Math.max(30, +cfg.clusterMin), delayInMinutes: 4 });
   if (cfg.ativo && +cfg.fechamentoMin > 0) chrome.alarms.create(ALARME_FECH, { periodInMinutes: Math.max(5, +cfg.fechamentoMin), delayInMinutes: 2 });
   chrome.alarms.create("rf-vigia", { periodInMinutes: 1 });
   atualizarSelo();
@@ -423,6 +509,7 @@ chrome.alarms.onAlarm.addListener(async (alarme) => {
   const cfg = await config();
   if (!cfg.ativo) return;
   if (alarme.name === ALARME_FECH) return coletarFechamentos(true);
+  if (alarme.name === ALARME_CLUSTERS) return coletarClusters(true);
   if (alarme.name === ALARME_HOJE) await exportarDia(hojeSP(), true);
   if (alarme.name === ALARME_ONTEM) {
     await exportarDia(somarDias(hojeSP(), -1), true);
@@ -460,8 +547,9 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
         return { ok: false, erro: `Resposta inesperada (HTTP ${r.status})` };
       } catch (e) { return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` }; }
     },
-    proximas: async () => ({ hoje: (await chrome.alarms.get(ALARME_HOJE))?.scheduledTime || null, ontem: (await chrome.alarms.get(ALARME_ONTEM))?.scheduledTime || null, fechamentos: (await chrome.alarms.get(ALARME_FECH))?.scheduledTime || null }),
+    proximas: async () => ({ hoje: (await chrome.alarms.get(ALARME_HOJE))?.scheduledTime || null, ontem: (await chrome.alarms.get(ALARME_ONTEM))?.scheduledTime || null, fechamentos: (await chrome.alarms.get(ALARME_FECH))?.scheduledTime || null, clusters: (await chrome.alarms.get(ALARME_CLUSTERS))?.scheduledTime || null }),
     fechamentos: () => coletarFechamentos(false),
+    clusters: () => coletarClusters(false),
   };
   const tarefa = tarefas[msg?.tipo];
   if (!tarefa) return false;
