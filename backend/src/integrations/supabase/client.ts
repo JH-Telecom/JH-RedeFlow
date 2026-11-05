@@ -7,9 +7,15 @@ import { analyzeOperationalMessage } from '../wuzapi/semantic.js';
 // Cards pendentes lidos antes de o leitor reconhecer um rotulo (ex.: "Tarefa OFS") ficam sem O.S. gravada:
 // relemos a mensagem original e completamos so o que faltou, sem sobrescrever o que ja foi extraido.
 function refreshStoredAnalysis(originalMessage: string, analysis: Partial<ActivationAnalysis>): Partial<ActivationAnalysis> {
-  if (analysis.office_track || analysis.os_ot || !originalMessage) return analysis;
+  const hasOrder = Boolean(analysis.office_track || analysis.os_ot);
+  if ((hasOrder && analysis.data_hora_evento) || !originalMessage) return analysis;
   const fresh = analyzeOperationalMessage(originalMessage);
-  return { ...analysis, office_track: fresh.office_track || null, os_ot: fresh.os_ot || null };
+  return {
+    ...analysis,
+    office_track: analysis.office_track || fresh.office_track || null,
+    os_ot: analysis.os_ot || fresh.os_ot || null,
+    data_hora_evento: analysis.data_hora_evento || fresh.data_hora_evento || null,
+  };
 }
 
 let adminClient: SupabaseClient | null = null;

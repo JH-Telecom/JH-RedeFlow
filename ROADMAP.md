@@ -3821,3 +3821,24 @@ Ao cruzar com o OFS, a regra da D-0 só gravava a Data Fim se o chamado já esti
 - `d0-import.test.ts` foi ajustado: OFS concluído com chamado aberto agora recebe Data Fim. Também há um caso novo: OFS pendente, em andamento ou vazio fica sem Data Fim.
 - Suíte 141/141. Typecheck OK.
 - Os 15 chamados existentes recebem a Data Fim no próximo envio do OFS daquele dia, depois do deploy. Nenhum dado foi alterado manualmente.
+
+## 2026-11-05 — Card de backbone (NOC TX): ordem "OFS:" e data "ABERTO EM:"
+
+### Pedido
+O acionamento de evento backbone 673908 apareceu como "Sem ordem identificada" e sem datas.
+
+### Causa
+O card de backbone traz a ordem no rótulo `OFS:` e a abertura do ticket no rótulo `ABERTO EM:`. O leitor não reconhecia nenhum dos dois: só entendia "Tarefa OFS" e "Data/Hora do Evento".
+
+### Implementado
+- `card-normalizer.ts`: o rótulo `OFS` sozinho passa a ser lido como Tarefa Office Track. "Status OFS" e outros rótulos continuam como estavam.
+- `semantic.ts`: quando o card não tem "Data/Hora do Evento", o `ABERTO EM` vira a data do evento. Isso preenche "Data/Hora do Evento" e o gap até o acionamento.
+- A abertura continua sendo o horário em que a mensagem foi enviada no grupo.
+- `supabase/client.ts`: a releitura de cards pendentes agora também completa a data do evento, além da ordem, sem sobrescrever o que já foi lido. Os cards pendentes que já estão na fila são corrigidos depois do deploy, sem alterar o banco.
+
+### Validação
+- Novo `backbone-card.test.ts`, com o card real:
+  - lê a ordem 610053309290102 e o evento 05/11/2026 07:06;
+  - "Data/Hora do Evento" continua tendo prioridade sobre "ABERTO EM";
+  - "Status OFS" não é lido como ordem.
+- Suíte 144/144. Typecheck OK.

@@ -77,7 +77,9 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
   ].filter(Boolean).length;
   const isActivation = Boolean(classification.type) || markerCount >= 2;
   const slotValue = labelValue(text, ['SLOT\\s*/\\s*PON', 'PLACA\\s*/\\s*PON']) || legacy.slotPon || null;
-  const dataHora = labelValue(text, ['DATA\\s*/\\s*HORA DO EVENTO', 'DATA HORA DO EVENTO', 'DATA\\s*HORA']);
+  const dataHora = labelValue(text, ['DATA\\s*/\\s*HORA DO EVENTO', 'DATA HORA DO EVENTO', 'DATA\\s*HORA'])
+    // Cards de backbone (NOC TX) nao trazem "Data/Hora do Evento": a abertura do ticket ("ABERTO EM") e o evento.
+    || labelValue(text, ['ABERTO EM']);
   const officeTrack = labelValue(text, ['TAREFA OFFICE TRACK', 'OFFICE TRACK', 'OFFICETRACK', 'OS OT']) || nullValue(legacy.officeTrack);
   const contract = labelValue(text, ['CONTRATO(?:S)?(?: EXEMPLO(?:S)?)?']) || nullValue(legacy.contract);
   const technician = technicianValue(labelValue(text, ['TÉCNICO REDE', 'TECNICO REDE']) || labelValue(text, ['TÉCNICO', 'TECNICO']) || nullValue(legacy.technician));
