@@ -157,6 +157,36 @@ function parseWorkbookDate(value: unknown): string | undefined {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
 }
 
+const SAO_PAULO_OFFSET_MS = 3 * 3_600_000;
+const MAX_REPAIR_MS = 10 * 86_400_000;
+
+// Troca dia e mes no relogio de Sao Paulo ("03/11 14:43" <-> "11/03 14:43"). So existe se o dia for <= 12.
+function swapDayMonth(iso: string): string | undefined {
+  const local = new Date(Date.parse(iso) - SAO_PAULO_OFFSET_MS);
+  const day = local.getUTCDate();
+  const month = local.getUTCMonth() + 1;
+  if (day > 12 || day === month) return undefined;
+  const swapped = Date.UTC(local.getUTCFullYear(), day - 1, month, local.getUTCHours(), local.getUTCMinutes(), local.getUTCSeconds());
+  if (new Date(swapped).getUTCDate() !== month) return undefined;
+  return new Date(swapped + SAO_PAULO_OFFSET_MS).toISOString();
+}
+
+// A planilha Finalizados mistura dd/mm e mm/dd: celula digitada "03/11/26" vira 11 de marco no Excel americano, e cada
+// celula pode vir de um jeito. Usa o par abertura + Data Fim: entre manter ou trocar dia/mes de cada uma, fica a combinacao
+// em que o fim vem depois da abertura (ate 10 dias) e nada cai no futuro; com menos trocas e, empatando, a mais recente
+// (ex.: 11/03 -> 11/03 e 03/11 -> 03/11 empatam; o historico e recente, entao vale 03/11).
+export function fixSwappedOpenFinish(openedAt: string | undefined, executedAt: string | undefined, now = Date.now()) {
+  if (!openedAt || !executedAt) return { openedAt, executedAt };
+  const swappedOpen = swapDayMonth(openedAt);
+  const swappedFinish = swapDayMonth(executedAt);
+  const candidates: Array<[string | undefined, string | undefined, number]> = [[openedAt, executedAt, 0], [swappedOpen, executedAt, 1], [openedAt, swappedFinish, 1], [swappedOpen, swappedFinish, 2]];
+  const valid = candidates
+    .filter((candidate): candidate is [string, string, number] => Boolean(candidate[0] && candidate[1]))
+    .filter(([open, finish]) => { const gap = Date.parse(finish) - Date.parse(open); return gap >= 0 && gap <= MAX_REPAIR_MS && Date.parse(finish) <= now + 86_400_000; })
+    .sort((left, right) => left[2] - right[2] || Date.parse(right[1]) - Date.parse(left[1]));
+  return valid.length ? { openedAt: valid[0][0], executedAt: valid[0][1] } : { openedAt, executedAt };
+}
+
 function stableCallId(identity: string) {
   const hash = createHash('sha256').update(`legacy-activation:${identity}`).digest();
   const bytes = Buffer.from(hash.subarray(0, 16));
@@ -213,8 +243,7 @@ export function parseHistoricalActivationWorkbook(fileName: string, buffer: Buff
   rows.slice(headerIndex + 1).forEach((row, index) => {
     const message = String(row[messageColumn] ?? '').trim();
     if (!message) return;
-    const openedAt = parseWorkbookDate(row[openingColumn]);
-    const executedAt = parseWorkbookDate(row[finishedColumn]);
+    const { openedAt, executedAt } = fixSwappedOpenFinish(parseWorkbookDate(row[openingColumn]), parseWorkbookDate(row[finishedColumn]));
     if (!openedAt) missing.missingOpeningDate += 1;
     if (!executedAt) missing.missingFinishedDate += 1;
 

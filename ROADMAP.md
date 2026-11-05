@@ -3988,3 +3988,29 @@ Não separar o card "Encerramento". Deixar tudo no card de Atendimento e mostrar
 - Typecheck do frontend (`tsc -b`) OK.
 - Preview em localhost:8000: com Finalizado, os campos aparecem no card.
 - O tema escuro e o contraste do tema claro foram gerados para os estilos novos (`field-hint`, `delete-link`).
+
+## 2026-11-05 — Finalizados.xlsx: datas com dia e mês trocados
+
+### Pedido
+Vários chamados finalizados estão com a data de abertura invertida, por exemplo 11/03 quando devia ser 03/11 (237 dias de atendimento). Entender a causa e corrigir todos.
+
+### Causa
+Todos os casos vêm da importação **Finalizados.xlsx** (`legacy-activation`). Na planilha, células digitadas como "03/11/26" foram gravadas pelo Excel em formato americano (11 de março), e cada célula saiu de um jeito. Por isso a mesma linha pode ter a abertura trocada e a Data Fim certa, ou o contrário. O importador lia cada célula fielmente, sem conferir as duas datas juntas.
+
+### Implementado
+- `historical-activations.ts`: `fixSwappedOpenFinish(abertura, fim)`. Entre manter ou trocar dia/mês de cada data (4 combinações), escolhe a combinação em que:
+  - o fim vem depois da abertura;
+  - a diferença é de no máximo 10 dias;
+  - nada cai no futuro;
+  - há menos trocas;
+  - em caso de empate, vale a combinação mais recente. Exemplo: 11/03→11/03 e 03/11→03/11 empatam; vale 03/11, porque o histórico começa em junho.
+- Linha sem combinação válida fica como veio. A próxima importação de Finalizados já entra corrigida.
+
+### Correção dos dados já gravados (simulação só de leitura, mesma regra)
+- 4.846 chamados da Finalizados com Data Fim.
+- 4.312 já estão certos.
+- **504 a corrigir**: 392 só na abertura e 112 só na Data Fim. Nenhum cai antes de junho, e 295 vão para outubro/novembro. Os 3 do print ficam em 03/11 (14:43→15:40, 15:04→16:04, 20:28→22:39).
+- 30 ficam como estão, sem troca que explique. São fins horas antes da abertura no mesmo dia, ou intervalos longos de verdade. Um deles tem o ano 2028.
+
+### Validação
+- Teste novo com os casos reais: print, abertura no futuro, fim trocado, correto e sem solução. Suíte 151/151.

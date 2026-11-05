@@ -199,3 +199,19 @@ test('reads "Tarefa OFS" cards, falls back to the ORDEM column and to the REGIAO
   assert.deepEqual(preview.candidates.map((item) => item.call.orderNumber), ['613123218810102', '610123034740102']);
   assert.equal(preview.candidates[1].call.region, 'CIDADE TIRADENTES');
 });
+
+test('Finalizados: repairs day/month swaps using the opening + Data Fim pair', async () => {
+  const { fixSwappedOpenFinish } = await import('../src/imports/historical-activations.js');
+  const now = Date.parse('2026-11-05T12:00:00Z');
+  const sp = (text: string) => new Date(`${text}-03:00`).toISOString();
+  // Print do usuario: abertura lida como 11/03, fim 03/11 -> os dois em 03/11 (empate: fica a mais recente).
+  assert.deepEqual(fixSwappedOpenFinish(sp('2026-03-11T20:28:00'), sp('2026-11-03T22:39:00'), now), { openedAt: sp('2026-11-03T20:28:00'), executedAt: sp('2026-11-03T22:39:00') });
+  // Abertura no futuro (07/11 lido no lugar de 11/07) com fim em julho -> abertura volta para 11/07.
+  assert.deepEqual(fixSwappedOpenFinish(sp('2026-11-07T08:10:00'), sp('2026-07-11T09:00:00'), now), { openedAt: sp('2026-07-11T08:10:00'), executedAt: sp('2026-07-11T09:00:00') });
+  // Fim trocado: abertura 05/08, fim lido como 08/05 -> fim volta para 05/08.
+  assert.deepEqual(fixSwappedOpenFinish(sp('2026-08-05T10:00:00'), sp('2026-05-08T15:00:00'), now), { openedAt: sp('2026-08-05T10:00:00'), executedAt: sp('2026-08-05T15:00:00') });
+  // Ja correto: nao mexe.
+  assert.deepEqual(fixSwappedOpenFinish(sp('2026-10-02T10:00:00'), sp('2026-10-02T18:00:00'), now), { openedAt: sp('2026-10-02T10:00:00'), executedAt: sp('2026-10-02T18:00:00') });
+  // Sem combinacao valida (fim antes da abertura no mesmo dia): fica como veio.
+  assert.deepEqual(fixSwappedOpenFinish(sp('2026-08-26T08:20:00'), sp('2026-08-26T02:40:00'), now), { openedAt: sp('2026-08-26T08:20:00'), executedAt: sp('2026-08-26T02:40:00') });
+});
