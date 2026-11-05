@@ -4154,3 +4154,20 @@ Colocar nas filas, começando por Finalizados e cancelados, o filtro de área do
 
 ### Ordem para subir
 Aplicar a migration **antes** do push. O backend novo manda `p_regions`, e a função antiga não conhece esse parâmetro.
+
+## 2026-11-05 — Observações do chamado unificadas
+
+### Pedido
+Juntar o campo "Observações" do chamado com o histórico de Observações, para salvar na hora e não ter dois lugares diferentes.
+
+### Implementado (`CallDetailPage.tsx`, `team.css`)
+- O campo "Observações" de "Dados operacionais" foi removido. Ele só era gravado ao clicar em "Salvar alterações".
+- O texto do chamado (`notes`: "Criado a partir de acionamento aceito.", "Atrelada > …", texto das importações) aparece fixado no topo da aba **Observações** como **"Registro do chamado"**, com a data de abertura. Ele é só de leitura e não foi apagado do banco.
+- Tudo o que é novo entra pela caixa do histórico. A gravação é na hora, com autor, horário e anexos.
+- **Ctrl+Enter** salva a observação.
+- "Salvar alterações" continua mandando o `notes` atual sem mudança, então nada se perde. Com o texto fixado, o aviso "Nenhuma observação registrada." deixa de aparecer.
+- O tema escuro foi gerado para o item fixado.
+
+### Validação
+- Typecheck OK.
+- Preview: no chamado de demonstração, o campo antigo sumiu, "Registro do chamado" aparece com "Equipe acionada para diagnostico." e a caixa mostra "(Ctrl+Enter salva)".

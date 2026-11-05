@@ -534,6 +534,20 @@
 :where(:root[data-theme="dark"]) .status.presence-offline small {
     color: #878a8f
 }
+:where(:root[data-theme="dark"]) .history-item.call-notes-item {
+    background: #11151b;
+    border: 1px solid #323a45
+}
+:where(:root[data-theme="dark"]) .call-notes-item .history-avatar {
+    background: #111821;
+    color: #b6bcc4
+}
+:where(:root[data-theme="dark"]) .call-notes-item small {
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .call-notes-item .call-notes-text {
+    color: #c2c7ce
+}
 
 /* supervisor-overrides.css */
 :where(:root[data-theme="dark"]) .supervisor-card {

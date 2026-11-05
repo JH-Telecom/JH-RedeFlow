@@ -232,14 +232,7 @@ export function CallDetailBase() {
               <DetailItem label="Tipo do cabo (OFS)" value={call.cableType || "Não informado"} />
             </>}
           </div>
-          <label className="detail-label">
-            Observacoes
-            <textarea
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              rows={5}
-            />
-          </label>
+          {/* O texto do chamado (notes) aparece fixado no topo do historico de Observacoes, abaixo. */}
         </section>
         <aside className="panel detail-actions">
           <div className="panel-heading">
@@ -321,6 +314,12 @@ export function AuditedCallDetailPage() {
   const [attachmentError, setAttachmentError] = useState("");
   const [savingObservation, setSavingObservation] = useState(false);
   const [tab, setTab] = useState<"observations" | "logs">("observations");
+  // Texto do proprio chamado (acionamento, importacao, "Atrelada > ..."): fica fixado no topo das Observacoes.
+  const [callNotes, setCallNotes] = useState("");
+  const [callOpenedAt, setCallOpenedAt] = useState("");
+  useEffect(() => {
+    api.call(id, { teamScope: teamScoped }).then((data) => { setCallNotes(data.call.notes || ""); setCallOpenedAt(data.call.openedAt); }).catch(() => undefined);
+  }, [id, teamScoped]);
   async function refreshHistory() {
     const [observationData, logData] = await Promise.all([
       api.observations(id, { teamScope: teamScoped }),
@@ -386,7 +385,8 @@ export function AuditedCallDetailPage() {
               <textarea
                 value={text}
                 onChange={(event) => setText(event.target.value)}
-                placeholder="Registrar uma observacao operacional..."
+                onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void addNote(); } }}
+                placeholder="Registrar uma observacao operacional... (Ctrl+Enter salva)"
                 rows={3}
               />
               <div className="observation-compose-actions">
@@ -399,6 +399,16 @@ export function AuditedCallDetailPage() {
             {attachmentFiles.length > 0 && <div className="observation-selected-attachments">{attachmentFiles.map((file, index) => <span className="observation-selected-file" key={`${file.name}-${file.lastModified}-${index}`}><FileText size={14}/><span>{file.name}</span><button type="button" aria-label={`Remover ${file.name}`} onClick={() => setAttachmentFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}><X size={14}/></button></span>)}</div>}
             {attachmentError && <div className="form-error observation-attachment-error">{attachmentError}</div>}
             <div className="history-list">
+              {callNotes.trim() && (
+                <div className="history-item call-notes-item">
+                  <div className="history-avatar" aria-hidden="true"><FileText size={15} /></div>
+                  <div>
+                    <strong>Registro do chamado</strong>
+                    <small>{callOpenedAt ? `abertura ${new Date(callOpenedAt).toLocaleString("pt-BR")}` : "texto do chamado"}</small>
+                    <p className="call-notes-text">{callNotes}</p>
+                  </div>
+                </div>
+              )}
               {observations.length ? (
                 observations.map((item) => banners[item.userId] ? (
                   // Autor com banner: banner ao fundo, nome sobre faixa escura e texto em caixa quase opaca.
@@ -432,7 +442,7 @@ export function AuditedCallDetailPage() {
                     </div>
                   </div>
                 ))
-              ) : (
+              ) : callNotes.trim() ? null : (
                 <div className="empty-state">
                   Nenhuma observacao registrada.
                 </div>

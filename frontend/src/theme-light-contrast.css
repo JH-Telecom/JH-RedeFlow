@@ -289,6 +289,15 @@
 :where(:root:not([data-theme="dark"])) .status.presence-offline small {
     color: #5f6a78
 }
+:where(:root:not([data-theme="dark"])) .call-notes-item .history-avatar {
+    color: #4a5a70
+}
+:where(:root:not([data-theme="dark"])) .call-notes-item small {
+    color: #5c6b80
+}
+:where(:root:not([data-theme="dark"])) .call-notes-item .call-notes-text {
+    color: #3d4b5f
+}
 
 /* supervisor-overrides.css */
 :where(:root:not([data-theme="dark"])) .supervisor-heading h2 {

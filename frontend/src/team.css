@@ -14,3 +14,9 @@
 .status.presence-offline small{margin-left:6px;color:#9aa6b5;font-size:10px}
 @keyframes presence-pulse{50%{box-shadow:0 0 0 5px #1caa7600}}
 @media (prefers-reduced-motion: reduce){.status.presence-online i{animation:none}}
+
+/* Texto do proprio chamado fixado no topo das Observacoes (antes era um campo separado). */
+.history-item.call-notes-item{background:#f6f9fd;border:1px solid #e1e8f2;border-radius:8px;padding:12px;margin-bottom:6px}
+.call-notes-item .history-avatar{background:#e8eef7;color:#4a5a70}
+.call-notes-item small{color:#5c6b80}
+.call-notes-item .call-notes-text{white-space:pre-wrap;color:#3d4b5f}
