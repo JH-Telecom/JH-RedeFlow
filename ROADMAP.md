@@ -3801,3 +3801,23 @@ Na tela do IGP, mostrar o que precisamos fazer, e quanto, para chegar a cada met
 - Preview com resposta simulada (100 ordens até o dia 10): textos e números conferidos.
 - Contraste do painel OK nos dois temas. A auditoria acusou o número das colunas do gráfico de evolução, mas é falso positivo: o número fica acima da coluna, sobre o cartão.
 - Build OK.
+
+## 2026-11-05 — Data Fim vinda do OFS em chamados ainda abertos
+
+### Pedido
+Depois de atualizar os chamados de ontem pelo OFS, eles ficaram sem Data Fim.
+
+### Causa
+Ao cruzar com o OFS, a regra da D-0 só gravava a Data Fim se o chamado já estivesse fechado no sistema (Finalizado, Cancelado ou Baixar). Em 03–04/11, 15 chamados estavam com Status OFS "concluído", mas o status interno ainda era Atribuído (14) ou Deslocamento (1), então ficaram sem Data Fim.
+
+### Implementado
+- `backend/src/imports/d0.ts`: quando o Status OFS indica conclusão (concluído, finalizado, encerrado ou executado), a Data Fim do OFS passa a ser gravada mesmo com o status interno aberto.
+- O status interno continua separado e não é alterado.
+- Ao finalizar ou baixar o chamado no sistema, essa data é mantida no lugar de "agora", porque a regra que já existia preserva o `executedAt` atual.
+- Chamados abertos sem conclusão no OFS continuam sem Data Fim.
+- IGP, SLA e dashboard só contam chamados Finalizado, então os números não mudam.
+
+### Validação
+- `d0-import.test.ts` foi ajustado: OFS concluído com chamado aberto agora recebe Data Fim. Também há um caso novo: OFS pendente, em andamento ou vazio fica sem Data Fim.
+- Suíte 141/141. Typecheck OK.
+- Os 15 chamados existentes recebem a Data Fim no próximo envio do OFS daquele dia, depois do deploy. Nenhum dado foi alterado manualmente.

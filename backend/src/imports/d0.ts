@@ -67,7 +67,11 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
   const isClosed = call.status === 'Finalizado' || call.status === 'Cancelado' || call.status === 'Baixar';
   const clientName = call.type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('field') ? value(row, 'Nome', 'Nome do Cliente', 'Cliente') : '';
-  const executedAt = isClosed ? parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) : null;
+  // OFS ja concluiu a atividade: traz a Data Fim mesmo que o status interno ainda esteja aberto (ex.: Atribuido).
+  // Ao finalizar/baixar no sistema, essa data e mantida em vez de usar "agora".
+  const ofsConcluded = /^(conclu|finaliz|encerrad|executad)/.test(normalize(ofsStatus));
+  const keepsFinish = isClosed || ofsConcluded;
+  const executedAt = keepsFinish ? parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) : null;
   if (address) fields.address = address;
   if (bairro) fields.bairro = bairro;
   if (city) fields.city = city;
@@ -75,8 +79,8 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   if (olt) fields.olt = olt;
   if (ofsStatus) fields.ofsStatus = ofsStatus;
   if (clientName) fields.client = clientName;
-  if (isClosed && executedAt) fields.executedAt = executedAt;
-  else if (!isClosed) fields.executedAt = null;
+  if (keepsFinish && executedAt) fields.executedAt = executedAt;
+  else if (!keepsFinish) fields.executedAt = null;
   return fields;
 }
 

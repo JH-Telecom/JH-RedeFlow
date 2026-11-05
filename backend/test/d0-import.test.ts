@@ -50,10 +50,17 @@ test('D-0 enriches the unique call and keeps OFS status separate from internal s
       region: 'Sul',
       olt: 'OLT-01',
       ofsStatus: 'Concluída',
-      executedAt: null,
+      executedAt: '2026-09-29T16:45:00-03:00',
     },
   });
   assert.equal(call.status, 'Aberto');
+});
+
+test('D-0 keeps Data Fim empty for open calls the OFS has not concluded', () => {
+  for (const ofsStatus of ['Pendente', 'Em andamento', '']) {
+    const result = matchD0Rows([{ 'Número OS': call.orderNumber, 'Status OFS': ofsStatus, Data: '29/09/2026', Fim: '16:45' }], [{ ...call, status: 'Atribuido' }]);
+    assert.equal(result.matches[0]?.fields.executedAt, null);
+  }
 });
 
 test('D-0 imports Data Fim only for finalized or cancelled calls', () => {
@@ -131,7 +138,7 @@ test('D-0 replaces the stored base and clearing it preserves enriched call data'
     assert.equal(updatedCall?.ofsStatus, 'Concluída');
     assert.equal(updatedCall?.address, 'Rua das Flores, 10');
     assert.equal(updatedCall?.bairro, 'Centro');
-    assert.equal(updatedCall?.executedAt, null);
+    assert.equal(updatedCall?.executedAt, '2026-09-29T16:45:00-03:00');
     assert.deepEqual(await getD0BaseSummary(), { fileName: 'd0.xlsx', rowCount: 1, uploadedBy: 'Operador teste', uploadedAt: (await getD0BaseSummary()).uploadedAt });
 
     assert.equal(await clearD0Base(), 1);
