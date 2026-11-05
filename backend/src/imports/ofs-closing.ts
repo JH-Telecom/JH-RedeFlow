@@ -43,7 +43,7 @@ export function pendingClosingOrders(calls: Call[], options: { now?: number; day
     .slice(0, limit);
 }
 
-const ACTIVE = new Set(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo']);
+const ACTIVE = new Set(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']);
 export type OfsAutoFinish = { callId: string; orderNumber: string; fields: Pick<EditableCallFields, 'status' | 'executedAt' | 'result'> };
 
 // Finaliza sozinho o chamado que ja tem tudo do OFS: ainda ativo aqui, OFS "concluido", Data Fim do OFS, tecnico

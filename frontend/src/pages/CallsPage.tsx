@@ -122,13 +122,13 @@ export function writeCallsPageState(pageKey: string, state: Record<string, unkno
   }
 }
 
-export const inProgressCallStatuses: CallStatus[] = ["Aberto", "Atribuido", "Deslocamento", "Em campo"];
+export const inProgressCallStatuses: CallStatus[] = ["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo"];
 // Filtro de status de "Em atendimento": so lista chamados com tecnico, entao "Aberto" (sem tecnico) sempre vinha vazio.
-const attendanceStatusOptions: CallStatus[] = ["Atribuido", "Deslocamento", "Em campo"];
+const attendanceStatusOptions: CallStatus[] = ["Atribuido", "Atrelado", "Deslocamento", "Em campo"];
 
 const SLA_LABELS = { "on-time": "No prazo", late: "Fora do prazo", outlier: "Outlier" } as const;
 type SlaState = keyof typeof SLA_LABELS;
-const CALL_STATUSES: CallStatus[] = ["Aberto", "Atribuido", "Deslocamento", "Em campo", "Finalizado", "Cancelado", "Baixar"];
+const CALL_STATUSES: CallStatus[] = ["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo", "Finalizado", "Cancelado", "Baixar"];
 
 function minutesBetween(from: string, to?: string | null) {
   const end = to ? new Date(to).getTime() : Date.now();

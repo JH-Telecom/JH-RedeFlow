@@ -162,3 +162,6 @@
 .cq-action-error { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 12px; margin: 0 16px 10px; padding: 9px 12px; border: 1px solid #f3c4c6; border-radius: 8px; background: #fff1f1; color: #b4232c; font-size: 12px; font-weight: 600; }
 .cq-action-error button { display: grid; place-items: center; padding: 4px; border-radius: 5px; background: none; color: inherit; }
 .cq-action-error button:hover { background: #ffe0e1; }
+
+/* Status "Atrelado": roxo, igual ao selo "Atrelada" */
+.cq-status.is-atrelado { border-color: #d8b4fe; background: #faf5ff; color: #6b21a8; }

@@ -447,7 +447,7 @@ app.delete('/api/supervisores/:id', auth, requirePermission('supervisors.edit'),
 });
 app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const rawStatus = request.query.status;
-  const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar'];
+  const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar'];
   const statuses = (Array.isArray(rawStatus) ? rawStatus.flatMap((value) => String(value).split(',')) : typeof rawStatus === 'string' ? rawStatus.split(',') : []).map((value) => value.trim()).filter(Boolean);
   if (statuses.some((status) => !validStatuses.includes(status as CallStatus))) return response.status(400).json({ message: 'Status de chamado invalido.' });
   const page = Math.max(1, Math.floor(Number(request.query.page ?? 1)));
@@ -479,7 +479,7 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
 app.get('/api/chamados/vencendo', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   try {
     const scopedQuery = await getScopedCallQuery(request, true);
-    const calls = await listCalls(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo'], { ...scopedQuery, from: undefined, to: undefined });
+    const calls = await listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'], { ...scopedQuery, from: undefined, to: undefined });
     return response.json(dueSoonCalls(calls));
   } catch (error) {
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel listar os chamados vencendo.' });
@@ -492,7 +492,7 @@ app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (reque
 });
 app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
   const optionalText = (max: number, min = 0) => z.preprocess((value) => value == null ? undefined : String(value), z.string().trim().min(min).max(max).optional());
-  const parsed = z.object({ orderNumber: optionalText(100, 1), bdesk: optionalText(100), officeTrack: optionalText(100), client: optionalText(180), type: optionalText(100), reason: optionalText(5000), region: optionalText(100), city: optionalText(100), address: optionalText(5000), bairro: optionalText(160), olt: optionalText(120), slotPon: optionalText(10000), status: z.preprocess((value) => value == null ? undefined : String(value), z.enum(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar']).optional()), technicianId: z.preprocess((value) => value == null || value === '' ? null : String(value), z.string().nullable().optional()), openedAt: z.string().datetime().optional(), executedAt: z.preprocess((value) => value == null ? undefined : String(value), z.string().datetime().optional()), result: optionalText(255), notes: optionalText(5000) }).safeParse(request.body);
+  const parsed = z.object({ orderNumber: optionalText(100, 1), bdesk: optionalText(100), officeTrack: optionalText(100), client: optionalText(180), type: optionalText(100), reason: optionalText(5000), region: optionalText(100), city: optionalText(100), address: optionalText(5000), bairro: optionalText(160), olt: optionalText(120), slotPon: optionalText(10000), status: z.preprocess((value) => value == null ? undefined : String(value), z.enum(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar']).optional()), technicianId: z.preprocess((value) => value === undefined ? undefined : value === null || value === '' ? null : String(value), z.string().nullable().optional()), openedAt: z.string().datetime().optional(), executedAt: z.preprocess((value) => value == null ? undefined : String(value), z.string().datetime().optional()), result: optionalText(255), notes: optionalText(5000) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: `Dados de chamado invalidos: ${parsed.error.issues.map((issue) => issue.path.join('.') || 'payload').join(', ')}.` });
   const technicians = await listTechnicians();
   if (parsed.data.technicianId && !technicians.some((technician) => technician.id === parsed.data.technicianId && technician.teamRole === 'Tecnico' && technician.active && technician.employmentStatus !== 'Demitido')) return response.status(422).json({ message: 'Somente tecnicos trabalhando e ativos podem receber chamados.' });
@@ -504,7 +504,7 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   const touchesAssignment = (parsed.data.status !== undefined && parsed.data.status !== existing.status) || parsed.data.technicianId !== undefined;
   // Encerrado (Finalizado/Cancelado/Baixar): so a troca de status e permitida; antes respondia 404 "nao encontrado".
   if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status) && (parsed.data.status === undefined || parsed.data.status === existing.status)) return response.status(409).json({ message: 'Chamado encerrado: so o status pode ser alterado (por exemplo, Baixar para Finalizado ou reabrir).' });
-  if (touchesAssignment && ['Atribuido', 'Deslocamento', 'Em campo'].includes(nextStatus) && !nextTechnician) return response.status(422).json({ message: `Atribua um tecnico antes de colocar o chamado como ${nextStatus}.` });
+  if (touchesAssignment && ['Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'].includes(nextStatus) && !nextTechnician) return response.status(422).json({ message: `Atribua um tecnico antes de colocar o chamado como ${nextStatus}.` });
   const call = await updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
@@ -675,7 +675,7 @@ const ofsClosingActor = (label: string) => {
 };
 // Finaliza os chamados que ja tem tudo do OFS (ver callsReadyToFinish). Roda a cada ciclo da extensao.
 async function finishCallsReadyFromOfs(label: string) {
-  const ready = callsReadyToFinish(await listCalls(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo']));
+  const ready = callsReadyToFinish(await listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']));
   const actor = ofsClosingActor(label);
   const finished: string[] = [];
   for (const item of ready) if (await updateCall(item.callId, item.fields, actor)) finished.push(item.orderNumber);

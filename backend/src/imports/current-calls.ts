@@ -84,6 +84,7 @@ function parseStatus(value: unknown): CallStatus | undefined {
   if (status === 'baixar') return 'Baixar';
   if (status === 'cancelado') return 'Cancelado';
   if (status === 'atribuido') return 'Atribuido';
+  if (status === 'atrelado' || status === 'atrelada') return 'Atrelado';
   if (status === 'deslocamento' || status === 'em deslocamento') return 'Deslocamento';
   if (status === 'em campo' || status === 'em atendimento') return 'Em campo';
   return undefined;

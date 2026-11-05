@@ -84,7 +84,7 @@ export type Technician = {
   leadTechnicianName?: string;
 };
 
-export type CallStatus = 'Aberto' | 'Atribuido' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado' | 'Baixar';
+export type CallStatus = 'Aberto' | 'Atribuido' | 'Atrelado' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado' | 'Baixar';
 
 export type Call = {
   id: string;

@@ -1061,3 +1061,20 @@ test('current calls preview turns the same order on two rows into one call with 
   assert.deepEqual(preview.byStatus, { 'Em campo': 1 });
   assert.equal(preview.sample[0]?.technicianName, 'Carlos Mendes');
 });
+
+test('changing only the status keeps the technician, and Atrelado is accepted like Atribuido', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  // Fila: o seletor de status manda so { status }. Antes o tecnico virava null e o pedido era recusado.
+  const response = await fetch(`${baseUrl}/api/chamados/call-240917-01`, { method: 'PATCH', headers, body: JSON.stringify({ status: 'Atrelado' }) });
+  const body = await response.json() as { call: { status: string; technicianId?: string } };
+  assert.equal(response.status, 200);
+  assert.equal(body.call.status, 'Atrelado');
+  assert.equal(body.call.technicianId, 'tech-carlos');
+  const list = await (await fetch(`${baseUrl}/api/chamados?status=Atrelado`, { headers })).json() as { calls: Array<{ id: string }> };
+  assert.ok(list.calls.some((call) => call.id === 'call-240917-01'));
+  // Sem tecnico continua bloqueado, como no Atribuido.
+  const withoutTechnician = await fetch(`${baseUrl}/api/chamados/call-240917-01`, { method: 'PATCH', headers, body: JSON.stringify({ status: 'Atrelado', technicianId: null }) });
+  assert.equal(withoutTechnician.status, 422);
+});

@@ -3,7 +3,7 @@ import type { Call } from './types.js';
 // Prazo JH: 6h da abertura. "Vencendo" = chamado ainda aberto que estoura o prazo nos proximos 30 min.
 export const DUE_LIMIT_MINUTES = 6 * 60;
 export const DUE_SOON_WINDOW_MINUTES = 30;
-const ACTIVE = new Set(['Aberto', 'Atribuido', 'Deslocamento', 'Em campo']);
+const ACTIVE = new Set(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']);
 
 export type DueSoonCall = Pick<Call, 'id' | 'orderNumber' | 'type' | 'region' | 'technicianName' | 'openedAt' | 'status'> & { minutesLeft: number };
 

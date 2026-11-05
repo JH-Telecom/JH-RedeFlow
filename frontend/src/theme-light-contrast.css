@@ -1357,6 +1357,9 @@
 :where(:root:not([data-theme="dark"])) .cq-action-error button {
     color: inherit
 }
+:where(:root:not([data-theme="dark"])) .cq-status.is-atrelado {
+    color: #6b21a8
+}
 
 /* sla-analysis.css */
 :where(:root:not([data-theme="dark"])) .sa-dates label, :where(:root:not([data-theme="dark"])) .sa-area {

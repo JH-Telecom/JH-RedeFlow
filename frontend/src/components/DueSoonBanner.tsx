@@ -46,7 +46,7 @@ export function DueSoonBanner() {
 
   if (!visible) return null;
   // "Ver fila" vai para a aba onde o chamado mais urgente esta: sem tecnico -> Chamados abertos;
-  // com tecnico (Atribuido/Deslocamento/Em campo) -> Em atendimento.
+  // com tecnico (Atribuido/Atrelado/Deslocamento/Em campo) -> Em atendimento.
   const queueFor = (item: { technicianName?: string }) => (item.technicianName ? "/chamados/atendimento" : "/chamados/abertos");
   const queuePath = queueFor(items[0]);
   const queueLabel = queuePath === "/chamados/abertos" ? "Ver em Chamados abertos" : "Ver em Em atendimento";

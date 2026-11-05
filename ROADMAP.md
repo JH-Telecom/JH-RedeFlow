@@ -4049,3 +4049,38 @@ Mostrar nas observações que o chamado é atrelado ("atrelada > 12666735") e te
 ### Validação
 - Typecheck do frontend e do backend OK. Suíte 151/151.
 - Não deu para ver no preview, porque a demo não tem chamado atrelado.
+
+## 2026-11-05 — Status "Atrelado"
+
+### Pedido
+Criar o status **Atrelado** para usar no lugar de Atribuído.
+
+### Decisões do usuário
+- Aparece na aba **Em atendimento**.
+- Funciona **igual ao Atribuído**:
+  - exige técnico;
+  - o prazo continua correndo e entra no aviso "vence em 30 min";
+  - conta como "em andamento" no painel;
+  - pode ser finalizado automaticamente pelo fechamento do OFS.
+
+### Implementado
+- Sem migration: `calls.status` é texto livre no banco.
+- Backend:
+  - tipo `CallStatus`;
+  - validação de status em `GET /api/chamados` e no `PATCH`;
+  - exigência de técnico;
+  - listas de chamados ativos (`due-soon`, `ofs-closing`, finalização automática e listagem);
+  - "em andamento" do dashboard;
+  - importação "Em campo hoje" (coluna STATUS "atrelado"/"atrelada").
+- Frontend:
+  - status no detalhe do chamado e no seletor da fila (Em atendimento);
+  - roxo no seletor da fila (`.cq-status.is-atrelado`) e no selo do detalhe, que já usava `.call-badge.atrelado`.
+- **Correção de um bug que já existia:** o seletor de status da fila manda só `{ status }`, e o `PATCH` transformava o técnico ausente em `null`. Com isso, trocar para Atribuído, Deslocamento ou Em campo pela fila era recusado ("Atribua um técnico"), e trocar para Aberto **removia o técnico**. Agora, técnico ausente no pedido significa "não mexer".
+
+### Validação
+- Testes novos:
+  - Atrelado no aviso de vencimento;
+  - Atrelado na finalização automática;
+  - teste HTTP: troca só de status mantém o técnico, Atrelado aparece no filtro e continua bloqueado sem técnico.
+- Suíte backend OK. Typecheck OK.
+- Preview: na fila Em atendimento, o chamado de demonstração aparece em roxo com "Atrelado" e mantém o técnico (o status foi devolvido para Atribuído depois do teste).

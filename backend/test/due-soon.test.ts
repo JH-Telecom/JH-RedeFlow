@@ -19,3 +19,8 @@ test('lists active calls that break the 6h deadline within 30 minutes, closest f
   assert.equal(result.late, 1);
   assert.equal(result.windowMinutes, 30);
 });
+
+test('Atrelado counts like Atribuido in the due-soon notice', () => {
+  const result = dueSoonCalls([call('linked', 340, 'Atrelado')], now);
+  assert.deepEqual(result.dueSoon.map((item) => item.id), ['linked']);
+});

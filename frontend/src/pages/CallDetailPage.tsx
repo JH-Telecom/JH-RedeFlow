@@ -254,7 +254,7 @@ export function CallDetailBase() {
               value={status}
               onChange={(event) => setStatus(event.target.value as CallStatus)}
             >
-              {["Aberto", "Atribuido", "Deslocamento", "Em campo", "Finalizado", "Baixar", "Cancelado"].map((item) => (
+              {["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo", "Finalizado", "Baixar", "Cancelado"].map((item) => (
                 <option key={item}>{item}</option>
               ))}
             </select>

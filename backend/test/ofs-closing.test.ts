@@ -81,3 +81,8 @@ test('an order shared by two calls is not guessed', () => {
   assert.equal(result.matches.length, 0);
   assert.deepEqual(result.unmatched, ['610011231680102']);
 });
+
+test('Atrelado is auto-finished like Atribuido', () => {
+  const linked: Call = { ...base, id: 'linked', status: 'Atrelado', technicianId: 'tech-1', closingReason: 'CTO sem sinal', closingSubreason: 'Troca de cordões' };
+  assert.deepEqual(callsReadyToFinish([linked]).map((item) => item.callId), ['linked']);
+});

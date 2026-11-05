@@ -107,7 +107,7 @@ export function summarizeDashboardMetrics(calls: Call[], pendingActivations: num
     if (toOperationalDate(call.openedAt) === today) receivedToday += 1;
     if (call.status === 'Aberto') open += 1;
     if (!call.technicianId && !['Finalizado', 'Cancelado'].includes(call.status)) unassigned += 1;
-    if (['Atribuido', 'Deslocamento', 'Em campo'].includes(call.status)) inProgress += 1;
+    if (['Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'].includes(call.status)) inProgress += 1;
     if (call.status === 'Finalizado') finished += 1;
     if (call.status === 'Cancelado') cancelled += 1;
 

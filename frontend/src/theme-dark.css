@@ -2366,6 +2366,11 @@
 :where(:root[data-theme="dark"]) .cq-action-error button:hover {
     background: #2b0d10
 }
+:where(:root[data-theme="dark"]) .cq-status.is-atrelado {
+    border-color: #503c64;
+    background: #16111b;
+    color: #cd9cff
+}
 
 /* sla-analysis.css */
 :where(:root[data-theme="dark"]) .sa-dates label, :where(:root[data-theme="dark"]) .sa-area {
