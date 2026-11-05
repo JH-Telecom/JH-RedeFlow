@@ -38,3 +38,12 @@ export function parseSaoPauloDateTime(value: string | null | undefined): string 
   if (Number.isNaN(ms) || check.getUTCDate() !== Number(day) || check.getUTCMonth() !== Number(month) - 1 || Number(hour) > 23 || Number(minute) > 59) return undefined;
   return new Date(ms).toISOString();
 }
+
+// "2026-11-04T16:20" (campo datetime-local, sem fuso) e horario de Sao Paulo. Sem isso o banco gravava como UTC
+// e o fim ficava 3 h antes (ex.: 16:20 virava 13:20). Valores com fuso ("Z", "-03:00") passam como estao.
+export function normalizeSaoPauloLocal(value: string): string {
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return value;
+  const [, year, month, day, hour, minute, second = '0'] = match;
+  return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour) + 3, Number(minute), Number(second))).toISOString();
+}

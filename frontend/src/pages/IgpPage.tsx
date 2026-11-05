@@ -165,7 +165,7 @@ export function IGPPage() {
     </div>
     {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !metrics ? <div className="dv-empty" role="status">Calculando indicadores do mês...</div> : <>
       <div className="dv-kpi-grid">
-        <KpiTile label="Ordens consideradas" value={formatCount(metrics.total.orders)} note={`${metrics.access.orders} Acesso · ${metrics.backbone.orders} Backbone${metrics.excludedOrders ? ` · ${metrics.excludedOrders} sem tipo reconhecido` : ""}`} icon={ClipboardList} />
+        <KpiTile label="Ordens consideradas" value={formatCount(metrics.total.orders)} note={`${metrics.access.orders} Acesso · ${metrics.backbone.orders} Backbone${metrics.excludedOrders ? ` · ${metrics.excludedOrders} fora do cálculo (tipo não reconhecido ou fim antes da abertura)` : ""}`} icon={ClipboardList} />
         {metricRows.map((row) => {
           const value = metrics.total[row.key];
           const state = getIgpGoalState(value, row.target, row.minimum, row.lowerIsBetter).className as keyof typeof goalTone;

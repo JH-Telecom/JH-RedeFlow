@@ -4084,3 +4084,21 @@ Criar o status **Atrelado** para usar no lugar de Atribuído.
   - teste HTTP: troca só de status mantém o técnico, Atrelado aparece no filtro e continua bloqueado sem técnico.
 - Suíte backend OK. Typecheck OK.
 - Preview: na fila Em atendimento, o chamado de demonstração aparece em roxo com "Atrelado" e mantém o técnico (o status foi devolvido para Atribuído depois do teste).
+
+## 2026-11-05 — IGP "sem tipo reconhecido" e o fuso do "Finalizar chamado"
+
+### Pedido
+Saber quais são os "2 sem tipo reconhecido" que aparecem no IGP.
+
+### Achado
+- As 2 ordens eram NOC ACESSO, então o tipo estava certo: 610101366720102 e 610110513150102. Elas ficaram fora do IGP porque a **Data Fim era anterior à abertura**. O texto "sem tipo reconhecido" somava os dois motivos de exclusão e confundia.
+- **Causa:** o antigo botão "Finalizar chamado" mandava a data do campo datetime-local sem fuso ("2026-11-04T16:20"), e o banco gravava como UTC. O fim ficava **3 h antes** do que foi digitado (16:20 → 13:20).
+- 13 finalizações passaram por esse caminho. 6 foram editadas depois. **7 continuam com o valor errado**: 610011231680102, 610139229910102, 12665487, 12665760, 12665731, 610101366720102 e 610110513150102.
+
+### Implementado
+- `timezone.ts`: `normalizeSaoPauloLocal` trata data sem fuso como horário de São Paulo. Data que já vem com fuso não é alterada.
+- `POST /api/chamados/:id/finalizar` passa a usar essa função. O card novo de Atendimento já mandava em ISO; agora o servidor também se protege.
+- IGP: o texto passou a ser "N fora do cálculo (tipo não reconhecido ou fim antes da abertura)".
+
+### Validação
+- Novo `timezone-local.test.ts`. Suíte 155/155. Typecheck do backend e do frontend OK.

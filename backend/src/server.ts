@@ -15,7 +15,7 @@ import { hasD0Identifiers } from './imports/d0.js';
 import { callsReadyToFinish, matchOfsClosing, pendingClosingOrders } from './imports/ofs-closing.js';
 import { countRowsForDate, parseOfsActivityExport } from './imports/ofs-export.js';
 import { registerMissingHistoricalTechnicians } from './imports/historical-technicians.js';
-import { addDays, toOperationalDate } from './timezone.js';
+import { addDays, normalizeSaoPauloLocal, toOperationalDate } from './timezone.js';
 import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
@@ -512,7 +512,8 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
 app.post('/api/chamados/:id/finalizar', auth, requirePermission('calls.finish'), async (request: AuthRequest, response) => {
   const parsed = z.object({ result: z.string(), executedAt: z.string(), notes: z.string() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Informe resultado, data de execucao e observacao.' });
-  const outcome = await finishCall(String(request.params.id), parsed.data, request.authUser!);
+  // Data sem fuso (datetime-local) e horario de Sao Paulo.
+  const outcome = await finishCall(String(request.params.id), { ...parsed.data, executedAt: normalizeSaoPauloLocal(parsed.data.executedAt) }, request.authUser!);
   if (outcome.missing.includes('Chamado nao encontrado')) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   if (outcome.missing.length) return response.status(422).json({ message: 'Nao e possivel finalizar este chamado.', missing: outcome.missing });
   return response.json({ call: outcome.call });
