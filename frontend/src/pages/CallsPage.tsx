@@ -260,7 +260,19 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       { label: "Evento", width: 200 },
       { label: "Local", width: 270 },
       { label: "Status", width: 170 },
+      { label: "Observação", width: 340 },
     ];
+    // Ultima observacao de cada chamado da pagina (texto, autor e hora); sem observacao, o campo de notas do chamado.
+    const lastObservations = new Map<string, { text: string; who: string; at: string }>();
+    await Promise.all(currentCalls.map(async (call) => {
+      try {
+        const latest = (await api.observations(call.id, { teamScope: teamScoped })).observations
+          .filter((item) => item.text?.trim())
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+        if (latest) lastObservations.set(call.id, { text: latest.text.trim(), who: latest.userName, at: latest.createdAt });
+      } catch { /* sem permissao ou falha: cai nas notas do chamado */ }
+    }));
+    const clip = (text: string, max = 180) => { const flat = text.replace(/\s+/g, " ").trim(); return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat; };
     const rows: ReportCell[][] = currentCalls.map((call) => {
       const minutes = minutesBetween(call.openedAt, closedView ? call.executedAt : undefined);
       const state = getSlaState(minutes) as SlaState;
@@ -274,6 +286,11 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         { text: call.type, sub: call.reason || undefined },
         { text: call.bairro || call.city || call.region || "Sem bairro", sub: [call.bairro || call.city ? call.region : "", call.olt].filter(Boolean).join(" · ") || undefined },
         { text: call.status, tone: statusTone(call.status), sub: call.ofsStatus ? `OFS: ${call.ofsStatus}` : undefined },
+        (() => {
+          const latest = lastObservations.get(call.id);
+          if (latest) return { text: clip(latest.text), sub: `${latest.who} · ${shortDateTime(latest.at)}` };
+          return call.notes?.trim() ? { text: clip(call.notes), sub: "Notas do chamado" } : { text: "–", sub: "Sem observação" };
+        })(),
       ];
     });
     const stamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());

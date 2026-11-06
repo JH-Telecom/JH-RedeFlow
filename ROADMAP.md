@@ -4712,3 +4712,17 @@ Implementar as 15 novas ideias. O segundo fator de login (13) ficou de fora por 
 - Preview em tamanho de celular: Saí → Cheguei → Finalizar bloqueado sem o checklist e finalizado com ele.
   - No preview apareceu um erro meu: finalizar sem foto mandava uma observação vazia antes. Corrigi: as fotos vão numa observação só quando existem.
   - Contraste sem problemas no claro e no escuro.
+
+## Imagem da fila com a observação (2026-11-06)
+
+### Pedido
+A imagem gerada por "Copiar imagem" na fila (ex.: Chamados em atendimento) precisa mostrar a observação.
+
+### Implementado
+- Nova coluna "Observação" na imagem (`copyTableAsImage`, `CallsPage.tsx`) com o texto da última observação do chamado e, embaixo, o autor e a data e hora.
+- Sem observação, mostra o campo de notas do chamado (a mesma informação da coluna "Última observação" da fila), ou "–" com "Sem observação".
+- Texto longo é cortado em 180 caracteres, para a imagem continuar legível no WhatsApp.
+- As observações dos chamados da página são buscadas na hora de gerar a imagem, em paralelo. Nada mudou no carregamento da fila.
+
+### Validação
+- Preview: imagem gerada em Em atendimento com a coluna "Observação" mostrando o texto e "Administrador JH · 06/11, 15:46". Typecheck do frontend ok.
