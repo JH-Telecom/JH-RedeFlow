@@ -4683,3 +4683,32 @@ Implementar as 15 novas ideias. O segundo fator de login (13) ficou de fora por 
 - Testes novos: reincidência por técnico (janela de 30 dias, ponto incompleto, 47 dias não conta) e exportação (administrador 200, mais de 366 dias 400, supervisor 403). Suíte 199/199.
 - Preview: relatório mensal aberto, rota de exportação respondendo. Contraste sem problemas em Configurações, Relatórios e Visão geral, claro e escuro.
 - Na demo, a meta do mês não aparece (o mês não tem ordens finalizadas).
+
+## Novas ideias, lote E: checklist ao finalizar e tela do técnico (2026-11-06)
+
+### Implementado
+- **Checklist por tipo de chamado** (Configurações, só administrador; `GET/PUT /api/checklists`):
+  - cada checklist tem nome, tipos de chamado (vazio = todos) e de 1 a 20 itens; o do tipo específico ganha do geral;
+  - ao finalizar, no detalhe do chamado ou no celular, todos os itens precisam ser marcados. O servidor recusa (422) dizendo o que falta, e o que foi conferido entra na observação final (`Checklist "Nome": ✔ item; …`);
+  - a finalização automática pelo OFS e a finalização em lote de incidentes não passam pelo checklist.
+- **Tela do técnico — Meus chamados** (`/campo`, `FieldPage.tsx`), pensada para celular:
+  - mostra só os chamados do técnico ligado ao usuário (ativos e os finalizados de hoje), com o tempo colorido pelo prazo, cliente, endereço (com "Abrir no mapa"), OLT e slot/PON;
+  - botões grandes: "Saí para o local" (Deslocamento), "Cheguei" (Em campo), "Observação / foto" (até 4 fotos, reduzidas no celular) e "Finalizar" (checklist + "Resultado e observação"; a primeira linha é o Resultado);
+  - rotas `/api/campo/*`: só o próprio técnico e só os próprios chamados, sem depender de permissão de cargo. As fotos são conferidas pelo tamanho e pelo conteúdo;
+  - o item "Meus chamados" aparece no menu só para quem está ligado a um técnico; se o cargo não tiver nenhuma outra tela, ele vira a tela inicial.
+- **Vínculo técnico ↔ usuário**: no detalhe do técnico (aba Técnicos), "Usuário do sistema (Meus chamados)".
+  - Um usuário fica ligado a um só técnico (`GET /api/tecnicos/vinculos`, `PUT /api/tecnicos/:id/usuario`, permissão `technicians.edit`).
+  - Fluxo sugerido: criar um cargo "Técnico" sem outras permissões, criar o usuário em Usuários e ligá-lo aqui.
+- Migração `202611060004_field_and_checklists.sql`: tabelas `technician_users` e `checklist_templates` (RLS ligado, sem políticas).
+  - São tabelas separadas, não uma coluna em `technicians`, para o cadastro de técnicos não depender desta migração. Antes dela, as leituras devolvem vazio e os salvamentos avisam que a migração falta.
+
+### Validação
+- Teste novo `field.test.ts` (escolha do checklist, itens sem acento e maiúscula, nota).
+- Teste HTTP do fluxo completo:
+  - sem vínculo → 403; vínculo pelo administrador; supervisor não vincula;
+  - só os próprios chamados (o de outro técnico → 404); status inválido → 400; Em campo e observação;
+  - checklist só por administrador; sem marcar → 422; marcado → finaliza com o resultado e o checklist na observação.
+  - Suíte 202/202.
+- Preview em tamanho de celular: Saí → Cheguei → Finalizar bloqueado sem o checklist e finalizado com ele.
+  - No preview apareceu um erro meu: finalizar sem foto mandava uma observação vazia antes. Corrigi: as fotos vão numa observação só quando existem.
+  - Contraste sem problemas no claro e no escuro.

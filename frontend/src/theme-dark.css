@@ -3317,6 +3317,98 @@
         background: #181c22 !important
     }
 }
+:where(:root[data-theme="dark"]) .fd-head p {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .fd-empty {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .fd-empty svg {
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .fd-empty strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .fd-card {
+    border-left: 5px solid #1caa76
+}
+:where(:root[data-theme="dark"]) .fd-card.is-soon {
+    border-left-color: #e6953d
+}
+:where(:root[data-theme="dark"]) .fd-card.is-late {
+    border-left-color: #d9622b
+}
+:where(:root[data-theme="dark"]) .fd-card.is-outlier {
+    border-left-color: #c42e3b
+}
+:where(:root[data-theme="dark"]) .fd-card header strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .fd-card header span {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .fd-time {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .fd-time.is-soon {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-theme="dark"]) .fd-time.is-late {
+    background: #261106;
+    color: #ff966e
+}
+:where(:root[data-theme="dark"]) .fd-time.is-outlier {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .fd-info dt {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .fd-info dd {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .fd-map {
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .fd-btn {
+    border: 1px solid var(--line);
+    background: #181c22;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .fd-btn.is-current {
+    border-color: var(--blue);
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .fd-btn.is-finish {
+    border-color: #137a52;
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .fd-done-row {
+    border: 1px solid var(--line);
+    background: #181c22;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .fd-done-row strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .cl-box {
+    border: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .cl-box legend {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .cl-item {
+    border: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .cl-item label {
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .fa-link small {
+    color: #aaaeb6
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {

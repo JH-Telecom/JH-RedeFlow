@@ -117,6 +117,15 @@ export type HeatmapReport = { weekdayCount: number[]; incoming: number[][]; tech
 export type RepeatRankingRow = { name: string; finished: number; eligible: number; repeated: number; percent: number | null; items: { orderNumber: string; id: string; nextOrder: string; nextId: string; days: number }[] };
 export type RepeatRanking = { finished: number; eligible: number; repeated: number; percent: number | null; technicians: RepeatRankingRow[] };
 export type FullExport = { calls: Call[]; observations: { id: string; callId: string; userName: string; text: string; attachments: string; createdAt: string }[]; logs: AuditLogRow[]; truncated: boolean };
+// Lote E: checklist e tela do tecnico.
+export type ChecklistTemplate = { id: string; name: string; callTypes: string[]; items: string[]; active: boolean };
+export type FieldCall = Call & { checklist: ChecklistTemplate | null };
+// Mesmo criterio do servidor: o do tipo do chamado; sem tipo = vale para todos.
+export function checklistForType(type: string, templates: ChecklistTemplate[]): ChecklistTemplate | null {
+  const fold = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+  const active = templates.filter((template) => template.active && template.items.length);
+  return active.find((template) => template.callTypes.some((item) => fold(item) === fold(type || ''))) ?? active.find((template) => !template.callTypes.length) ?? null;
+}
 // Integracao OFS (painel de saude).
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type StuckReason = 'sem-tecnico' | 'sem-data-fim' | 'sem-fechamento' | 'fechamento-codigo' | 'ordem-duplicada' | 'pronto';
@@ -181,6 +190,15 @@ export const api = {
   clearDailyBase: () => request<{ deleted: boolean }>('/api/dashboards/painel-diario/base', { method: 'DELETE' }),
   notifications: () => request<{ notifications: AppNotification[] }>('/api/notificacoes'),
   users: () => request<{ users: User[] }>('/api/users'),
+  checklists: () => request<{ templates: ChecklistTemplate[] }>('/api/checklists'),
+  saveChecklists: (templates: Omit<ChecklistTemplate, 'id'>[] & { id?: string }[]) => request<{ templates: ChecklistTemplate[] }>('/api/checklists', { method: 'PUT', body: JSON.stringify({ templates }) }),
+  technicianLinks: () => request<{ links: Record<string, string> }>('/api/tecnicos/vinculos'),
+  setTechnicianUser: (technicianId: string, userId: string | null) => request<{ ok: boolean }>(`/api/tecnicos/${encodeURIComponent(technicianId)}/usuario`, { method: 'PUT', body: JSON.stringify({ userId }) }),
+  fieldMe: () => request<{ technician: { id: string; name: string } | null }>('/api/campo/eu'),
+  fieldCalls: () => request<{ technician: { id: string; name: string }; calls: FieldCall[] }>('/api/campo/chamados'),
+  fieldStatus: (id: string, status: 'Deslocamento' | 'Em campo') => request<{ call: Call }>(`/api/campo/chamados/${encodeURIComponent(id)}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
+  fieldObservation: (id: string, text: string, photos: { fileName: string; mimeType: string; sizeBytes: number; contentBase64: string }[]) => request<{ observation: unknown }>(`/api/campo/chamados/${encodeURIComponent(id)}/observacao`, { method: 'POST', body: JSON.stringify({ text, photos }) }),
+  fieldFinish: (id: string, text: string, checklist: string[]) => request<{ call: Call }>(`/api/campo/chamados/${encodeURIComponent(id)}/finalizar`, { method: 'POST', body: JSON.stringify({ text, checklist }) }),
   roles: () => request<{ roles: Role[]; permissions: Permission[] }>('/api/roles'),
   technicians: () => request<{ technicians: Technician[] }>('/api/tecnicos'),
   createTechnician: (data: Omit<Technician, 'id' | 'supervisorName' | 'leadTechnicianName'>) => request<{ technician: Technician }>('/api/tecnicos', { method: 'POST', body: JSON.stringify(data) }),
@@ -210,7 +228,7 @@ export const api = {
   },
   call: (id: string, filters?: { teamScope?: boolean }) => request<{ call: Call }>(`/api/chamados/${id}${filters?.teamScope ? '?teamScope=true' : ''}`),
   updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'openedAt' | 'notes'>> & { technicianId?: string | null }) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  finishCall: (id: string, data: { result: string; executedAt: string; notes: string }) => requestCallMutation<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
+  finishCall: (id: string, data: { result: string; executedAt: string; notes: string; checklist?: string[] }) => requestCallMutation<{ call: Call; missing?: string[] }>(`/api/chamados/${id}/finalizar`, { method: 'POST', body: JSON.stringify(data) }),
   cancelCall: (id: string, reason: string) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}/cancelar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   deleteCall: (id: string) => requestCallMutation<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),
   deleteAllCalls: () => requestCallMutation<{ deleted: number }>('/api/chamados', { method: 'DELETE' }),

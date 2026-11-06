@@ -3279,6 +3279,98 @@
         background: #fff !important
     }
 }
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-head p {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-empty {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-empty svg {
+    color: #137a52
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-empty strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-card {
+    border-left: 5px solid #1caa76
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-card.is-soon {
+    border-left-color: #e6953d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-card.is-late {
+    border-left-color: #d9622b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-card.is-outlier {
+    border-left-color: #c42e3b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-card header strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-card header span {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-time {
+    background: #e3f6ee;
+    color: #137a52
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-time.is-soon {
+    background: #fdf0e1;
+    color: #9a5208
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-time.is-late {
+    background: #fde9df;
+    color: #a8431a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-time.is-outlier {
+    background: #fde8ea;
+    color: #b3242f
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-info dt {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-info dd {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-map {
+    color: var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-btn {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-btn.is-current {
+    border-color: var(--blue);
+    background: #f9f0fc;
+    color: var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-btn.is-finish {
+    border-color: #137a52;
+    color: #137a52
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-done-row {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fd-done-row strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cl-box {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cl-box legend {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cl-item {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cl-item label {
+    color: #5e4a64
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fa-link small {
+    color: #77657d
+}
 /* light · update-notice.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #2e1b348c
@@ -6800,6 +6892,98 @@
     :where(:root[data-palette="nevoa"][data-theme="dark"]) body {
         background: #1f1a20 !important
     }
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-head p {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-empty {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-empty svg {
+    color: #73cda0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-empty strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-card {
+    border-left: 5px solid #1caa76
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-card.is-soon {
+    border-left-color: #e6953d
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-card.is-late {
+    border-left-color: #d9622b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-card.is-outlier {
+    border-left-color: #c42e3b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-card header strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-card header span {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-time {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-time.is-soon {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-time.is-late {
+    background: #261106;
+    color: #ff966e
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-time.is-outlier {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-info dt {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-info dd {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-map {
+    color: var(--accent-text)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-btn {
+    border: 1px solid var(--line);
+    background: #1f1a20;
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-btn.is-current {
+    border-color: var(--blue);
+    background: #1c121f;
+    color: var(--accent-text)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-btn.is-finish {
+    border-color: #137a52;
+    color: #73cda0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-done-row {
+    border: 1px solid var(--line);
+    background: #1f1a20;
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fd-done-row strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cl-box {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cl-box legend {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cl-item {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cl-item label {
+    color: #c4bdc6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fa-link small {
+    color: #b2abb4
 }
 /* dark · update-notice.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .update-notice-backdrop {

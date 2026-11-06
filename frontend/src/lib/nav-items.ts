@@ -1,9 +1,11 @@
-import { Activity, Archive, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
 
 // Abas do menu lateral. Usado pelo Shell (menu, rotas, busca Ctrl+K) e pela tela de Cargos (abas visiveis por cargo).
-export type NavItem = { label: string; to: string; icon: LucideIcon; permission: string; section: string; roles?: string[]; counter?: "unassigned" | "activations" };
+// fieldOnly: so aparece para o usuario ligado a um tecnico (Meus chamados).
+export type NavItem = { label: string; to: string; icon: LucideIcon; permission: string; section: string; roles?: string[]; counter?: "unassigned" | "activations"; fieldOnly?: boolean };
 
 export const navItems: NavItem[] = [
+  { section: "Operação", label: "Meus chamados", to: "/campo", icon: Smartphone, permission: "", fieldOnly: true },
   { section: "Operação", label: "Visão geral", to: "/", icon: LayoutDashboard, permission: "dashboard.view" },
   { section: "Operação", label: "Chamados abertos", to: "/chamados/abertos", icon: Inbox, permission: "calls.view", counter: "unassigned" },
   { section: "Operação", label: "Em atendimento", to: "/chamados/atendimento", icon: Wrench, permission: "calls.view" },

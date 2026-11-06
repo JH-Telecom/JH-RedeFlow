@@ -1,3 +1,4 @@
+import { TechnicianUserLink } from "../components/FieldAdmin";
 import { useEffect, useState } from "react";
 import { ChevronRight, Pencil, Search, SlidersHorizontal, Users } from "lucide-react";
 import { api, type Technician, type Supervisor } from "../api";
@@ -220,6 +221,7 @@ export function TechniciansPage() {
           <DetailItem label="Tipo" value={selectedTechnician.teamRole} /><DetailItem label="Matrícula" value={selectedTechnician.registration} /><DetailItem label="Região" value={selectedTechnician.region} /><DetailItem label="Turno" value={selectedTechnician.shift} /><DetailItem label="Supervisor" value={selectedTechnician.supervisorName || "Sem supervisor"} /><DetailItem label="Situação operacional" value={selectedTechnician.currentStatus} /><DetailItem label="Vínculo" value={selectedTechnician.employmentStatus || "Trabalhando"} />
         </div>
         <button className="secondary-button compact" type="button" onClick={() => editTechnician(selectedTechnician)}><Pencil size={15}/> Editar cadastro</button>
+        {selectedTechnician.teamRole === "Tecnico" && <TechnicianUserLink technicianId={selectedTechnician.id} />}
         {selectedTechnician.teamRole === "Tecnico" ? <div className="team-member-list"><strong>Auxiliares vinculados</strong>{technicians.filter((technician) => technician.leadTechnicianId === selectedTechnician.id).map((assistant) => <span key={assistant.id}>{assistant.name} · {assistant.registration}</span>)}{!technicians.some((technician) => technician.leadTechnicianId === selectedTechnician.id) && <small>Nenhum auxiliar vinculado.</small>}</div> : <label className="detail-label">Técnico responsável<select value={selectedTechnician.leadTechnicianId || ""} onChange={(event) => void assignAssistant(selectedTechnician, event.target.value)}><option value="">Sem vínculo</option>{technicians.filter((technician) => technician.teamRole === "Tecnico" && technician.id !== selectedTechnician.id).map((technician) => <option key={technician.id} value={technician.id}>{technician.name}</option>)}</select></label>}
         <button className="delete-button" type="button" onClick={() => void removeTechnician(selectedTechnician)}>Excluir técnico</button>
       </AdminModal>}

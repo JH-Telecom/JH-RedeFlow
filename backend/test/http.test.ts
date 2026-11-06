@@ -1113,6 +1113,43 @@ test('assist: technician suggestions, risk, incidents and batch actions with the
   assert.equal(result.results.find((item) => item.callId === 'nao-existe')?.ok, false);
 });
 
+test('field screen: a user linked to a technician updates only their own calls, with the checklist enforced', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  const field = { 'content-type': 'application/json', authorization: `Bearer ${await login('maria@jhtelecom.com')}` };
+
+  assert.equal((await (await fetch(`${baseUrl}/api/campo/eu`, { headers: field })).json() as { technician: unknown }).technician, null);
+  assert.equal((await fetch(`${baseUrl}/api/campo/chamados`, { headers: field })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/tecnicos/tech-andre/usuario`, { method: 'PUT', headers: admin, body: JSON.stringify({ userId: 'user-maria' }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/tecnicos/tech-andre/usuario`, { method: 'PUT', headers: field, body: JSON.stringify({ userId: 'user-maria' }) })).status, 403, 'supervisor nao edita tecnico');
+  assert.equal((await (await fetch(`${baseUrl}/api/tecnicos/vinculos`, { headers: admin })).json() as { links: Record<string, string> }).links['tech-andre'], 'user-maria');
+
+  const mine = await (await fetch(`${baseUrl}/api/campo/chamados`, { headers: field })).json() as { technician: { name: string }; calls: { id: string }[] };
+  assert.equal(mine.technician.name, 'Andre Costa');
+  assert.ok(mine.calls.some((call) => call.id === 'call-240916-01'));
+  assert.ok(mine.calls.every((call) => call.id !== 'call-240917-01'), 'so os chamados do proprio tecnico');
+  assert.equal((await fetch(`${baseUrl}/api/campo/chamados/call-240917-01/status`, { method: 'POST', headers: field, body: JSON.stringify({ status: 'Deslocamento' }) })).status, 404, 'chamado de outro tecnico');
+  assert.equal((await fetch(`${baseUrl}/api/campo/chamados/call-240916-01/status`, { method: 'POST', headers: field, body: JSON.stringify({ status: 'Finalizado' }) })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/campo/chamados/call-240916-01/status`, { method: 'POST', headers: field, body: JSON.stringify({ status: 'Em campo' }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/campo/chamados/call-240916-01/observacao`, { method: 'POST', headers: field, body: JSON.stringify({ text: 'Cheguei na CTO' }) })).status, 201);
+
+  // Checklist so do tipo deste chamado (para nao afetar os outros testes).
+  assert.equal((await fetch(`${baseUrl}/api/checklists`, { method: 'PUT', headers: field, body: JSON.stringify({ templates: [] }) })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/checklists`, { method: 'PUT', headers: admin, body: JSON.stringify({ templates: [{ name: 'Baixa', callTypes: ['BAIXA TECNICA'], items: ['Sinal conferido'], active: true }] }) })).status, 200);
+  const blocked = await fetch(`${baseUrl}/api/campo/chamados/call-240916-01/finalizar`, { method: 'POST', headers: field, body: JSON.stringify({ text: 'Reparo realizado\nEmenda na CTO' }) });
+  assert.equal(blocked.status, 422);
+  assert.match((await blocked.json() as { message: string }).message, /Sinal conferido/);
+  const finished = await fetch(`${baseUrl}/api/campo/chamados/call-240916-01/finalizar`, { method: 'POST', headers: field, body: JSON.stringify({ text: 'Reparo realizado\nEmenda na CTO', checklist: ['sinal conferido'] }) });
+  assert.equal(finished.status, 200);
+  const call = (await finished.json() as { call: { status: string; result: string; notes: string } }).call;
+  assert.equal(call.status, 'Finalizado');
+  assert.equal(call.result, 'Reparo realizado');
+  assert.match(call.notes, /Checklist "Baixa": ✔ Sinal conferido/);
+
+  await fetch(`${baseUrl}/api/checklists`, { method: 'PUT', headers: admin, body: JSON.stringify({ templates: [] }) });
+  await fetch(`${baseUrl}/api/tecnicos/tech-andre/usuario`, { method: 'PUT', headers: admin, body: JSON.stringify({ userId: null }) });
+});
+
 test('full export is admin only, limited to 366 days, and brings calls, observations and history', async () => {
   const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
   const admin = { authorization: `Bearer ${await login('admin@jhtelecom.com')}` };

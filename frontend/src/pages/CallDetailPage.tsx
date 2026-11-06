@@ -7,6 +7,8 @@ import { DetailItem, EditableDetailItem } from "../components/ui";
 import { MentionTextarea, withMentions } from "../components/MentionTextarea";
 import { TechnicianSuggestions } from "../components/AssistWidgets";
 import { CallTimeline } from "../components/CallTimeline";
+import { ChecklistBox } from "../components/FieldAdmin";
+import { checklistForType, type ChecklistTemplate } from "../api";
 import { operationalRegions } from "../lib/constants";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
@@ -93,6 +95,11 @@ export function CallDetailBase() {
   const [saving, setSaving] = useState(false);
   // Encerramento no proprio card de Atendimento: os campos aparecem conforme o status escolhido.
   const [result, setResult] = useState("");
+  // Checklist do tipo do chamado (Configuracoes): itens a marcar antes de finalizar.
+  const [checklistTemplates, setChecklistTemplates] = useState<ChecklistTemplate[]>([]);
+  const [checkedItems, setCheckedItems] = useState<string[]>([]);
+  useEffect(() => { api.checklists().then((data) => setChecklistTemplates(data.templates)).catch(() => undefined); }, []);
+  const checklist = call ? checklistForType(call.type, checklistTemplates) : null;
   const [executedAt, setExecutedAt] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
@@ -142,7 +149,7 @@ export function CallDetailBase() {
     }
     const executionDate = new Date(executedAt);
     if (finishing) {
-      const pending = [!technicianId && "Tecnico", (!executedAt || Number.isNaN(executionDate.getTime())) && "Data e hora de execucao", !result.trim() && "Resultado e observacao"].filter(Boolean) as string[];
+      const pending = [!technicianId && "Tecnico", (!executedAt || Number.isNaN(executionDate.getTime())) && "Data e hora de execucao", !result.trim() && "Resultado e observacao", ...(checklist ? checklist.items.filter((item) => !checkedItems.includes(item)).map((item) => `Checklist: ${item}`) : [])].filter(Boolean) as string[];
       if (pending.length) { setMissing(pending); setMessage("Preencha os campos para finalizar."); return; }
     }
     if (cancelling && cancelReason.trim().length < 3) { setMessage("Informe o motivo do cancelamento."); return; }
@@ -152,7 +159,7 @@ export function CallDetailBase() {
       if (finishing || cancelling) {
         // Primeiro salva os dados (ex.: tecnico escolhido agora), depois encerra.
         await api.updateCall(id, { ...fields, status: current.status });
-        if (finishing) await api.finishCall(id, { ...splitFinishText(result), executedAt: executionDate.toISOString() });
+        if (finishing) await api.finishCall(id, { ...splitFinishText(result), executedAt: executionDate.toISOString(), checklist: checkedItems });
         else await api.cancelCall(id, cancelReason.trim());
         setMessage(finishing ? "Chamado finalizado com sucesso." : "Chamado cancelado com sucesso.");
       } else {
@@ -294,6 +301,7 @@ export function CallDetailBase() {
                 <input type="datetime-local" value={executedAt} onChange={(event) => setExecutedAt(event.target.value)} />
                 {call.executedAt && <span className="field-hint">Data Fim do OFS: {new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>}
               </label>
+              {checklist && <ChecklistBox template={checklist} checked={checkedItems} onChange={setCheckedItems} />}
               <label className="detail-label">
                 Resultado e observacao
                 <textarea value={result} onChange={(event) => setResult(event.target.value)} rows={4} placeholder={"Ex.: Reparo realizado\nGIGA+, fibra emendada na CTO"} />

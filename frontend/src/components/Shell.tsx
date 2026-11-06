@@ -31,6 +31,7 @@ import { IntegrationHealthPage } from "../pages/IntegrationHealthPage";
 import { QueueMapPage, TechnicianLoadPage } from "../pages/OperationsPages";
 import { AuditHistoryPage } from "../pages/AuditHistoryPage";
 import { MonthlyReportPage } from "../pages/MonthlyReportPage";
+import { FieldPage } from "../pages/FieldPage";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
@@ -127,6 +128,9 @@ export function Shell({
   const [preferences, setPreferences] = useState<ProfilePreferences>({ nickname: null, palette: null });
   const displayName = preferences.nickname || user.name;
   const [myStatus, setMyStatus] = useState<UserStatus | null>(null);
+  // Usuario ligado a um tecnico: aparece "Meus chamados" (tela do celular).
+  const [fieldTech, setFieldTech] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => { api.fieldMe().then((data) => setFieldTech(data.technician)).catch(() => setFieldTech(null)); }, [user.id]);
   async function saveMyStatus(next: UserStatus | null) { setMyStatus((await api.saveMyStatus(next)).status); }
   const knownActivationIds = useRef<Set<string> | null>(null);
   const location = useLocation();
@@ -218,7 +222,7 @@ export function Shell({
   const guard = (permission: string, element: React.ReactNode) => (canAccess(permission) ? element : <AccessDenied />);
   // Abas ocultas pelo cargo (Cargos e permissoes): saem do menu, da busca e a rota fica bloqueada.
   const hiddenTabs = user.role.hiddenTabs ?? [];
-  const firstAllowedPath = navItems.find((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to))?.to;
+  const firstAllowedPath = navItems.find((item) => canAccess(item.permission) && (!item.fieldOnly || fieldTech) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to))?.to;
   function toggleSidebar() {
     setDesktopCollapsed((current) => {
       const next = !current;
@@ -235,7 +239,7 @@ export function Shell({
     unassigned: notifications.find((item) => item.id === "unassigned-calls")?.count ?? 0,
     activations: activationCount,
   };
-  const visibleItems = navItems.filter((item) => canAccess(item.permission) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to));
+  const visibleItems = navItems.filter((item) => canAccess(item.permission) && (!item.fieldOnly || fieldTech) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to));
   const currentTabHidden = Boolean(currentItem && isTabHidden(hiddenTabs, currentItem.to));
   const sections = [...new Set(visibleItems.map((item) => item.section))];
   useEffect(() => {
@@ -389,6 +393,7 @@ export function Shell({
             <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
             <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />
             <Route path="/integracao-ofs" element={guard("imports.view", <IntegrationHealthPage />)} />
+            <Route path="/campo" element={<FieldPage />} />
             <Route path="/pessoas" element={<PeoplePage currentUserId={user.id} />} />
             <Route path="/perfil" element={<ProfilePage user={user} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} preferences={preferences} onSavePreferences={savePreferences} theme={theme} onToggleTheme={toggleTheme} status={myStatus} onSaveStatus={saveMyStatus} />} />
             <Route path="/configuracoes" element={<SettingsPage user={user} canManage={canAccess("settings.manage")} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} />} />

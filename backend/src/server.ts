@@ -13,6 +13,8 @@ import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operatio
 import { activeStatus, findMentions, monthHighlights } from './team.js';
 import { ESCALATION_LABEL, escalations, escalationText, integrationOutage, outageText, recoveryText } from './alerts.js';
 import { buildRiskModel, callRisk, massIncidents, suggestTechnicians, type RiskModel } from './assist.js';
+import { checklistFor, checklistNote, FIELD_STATUSES, missingChecklistItems } from './field.js';
+import { listChecklistTemplates, listTechnicianLinks, saveChecklistTemplates, setTechnicianUser, technicianIdForUser } from './store/field.js';
 import { createUserNotifications, getUserStatuses, listUnreadNotifications, markNotificationsRead, saveUserStatus } from './store/team.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
@@ -776,11 +778,111 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });
+// ---------- Lote E: checklist (9) e tela do tecnico em campo (8) ----------
+app.get('/api/checklists', auth, async (_request, response) => {
+  try { return response.json({ templates: await listChecklistTemplates() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os checklists.' }); }
+});
+app.put('/api/checklists', auth, requirePermission('settings.manage'), async (request, response) => {
+  const parsed = z.object({ templates: z.array(z.object({ id: z.string().max(60).optional(), name: z.string().trim().min(2).max(80), callTypes: z.array(z.string().trim().min(1).max(100)).max(20).default([]), items: z.array(z.string().trim().min(2).max(200)).min(1).max(20), active: z.boolean().default(true) })).max(30) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Cada checklist precisa de nome e de 1 a 20 itens.' });
+  try { return response.json({ templates: await saveChecklistTemplates(parsed.data.templates) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar os checklists.' }); }
+});
+// Vinculo tecnico <-> usuario (tela Tecnicos): o usuario ligado ve os proprios chamados em "Meus chamados".
+app.get('/api/tecnicos/vinculos', auth, requirePermission('technicians.view'), async (_request, response) => {
+  try { return response.json({ links: await listTechnicianLinks() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os vinculos.' }); }
+});
+app.put('/api/tecnicos/:id/usuario', auth, requirePermission('technicians.edit'), async (request, response) => {
+  const parsed = z.object({ userId: z.string().min(1).max(100).nullable() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Usuario invalido.' });
+  const technicianId = String(request.params.id);
+  if (!(await listTechnicians()).some((tech) => tech.id === technicianId)) return response.status(404).json({ message: 'Tecnico nao encontrado.' });
+  if (parsed.data.userId && !(await listUsers()).some((user) => user.id === parsed.data.userId && user.active)) return response.status(422).json({ message: 'Escolha um usuario ativo.' });
+  try { await setTechnicianUser(technicianId, parsed.data.userId); return response.json({ ok: true }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o vinculo.' }); }
+});
+
+// Tela do tecnico (Meus chamados): so para o usuario ligado a um tecnico, e so nos chamados desse tecnico.
+// Nao depende de cargo/permissao: o cargo "Tecnico" pode nao ter nenhuma permissao alem disso.
+async function fieldTechnician(request: AuthRequest) {
+  const technicianId = await technicianIdForUser(request.authUser!.id);
+  if (!technicianId) return null;
+  return (await listTechnicians()).find((tech) => tech.id === technicianId) ?? null;
+}
+async function ownCall(request: AuthRequest, response: Response) {
+  const technician = await fieldTechnician(request);
+  if (!technician) { response.status(403).json({ message: 'Seu usuario nao esta ligado a um tecnico.' }); return null; }
+  const call = await getCall(String(request.params.id));
+  if (!call || call.technicianId !== technician.id) { response.status(404).json({ message: 'Chamado nao encontrado entre os seus.' }); return null; }
+  if (['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)) { response.status(409).json({ message: 'Chamado ja encerrado.' }); return null; }
+  return { technician, call };
+}
+app.get('/api/campo/eu', auth, async (request: AuthRequest, response) => {
+  const technician = await fieldTechnician(request).catch(() => null);
+  return response.json({ technician: technician ? { id: technician.id, name: technician.name } : null });
+});
+app.get('/api/campo/chamados', auth, async (request: AuthRequest, response) => {
+  const technician = await fieldTechnician(request);
+  if (!technician) return response.status(403).json({ message: 'Seu usuario nao esta ligado a um tecnico.' });
+  const today = toOperationalDate();
+  const calls = (await listCalls()).filter((call) => call.technicianId === technician.id && (ACTIVE_STATUSES.includes(call.status) || (call.status === 'Finalizado' && call.executedAt && toOperationalDate(call.executedAt) === today)));
+  const templates = await listChecklistTemplates();
+  return response.json({
+    technician: { id: technician.id, name: technician.name },
+    calls: calls.sort((a, b) => Date.parse(a.openedAt) - Date.parse(b.openedAt)).map((call) => ({ ...call, checklist: checklistFor(call.type, templates) })),
+  });
+});
+app.post('/api/campo/chamados/:id/status', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({ status: z.enum(FIELD_STATUSES) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Status invalido.' });
+  const own = await ownCall(request, response);
+  if (!own) return;
+  const call = await updateCall(own.call.id, { status: parsed.data.status }, request.authUser!);
+  return response.json({ call });
+});
+const fieldPhoto = z.object({ fileName: z.string().trim().min(1).max(255), mimeType: z.string().regex(/^image\/(jpeg|png|webp)$/), sizeBytes: z.number().int().min(1).max(3 * 1024 * 1024), contentBase64: z.string().min(4).max(4_200_000) });
+app.post('/api/campo/chamados/:id/observacao', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({ text: z.string().trim().max(5000).default(''), photos: z.array(fieldPhoto).max(4).default([]) }).safeParse(request.body);
+  if (!parsed.success || (!parsed.data.text && !parsed.data.photos.length)) return response.status(400).json({ message: 'Escreva algo ou anexe uma foto (JPG, PNG ou WebP, ate 3 MB).' });
+  for (const photo of parsed.data.photos) {
+    const bytes = Buffer.from(photo.contentBase64, 'base64');
+    if (bytes.byteLength !== photo.sizeBytes || bytes.toString('base64').replace(/=+$/, '') !== photo.contentBase64.replace(/=+$/, '')) return response.status(400).json({ message: `A foto ${photo.fileName} veio corrompida.` });
+  }
+  const own = await ownCall(request, response);
+  if (!own) return;
+  const observation = await addObservation(own.call.id, request.authUser!, parsed.data.text, parsed.data.photos.map((photo) => ({ ...photo, fileName: photo.fileName.replace(/[\\/\r\n]/g, '_') })));
+  return response.status(201).json({ observation });
+});
+app.post('/api/campo/chamados/:id/finalizar', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({ text: z.string().trim().min(3).max(5000), executedAt: z.string().optional(), checklist: z.array(z.string().max(200)).max(50).default([]) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Escreva o resultado e a observacao.' });
+  const own = await ownCall(request, response);
+  if (!own) return;
+  const template = checklistFor(own.call.type, await listChecklistTemplates());
+  const missingItems = missingChecklistItems(template, parsed.data.checklist);
+  if (missingItems.length) return response.status(422).json({ message: `Marque o checklist: ${missingItems.join(', ')}.` });
+  const full = parsed.data.text;
+  const result = (full.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || full).slice(0, 255);
+  const executedAt = parsed.data.executedAt ? normalizeSaoPauloLocal(parsed.data.executedAt) : new Date().toISOString();
+  const outcome = await finishCall(own.call.id, { result, notes: template ? `${full}\n${checklistNote(template)}` : full, executedAt }, request.authUser!);
+  if (outcome.missing.length) return response.status(422).json({ message: `Nao da para finalizar: falta ${outcome.missing.join(', ')}.` });
+  return response.json({ call: outcome.call });
+});
+
 app.post('/api/chamados/:id/finalizar', auth, requirePermission('calls.finish'), async (request: AuthRequest, response) => {
-  const parsed = z.object({ result: z.string(), executedAt: z.string(), notes: z.string() }).safeParse(request.body);
+  const parsed = z.object({ result: z.string(), executedAt: z.string(), notes: z.string(), checklist: z.array(z.string().max(200)).max(50).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Informe resultado, data de execucao e observacao.' });
+  // Checklist do tipo do chamado (Configuracoes): todos os itens precisam estar marcados.
+  const target = await getCall(String(request.params.id));
+  const template = target ? checklistFor(target.type, await listChecklistTemplates()) : null;
+  const missingItems = missingChecklistItems(template, parsed.data.checklist);
+  if (missingItems.length) return response.status(422).json({ message: `Marque o checklist antes de finalizar: ${missingItems.join(', ')}.`, missing: missingItems.map((item) => `Checklist: ${item}`) });
+  const { checklist: _checklist, ...finishInput } = parsed.data;
+  const notes = template ? `${finishInput.notes}\n${checklistNote(template)}` : finishInput.notes;
   // Data sem fuso (datetime-local) e horario de Sao Paulo.
-  const outcome = await finishCall(String(request.params.id), { ...parsed.data, executedAt: normalizeSaoPauloLocal(parsed.data.executedAt) }, request.authUser!);
+  const outcome = await finishCall(String(request.params.id), { ...finishInput, notes, executedAt: normalizeSaoPauloLocal(finishInput.executedAt) }, request.authUser!);
   if (outcome.missing.includes('Chamado nao encontrado')) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   if (outcome.missing.length) return response.status(422).json({ message: 'Nao e possivel finalizar este chamado.', missing: outcome.missing });
   return response.json({ call: outcome.call });

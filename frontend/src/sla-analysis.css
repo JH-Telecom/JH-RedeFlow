@@ -321,3 +321,52 @@
   @page { size: A4; margin: 14mm; }
 }
 @media (max-width: 640px) { .mr-kpis { grid-template-columns: repeat(2, 1fr); } }
+
+/* Lote E: tela do tecnico (FieldPage.tsx), checklist e vinculo (FieldAdmin.tsx) */
+.fd-page { display: grid; gap: 14px; max-width: 640px; margin: 0 auto; }
+.fd-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.fd-head h1 { margin: 4px 0 2px; font-size: 24px; }
+.fd-head p { color: #4f5d73; font-size: 13px; }
+.fd-empty { display: grid; justify-items: center; gap: 6px; padding: 28px 18px; color: #4f5d73; text-align: center; }
+.fd-empty svg { color: #137a52; }
+.fd-empty strong { color: #17233b; }
+.fd-card { display: grid; gap: 12px; padding: 16px; border-left: 5px solid #1caa76; }
+.fd-card.is-soon { border-left-color: #e6953d; }
+.fd-card.is-late { border-left-color: #d9622b; }
+.fd-card.is-outlier { border-left-color: #c42e3b; }
+.fd-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.fd-card header div { display: grid; gap: 2px; }
+.fd-card header strong { color: #17233b; font-size: 18px; }
+.fd-card header span { color: #4f5d73; font-size: 13px; }
+.fd-time { padding: 4px 10px; border-radius: 12px; background: #e3f6ee; color: #137a52; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.fd-time.is-soon { background: #fdf0e1; color: #9a5208; }
+.fd-time.is-late { background: #fde9df; color: #a8431a; }
+.fd-time.is-outlier { background: #fde8ea; color: #b3242f; }
+.fd-info { display: grid; gap: 8px; margin: 0; }
+.fd-info dt { color: #5f6d84; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.fd-info dd { margin: 2px 0 0; color: #17233b; font-size: 14px; overflow-wrap: anywhere; }
+.fd-map { display: inline-flex; align-items: center; gap: 6px; justify-self: start; color: var(--blue); font-size: 14px; font-weight: 700; text-decoration: none; }
+.fd-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fd-btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: #17233b; font-size: 14px; font-weight: 700; }
+.fd-btn:disabled { cursor: default; opacity: .7; }
+.fd-btn.is-current { border-color: var(--blue); background: #edf4ff; color: var(--blue); }
+.fd-btn.is-finish { border-color: #137a52; color: #137a52; }
+.fd-form { display: grid; gap: 10px; }
+.fd-form label { display: grid; gap: 6px; }
+.fd-form textarea { padding: 10px 12px; font-size: 15px; }
+.fd-submit { min-height: 50px; font-size: 15px; }
+.fd-done { display: grid; gap: 6px; }
+.fd-done h2 { font-size: 14px; }
+.fd-done-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: #4f5d73; font-size: 13px; }
+.fd-done-row strong { color: #17233b; }
+.cl-box { display: grid; gap: 8px; margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; }
+.cl-box legend { padding: 0 4px; color: #17233b; font-size: 12px; font-weight: 700; }
+.cl-box .checkbox-label { font-size: 13px; }
+.cl-item { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; }
+.cl-item label { display: grid; gap: 6px; color: #45536b; font-size: 12px; font-weight: 700; }
+.cl-item input, .cl-item textarea { padding: 9px 11px; }
+.cl-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto auto; align-items: end; gap: 10px; }
+.cl-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.fa-link { display: grid; gap: 6px; margin: 10px 0; }
+.fa-link small { color: #5f6d84; font-size: 11px; line-height: 1.5; }
+@media (max-width: 640px) { .cl-row { grid-template-columns: 1fr; } .fd-actions { grid-template-columns: 1fr; } }
