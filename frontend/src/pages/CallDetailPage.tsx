@@ -5,6 +5,7 @@ import { api, type Call, type CallAuditLog, type CallObservation, type CallStatu
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
 import { MentionTextarea, withMentions } from "../components/MentionTextarea";
+import { TechnicianSuggestions } from "../components/AssistWidgets";
 import { operationalRegions } from "../lib/constants";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
@@ -278,6 +279,7 @@ export function CallDetailBase() {
                 ))}
             </select>
           </label>
+          {!CLOSED_STATUSES.includes(call.status) && <TechnicianSuggestions callId={call.id} selected={technicianId} onPick={setTechnicianId} />}
           <div className="assignment-note">
             {technicianId
               ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`

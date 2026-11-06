@@ -6,6 +6,8 @@ import { SLA_ON_TIME_MAX_MINUTES, SLA_OUTLIER_AFTER_MINUTES, TimerCell, formatCa
 import { CALLS_PAGE_SIZE, operationalRegions } from "../lib/constants";
 import { shareReportImage, slugFileName, type ReportCell, type ReportColumn, type ReportTone } from "../lib/report-image";
 import { useFitToViewport } from "../hooks/useFitToViewport";
+import { RiskBadge } from "../components/AssistWidgets";
+import type { CallRisk } from "../api";
 
 export function RangeCallTable({ calls }: { calls: Call[] }) {
   return (
@@ -195,6 +197,15 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     if (!ids.length) { setRepeatFlags({}); return; }
     let active = true;
     api.repeatFlags(ids).then((data) => { if (active) setRepeatFlags(data.flags); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [calls]);
+  // Risco de estourar o prazo (ativos ainda no prazo), estimado pelo historico de 90 dias.
+  const [risks, setRisks] = useState<Record<string, CallRisk>>({});
+  useEffect(() => {
+    const ids = calls.filter((call) => !["Finalizado", "Cancelado", "Baixar"].includes(call.status)).map((call) => call.id).slice(0, 300);
+    if (!ids.length) { setRisks({}); return; }
+    let active = true;
+    api.callRisks(ids).then((data) => { if (active) setRisks(data.risks); }).catch(() => undefined);
     return () => { active = false; };
   }, [calls]);
   const [query, setQuery] = useState(initialState.query ?? "");
@@ -490,7 +501,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       {CALL_STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
     </select>
   );
-  const orderCell = (call: Call) => <td data-label="Ordem"><strong className="cq-order">{call.orderNumber}</strong>{call.bdesk && call.bdesk !== call.orderNumber && <small className="table-subtext">BDESK {call.bdesk}</small>}{call.atrelada && <span className="call-badge atrelado" title={`Atrelada à ordem ${call.atrelada}`}>Atrelada {call.atrelada}</span>}{repeatFlags[call.id] ? <span className="call-badge reincidente" title={`${repeatFlags[call.id]} chamado(s) no mesmo endereço, OLT e slot/PON nos 30 dias anteriores`}>Reincidente</span> : null}</td>;
+  const orderCell = (call: Call) => <td data-label="Ordem"><strong className="cq-order">{call.orderNumber}</strong>{call.bdesk && call.bdesk !== call.orderNumber && <small className="table-subtext">BDESK {call.bdesk}</small>}{call.atrelada && <span className="call-badge atrelado" title={`Atrelada à ordem ${call.atrelada}`}>Atrelada {call.atrelada}</span>}<RiskBadge risk={risks[call.id]} />{repeatFlags[call.id] ? <span className="call-badge reincidente" title={`${repeatFlags[call.id]} chamado(s) no mesmo endereço, OLT e slot/PON nos 30 dias anteriores`}>Reincidente</span> : null}</td>;
   const eventCell = (call: Call) => <td data-label="Evento"><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td>;
   const placeCell = (call: Call, withOlt = false) => <td data-label="Local" className="cq-place"><strong>{call.bairro || call.city || <span className="muted-cell">Sem bairro</span>}</strong><small className="table-subtext">{[call.region, call.address].filter(Boolean).join(", ") || "-"}</small>{withOlt && call.olt && <small className="table-subtext cq-olt-line">{call.olt}{call.slotPon ? ` PON ${call.slotPon}` : ""}</small>}</td>;
   const oltCell = (call: Call) => <td data-label="OLT"><span className="cq-olt">{call.olt || <span className="muted-cell">-</span>}</span>{call.slotPon && <small className="table-subtext">PON {call.slotPon}</small>}</td>;

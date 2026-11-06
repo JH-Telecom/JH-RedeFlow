@@ -64,9 +64,9 @@ export function IntegrationHealthPage() {
             );
           })}
           <article className={`panel ih-check is-${data.whatsapp.configured ? "ok" : "unknown"}`}>
-            <header><span className="ih-badge"><MessageCircle size={14} aria-hidden="true" />{data.whatsapp.configured ? "Ligado" : "Desligado"}</span><h2>Aviso de prazo no WhatsApp</h2></header>
+            <header><span className="ih-badge"><MessageCircle size={14} aria-hidden="true" />{data.whatsapp.configured ? "Ligado" : "Desligado"}</span><h2>Avisos no WhatsApp</h2></header>
             {data.whatsapp.configured
-              ? <p>Avisa {data.whatsapp.chat} quando um chamado entra na última 1h do prazo de 6h (uma vez por chamado).{data.whatsapp.alerts[0] ? ` Último: ${data.whatsapp.alerts[0].summary} (${spDateTime(data.whatsapp.alerts[0].createdAt)}).` : " Nenhum aviso enviado ainda."}</p>
+              ? <p>Avisa {data.whatsapp.chat} quando um chamado entra na última 1h do prazo de 6h, quando um chamado é escalado (sem técnico há 5h, ou sem observação há 2h) e quando a coleta do OFS fica mais de 2h parada (e quando volta).{data.whatsapp.alerts[0] ? ` Último: ${data.whatsapp.alerts[0].summary} (${spDateTime(data.whatsapp.alerts[0].createdAt)}).` : " Nenhum aviso enviado ainda."}</p>
               : <p>Para ligar, configure no Render: <code>WUZAPI_API_URL</code>, <code>WUZAPI_USER_TOKEN</code> e <code>WUZAPI_ALERT_CHAT</code> (ID do grupo ou número). O aviso no sino já funciona sem isso.</p>}
           </article>
         </div>

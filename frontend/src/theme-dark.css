@@ -3111,6 +3111,59 @@
 :where(:root[data-theme="dark"]) .au-search {
     background: #181c22
 }
+:where(:root[data-theme="dark"]) .ts-title {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ts-item {
+    border: 1px solid var(--line);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .ts-item:hover {
+    border-color: #30425d
+}
+:where(:root[data-theme="dark"]) .ts-item.is-selected {
+    border-color: var(--blue);
+    background: #0f1722
+}
+:where(:root[data-theme="dark"]) .ts-item strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ts-item small {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .call-badge.risk-medio {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-theme="dark"]) .call-badge.risk-alto {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .in-card {
+    border-left: 4px solid #c42e3b
+}
+:where(:root[data-theme="dark"]) .in-card header strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .in-card header small {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .in-icon {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .in-order {
+    border: 1px solid var(--line);
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .in-order:hover {
+    border-color: var(--blue)
+}
+:where(:root[data-theme="dark"]) .in-actions .is-active {
+    border-color: var(--blue);
+    color: var(--accent-text);
+    background: #0f1722
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {

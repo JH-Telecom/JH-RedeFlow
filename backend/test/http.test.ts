@@ -1092,6 +1092,27 @@ test('OFS collector extension logs in with the system user and its session only 
   assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);
 });
 
+test('assist: technician suggestions, risk, incidents and batch actions with the usual permissions', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  const supervisor = { 'content-type': 'application/json', authorization: `Bearer ${await login('joao@jhtelecom.com')}` };
+  const suggestions = await fetch(`${baseUrl}/api/chamados/call-240918-01/sugestoes`, { headers: admin });
+  assert.equal(suggestions.status, 200);
+  const body = await suggestions.json() as { suggestions: { technicianId: string; reasons: string[] }[] };
+  assert.ok(body.suggestions.length > 0 && body.suggestions.length <= 3);
+  assert.equal((await fetch(`${baseUrl}/api/chamados/call-240918-01/sugestoes`, { headers: supervisor })).status, 403, 'supervisor nao atribui');
+  assert.equal((await fetch(`${baseUrl}/api/chamados/risco`, { method: 'POST', headers: admin, body: JSON.stringify({ ids: ['call-240918-01'] }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/operacao/incidentes`, { headers: admin })).status, 200);
+  const action = (body: unknown, headers = admin) => fetch(`${baseUrl}/api/operacao/incidentes/acao`, { method: 'POST', headers, body: JSON.stringify(body) });
+  assert.equal((await action({ callIds: ['call-240918-01'], action: 'assign', technicianId: 'nao-existe' })).status, 422);
+  assert.equal((await action({ callIds: ['call-240918-01'], action: 'finish', text: 'x', executedAt: '2026-11-06T10:00' }, supervisor)).status, 403);
+  const observed = await action({ callIds: ['call-240918-01', 'nao-existe'], action: 'observe', text: 'Incidente na OLT: equipe a caminho' });
+  assert.equal(observed.status, 200);
+  const result = await observed.json() as { ok: number; results: { callId: string; ok: boolean }[] };
+  assert.equal(result.ok, 1);
+  assert.equal(result.results.find((item) => item.callId === 'nao-existe')?.ok, false);
+});
+
 test('change history lists who changed which call in the period', async () => {
   const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
   const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };

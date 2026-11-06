@@ -11,6 +11,8 @@ import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, productivityReport } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
 import { activeStatus, findMentions, monthHighlights } from './team.js';
+import { ESCALATION_LABEL, escalations, escalationText, integrationOutage, outageText, recoveryText } from './alerts.js';
+import { buildRiskModel, callRisk, massIncidents, suggestTechnicians, type RiskModel } from './assist.js';
 import { createUserNotifications, getUserStatuses, listUnreadNotifications, markNotificationsRead, saveUserStatus } from './store/team.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
@@ -358,6 +360,85 @@ app.get('/api/operacao/carga', auth, requirePermission('calls.view'), async (req
     return response.json(technicianLoad(technicians, await reportCalls(request)));
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar a carga.' }); }
 });
+// Lote B: sugestao de tecnico, risco de estourar o prazo e incidentes em massa por OLT.
+// O historico (todos os chamados) fica em cache por 5 min e o modelo de risco por 30 min: os dois sao pesados.
+let historyCache: { at: number; calls: Promise<Awaited<ReturnType<typeof listCalls>>> } | null = null;
+function cachedAllCalls() {
+  if (!historyCache || Date.now() - historyCache.at > 5 * 60_000) historyCache = { at: Date.now(), calls: listCalls().catch((error) => { historyCache = null; throw error; }) };
+  return historyCache.calls;
+}
+let riskCache: { at: number; model: RiskModel } | null = null;
+async function riskModel() {
+  if (!riskCache || Date.now() - riskCache.at > 30 * 60_000) riskCache = { at: Date.now(), model: buildRiskModel(await cachedAllCalls()) };
+  return riskCache.model;
+}
+app.get('/api/chamados/:id/sugestoes', auth, requirePermission('calls.assign'), async (request: AuthRequest, response) => {
+  try {
+    const call = await getCall(String(request.params.id));
+    if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+    const [history, active, technicians] = await Promise.all([cachedAllCalls(), listCalls(ACTIVE_STATUSES), listTechnicians()]);
+    // Carga atual sempre fresca; historico do cache.
+    const merged = [...history.filter((item) => item.status === 'Finalizado'), ...active];
+    return response.json({ suggestions: suggestTechnicians(call, technicians, merged) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel sugerir tecnicos.' }); }
+});
+app.post('/api/chamados/risco', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ ids: z.array(z.string().min(1).max(100)).max(300) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie os ids dos chamados.' });
+  try {
+    const wanted = new Set(parsed.data.ids);
+    const [model, active] = await Promise.all([riskModel(), reportCalls(request, ACTIVE_STATUSES)]);
+    const risks: Record<string, ReturnType<typeof callRisk>> = {};
+    for (const call of active) if (wanted.has(call.id)) { const risk = callRisk(call, model); if (risk) risks[call.id] = risk; }
+    return response.json({ risks, samples: model.samples });
+  } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular o risco.' }); }
+});
+app.get('/api/operacao/incidentes', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  try { return response.json({ incidents: massIncidents(await reportCalls(request, ACTIVE_STATUSES)) }); }
+  catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar os incidentes.' }); }
+});
+// Acao em lote nos chamados de um incidente: atribuir o mesmo tecnico, a mesma observacao, ou finalizar todos.
+// Cada acao pede a permissao de sempre; o resultado volta chamado a chamado.
+app.post('/api/operacao/incidentes/acao', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({
+    callIds: z.array(z.string().min(1).max(100)).min(1).max(50),
+    action: z.enum(['assign', 'observe', 'finish']),
+    technicianId: z.string().max(100).optional(),
+    text: z.string().trim().max(5000).optional(),
+    executedAt: z.string().optional(),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Acao invalida.' });
+  const { callIds, action, technicianId, text, executedAt } = parsed.data;
+  const permission = action === 'assign' ? 'calls.assign' : action === 'observe' ? 'calls.add_observation' : 'calls.finish';
+  if (!request.authUser!.role.permissions.includes(permission)) return response.status(403).json({ message: 'Sem permissao para esta acao.' });
+  if (action === 'assign') {
+    const technicians = await listTechnicians();
+    if (!technicianId || !technicians.some((tech) => tech.id === technicianId && tech.teamRole === 'Tecnico' && tech.active && tech.employmentStatus !== 'Demitido')) return response.status(422).json({ message: 'Escolha um tecnico trabalhando e ativo.' });
+  }
+  if ((action === 'observe' || action === 'finish') && !text) return response.status(400).json({ message: action === 'finish' ? 'Informe o resultado e a observacao.' : 'Escreva a observacao.' });
+  if (action === 'finish' && (!executedAt || !Number.isFinite(Date.parse(normalizeSaoPauloLocal(executedAt))))) return response.status(400).json({ message: 'Informe a data e hora de execucao.' });
+  const results: { callId: string; ok: boolean; message?: string }[] = [];
+  for (const callId of callIds) {
+    try {
+      const existing = await getCall(callId, await getScopedCallQuery(request, true));
+      if (!existing) { results.push({ callId, ok: false, message: 'Chamado nao encontrado.' }); continue; }
+      if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status)) { results.push({ callId, ok: false, message: 'Chamado encerrado.' }); continue; }
+      if (action === 'assign') {
+        await updateCall(callId, { technicianId, ...(existing.status === 'Aberto' ? { status: 'Atribuido' as const } : {}) }, request.authUser!);
+      } else if (action === 'observe') {
+        await addObservation(callId, request.authUser!, text!);
+      } else {
+        const full = text!.trim();
+        const result = (full.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || full).slice(0, 255);
+        const outcome = await finishCall(callId, { result, notes: full, executedAt: normalizeSaoPauloLocal(executedAt!) }, request.authUser!);
+        if (outcome.missing.length) { results.push({ callId, ok: false, message: `Falta: ${outcome.missing.join(', ')}` }); continue; }
+      }
+      results.push({ callId, ok: true });
+    } catch (error) { results.push({ callId, ok: false, message: error instanceof Error ? error.message : 'Erro.' }); }
+  }
+  return response.json({ results, ok: results.filter((item) => item.ok).length });
+});
+
 app.post('/api/chamados/reincidencia', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const parsed = z.object({ ids: z.array(z.string().min(1).max(100)).max(300) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Envie os ids dos chamados.' });
@@ -959,7 +1040,7 @@ app.get('/api/integracoes/saude', auth, requirePermission('imports.view'), async
       checks: healthChecks(events, stuck),
       stuck,
       reasonLabels: STUCK_REASON_LABEL,
-      events: events.filter((event) => event.kind !== 'sla_alert').slice(0, 60),
+      events: events.filter((event) => ['export', 'cluster', 'closing', 'extension', 'integration_alert', 'daily_report'].includes(event.kind)).slice(0, 60),
       d0: d0 ? { fileName: d0.fileName, rowCount: d0.rowCount, uploadedAt: d0.uploadedAt, uploadedBy: d0.uploadedBy } : null,
       whatsapp: { configured: Boolean(whatsapp), chat: whatsapp ? maskChat(whatsapp.chat) : null, alerts: events.filter((event) => event.kind === 'sla_alert').slice(0, 10) },
     });
@@ -1022,6 +1103,71 @@ async function runDailySummaryReport(now = new Date()) {
     console.warn(`[Resumo diario] erro: ${error instanceof Error ? error.message : error}`);
   } finally {
     dailyReportRunning = false;
+  }
+}
+
+// (15) Coleta do OFS parada: mais de 2h sem envio certo de export ou fechamentos. Avisa uma vez no WhatsApp
+// (grupo dos avisos) quando para e outra quando volta. Estado guardado em integration_events (integration_alert).
+let outageRunning = false;
+async function runIntegrationWatch() {
+  const config = whatsappConfig();
+  if (!config || outageRunning) return;
+  outageRunning = true;
+  try {
+    const events = await listIntegrationEvents(48);
+    const outage = integrationOutage(events);
+    if (!outage.known) return;
+    const lastAlert = events.filter((event) => event.kind === 'integration_alert' && event.ok).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+    const alerted = lastAlert?.details.state === 'down';
+    if (outage.down === alerted) return; // nada mudou desde o ultimo aviso
+    const appUrl = process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app';
+    try {
+      await sendWhatsAppText(config, outage.down ? outageText(outage, appUrl) : recoveryText(appUrl));
+      await recordIntegrationEvent('integration_alert', true, outage.down ? 'Aviso de coleta parada enviado' : 'Aviso de coleta de volta enviado', { state: outage.down ? 'down' : 'up', lastOkAt: outage.lastOkAt });
+    } catch (error) {
+      await recordIntegrationEvent('integration_alert', false, `Falha ao avisar a coleta parada: ${error instanceof Error ? error.message : error}`, { state: outage.down ? 'down' : 'up' });
+    }
+  } catch (error) {
+    console.warn(`[Coleta parada] erro: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    outageRunning = false;
+  }
+}
+
+// (3) Escalonamento: sem tecnico ha mais de 5h vai para quem atribui chamados (calls.assign); com tecnico e sem
+// observacao ha mais de 2h vai para o supervisor do tecnico (ou, sem usuario de supervisor, para quem atribui).
+// Aviso no sino sempre; no WhatsApp tambem, se ligado. Cada chamado e escalado uma vez por regra a cada 24h.
+let escalationRunning = false;
+async function runEscalations() {
+  if (escalationRunning) return;
+  escalationRunning = true;
+  try {
+    const found = escalations(await listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']));
+    if (!found.length) return;
+    const done = new Set((await listIntegrationEvents(24, ['escalation'])).map((event) => `${event.details.callId}|${event.details.rule}`));
+    const fresh = found.filter((item) => !done.has(`${item.callId}|${item.rule}`));
+    if (!fresh.length) return;
+    const [users, technicians, supervisors] = await Promise.all([listUsers(), listTechnicians(), listSupervisors()]);
+    const assigners = users.filter((user) => user.active && user.role?.permissions?.includes('calls.assign')).map((user) => user.id);
+    const notifications = fresh.flatMap((item) => {
+      const supervisorId = item.technicianId ? technicians.find((tech) => tech.id === item.technicianId)?.supervisorId : undefined;
+      const supervisorUser = supervisorId ? supervisors.find((sup) => sup.id === supervisorId)?.userId : undefined;
+      const targets = item.rule === 'sem-observacao' && supervisorUser ? [supervisorUser] : assigners;
+      return targets.map((userId) => ({ userId, kind: 'escalation', title: `Escalado: ${item.orderNumber}`, detail: `${ESCALATION_LABEL[item.rule]}${item.technicianName ? ` · ${item.technicianName}` : ''}${item.region ? ` · ${item.region}` : ''}`, href: `/chamados/${item.callId}` }));
+    });
+    await createUserNotifications(notifications).catch((error) => console.warn(`[Escalonamento] sino: ${error instanceof Error ? error.message : error}`));
+    const config = whatsappConfig();
+    let whatsapp: string | undefined;
+    if (config) {
+      try { await sendWhatsAppText(config, escalationText(fresh, process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app')); whatsapp = 'enviado'; }
+      catch (error) { whatsapp = `falhou: ${error instanceof Error ? error.message : error}`; }
+    }
+    for (const item of fresh) await recordIntegrationEvent('escalation', true, `${item.orderNumber}: ${ESCALATION_LABEL[item.rule]}`, { callId: item.callId, rule: item.rule, whatsapp });
+    console.log(`[Escalonamento] ${fresh.length} chamado(s) escalado(s)${whatsapp ? `; WhatsApp ${whatsapp}` : ''}.`);
+  } catch (error) {
+    console.warn(`[Escalonamento] erro: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    escalationRunning = false;
   }
 }
 
@@ -1329,9 +1475,11 @@ async function startServer() {
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }
   await captureUnknownOltRequestsFromCalls();
   app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
-  if (whatsappConfig()) {
-    console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => { void runWhatsAppSlaAlerts(); void runDailySummaryReport(); }, 5 * 60_000).unref();
+  // Rotinas a cada 5 min: escalonamento (sino sempre) e, com WhatsApp configurado, aviso de prazo, resumo das 7h
+  // e coleta parada. Nao rodam dentro dos testes automatizados.
+  if (!process.env.NODE_TEST_CONTEXT) {
+    if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
+    setInterval(() => { void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); }, 5 * 60_000).unref();
   }
 }
 void startServer();

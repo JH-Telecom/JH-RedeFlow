@@ -214,3 +214,30 @@
 .cq-row:focus-visible > td { background: #edf4ff; }
 .au-search { flex: 1 1 220px; max-width: 320px; height: 40px; align-self: flex-end; background: #fff; }
 .au-table .au-value { max-width: 320px; overflow-wrap: anywhere; }
+
+/* Lote B: tecnicos sugeridos, risco e incidentes em massa (AssistWidgets.tsx, IncidentsPanel.tsx) */
+.ts-box { display: grid; gap: 6px; margin-top: 8px; }
+.ts-title { display: inline-flex; align-items: center; gap: 5px; color: #4f5d73; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.ts-item { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; text-align: left; }
+.ts-item:hover { border-color: #c5d5ed; }
+.ts-item.is-selected { border-color: var(--blue); background: #edf4ff; }
+.ts-item strong { color: #17233b; font-size: 13px; }
+.ts-item small { color: #4f5d73; font-size: 11px; line-height: 1.4; }
+.call-badge.risk-medio { background: #fdf0e1; color: #9a5208; }
+.call-badge.risk-alto { background: #fde8ea; color: #b3242f; }
+.in-list { display: grid; gap: 12px; }
+.in-card { display: grid; gap: 10px; padding: 14px 16px; border-left: 4px solid #c42e3b; }
+.in-card header { display: flex; align-items: flex-start; gap: 10px; }
+.in-card header div { display: grid; gap: 2px; }
+.in-card header strong { color: #17233b; font-size: 14px; }
+.in-card header small { color: #4f5d73; font-size: 12px; }
+.in-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 8px; background: #fde8ea; color: #b3242f; }
+.in-orders { display: flex; flex-wrap: wrap; gap: 6px; }
+.in-order { padding: 3px 9px; border: 1px solid var(--line); border-radius: 12px; color: var(--blue); font-size: 12px; font-weight: 700; text-decoration: none; }
+.in-order:hover { border-color: var(--blue); }
+.in-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.in-actions .is-active { border-color: var(--blue); color: var(--blue); background: #edf4ff; }
+.in-form { display: grid; gap: 10px; max-width: 560px; }
+.in-form label { display: grid; gap: 6px; }
+.in-form select, .in-form input, .in-form textarea { padding: 9px 11px; }
+.in-form .primary-button { justify-self: start; }

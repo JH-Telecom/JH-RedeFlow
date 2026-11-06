@@ -49,7 +49,7 @@ export function stuckOfsCalls(calls: Call[], now = Date.now()): StuckCall[] {
     .sort((left, right) => (right.waitingMinutes ?? -1) - (left.waitingMinutes ?? -1));
 }
 
-export type IntegrationEventKind = 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report';
+export type IntegrationEventKind = 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report' | 'integration_alert' | 'escalation';
 export type IntegrationEvent = { id: string; kind: IntegrationEventKind; ok: boolean; summary: string; details: Record<string, unknown>; createdAt: string };
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type HealthCheck = { key: string; label: string; status: HealthStatus; lastAt: string | null; detail: string };
@@ -74,7 +74,7 @@ function freshness(key: string, label: string, events: IntegrationEvent[], kinds
 // Eventos mais recentes primeiro. Coleta automatica roda de hora em hora (export e fechamentos) e os clusters a cada ciclo.
 export function healthChecks(events: IntegrationEvent[], stuck: StuckCall[], now = Date.now()): HealthCheck[] {
   const sorted = [...events].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
-  const recentFailures = sorted.filter((event) => !event.ok && event.kind !== 'sla_alert' && event.kind !== 'daily_report' && minutesSince(event.createdAt, now) <= 360);
+  const recentFailures = sorted.filter((event) => !event.ok && ['export', 'cluster', 'closing', 'extension'].includes(event.kind) && minutesSince(event.createdAt, now) <= 360);
   const longStuck = stuck.filter((call) => !call.reasons.includes('pronto') && (call.waitingMinutes ?? 0) >= 120);
   return [
     freshness('export', 'Export do OFS (painel e Status OFS)', sorted, ['export'], 90, 180, now, 'envio'),

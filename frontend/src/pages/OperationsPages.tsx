@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronDown, RefreshCw, UserCheck, UserX, Users } from "lucide-react";
 import { api, type MapArea, type MapCall, type QueueMap, type QueueState, type TechnicianLoad } from "../api";
 import { KpiTile, Panel, formatCount } from "../components/charts";
+import { IncidentsPanel } from "../components/IncidentsPanel";
 
 // Lote 3: Mapa da fila (por regiao e bairro) e Carga dos tecnicos. Os dois atualizam sozinhos a cada minuto.
 
@@ -64,6 +65,7 @@ function CallList({ calls }: { calls: MapCall[] }) {
 export function QueueMapPage() {
   const { data, error, loading, reload } = useAutoLoad<QueueMap>(() => api.queueMap());
   const [open, setOpen] = useState<string | null>(null);
+  const [incidentKey, setIncidentKey] = useState(0);
   return (
     <div className="dv-dashboard op-page">
       <div className="page-heading dv-heading">
@@ -72,9 +74,10 @@ export function QueueMapPage() {
           <h1>Mapa da fila</h1>
           <p>Chamados ativos por região e bairro, com a cor da situação do prazo. Clique num bairro para ver os chamados.</p>
         </div>
-        <RefreshButton loading={loading} onClick={() => void reload()} />
+        <RefreshButton loading={loading} onClick={() => { void reload(); setIncidentKey((key) => key + 1); }} />
       </div>
       {error && <div className="form-error" role="alert">{error}</div>}
+      <IncidentsPanel refreshKey={incidentKey} />
       {!data ? (!error && <div className="dv-empty" role="status">Carregando...</div>) : <>
         <div className="dv-kpi-grid">
           <KpiTile label="Ativos" value={formatCount(data.total)} note={`${data.noTechnician} sem técnico`} icon={Users} />

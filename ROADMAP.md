@@ -4583,3 +4583,52 @@ Juntar "Resultado" e "Observação final" no formulário de finalizar o chamado.
 ### Validação
 - Teste HTTP do histórico: alteração de hoje com ordem e pessoa, período inválido → 400, supervisor → 403. Suíte 189/189; a primeira rodada teve o timeout conhecido em um teste não relacionado.
 - Preview: `/` foca a busca, as setas andam entre as linhas, e o histórico mostra as alterações feitas na demo. Contraste sem problemas no claro e no escuro, inclusive com a linha em foco.
+
+## Novas ideias, lote A: coleta parada e escalonamento (2026-11-06)
+
+### Pedido
+Implementar as 15 novas ideias. O segundo fator de login (13) ficou de fora por decisão do usuário. Lote A: aviso de integração parada no WhatsApp (15) e escalonamento automático (3).
+
+### Implementado (`backend/src/alerts.ts` e rotinas em `server.ts`)
+- **Coleta do OFS parada** (`integrationOutage`): mais de 2h sem envio certo de export ou de fechamentos.
+  - Um aviso no grupo dos avisos (`WUZAPI_ALERT_CHAT`) quando para e outro quando volta.
+  - O estado fica em `integration_events` (tipo `integration_alert`), então não repete a cada 5 min nem depois de reiniciar.
+  - Sem nenhum registro de coleta ainda, não avisa.
+- **Escalonamento** (`escalations`):
+  - chamado Aberto e sem técnico há mais de 5h vai para quem atribui chamados (`calls.assign`);
+  - chamado com técnico e sem observação há mais de 2h (contando da última observação, da atribuição ou da abertura) vai para o supervisor do técnico, ou para quem atribui, se o supervisor não tiver usuário.
+  - O aviso vai sempre para o sino (`user_notifications`, tipo `escalation`) e também para o WhatsApp numa mensagem só, se ligado.
+  - Cada chamado é escalado uma vez por regra a cada 24h (registro em `integration_events`, tipo `escalation`).
+  - Na primeira conferência em produção seriam 6 chamados (sem observação há mais de 2h) de 23 ativos.
+- As rotinas rodam a cada 5 min. O escalonamento roda sempre (sino); aviso de prazo, resumo das 7h e coleta parada só com o WhatsApp configurado. Nenhuma roda dentro dos testes automatizados.
+- O painel Integração OFS lista os avisos de coleta parada e de resumo no histórico, e o cartão do WhatsApp descreve tudo o que ele avisa.
+
+### Validação
+- Teste novo `alerts.test.ts` (limite de 2h, sem registro, só falhas, cluster não conta; 5h sem técnico, 2h sem observação a partir da atribuição ou da observação, finalizados fora). Suíte 191/191.
+- Não testado contra o WuzAPI real.
+
+## Novas ideias, lote B: sugestão de técnico, risco e incidentes em massa (2026-11-06)
+
+### Implementado (`backend/src/assist.ts`)
+- **Sugestão de técnico** (`GET /api/chamados/:id/sugestoes`, permissão `calls.assign`): os 3 melhores técnicos trabalhando e ativos para o chamado.
+  - A nota considera a carga atual (livre +3, 1 chamado +1,5, 2 chamados 0, depois negativo), os finalizados na mesma região, bairro e OLT nos últimos 90 dias e o % no prazo (com mínimo de 5 chamados).
+  - No detalhe do chamado, abaixo do seletor de técnico, aparece "Sugeridos para este chamado" com os motivos. Clicar só escolhe no seletor; vale ao salvar.
+  - O campo região do técnico quase sempre está vazio, por isso a sugestão usa o histórico.
+- **Risco de estourar o prazo** (`POST /api/chamados/risco`): modelo simples com os finalizados dos últimos 90 dias.
+  - Parte da taxa geral acima de 6h e ajusta por região, tipo, faixa de horário da abertura e técnico (com suavização para grupos pequenos). Depois soma o tempo já corrido; sem técnico há mais de 3h vira "alto".
+  - Não estima com menos de 30 finalizados nem depois que o prazo já estourou.
+  - Na fila, aparece o selo "Risco médio" (25% ou mais) ou "Risco alto" (50% ou mais), com os motivos ao passar o mouse.
+  - O histórico fica em cache por 5 min e o modelo por 30 min.
+- **Incidentes em massa** (`GET /api/operacao/incidentes`): 3 ou mais chamados ativos na mesma OLT, abertos com até 3h entre um e outro.
+  - Aparecem no topo do Mapa da fila com OLT, região, janela de tempo, slot/PON e as ordens (com link).
+  - Ações em lote (`POST /api/operacao/incidentes/acao`, até 50 chamados), cada uma com a permissão de sempre:
+    - atribuir o mesmo técnico (Aberto vira Atribuído);
+    - a mesma observação em todos;
+    - finalizar todos, com data e hora e "Resultado e observação" (a primeira linha é o Resultado) e um segundo clique para confirmar.
+  - O resultado volta chamado a chamado, dizendo quais não foram e por quê.
+
+### Validação
+- Teste novo `assist.test.ts`: ordem das sugestões e motivos, auxiliar e demitido fora; risco sem histórico, região propensa a atraso, tempo corrido, já estourado e sem técnico há mais de 3h; janela e mínimo de 3 dos incidentes.
+- Teste HTTP: sugestões (supervisor → 403), risco, incidentes, ação em lote com técnico inválido (422), supervisor finalizando (403), observação em 2 chamados com 1 inexistente (1 ok). Suíte 195/195.
+- Preview: incidente com 3 chamados da demo na mesma OLT, "Observação em todos" aplicada (3 de 3), sugestões no detalhe. Contraste sem problemas no claro e no escuro.
+- O selo de risco não aparece na demo, que tem poucos finalizados. Em produção há 3.296 finalizados em 90 dias.

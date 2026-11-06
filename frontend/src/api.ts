@@ -97,6 +97,10 @@ export type PeriodMetrics = { from: string; to: string; opened: number; finished
 export type CompareReport = { days: number; current: PeriodMetrics; previous: PeriodMetrics };
 export type DailySummary = PeriodMetrics & { date: string; activeNow: number; activeLate: number; topTechnicians: ProductivityRow[]; topReasons: { reason: string; count: number }[]; igp: { month: string; orders: number; onTimePercent: number | null; outlierPercent: number | null } };
 export type AuditLogRow = CallAuditLog & { orderNumber: string };
+// Lote B: sugestao de tecnico, risco e incidentes em massa.
+export type TechnicianSuggestion = { technicianId: string; name: string; score: number; reasons: string[]; active: number };
+export type CallRisk = { level: 'baixo' | 'medio' | 'alto'; percent: number; reasons: string[] };
+export type MassIncident = { key: string; olt: string; region: string; slotPons: string[]; firstAt: string; lastAt: string; calls: { id: string; orderNumber: string; status: string; technicianId?: string; technicianName?: string; openedAt: string; slotPon: string; bairro?: string }[] };
 // Operacao (lote 3): mapa da fila, carga dos tecnicos e reincidencia.
 export type QueueState = 'ok' | 'soon' | 'late' | 'outlier';
 export type MapCall = { id: string; orderNumber: string; type: string; technicianName?: string; status: string; openedAt: string; olt: string; state: QueueState; minutes: number };
@@ -145,6 +149,10 @@ export const api = {
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
   auditHistory: (from: string, to: string) => request<{ logs: AuditLogRow[]; truncated: boolean }>(`/api/auditoria?from=${from}&to=${to}`),
+  technicianSuggestions: (id: string) => request<{ suggestions: TechnicianSuggestion[] }>(`/api/chamados/${encodeURIComponent(id)}/sugestoes`),
+  callRisks: (ids: string[]) => request<{ risks: Record<string, CallRisk>; samples: number }>('/api/chamados/risco', { method: 'POST', body: JSON.stringify({ ids }) }),
+  massIncidents: () => request<{ incidents: MassIncident[] }>('/api/operacao/incidentes'),
+  incidentAction: (body: { callIds: string[]; action: 'assign' | 'observe' | 'finish'; technicianId?: string; text?: string; executedAt?: string }) => request<{ ok: number; results: { callId: string; ok: boolean; message?: string }[] }>('/api/operacao/incidentes/acao', { method: 'POST', body: JSON.stringify(body) }),
   queueMap: () => request<QueueMap>('/api/operacao/mapa'),
   technicianLoad: () => request<TechnicianLoad>('/api/operacao/carga'),
   repeatHistory: (id: string) => request<RepeatHistory>(`/api/chamados/${encodeURIComponent(id)}/reincidencia`),
