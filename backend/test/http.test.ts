@@ -124,10 +124,41 @@ test('users can save, read and remove their own profile photo', async () => {
   });
   assert.equal(invalidResponse.status, 400);
 
+  // GIF animado: aceito sem reducao ate 2 MB; acima disso, recusado.
+  const gifAvatar = `data:image/gif;base64,${'A'.repeat(1_000_000)}`;
+  assert.equal((await fetch(`${baseUrl}/api/auth/avatar`, { method: 'PUT', headers, body: JSON.stringify({ avatarDataUrl: gifAvatar }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/auth/avatar`, { method: 'PUT', headers, body: JSON.stringify({ avatarDataUrl: `data:image/jpeg;base64,${'A'.repeat(1_000_000)}` }) })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/auth/avatar`, { method: 'PUT', headers, body: JSON.stringify({ avatarDataUrl: `data:image/gif;base64,${'A'.repeat(2_900_000)}` }) })).status, 400);
+
   const deleteResponse = await fetch(`${baseUrl}/api/auth/avatar`, { method: 'DELETE', headers });
   assert.equal(deleteResponse.status, 200);
   const deletedResponse = await fetch(`${baseUrl}/api/auth/avatar`, { headers });
   assert.equal((await deletedResponse.json() as { avatarDataUrl: string | null }).avatarDataUrl, null);
+});
+
+test('profile banner accepts an animated GIF up to 3 MB and rejects larger ones', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const gif = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+
+  const saved = await fetch(`${baseUrl}/api/auth/banner`, { method: 'PUT', headers, body: JSON.stringify({ bannerDataUrl: gif }) });
+  assert.equal(saved.status, 200);
+  const read = await fetch(`${baseUrl}/api/auth/banner`, { headers });
+  assert.equal((await read.json() as { bannerDataUrl: string | null }).bannerDataUrl, gif);
+
+  // Um GIF grande (~1,5 MB) passa; JPEG desse tamanho nao (so GIF vai sem reducao).
+  const bigBody = 'A'.repeat(2_000_000);
+  assert.equal((await fetch(`${baseUrl}/api/auth/banner`, { method: 'PUT', headers, body: JSON.stringify({ bannerDataUrl: `data:image/gif;base64,${bigBody}` }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/auth/banner`, { method: 'PUT', headers, body: JSON.stringify({ bannerDataUrl: `data:image/jpeg;base64,${bigBody}` }) })).status, 400);
+  // Acima de 3 MB de GIF e recusado.
+  assert.equal((await fetch(`${baseUrl}/api/auth/banner`, { method: 'PUT', headers, body: JSON.stringify({ bannerDataUrl: `data:image/gif;base64,${'A'.repeat(4_300_000)}` }) })).status, 400);
+
+  await fetch(`${baseUrl}/api/auth/banner`, { method: 'DELETE', headers });
 });
 
 test('users can save their own nickname and color theme', async () => {

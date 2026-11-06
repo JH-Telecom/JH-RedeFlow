@@ -4364,3 +4364,56 @@ Temas de cor como na prévia (JH Azul, Ardósia, Névoa, Flor, Aurora e Neon), c
 - Banners já salvos em 3:1 continuam funcionando: são ajustados ao novo formato, com um corte pequeno nas laterais.
 - O CSS antigo do cartão de perfil de Configurações (`.settings-profile*`) foi removido; ele não era mais usado.
 - Validação: faixa medida em 2,833 (17:6) com um banner de teste. Contraste do `/perfil` sem problemas no Padrão, Flor e Ardósia, claro e escuro.
+
+### Ajuste: banner largo no topo do perfil (2026-11-06)
+- O cartão estreito de 380px deixava o banner pequeno demais.
+- Agora o topo de Meu perfil segue o perfil do Discord:
+  - o banner ocupa a largura da página em 4:1;
+  - a foto tem 140px, fica sobreposta no canto com anel da cor do cartão, e tem botão de câmera;
+  - nome ou apelido e cargo ficam ao lado da foto, com "Trocar foto" à direita;
+  - e-mail, cargo e nome na equipe ficam numa faixa.
+- Apelido e Tema ficam lado a lado abaixo; em telas menores, um embaixo do outro.
+- O recorte passou para 4:1 (1600×400, `banner-image.ts`), o mesmo formato em que o banner aparece no computador.
+- No celular a faixa fica em 3:1, com um corte pequeno nas laterais, para não ficar fina demais.
+- Validação: banner de teste 4:1 aparece inteiro no desktop; no celular (375px) não há rolagem lateral. Contraste do `/perfil` sem problemas no JH Azul e Aurora, claro e escuro.
+
+### Ajuste: banner em 16:9 (2026-11-06)
+- Pedido: ver por completo uma foto 16:9, como um papel de parede de 2000×1125.
+- O recorte passou para 16:9 (1600×900, `banner-image.ts`).
+- A faixa do topo usa `aspect-ratio: 16 / 9` também no celular, e a página do perfil ficou com no máximo 1040px de largura (banner de cerca de 585px de altura).
+- Uma foto 16:9 aparece inteira, sem corte. Banners salvos antes, em outros formatos, preenchem a faixa com algum corte até serem enviados de novo.
+- Validação: faixa medida em 1,778 (16:9) com banner de teste 1600×900.
+- Ajuste seguinte: a página do perfil passou a ter no máximo 860px de largura.
+  - O banner continua 16:9, mas menor: 858×483 no desktop.
+  - Apelido e Tema ficam um embaixo do outro, sem ficarem espremidos lado a lado.
+- Ajuste seguinte: a altura do banner ficou grande demais.
+  - A página voltou a ter no máximo 1040px de largura.
+  - A faixa do banner ficou mais baixa (7:2, cerca de 1038×297).
+  - A foto continua sendo recortada em 16:9 e aparece inteira no centro (`contain`). As laterais mostram a própria foto ampliada e desfocada (`::before` com `blur`).
+  - A imagem vai pela variável CSS `--pf-banner`.
+  - No celular a faixa continua 16:9, preenchida pela foto.
+- Ajuste final do banner: a foto ocupa a faixa inteira (`cover`), sem as laterais desfocadas.
+  - A faixa é 7:2 (1038×297 no desktop, o mesmo formato no celular).
+  - O recorte no envio passou para 7:2 (1600×457): o que é salvo é o que aparece.
+  - Imagens 16:9 perdem parte de cima e de baixo.
+
+### Banner animado (GIF) (2026-11-06)
+- Pedido: poder usar GIF para ter banner animado.
+- `banner-image.ts`: GIF vai sem passar pelo canvas, que tiraria a animação. O arquivo entra como está, com até 3 MB e sem recorte.
+  - A faixa mostra o centro dele (`cover`).
+  - JPEG, PNG e WebP continuam recortados em 7:2 e reduzidos.
+- `PUT /api/auth/banner` aceita `data:image/gif` até cerca de 4,2 MB em base64 (3 MB de arquivo). Os outros formatos continuam até 700 KB.
+- O seletor de arquivo do banner aceita GIF.
+- O GIF também anima ao fundo das observações nos chamados.
+- O limite de 3 MB é porque o banner de cada autor é baixado ao abrir um chamado.
+- Validação:
+  - Teste novo em `http.test.ts`: GIF aceito, GIF grande aceito, JPEG grande recusado, GIF acima de 3 MB recusado. Suíte 168/168.
+  - Um teste não relacionado teve o timeout conhecido na primeira rodada e passou na segunda.
+  - Preview: GIF de 12 quadros salvo e animando na faixa.
+- Foto de perfil animada (GIF):
+  - `resizeProfilePhoto` (`Shell.tsx`) envia GIF como está, com até 2 MB, para não perder a animação.
+  - `PUT /api/auth/avatar` aceita `data:image/gif` até cerca de 2,8 MB em base64. Os outros formatos continuam até 350 KB.
+  - O seletor de foto aceita GIF. A foto redonda mostra o centro (`object-fit: cover`).
+  - A foto só é carregada pela própria pessoa (lateral, topo e perfil).
+  - Teste de `http.test.ts` ampliado: GIF aceito, JPEG grande recusado, GIF acima de 2 MB recusado. Suíte 168/168.
+  - Preview: GIF de 10 quadros animando na foto do perfil, na lateral e no topo.

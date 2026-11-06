@@ -40,6 +40,16 @@ function navItemForPath(pathname: string) {
 
 export async function resizeProfilePhoto(file: File) {
   if (!file.type.startsWith("image/")) throw new Error("Selecione um arquivo de imagem.");
+  // GIF animado vai como esta (o canvas tiraria a animacao); a foto redonda mostra o centro dele.
+  if (file.type === "image/gif") {
+    if (file.size > 2 * 1024 * 1024) throw new Error("O GIF da foto deve ter no máximo 2 MB.");
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Não foi possível ler o GIF."));
+      reader.readAsDataURL(file);
+    });
+  }
   if (file.size > 10 * 1024 * 1024) throw new Error("A imagem original deve ter no máximo 10 MB.");
 
   const bitmap = await createImageBitmap(file);

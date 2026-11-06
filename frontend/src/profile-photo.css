@@ -91,28 +91,32 @@
 .history-banner-body .observation-attachments { margin-top: 8px; }
 
 /* Pagina Meu perfil (ProfilePage.tsx) */
-.pf-page { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); align-items: start; gap: 20px; max-width: 1160px; margin: 0 auto; }
-.pf-main { display: grid; gap: 18px; min-width: 0; }
-/* Cartao estilo Discord: banner 17:6, foto sobreposta com anel da cor do cartao */
-.pf-hero { position: sticky; top: 92px; overflow: hidden; padding: 0; }
-.pf-banner { position: relative; aspect-ratio: 17 / 6; background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%); background-position: center; background-size: cover; }
-.pf-banner.has-banner { background-color: #17233b; }
-.pf-banner-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
-.pf-banner-button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 15px; background: #0b1220b8; color: #fff; font-size: 12px; font-weight: 700; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.pf-page { display: grid; gap: 20px; max-width: 1040px; margin: 0 auto; }
+.pf-main { display: grid; gap: 20px; min-width: 0; }
+.pf-main > .form-error, .pf-main > .save-message { grid-column: 1 / -1; }
+/* Topo estilo perfil do Discord: banner 16:9 (formato de foto/wallpaper, aparece inteiro) na largura da pagina, foto grande sobreposta com anel da cor do cartao */
+.pf-hero { overflow: hidden; padding: 0; }
+.pf-banner { position: relative; overflow: hidden; aspect-ratio: 7 / 2; background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%); background-position: center; background-size: cover; }
+/* A foto ocupa a faixa inteira; o recorte no envio ja e 7:2, entao nada some na tela. */
+.pf-banner.has-banner { background: #0b1220 var(--pf-banner) center / cover no-repeat; }
+.pf-banner-actions { position: absolute; top: 14px; right: 14px; display: flex; gap: 8px; }
+.pf-banner-button { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 17px; background: #0b1220b8; color: #fff; font-size: 12px; font-weight: 700; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .pf-banner-button:hover { background: #0b1220e6; }
 .pf-banner-button:disabled { cursor: wait; opacity: .8; }
-.pf-hero-body { position: relative; padding: 0 20px 20px; }
-.pf-avatar-button { position: relative; display: block; width: 96px; height: 96px; margin: -48px 0 10px -2px; padding: 0; border-radius: 50%; background: transparent; }
-.pf-avatar { width: 96px; height: 96px; border: 6px solid #fff; border-radius: 50%; box-sizing: border-box; background: #e8f0fe; color: #173a71; font-size: 30px; font-weight: 700; cursor: pointer; }
-.pf-avatar-edit { position: absolute; right: 2px; bottom: 4px; display: grid; place-items: center; width: 28px; height: 28px; border: 3px solid #fff; border-radius: 50%; background: var(--blue); color: #fff; }
+.pf-hero-body { position: relative; padding: 0 28px 24px; }
+.pf-hero-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; }
+.pf-avatar-button { position: relative; display: block; flex: none; width: 140px; height: 140px; margin-top: -70px; padding: 0; border-radius: 50%; background: transparent; }
+.pf-avatar { width: 140px; height: 140px; border: 8px solid #fff; border-radius: 50%; box-sizing: border-box; background: #e8f0fe; color: #173a71; font-size: 44px; font-weight: 700; cursor: pointer; }
+.pf-avatar-edit { position: absolute; right: 8px; bottom: 8px; display: grid; place-items: center; width: 34px; height: 34px; border: 4px solid #fff; border-radius: 50%; background: var(--blue); color: #fff; }
 .pf-avatar-button:hover .pf-avatar-edit { background: var(--blue-deep); }
 .pf-avatar-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
-.pf-hero h1 { margin: 0; font-size: 22px; letter-spacing: -.4px; overflow-wrap: anywhere; }
-.pf-hero-sub { margin: 2px 0 14px; color: #5f6d84; font-size: 13px; }
-.pf-hero-facts { display: grid; gap: 10px; margin: 0 0 16px; padding: 12px 14px; border-radius: 9px; background: #f4f7fb; }
+.pf-hero-identity { flex: 1 1 220px; min-width: 0; padding-bottom: 6px; }
+.pf-hero h1 { margin: 0; font-size: 28px; letter-spacing: -.6px; overflow-wrap: anywhere; }
+.pf-hero-sub { margin: 3px 0 0; color: #5f6d84; font-size: 14px; }
+.pf-hero-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 8px; }
+.pf-hero-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 20px 0 0; padding: 14px 16px; border-radius: 10px; background: #f4f7fb; }
 .pf-hero-facts dt { color: #5f6d84; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.pf-hero-facts dd { margin: 2px 0 0; color: #17233b; font-size: 13px; overflow-wrap: anywhere; }
-.pf-hero-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-hero-facts dd { margin: 3px 0 0; color: #17233b; font-size: 13px; overflow-wrap: anywhere; }
 .pf-hero-hint { display: block; margin-top: 12px; color: #5f6d84; font-size: 11px; line-height: 1.5; }
 .pf-card { display: grid; gap: 18px; }
 .pf-card-heading { display: flex; align-items: flex-start; gap: 14px; }
@@ -149,8 +153,16 @@
 .pf-theme-label small { margin-left: auto; color: #5f6d84; font-size: 11px; font-weight: 600; }
 .pf-theme-dot { width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px #17233b26; }
 @media (max-width: 1080px) {
-  .pf-page { grid-template-columns: 1fr; max-width: 720px; }
-  .pf-hero { position: static; }
+  .pf-main { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .pf-hero-body { padding: 0 16px 18px; }
+  .pf-avatar-button, .pf-avatar { width: 104px; height: 104px; }
+  .pf-avatar-button { margin-top: -52px; }
+  .pf-avatar { border-width: 6px; font-size: 34px; }
+  /* No celular a faixa mantem 7:2 (mesmo formato do recorte) */
+  .pf-banner-actions { top: 8px; right: 8px; }
+  .pf-banner-button { height: 30px; padding: 0 10px; font-size: 11px; }
 }
 @media (max-width: 640px) {
   .pf-card-heading { flex-wrap: wrap; }

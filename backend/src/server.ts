@@ -218,7 +218,8 @@ app.get('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar a foto de perfil.' }); }
 });
 app.put('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
-  const parsed = z.object({ avatarDataUrl: z.string().max(350_000).regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/) }).safeParse(request.body);
+  // Foto: JPEG/PNG/WebP ja reduzida (ate 350 KB). GIF animado vai sem reducao: ate 2 MB (~2,8 MB em base64).
+  const parsed = z.object({ avatarDataUrl: z.string().regex(/^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/).refine((value) => value.length <= (value.startsWith('data:image/gif') ? 2_800_000 : 350_000)) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Envie uma foto JPEG, PNG ou WebP com ate 350 KB depois da compactacao.' });
   try {
     const saved = await saveUserAvatar(request.authUser!.id, parsed.data.avatarDataUrl);
@@ -254,8 +255,9 @@ app.get('/api/auth/banner', auth, async (request: AuthRequest, response) => {
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o banner.' }); }
 });
 app.put('/api/auth/banner', auth, async (request: AuthRequest, response) => {
-  const parsed = z.object({ bannerDataUrl: z.string().max(700_000).regex(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/) }).safeParse(request.body);
-  if (!parsed.success) return response.status(400).json({ message: 'Envie um banner JPEG, PNG ou WebP com ate 700 KB depois da compactacao.' });
+  // Foto: JPEG/PNG/WebP ja reduzida (ate 700 KB). GIF animado vai sem reducao: ate 3 MB (~4,2 MB em base64).
+  const parsed = z.object({ bannerDataUrl: z.string().regex(/^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/).refine((value) => value.length <= (value.startsWith('data:image/gif') ? 4_200_000 : 700_000)) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie um banner JPEG, PNG ou WebP com ate 700 KB depois da compactacao, ou um GIF de ate 3 MB.' });
   try {
     await saveUserBanner(request.authUser!.id, parsed.data.bannerDataUrl);
     return response.json({ bannerDataUrl: parsed.data.bannerDataUrl });

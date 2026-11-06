@@ -81,32 +81,38 @@ export function ProfilePage({ user, profile, preferences, onSavePreferences, the
 
   return (
     <div className="pf-page">
-      {/* Cartao no estilo Discord: banner 17:6 no topo, foto sobreposta no canto com anel da cor do cartao. */}
+      {/* Topo no estilo do perfil do Discord: faixa larga 7:2 na largura da pagina, preenchida pela foto, foto grande sobreposta
+          no canto com anel da cor do cartao, nome e acoes logo abaixo. */}
       <section className="panel pf-hero" aria-labelledby="pf-name">
-        <div className={`pf-banner${banner ? " has-banner" : ""}`} style={banner ? { backgroundImage: `url(${banner})` } : undefined}>
+        <div className={`pf-banner${banner ? " has-banner" : ""}`} style={banner ? ({ "--pf-banner": `url(${banner})` } as React.CSSProperties) : undefined}>
           <div className="pf-banner-actions">
             <button className="pf-banner-button" type="button" onClick={() => bannerInput.current?.click()} disabled={bannerSaving}><ImageIcon size={14} />{bannerSaving ? "Salvando..." : banner ? "Trocar banner" : "Adicionar banner"}</button>
             {banner && <button className="pf-banner-button" type="button" onClick={() => void removeBanner()} disabled={bannerSaving} aria-label="Remover banner" title="Remover banner"><Trash2 size={14} /></button>}
-            <input ref={bannerInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void changeBanner(event)} />
+            <input ref={bannerInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => void changeBanner(event)} />
           </div>
         </div>
         <div className="pf-hero-body">
-          <button type="button" className="pf-avatar-button" onClick={() => photoInput.current?.click()} disabled={profile.saving} title={profile.photo ? "Trocar foto" : "Adicionar foto"} aria-label={profile.photo ? "Trocar foto" : "Adicionar foto"}>
-            <ProfileAvatar name={displayName} photo={profile.photo} className="pf-avatar" />
-            <span className="pf-avatar-edit" aria-hidden="true"><Camera size={14} /></span>
-          </button>
-          <h1 id="pf-name">{displayName}</h1>
-          <p className="pf-hero-sub">{preferences.nickname ? user.name : user.role.name}</p>
+          <div className="pf-hero-row">
+            <button type="button" className="pf-avatar-button" onClick={() => photoInput.current?.click()} disabled={profile.saving} title={profile.photo ? "Trocar foto" : "Adicionar foto"} aria-label={profile.photo ? "Trocar foto" : "Adicionar foto"}>
+              <ProfileAvatar name={displayName} photo={profile.photo} className="pf-avatar" />
+              <span className="pf-avatar-edit" aria-hidden="true"><Camera size={16} /></span>
+            </button>
+            <div className="pf-hero-identity">
+              <h1 id="pf-name">{displayName}</h1>
+              <p className="pf-hero-sub">{preferences.nickname ? `${user.name} · ${user.role.name}` : user.role.name}</p>
+            </div>
+            <div className="pf-hero-actions">
+              <button className="primary-button compact" type="button" onClick={() => photoInput.current?.click()} disabled={profile.saving}><Camera size={15} />{profile.saving ? "Salvando..." : profile.photo ? "Trocar foto" : "Adicionar foto"}</button>
+              {profile.photo && <button className="secondary-button compact" type="button" onClick={() => void removePhoto()} disabled={profile.saving}><Trash2 size={15} /> Remover foto</button>}
+              <input ref={photoInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => void changePhoto(event)} />
+            </div>
+          </div>
           <dl className="pf-hero-facts">
             <div><dt>E-mail</dt><dd>{user.email}</dd></div>
             <div><dt>Cargo</dt><dd>{user.role.name}</dd></div>
+            <div><dt>Nome na equipe</dt><dd>{user.name}</dd></div>
           </dl>
-          <div className="pf-hero-actions">
-            <button className="primary-button compact" type="button" onClick={() => photoInput.current?.click()} disabled={profile.saving}><Camera size={15} />{profile.saving ? "Salvando..." : profile.photo ? "Trocar foto" : "Adicionar foto"}</button>
-            {profile.photo && <button className="secondary-button compact" type="button" onClick={() => void removePhoto()} disabled={profile.saving}><Trash2 size={15} /> Remover foto</button>}
-            <input ref={photoInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void changePhoto(event)} />
-          </div>
-          <small className="pf-hero-hint">JPG, PNG ou WebP. O banner é recortado em 17:6 (como no Discord; ideal 1360×480) e também aparece ao fundo das suas observações nos chamados.</small>
+          <small className="pf-hero-hint">JPG, PNG ou WebP. O banner é recortado em 7:2 (ideal 1600×457), o formato da faixa do topo; imagens de outros formatos perdem um pouco das bordas. GIF animado entra sem recorte e continua animado (banner até 3 MB, foto até 2 MB). Ele também vai ao fundo das suas observações nos chamados.</small>
         </div>
       </section>
 
