@@ -9,6 +9,25 @@ const API_URL = `${API_BASE}/api/integrations/ofs/export`;
 const LOGIN_URL = `${API_BASE}/api/integrations/ofs/login`;
 const FECH_PENDENTES_URL = `${API_BASE}/api/integrations/ofs/fechamentos/pendentes`;
 const FECH_URL = `${API_BASE}/api/integrations/ofs/fechamentos`;
+const RELATO_URL = `${API_BASE}/api/integrations/ofs/relato`;
+
+// Relato ao RedeFlow (v1.3.4): o painel "Integração OFS" passa a ver o que acontece aqui no navegador
+// (aba do OFS fora do Console, login, export que nao saiu). Nunca atrapalha a coleta: erro aqui e ignorado.
+async function relatar(tipo, registro) {
+  try {
+    const auth = await autenticacao();
+    if (!auth) return;
+    const falhas = (registro.falhas || []).slice(0, 50).map((f) => ({ ordem: String(f.ordem || "").slice(0, 60), tipo: f.tipo, motivo: String(f.motivo || "").slice(0, 500) }));
+    const resumo = tipo === "closing" && registro.ok
+      ? `${registro.lidos ?? 0} lida(s), ${registro.atualizados ?? 0} atualizada(s), ${(registro.finalizados || []).length} finalizada(s), ${registro.pendentes ?? 0} na fila`
+      : undefined;
+    await fetch(RELATO_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...auth.headers },
+      body: JSON.stringify({ tipo, ok: Boolean(registro.ok), resumo, erro: registro.erro ? String(registro.erro).slice(0, 500) : undefined, versao: chrome.runtime.getManifest().version, falhas }),
+    });
+  } catch (_) { /* relato e opcional */ }
+}
 const OFS_MATCH = "https://alloha.fs.ocs.oraclecloud.com/*";
 const ALARME_HOJE = "rf-coleta-hoje";
 const ALARME_ONTEM = "rf-coleta-dia-anterior";
@@ -100,6 +119,7 @@ async function registrar(resultado) {
     });
   }
   atualizarSelo();
+  if (!registro.ok && registro.erro !== "Entre com seu usuário do JH RedeFlow no popup") void relatar("export", registro);
   return registro;
 }
 
@@ -383,6 +403,7 @@ async function ofsPronto(tabId) {
 async function registrarFechamento(resultado) {
   const registro = { quando: Date.now(), ...resultado };
   await chrome.storage.local.set({ ultimoFechamento: registro });
+  void relatar("closing", registro);
   return registro;
 }
 
@@ -481,7 +502,14 @@ async function esperarCapturaLivre(ms) {
 }
 
 async function coletarClusters(automatico) {
-  const registrarClusters = async (resultado) => { const registro = { quando: Date.now(), ...resultado }; await chrome.storage.local.set({ ultimoCluster: registro }); return registro; };
+  const registrarClusters = async (resultado) => {
+    const registro = { quando: Date.now(), ...resultado };
+    await chrome.storage.local.set({ ultimoCluster: registro });
+    // Clusters que nao sairam (o servidor so ve os que chegaram).
+    const falharam = (registro.resultados || []).filter((r) => !r.ok);
+    if (!registro.ok || falharam.length) void relatar("cluster", { ok: false, erro: registro.erro || falharam.map((r) => `${r.balde}: ${r.erro}`).join("; ") });
+    return registro;
+  };
   if (!(await autenticacao())) return registrarClusters({ ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" });
   const { fechRodando } = await chrome.storage.local.get("fechRodando");
   if (fechRodando && Date.now() < fechRodando) return { ok: false, erro: "A aba fixada do OFS está ocupada; fica para o próximo ciclo" };

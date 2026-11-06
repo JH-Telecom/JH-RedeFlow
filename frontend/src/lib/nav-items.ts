@@ -1,4 +1,4 @@
-import { Archive, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Archive, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
 
 // Abas do menu lateral. Usado pelo Shell (menu, rotas, busca Ctrl+K) e pela tela de Cargos (abas visiveis por cargo).
 export type NavItem = { label: string; to: string; icon: LucideIcon; permission: string; section: string; roles?: string[]; counter?: "unassigned" | "activations" };
@@ -21,6 +21,7 @@ export const navItems: NavItem[] = [
   // Aberta a todos (so leitura): perfis e quem esta online.
   { section: "Equipes", label: "Pessoas", to: "/pessoas", icon: Contact, permission: "" },
   { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
+  { section: "Administração", label: "Integração OFS", to: "/integracao-ofs", icon: Activity, permission: "imports.view" },
   { section: "Administração", label: "Usuários", to: "/usuarios", icon: Users, permission: "users.view" },
   { section: "Administração", label: "Cargos e permissões", to: "/cargos", icon: ShieldCheck, permission: "roles.view" },
   { section: "Administração", label: "Configurações", to: "/configuracoes", icon: Settings, permission: "" },

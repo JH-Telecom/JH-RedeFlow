@@ -4445,3 +4445,39 @@ Uma página que todos possam ver, com os perfis das pessoas e se estão online. 
   - POST, PUT, PATCH e DELETE em `/api/people/:id` não existem (404).
   - Suíte 169/169.
 - Preview: lista, filtro e perfil com banner e foto conferidos. Contraste sem problemas na lista e com o perfil aberto (Padrão e Flor, claro e escuro).
+
+## Lote 1 das ideias: Integração OFS, fila de parados e aviso antes do prazo (2026-11-06)
+
+### Pedido
+Implementar todas as ideias sugeridas, em lotes, começando pela integração. Lote 1: painel de saúde da integração (9), fila de "não finalizou sozinho" (10) e alerta antes de estourar o prazo (1), com aviso também no WhatsApp.
+
+### Implementado
+- Nova aba "Integração OFS" em Administração (`/integracao-ofs`, permissão `imports.view`, `IntegrationHealthPage.tsx`). Atualiza a cada minuto.
+  - Semáforo (OK / Atenção / Parado / Sem dados) de:
+    - export do OFS (certo há até 90 min = OK; até 3h = Atenção);
+    - leitura de fechamentos (mesmos prazos);
+    - clusters (até 3h / 12h);
+    - falhas nas últimas 6h;
+    - chamados parados há mais de 2h.
+  - O ciclo fica em "Atenção" quando deu certo mas teve ordens com erro de leitura, ou quando a última tentativa falhou.
+  - Cartão do aviso no WhatsApp (ligado/desligado), linha da base D-0 atual e histórico das últimas 72h, com as ordens que falharam em cada ciclo.
+- Fila "Concluídos no OFS que ainda não finalizaram aqui" (`stuckOfsCalls`, mesmas regras de `callsReadyToFinish`).
+  - Cada chamado mostra o que falta: sem técnico, sem Data Fim, fechamento não lido, fechamento em código, ordem em mais de um chamado, ou "pronto" (finaliza no próximo ciclo).
+  - Filtro por motivo e link para o chamado.
+- Registro da coleta: nova tabela `integration_events` (migração `202611060002_integration_events.sql`), com 14 dias de histórico.
+  - O servidor registra export, cluster e fechamentos (início do ciclo e resultado).
+  - Nova rota `POST /api/integrations/ofs/relato` recebe o que a extensão viu no navegador.
+- Extensão v1.3.4: depois de cada ciclo manda o relato.
+  - Fechamentos: sempre, com as ordens que falharam.
+  - Export e clusters: só quando falham, porque o sucesso o servidor já registra.
+  - O relato nunca atrapalha a coleta.
+- Aviso antes do prazo:
+  - No sino: "X chamado(s) vencem em menos de 2h", no escopo do supervisor (`nearDeadlineCalls`). O banner de 30 min continua.
+  - No WhatsApp: a cada 5 min, os chamados que entraram na última 1h recebem um aviso, numa mensagem só, uma vez por chamado (o registro fica em `integration_events`, tipo `sla_alert`).
+  - A mensagem não leva dados de cliente: ordem, tipo, região, técnico e quanto falta.
+  - O envio usa o WuzAPI (`POST {url}/chat/send/text`) e fica desligado até configurar no Render `WUZAPI_API_URL`, `WUZAPI_USER_TOKEN` e `WUZAPI_ALERT_CHAT`. Não foi configurado nem testado contra o WuzAPI real.
+
+### Validação
+- Teste novo `integration-health.test.ts` (fila parada, semáforo, janela de prazo, texto do WhatsApp, envio desligado sem as variáveis).
+- Teste HTTP do relato e do painel, incluindo supervisor sem acesso. Suíte 174/174.
+- Preview: relatos e export de teste aparecem no painel e na fila, com motivos e filtro. Contraste sem problemas (Padrão e Aurora, claro e escuro).

@@ -1092,6 +1092,25 @@ test('OFS collector extension logs in with the system user and its session only 
   assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);
 });
 
+test('extension reports land in the OFS integration health panel', async () => {
+  const collector = await (await fetch(`${baseUrl}/api/integrations/ofs/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) })).json() as { token: string };
+  const relato = (body: unknown, token = collector.token) => fetch(`${baseUrl}/api/integrations/ofs/relato`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+  assert.equal((await relato({ tipo: 'closing', ok: false }, 'x')).status, 401);
+  assert.equal((await relato({ tipo: 'outro', ok: true })).status, 400);
+  assert.equal((await relato({ tipo: 'closing', ok: false, erro: 'A aba fixada não está no Console de Alocação', versao: '1.3.4' })).status, 200);
+
+  const session = await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) })).json() as { token: string };
+  const health = await fetch(`${baseUrl}/api/integracoes/saude`, { headers: { authorization: `Bearer ${session.token}` } });
+  assert.equal(health.status, 200);
+  const body = await health.json() as { checks: { key: string; detail: string }[]; events: { summary: string }[]; whatsapp: { configured: boolean } };
+  assert.ok(body.events.some((item) => /Console de Alocação/.test(item.summary)));
+  assert.match(body.checks.find((check) => check.key === 'closing')!.detail, /Console de Alocação/);
+  assert.equal(body.whatsapp.configured, false);
+  // Supervisor (sem imports.view) nao ve o painel.
+  const supervisor = await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'joao@jhtelecom.com', password: 'RedeFlow@2026' }) })).json() as { token: string };
+  assert.equal((await fetch(`${baseUrl}/api/integracoes/saude`, { headers: { authorization: `Bearer ${supervisor.token}` } })).status, 403);
+});
+
 test('OFS collector export of a previous day updates that day panel and calls without replacing today D-0 base', async () => {
   const fmt = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
   const today = fmt(new Date());

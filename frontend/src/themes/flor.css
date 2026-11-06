@@ -2772,6 +2772,98 @@
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-state.is-outlier b, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-state.is-outlier small {
     color: var(--dv-critical-ink)
 }
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check {
+    border-top: 4px solid #b49ea6
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check p {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check small {
+    color: #82626d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check code {
+    background: #f1f5fa;
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-badge {
+    background: #eef1f5;
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check.is-ok {
+    border-top-color: #1caa76
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check.is-ok .ih-badge {
+    background: #e3f6ee;
+    color: #137a52
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check.is-warn {
+    border-top-color: #e6953d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check.is-warn .ih-badge {
+    background: #fdf0e1;
+    color: #9a5208
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check.is-critical {
+    border-top-color: #c42e3b
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-check.is-critical .ih-badge {
+    background: #fde8ea;
+    color: #b3242f
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-d0 {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-reasons button {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-reasons button.is-active {
+    border-color: var(--blue);
+    background: #feeff4;
+    color: var(--blue)
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-chip {
+    background: #fdf0e1;
+    color: #9a5208
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-chip.is-ready {
+    background: #e3f6ee;
+    color: #137a52
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-missing {
+    color: #b3242f
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-hint {
+    color: #82626d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-events > li {
+    border-top: 1px solid #f0f3f7
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-events > li:first-child {
+    border-top: 0
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-event-icon {
+    color: #137a52
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-events > li.is-fail .ih-event-icon {
+    color: #b3242f
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-event-kind {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-event-text {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-events time {
+    color: #82626d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-falhas {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-falhas b {
+    color: #371825
+}
 /* light · update-notice.css */
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #3718258c
@@ -5772,6 +5864,98 @@
 }
 :where(:root[data-palette="flor"][data-theme="dark"]) .rp-state.is-outlier b, :where(:root[data-palette="flor"][data-theme="dark"]) .rp-state.is-outlier small {
     color: var(--dv-critical-ink)
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check {
+    border-top: 4px solid #b49ea6
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check p {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check small {
+    color: #b5abae
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check code {
+    background: #1c1316;
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-badge {
+    background: #1c1417;
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check.is-ok {
+    border-top-color: #1caa76
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check.is-ok .ih-badge {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check.is-warn {
+    border-top-color: #e6953d
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check.is-warn .ih-badge {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check.is-critical {
+    border-top-color: #c42e3b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-check.is-critical .ih-badge {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-d0 {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-reasons button {
+    border: 1px solid var(--line);
+    background: #21191c;
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-reasons button.is-active {
+    border-color: var(--blue);
+    background: #211117;
+    color: var(--accent-text)
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-chip {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-chip.is-ready {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-missing {
+    color: #ff8a86
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-hint {
+    color: #b5abae
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-events > li {
+    border-top: 1px solid #3b3235
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-events > li:first-child {
+    border-top: 0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-event-icon {
+    color: #73cda0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-events > li.is-fail .ih-event-icon {
+    color: #ff8a86
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-event-kind {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-event-text {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-events time {
+    color: #b5abae
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-falhas {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .ih-falhas b {
+    color: #eee0e5
 }
 /* dark · update-notice.css */
 :where(:root[data-palette="flor"][data-theme="dark"]) .update-notice-backdrop {

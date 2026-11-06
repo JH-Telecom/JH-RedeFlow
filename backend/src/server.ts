@@ -22,6 +22,10 @@ import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, 
 import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
 import { dueSoonCalls } from './due-soon.js';
+import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
+import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
+import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
+import { sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -340,7 +344,15 @@ app.delete('/api/dashboards/painel-diario/base', auth, requirePermission('import
 });
 app.get('/api/notificacoes', auth, async (request: AuthRequest, response) => {
   const includeOperational = Boolean(request.authUser?.role.permissions.includes('dashboard.view'));
-  return response.json({ notifications: await listNotifications(includeOperational) });
+  const notifications = await listNotifications(includeOperational);
+  // Aviso antecipado do prazo de 6h: chamados ativos com menos de 2h restantes (no escopo do supervisor).
+  if (includeOperational && request.authUser?.role.permissions.includes('calls.view')) {
+    try {
+      const near = nearDeadlineCalls(await listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'], await getScopedCallQuery(request, true)), BELL_WINDOW_MINUTES);
+      if (near.length) notifications.unshift({ id: 'near-deadline', type: 'warning', title: `${near.length} chamado(s) vencem em menos de 2h`, detail: `Mais perto: ${near[0].orderNumber}, faltam ${near[0].minutesLeft} min.`, href: '/chamados/atendimento', count: near.length });
+    } catch { /* supervisor sem equipe: sem o aviso */ }
+  }
+  return response.json({ notifications });
 });
 app.get('/api/users', auth, requirePermission('users.view'), async (_request, response) => response.json({ users: (await listUsers()).map((user) => ({ ...user, ...presenceOf(user.id) })) }));
 // Pessoas: diretorio SO DE LEITURA para qualquer usuario logado (nome, cargo, e-mail, foto, banner e se esta online).
@@ -723,9 +735,12 @@ app.post('/api/integrations/ofs/export', async (request, response) => {
       d0Error = error instanceof Error ? error.message : 'Nao foi possivel atualizar a base D-0.';
     }
     console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${businessDate}; chamados ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados, ${clusteredCalls} com cluster pela Workzone` : `nao atualizados (${d0Error})`}`);
+    void recordIntegrationEvent('export', !d0Error, `${data.records.length} atividades de ${businessDate}; ${d0 ? `${d0.matchedCalls} chamados cruzados, ${d0.updatedCalls} atualizados` : `chamados não atualizados (${d0Error})`}`, { businessDate, by: uploadedBy, records: data.records.length, ...(d0 || {}), d0Error });
     return response.json({ ok: true, painel: { businessDate: base.businessDate, records: data.records.length, technicians: data.technicians.length, orders: data.orders.length }, d0, d0Error, clusteredCalls });
   } catch (error) {
-    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do OFS.' });
+    const message = error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do OFS.';
+    void recordIntegrationEvent('export', false, `Export recusado: ${message}`, { businessDate });
+    return response.status(422).json({ message });
   } finally {
     ofsIngestRunning = false;
   }
@@ -743,9 +758,12 @@ app.post('/api/integrations/ofs/cluster', async (request, response) => {
     if (file.errors.length) return response.status(422).json({ message: file.errors.join(' ') });
     const result = await applyClusterExport(file.rows, parsed.data.balde);
     console.log(`[Coletor OFS] ${identity.label || 'token'}: ${parsed.data.balde} ${result.rows} linhas, ${result.matchedCalls} chamados, ${result.updatedCalls} com cluster novo, ${result.learnedWorkzones} workzones`);
+    void recordIntegrationEvent('cluster', true, `${parsed.data.balde}: ${result.matchedCalls} chamados, ${result.updatedCalls} com cluster novo`, { balde: parsed.data.balde, ...result });
     return response.json({ ok: true, cluster: normalizeCluster(parsed.data.balde), ...result });
   } catch (error) {
-    return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do cluster.' });
+    const message = error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do cluster.';
+    void recordIntegrationEvent('cluster', false, `${parsed.data.balde}: ${message}`, { balde: parsed.data.balde });
+    return response.status(422).json({ message });
   }
 });
 // Fechamento do OFS (Motivo, Submotivo, Tipo do Cabo): nao vem no CSV. A extensao pergunta quais chamados ja
@@ -767,7 +785,9 @@ app.get('/api/integrations/ofs/fechamentos/pendentes', async (request, response)
   const identity = await ofsCollectorIdentity(request);
   if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
   const finalizados = await finishCallsReadyFromOfs(identity.label);
-  return response.json({ ordens: pendingClosingOrders(await listCalls()), finalizados });
+  const ordens = pendingClosingOrders(await listCalls());
+  void recordIntegrationEvent('closing', true, `Ciclo iniciado: ${ordens.length} ordem(ns) para ler${finalizados.length ? `, ${finalizados.length} finalizada(s)` : ''}`, { stage: 'poll', pendentes: ordens.length, finalizados });
+  return response.json({ ordens, finalizados });
 });
 app.post('/api/integrations/ofs/fechamentos', async (request, response) => {
   const identity = await ofsCollectorIdentity(request);
@@ -781,8 +801,81 @@ app.post('/api/integrations/ofs/fechamentos', async (request, response) => {
   for (const match of matches) if (await updateCall(match.callId, match.fields, actor)) updated += 1;
   const finalizados = await finishCallsReadyFromOfs(identity.label);
   console.log(`[Coletor OFS] ${actor.name}: fechamentos recebidos ${parsed.data.itens.length}, atualizados ${updated}, finalizados ${finalizados.length}, sem chamado ${unmatched.length}`);
+  void recordIntegrationEvent('closing', true, `${parsed.data.itens.length} fechamento(s) recebidos, ${updated} atualizados, ${finalizados.length} finalizados${unmatched.length ? `, ${unmatched.length} sem chamado` : ''}`, { stage: 'post', recebidos: parsed.data.itens.length, atualizados: updated, finalizados, semChamado: unmatched });
   return response.json({ recebidos: parsed.data.itens.length, atualizados: updated, finalizados, semChamado: unmatched });
 });
+// Relato da extensao ao fim de cada ciclo (v1.3.4+): o que deu certo ou errado do lado do navegador (aba do OFS,
+// login, export), que o servidor nao ve sozinho. Vai para o painel Integracao OFS.
+app.post('/api/integrations/ofs/relato', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  const text = z.string().trim().max(500);
+  const parsed = z.object({
+    tipo: z.enum(['export', 'closing', 'cluster']),
+    ok: z.boolean(),
+    resumo: text.optional(),
+    erro: text.optional(),
+    versao: z.string().trim().max(20).optional(),
+    falhas: z.array(z.object({ ordem: z.string().trim().max(60), tipo: z.string().trim().max(20).optional(), motivo: text })).max(50).optional(),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Relato invalido.' });
+  const { tipo, ok, resumo, erro, versao, falhas = [] } = parsed.data;
+  const errors = falhas.filter((item) => item.tipo === 'erro').length;
+  const summary = ok ? (resumo || 'Ciclo concluído') + (errors ? ` (${errors} ordem(ns) com erro de leitura)` : '') : (erro || 'Falhou sem mensagem');
+  // O ciclo vale pelo resultado geral; ordens com erro de leitura ficam no resumo (e o semaforo vira Atencao).
+  await recordIntegrationEvent(tipo, ok, summary, { stage: 'extension', by: identity.label, versao, falhas, orderErrors: errors });
+  return response.json({ ok: true });
+});
+const maskChat = (chat: string) => (chat.length > 8 ? `${chat.slice(0, 4)}…${chat.slice(-6)}` : '…');
+app.get('/api/integracoes/saude', auth, requirePermission('imports.view'), async (_request, response) => {
+  try {
+    const [events, active, d0] = await Promise.all([
+      listIntegrationEvents(72),
+      listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']),
+      getD0BaseSummary().catch(() => undefined),
+    ]);
+    const stuck = stuckOfsCalls(active);
+    const whatsapp = whatsappConfig();
+    return response.json({
+      checks: healthChecks(events, stuck),
+      stuck,
+      reasonLabels: STUCK_REASON_LABEL,
+      events: events.filter((event) => event.kind !== 'sla_alert').slice(0, 60),
+      d0: d0 ? { fileName: d0.fileName, rowCount: d0.rowCount, uploadedAt: d0.uploadedAt, uploadedBy: d0.uploadedBy } : null,
+      whatsapp: { configured: Boolean(whatsapp), chat: whatsapp ? maskChat(whatsapp.chat) : null, alerts: events.filter((event) => event.kind === 'sla_alert').slice(0, 10) },
+    });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar o painel da integracao.' }); }
+});
+
+// Aviso no WhatsApp 1h antes do prazo de 6h. So roda com WUZAPI_API_URL, WUZAPI_USER_TOKEN e WUZAPI_ALERT_CHAT
+// configurados. Cada chamado e avisado uma vez (os ja avisados ficam em integration_events, kind sla_alert).
+let slaAlertRunning = false;
+async function runWhatsAppSlaAlerts() {
+  const config = whatsappConfig();
+  if (!config || slaAlertRunning) return;
+  slaAlertRunning = true;
+  try {
+    const near = nearDeadlineCalls(await listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']), WHATSAPP_WINDOW_MINUTES);
+    if (!near.length) return;
+    const alreadySent = new Set((await listIntegrationEvents(12, ['sla_alert'])).filter((event) => event.ok).flatMap((event) => (Array.isArray(event.details.callIds) ? event.details.callIds as string[] : [])));
+    const fresh = near.filter((call) => !alreadySent.has(call.id));
+    if (!fresh.length) return;
+    try {
+      await sendWhatsAppText(config, whatsappAlertText(fresh, process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app'));
+      await recordIntegrationEvent('sla_alert', true, `Aviso enviado: ${fresh.map((call) => call.orderNumber).join(', ')}`, { callIds: fresh.map((call) => call.id) });
+      console.log(`[Aviso de prazo] WhatsApp enviado para ${fresh.length} chamado(s).`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await recordIntegrationEvent('sla_alert', false, `Falha ao enviar o aviso: ${message}`, { callIds: fresh.map((call) => call.id) });
+      console.warn(`[Aviso de prazo] falha no WhatsApp: ${message}`);
+    }
+  } catch (error) {
+    console.warn(`[Aviso de prazo] erro: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    slaAlertRunning = false;
+  }
+}
+
 // Diagnostico dos grupos: quais grupos mandam mensagens e quantas parecem acionamento. Ajuda a achar o ID
 // certo para WUZAPI_ACTIVATION_GROUP_ID quando o grupo muda (novo grupo, numero removido etc.).
 type WuzApiGroupSighting = { chatId: string; authorized: boolean; messages: number; activationLike: number; lastAt: string; lastSender?: string; lastActivationAt?: string };
@@ -1087,5 +1180,9 @@ async function startServer() {
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }
   await captureUnknownOltRequestsFromCalls();
   app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
+  if (whatsappConfig()) {
+    console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
+    setInterval(() => void runWhatsAppSlaAlerts(), 5 * 60_000).unref();
+  }
 }
 void startServer();

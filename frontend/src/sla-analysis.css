@@ -105,3 +105,43 @@
 .rp-state.is-late b, .rp-state.is-late small { color: var(--dv-warning-ink); }
 .rp-state.is-outlier b, .rp-state.is-outlier small { color: var(--dv-critical-ink); }
 @media (max-width: 640px) { .rp-type select { min-width: 0; width: 100%; } .rp-type { width: 100%; } }
+
+/* Integracao OFS (IntegrationHealthPage.tsx) */
+.ih-page { display: grid; gap: 18px; }
+.ih-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ih-check { display: grid; align-content: start; gap: 8px; padding: 16px; border-top: 4px solid #9aa6b5; }
+.ih-check header { display: grid; gap: 8px; }
+.ih-check h2 { font-size: 14px; }
+.ih-check p { color: #4f5d73; font-size: 12px; line-height: 1.5; }
+.ih-check small { color: #5f6d84; font-size: 11px; }
+.ih-check code { padding: 1px 4px; border-radius: 4px; background: #f1f5fa; color: #17233b; font-size: 11px; }
+.ih-badge { display: inline-flex; align-items: center; gap: 5px; justify-self: start; padding: 3px 8px; border-radius: 10px; background: #eef1f5; color: #4f5d73; font-size: 11px; font-weight: 700; }
+.ih-check.is-ok { border-top-color: #1caa76; }
+.ih-check.is-ok .ih-badge { background: #e3f6ee; color: #137a52; }
+.ih-check.is-warn { border-top-color: #e6953d; }
+.ih-check.is-warn .ih-badge { background: #fdf0e1; color: #9a5208; }
+.ih-check.is-critical { border-top-color: #c42e3b; }
+.ih-check.is-critical .ih-badge { background: #fde8ea; color: #b3242f; }
+.ih-d0 { color: #4f5d73; font-size: 12px; }
+.ih-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ih-reasons button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 15px; background: #fff; color: #4f5d73; font-size: 12px; font-weight: 600; }
+.ih-reasons button.is-active { border-color: var(--blue); background: #edf4ff; color: var(--blue); }
+.ih-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ih-chip { padding: 2px 8px; border-radius: 10px; background: #fdf0e1; color: #9a5208; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ih-chip.is-ready { background: #e3f6ee; color: #137a52; }
+.ih-missing { color: #b3242f; font-weight: 700; }
+.ih-hint { margin-top: 12px; color: #5f6d84; font-size: 12px; line-height: 1.5; }
+.ih-events { display: grid; margin: 0; padding: 0; list-style: none; }
+.ih-events > li { display: grid; grid-template-columns: 20px 96px minmax(0, 1fr) auto; align-items: start; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f3f7; font-size: 12px; }
+.ih-events > li:first-child { border-top: 0; }
+.ih-event-icon { color: #137a52; }
+.ih-events > li.is-fail .ih-event-icon { color: #b3242f; }
+.ih-event-kind { color: #4f5d73; font-weight: 700; }
+.ih-event-text { color: #17233b; overflow-wrap: anywhere; }
+.ih-event-text .link-button { margin-left: 8px; font-size: 12px; }
+.ih-events time { color: #5f6d84; white-space: nowrap; }
+.ih-falhas { margin: 6px 0 0; padding-left: 16px; color: #4f5d73; }
+.ih-falhas b { color: #17233b; }
+.ih-spin { animation: ih-spin 1s linear infinite; }
+@keyframes ih-spin { to { transform: rotate(360deg); } }
+@media (max-width: 640px) { .ih-events > li { grid-template-columns: 20px minmax(0, 1fr); } .ih-event-kind, .ih-events time { grid-column: 2; } }

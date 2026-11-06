@@ -89,6 +89,18 @@ async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
 }
 // Perfil: apelido (so para a propria pessoa) e tema de cor; palette nulo = Padrao.
 export type ProfilePreferences = { nickname: string | null; palette: string | null };
+// Integracao OFS (painel de saude).
+export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
+export type StuckReason = 'sem-tecnico' | 'sem-data-fim' | 'sem-fechamento' | 'fechamento-codigo' | 'ordem-duplicada' | 'pronto';
+export type IntegrationEventRow = { id: string; kind: string; ok: boolean; summary: string; details: Record<string, unknown>; createdAt: string };
+export type IntegrationHealth = {
+  checks: { key: string; label: string; status: HealthStatus; lastAt: string | null; detail: string }[];
+  stuck: { id: string; orderNumber: string; status: string; ofsStatus?: string; technicianName?: string; openedAt: string; executedAt?: string; region?: string; reasons: StuckReason[]; waitingMinutes: number | null }[];
+  reasonLabels: Record<StuckReason, string>;
+  events: IntegrationEventRow[];
+  d0: { fileName?: string; rowCount: number; uploadedAt?: string; uploadedBy?: string } | null;
+  whatsapp: { configured: boolean; chat: string | null; alerts: IntegrationEventRow[] };
+};
 // Pessoas (diretorio so de leitura, aberto a todos).
 export type PersonCard = { id: string; name: string; email: string; roleName: string; online: boolean; lastSeenAt?: string; createdAt: string };
 
@@ -103,6 +115,7 @@ export const api = {
   saveProfileBanner: (bannerDataUrl: string) => request<{ bannerDataUrl: string }>('/api/auth/banner', { method: 'PUT', body: JSON.stringify({ bannerDataUrl }) }),
   removeProfileBanner: () => request<{ deleted: boolean }>('/api/auth/banner', { method: 'DELETE' }),
   profilePreferences: () => request<ProfilePreferences>('/api/auth/preferences'),
+  integrationHealth: () => request<IntegrationHealth>('/api/integracoes/saude'),
   people: () => request<{ people: PersonCard[]; avatars: Record<string, string> }>('/api/people'),
   person: (id: string) => request<{ person: PersonCard; avatar: string | null; banner: string | null }>(`/api/people/${encodeURIComponent(id)}`),
   saveProfilePreferences: (preferences: ProfilePreferences) => request<ProfilePreferences>('/api/auth/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),

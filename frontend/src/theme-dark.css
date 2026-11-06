@@ -2810,6 +2810,98 @@
 :where(:root[data-theme="dark"]) .rp-state.is-outlier b, :where(:root[data-theme="dark"]) .rp-state.is-outlier small {
     color: var(--dv-critical-ink)
 }
+:where(:root[data-theme="dark"]) .ih-check {
+    border-top: 4px solid #9aa6b5
+}
+:where(:root[data-theme="dark"]) .ih-check p {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ih-check small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .ih-check code {
+    background: #13161d;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ih-badge {
+    background: #13171d;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ih-check.is-ok {
+    border-top-color: #1caa76
+}
+:where(:root[data-theme="dark"]) .ih-check.is-ok .ih-badge {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .ih-check.is-warn {
+    border-top-color: #e6953d
+}
+:where(:root[data-theme="dark"]) .ih-check.is-warn .ih-badge {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-theme="dark"]) .ih-check.is-critical {
+    border-top-color: #c42e3b
+}
+:where(:root[data-theme="dark"]) .ih-check.is-critical .ih-badge {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .ih-d0 {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ih-reasons button {
+    border: 1px solid var(--line);
+    background: #181c22;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ih-reasons button.is-active {
+    border-color: var(--blue);
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .ih-chip {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-theme="dark"]) .ih-chip.is-ready {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .ih-missing {
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .ih-hint {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .ih-events > li {
+    border-top: 1px solid #31353c
+}
+:where(:root[data-theme="dark"]) .ih-events > li:first-child {
+    border-top: 0
+}
+:where(:root[data-theme="dark"]) .ih-event-icon {
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .ih-events > li.is-fail .ih-event-icon {
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .ih-event-kind {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ih-event-text {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ih-events time {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .ih-falhas {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ih-falhas b {
+    color: #dfe5ef
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {
