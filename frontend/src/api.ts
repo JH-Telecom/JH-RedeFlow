@@ -96,6 +96,14 @@ export type ReasonsReport = { total: number; withReason: number; withoutReason: 
 export type PeriodMetrics = { from: string; to: string; opened: number; finished: number; onTime: number; late: number; outliers: number; onTimePercent: number | null; outlierPercent: number | null; avgHours: number | null; cancelled: number };
 export type CompareReport = { days: number; current: PeriodMetrics; previous: PeriodMetrics };
 export type DailySummary = PeriodMetrics & { date: string; activeNow: number; activeLate: number; topTechnicians: ProductivityRow[]; topReasons: { reason: string; count: number }[]; igp: { month: string; orders: number; onTimePercent: number | null; outlierPercent: number | null } };
+// Operacao (lote 3): mapa da fila, carga dos tecnicos e reincidencia.
+export type QueueState = 'ok' | 'soon' | 'late' | 'outlier';
+export type MapCall = { id: string; orderNumber: string; type: string; technicianName?: string; status: string; openedAt: string; olt: string; state: QueueState; minutes: number };
+export type MapArea = { name: string; total: number; states: Record<QueueState, number>; worst: QueueState; noTechnician: number; calls: MapCall[] };
+export type QueueMap = { total: number; states: Record<QueueState, number>; noTechnician: number; regions: (MapArea & { bairros: MapArea[] })[] };
+export type TechnicianLoadRow = { id: string; name: string; supervisorName?: string; region: string; currentStatus: string; active: number; oldestMinutes: number | null; worst: QueueState | null; activeCalls: MapCall[]; finishedToday: number; onTimeToday: number; avgHoursToday: number | null; free: boolean };
+export type TechnicianLoad = { technicians: TechnicianLoadRow[]; free: number; busy: number; unassignedActive: number };
+export type RepeatHistory = { eligible: boolean; isRepeat: boolean; previousWithin30Days: number; history: { id: string; orderNumber: string; status: string; openedAt: string; executedAt?: string; technicianName?: string; result?: string; closingReason?: string; closingSubreason?: string; type: string }[] };
 // Integracao OFS (painel de saude).
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type StuckReason = 'sem-tecnico' | 'sem-data-fim' | 'sem-fechamento' | 'fechamento-codigo' | 'ordem-duplicada' | 'pronto';
@@ -129,6 +137,10 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
+  queueMap: () => request<QueueMap>('/api/operacao/mapa'),
+  technicianLoad: () => request<TechnicianLoad>('/api/operacao/carga'),
+  repeatHistory: (id: string) => request<RepeatHistory>(`/api/chamados/${encodeURIComponent(id)}/reincidencia`),
+  repeatFlags: (ids: string[]) => request<{ flags: Record<string, number> }>('/api/chamados/reincidencia', { method: 'POST', body: JSON.stringify({ ids }) }),
   productivityReport: (from: string, to: string, area: SlaArea = 'ALL') => request<ProductivityReport>(`/api/relatorios/produtividade?from=${from}&to=${to}&area=${area}`),
   reasonsReport: (from: string, to: string, area: SlaArea = 'ALL') => request<ReasonsReport>(`/api/relatorios/motivos?from=${from}&to=${to}&area=${area}`),
   compareReport: (from: string, to: string, area: SlaArea = 'ALL') => request<CompareReport>(`/api/relatorios/comparar?from=${from}&to=${to}&area=${area}`),

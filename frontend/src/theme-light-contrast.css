@@ -1656,6 +1656,51 @@
 :where(:root:not([data-theme="dark"])) .rp-summary-text {
     color: #17233b
 }
+:where(:root:not([data-theme="dark"])) .op-legend {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .op-region-count {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .op-bairro > button {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .op-bairro > button svg {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .op-bairro > button b {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .op-calls li {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .op-call-time {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .op-chip {
+    color: #137a52
+}
+:where(:root:not([data-theme="dark"])) .op-chip.is-soon {
+    color: #9a5208
+}
+:where(:root:not([data-theme="dark"])) .op-chip.is-late {
+    color: #a8431a
+}
+:where(:root:not([data-theme="dark"])) .op-chip.is-outlier {
+    color: #b3242f
+}
+:where(:root:not([data-theme="dark"])) .op-chip.is-free {
+    color: #137a52
+}
+:where(:root:not([data-theme="dark"])) .call-badge.reincidente {
+    color: #6b21a8
+}
+:where(:root:not([data-theme="dark"])) .repeat-banner-head > div {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .repeat-history li {
+    color: #4f5d73
+}
 
 /* update-notice.css */
 :where(:root:not([data-theme="dark"])) .update-notice-icon {

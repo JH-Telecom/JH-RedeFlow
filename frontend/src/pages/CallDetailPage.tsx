@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronRight, Download, FileText, Paperclip, X } from "lucide-react";
-import { api, type Call, type CallAuditLog, type CallObservation, type CallStatus, type Technician } from "../api";
+import { api, type Call, type CallAuditLog, type CallObservation, type CallStatus, type RepeatHistory, type Technician } from "../api";
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
 import { operationalRegions } from "../lib/constants";
@@ -194,6 +194,7 @@ export function CallDetailBase() {
           {status}
         </span>
       </div>
+      <RepeatBanner callId={call.id} />
       <div className="detail-layout">
         <section className="panel detail-main">
           <div className="panel-heading">
@@ -547,4 +548,37 @@ export function ObservationAttachmentItem({ callId, observationId, attachment, t
 
 export function CallDetailRoute() {
   return <AuditedCallDetailPage />;
+}
+
+// Reincidencia: outros chamados no mesmo ponto (endereco + OLT + slot/PON). Aviso quando houve outro nos 30 dias
+// anteriores; o historico completo do ponto fica recolhido.
+function RepeatBanner({ callId }: { callId: string }) {
+  const [data, setData] = useState<RepeatHistory | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { let active = true; api.repeatHistory(callId).then((result) => { if (active) setData(result); }).catch(() => undefined); return () => { active = false; }; }, [callId]);
+  if (!data?.eligible || !data.history.length) return null;
+  const when = (iso?: string) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–");
+  return (
+    <section className={`panel repeat-banner${data.isRepeat ? " is-repeat" : ""}`} aria-label="Histórico do mesmo ponto">
+      <div className="repeat-banner-head">
+        <div>
+          {data.isRepeat ? <span className="call-badge reincidente">Reincidente</span> : null}
+          <strong>{data.isRepeat ? `${data.previousWithin30Days} chamado(s) no mesmo endereço, OLT e slot/PON nos 30 dias anteriores` : `${data.history.length} chamado(s) anteriores no mesmo endereço, OLT e slot/PON`}</strong>
+        </div>
+        <button type="button" className="link-button" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Esconder histórico" : "Ver histórico"}</button>
+      </div>
+      {open && (
+        <ul className="repeat-history">
+          {data.history.map((item) => (
+            <li key={item.id}>
+              <Link to={`/chamados/${item.id}`} className="rp-order">{item.orderNumber}</Link>
+              <span>{when(item.openedAt)}</span>
+              <span>{item.status}{item.technicianName ? ` · ${item.technicianName}` : ""}</span>
+              <span>{[item.closingReason, item.closingSubreason].filter(Boolean).join(" — ") || item.result || "–"}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }

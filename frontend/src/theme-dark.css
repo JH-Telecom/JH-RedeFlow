@@ -2931,6 +2931,109 @@
     background: #12151b;
     color: #dfe5ef
 }
+:where(:root[data-theme="dark"]) .op-legend {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .op-dot {
+    background: #1caa76
+}
+:where(:root[data-theme="dark"]) .op-dot.is-soon {
+    background: #e6953d
+}
+:where(:root[data-theme="dark"]) .op-dot.is-late {
+    background: #d9622b
+}
+:where(:root[data-theme="dark"]) .op-dot.is-outlier {
+    background: #c42e3b
+}
+:where(:root[data-theme="dark"]) .op-region {
+    border-left: 4px solid #1caa76
+}
+:where(:root[data-theme="dark"]) .op-region.is-soon {
+    border-left-color: #e6953d
+}
+:where(:root[data-theme="dark"]) .op-region.is-late {
+    border-left-color: #d9622b
+}
+:where(:root[data-theme="dark"]) .op-region.is-outlier {
+    border-left-color: #c42e3b
+}
+:where(:root[data-theme="dark"]) .op-region-count {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .op-bar i {
+    background: #1caa76
+}
+:where(:root[data-theme="dark"]) .op-bar i.is-soon {
+    background: #e6953d
+}
+:where(:root[data-theme="dark"]) .op-bar i.is-late {
+    background: #d9622b
+}
+:where(:root[data-theme="dark"]) .op-bar i.is-outlier {
+    background: #c42e3b
+}
+:where(:root[data-theme="dark"]) .op-bairro {
+    border: 1px solid var(--line);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .op-bairro > button {
+    background: transparent;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .op-bairro > button:hover {
+    background: #10141a
+}
+:where(:root[data-theme="dark"]) .op-bairro > button svg {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .op-bairro > button b {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .op-calls li {
+    border-top: 1px solid #31353c;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .op-call-time {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .op-chip {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .op-chip.is-soon {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-theme="dark"]) .op-chip.is-late {
+    background: #261106;
+    color: #ff966e
+}
+:where(:root[data-theme="dark"]) .op-chip.is-outlier {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .op-chip.is-free {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .op-load-calls td {
+    background: #14171e
+}
+:where(:root[data-theme="dark"]) .call-badge.reincidente {
+    background: #1e1028;
+    color: #cd9cff
+}
+:where(:root[data-theme="dark"]) .repeat-banner.is-repeat {
+    border-left: 4px solid #7e3bd0
+}
+:where(:root[data-theme="dark"]) .repeat-banner-head > div {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .repeat-history li {
+    border-top: 1px solid #31353c;
+    color: #b5b9c1
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {

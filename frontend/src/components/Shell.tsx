@@ -28,6 +28,7 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { ProfilePage } from "../pages/ProfilePage";
 import { PeoplePage } from "../pages/PeoplePage";
 import { IntegrationHealthPage } from "../pages/IntegrationHealthPage";
+import { QueueMapPage, TechnicianLoadPage } from "../pages/OperationsPages";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
@@ -377,6 +378,8 @@ export function Shell({
             <Route path="/supervisores" element={guard("supervisors.view", <SupervisorsPage user={user} />)} />
             <Route path="/usuarios" element={guard("users.view", <UsersPage />)} />
             <Route path="/cargos" element={guard("roles.view", <RolesPage currentRoleId={user.roleId} />)} />
+            <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
+            <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />
             <Route path="/integracao-ofs" element={guard("imports.view", <IntegrationHealthPage />)} />
             <Route path="/pessoas" element={<PeoplePage currentUserId={user.id} />} />
             <Route path="/perfil" element={<ProfilePage user={user} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} preferences={preferences} onSavePreferences={savePreferences} theme={theme} onToggleTheme={toggleTheme} />} />

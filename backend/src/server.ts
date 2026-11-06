@@ -9,6 +9,7 @@ import { analyzeOperationalMessage, interpretWithGemini } from './integrations/w
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, productivityReport } from './reports.js';
+import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
@@ -325,6 +326,35 @@ app.get('/api/relatorios/resumo-dia', auth, requirePermission('dashboard.view'),
     const config = whatsappConfig();
     return response.json({ summary, text: dailySummaryText(summary), whatsapp: { configured: Boolean(config), sendsAt: '07:00' } });
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel gerar o resumo.' }); }
+});
+
+// Lote 3 (operacao): mapa da fila por regiao/bairro, carga dos tecnicos e reincidencia. Escopo do supervisor.
+const ACTIVE_STATUSES: CallStatus[] = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'];
+app.get('/api/operacao/mapa', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  try { return response.json(queueMap(await reportCalls(request, ACTIVE_STATUSES))); }
+  catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar o mapa.' }); }
+});
+app.get('/api/operacao/carga', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  try {
+    const scope = await getScopedCallQuery(request, true);
+    const supervisorId = 'supervisorId' in scope ? scope.supervisorId : undefined;
+    const technicians = (await listTechnicians()).filter((tech) => !supervisorId || tech.supervisorId === supervisorId);
+    return response.json(technicianLoad(technicians, await reportCalls(request)));
+  } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar a carga.' }); }
+});
+app.post('/api/chamados/reincidencia', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ ids: z.array(z.string().min(1).max(100)).max(300) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie os ids dos chamados.' });
+  try { return response.json({ flags: repeatFlags(parsed.data.ids, await reportCalls(request)) }); }
+  catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel verificar a reincidencia.' }); }
+});
+app.get('/api/chamados/:id/reincidencia', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  try {
+    const calls = await reportCalls(request);
+    const call = calls.find((item) => item.id === String(request.params.id));
+    if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+    return response.json(repeatHistory(call, calls));
+  } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o historico.' }); }
 });
 
 app.get('/api/relatorios/fora-do-prazo', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {

@@ -158,3 +158,53 @@
 .rp-delta.is-bad { color: #b3242f; }
 .rp-note { margin-top: 12px; color: #5f6d84; font-size: 12px; line-height: 1.5; }
 .rp-summary-text { margin: 0; padding: 14px 16px; overflow-x: auto; border: 1px solid var(--line); border-radius: 9px; background: #f7f9fc; color: #17233b; font: 13px/1.6 'DM Sans', sans-serif; white-space: pre-wrap; }
+
+/* Lote 3: Mapa da fila, Carga dos tecnicos e reincidencia (OperationsPages.tsx, CallDetailPage.tsx) */
+.op-page { display: grid; gap: 18px; }
+.op-legend { display: flex; flex-wrap: wrap; gap: 14px; color: #4f5d73; font-size: 12px; }
+.op-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.op-dot { display: inline-block; width: 10px; height: 10px; flex: none; border-radius: 50%; background: #1caa76; }
+.op-dot.is-soon { background: #e6953d; }
+.op-dot.is-late { background: #d9622b; }
+.op-dot.is-outlier { background: #c42e3b; }
+.op-regions { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; align-items: start; }
+.op-region { display: grid; gap: 12px; padding: 16px; border-left: 4px solid #1caa76; }
+.op-region.is-soon { border-left-color: #e6953d; }
+.op-region.is-late { border-left-color: #d9622b; }
+.op-region.is-outlier { border-left-color: #c42e3b; }
+.op-region header { display: grid; gap: 6px; }
+.op-region h2 { font-size: 15px; }
+.op-region-count { color: #5f6d84; font-size: 12px; }
+.op-bar { display: flex; gap: 2px; height: 8px; overflow: hidden; border-radius: 4px; }
+.op-bar i { min-width: 6px; background: #1caa76; }
+.op-bar i.is-soon { background: #e6953d; }
+.op-bar i.is-late { background: #d9622b; }
+.op-bar i.is-outlier { background: #c42e3b; }
+.op-bairros { display: grid; gap: 6px; }
+.op-bairro { border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.op-bairro > button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 6px 10px; background: transparent; color: #17233b; font-size: 13px; text-align: left; }
+.op-bairro > button:hover { background: #f5f8fc; }
+.op-bairro > button svg { color: #5f6d84; transition: transform .15s ease; }
+.op-bairro.is-open > button svg { transform: rotate(180deg); }
+.op-bairro-name { display: inline-flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+.op-bairro > button b { color: #17233b; }
+.op-calls { display: grid; margin: 0; padding: 4px 10px 8px; list-style: none; }
+.op-calls li { display: grid; grid-template-columns: minmax(80px, auto) minmax(0, 1fr) minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid #f0f3f7; color: #4f5d73; font-size: 12px; }
+.op-calls li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op-call-time { color: #17233b; font-weight: 700; }
+.op-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #e3f6ee; color: #137a52; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.op-chip.is-soon { background: #fdf0e1; color: #9a5208; }
+.op-chip.is-late { background: #fde9df; color: #a8431a; }
+.op-chip.is-outlier { background: #fde8ea; color: #b3242f; }
+.op-chip.is-free { background: #e3f6ee; color: #137a52; }
+.op-only-free { font-size: 12px; }
+.op-load-calls td { padding-top: 0 !important; background: #fafbfd; }
+@media (max-width: 640px) { .op-calls li { grid-template-columns: minmax(0, 1fr) auto; } .op-calls li > span:nth-child(2), .op-calls li > span:nth-child(3) { display: none; } }
+.call-badge.reincidente { background: #f3e8fd; color: #6b21a8; }
+.repeat-banner { display: grid; gap: 10px; margin-bottom: 18px; padding: 14px 18px; }
+.repeat-banner.is-repeat { border-left: 4px solid #7e3bd0; }
+.repeat-banner-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.repeat-banner-head > div { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: #17233b; font-size: 13px; }
+.repeat-history { display: grid; margin: 0; padding: 0; list-style: none; }
+.repeat-history li { display: grid; grid-template-columns: 110px 130px minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; padding: 8px 0; border-top: 1px solid #f0f3f7; color: #4f5d73; font-size: 12px; }
+@media (max-width: 640px) { .repeat-history li { grid-template-columns: 1fr 1fr; } }

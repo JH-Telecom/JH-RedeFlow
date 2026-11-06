@@ -21,6 +21,8 @@ export const PAGE_HELP: Record<string, string[]> = {
   "/usuarios": ["Quem acessa o sistema. Online = sistema aberto e logado nos últimos 2 minutos."],
   "/cargos": ["Cargos e as permissões de cada um."],
   "/configuracoes": ["Preferências gerais; OLTs e regiões para administradores. Foto, banner, apelido e tema ficam em Meu perfil."],
+  "/mapa": ["Chamados ativos por região e bairro, com a cor do prazo (no prazo, vence em < 2h, fora, outlier). Clique num bairro para ver os chamados. Atualiza a cada minuto."],
+  "/carga": ["Chamados ativos de cada técnico, o mais antigo e os finalizados de hoje. Livres primeiro, para ajudar a atribuir. Atualiza a cada minuto."],
   "/integracao-ofs": ["Semáforo da coleta do OFS (export, fechamentos, clusters, falhas) e a fila dos chamados concluídos no OFS que não finalizaram aqui, com o motivo. Atualiza a cada minuto."],
   "/pessoas": ["Todos veem quem faz parte do O&M e quem está online (atualiza a cada 30 s). Clique para ver foto, banner, cargo e e-mail. Aqui não dá para criar nem alterar ninguém."],
   "/perfil": ["Foto, banner, apelido e tema de cor. O apelido aparece só para você; o tema vale para o seu login em qualquer computador."],

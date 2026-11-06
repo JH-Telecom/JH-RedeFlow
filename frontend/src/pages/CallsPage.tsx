@@ -188,6 +188,15 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [actionError, setActionError] = useState("");
   const [countsVersion, setCountsVersion] = useState(0);
   const [calls, setCalls] = useState<Call[]>([]);
+  // Reincidentes da pagina (mesmo endereco + OLT + slot/PON em ate 30 dias), checados no servidor.
+  const [repeatFlags, setRepeatFlags] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const ids = calls.map((call) => call.id).slice(0, 300);
+    if (!ids.length) { setRepeatFlags({}); return; }
+    let active = true;
+    api.repeatFlags(ids).then((data) => { if (active) setRepeatFlags(data.flags); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [calls]);
   const [query, setQuery] = useState(initialState.query ?? "");
   const [loading, setLoading] = useState(false);
   const [regionFilter, setRegionFilter] = useState(initialState.regionFilter ?? "Todas");
@@ -467,7 +476,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       {CALL_STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
     </select>
   );
-  const orderCell = (call: Call) => <td data-label="Ordem"><strong className="cq-order">{call.orderNumber}</strong>{call.bdesk && call.bdesk !== call.orderNumber && <small className="table-subtext">BDESK {call.bdesk}</small>}{call.atrelada && <span className="call-badge atrelado" title={`Atrelada à ordem ${call.atrelada}`}>Atrelada {call.atrelada}</span>}</td>;
+  const orderCell = (call: Call) => <td data-label="Ordem"><strong className="cq-order">{call.orderNumber}</strong>{call.bdesk && call.bdesk !== call.orderNumber && <small className="table-subtext">BDESK {call.bdesk}</small>}{call.atrelada && <span className="call-badge atrelado" title={`Atrelada à ordem ${call.atrelada}`}>Atrelada {call.atrelada}</span>}{repeatFlags[call.id] ? <span className="call-badge reincidente" title={`${repeatFlags[call.id]} chamado(s) no mesmo endereço, OLT e slot/PON nos 30 dias anteriores`}>Reincidente</span> : null}</td>;
   const eventCell = (call: Call) => <td data-label="Evento"><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td>;
   const placeCell = (call: Call, withOlt = false) => <td data-label="Local" className="cq-place"><strong>{call.bairro || call.city || <span className="muted-cell">Sem bairro</span>}</strong><small className="table-subtext">{[call.region, call.address].filter(Boolean).join(", ") || "-"}</small>{withOlt && call.olt && <small className="table-subtext cq-olt-line">{call.olt}{call.slotPon ? ` PON ${call.slotPon}` : ""}</small>}</td>;
   const oltCell = (call: Call) => <td data-label="OLT"><span className="cq-olt">{call.olt || <span className="muted-cell">-</span>}</span>{call.slotPon && <small className="table-subtext">PON {call.slotPon}</small>}</td>;

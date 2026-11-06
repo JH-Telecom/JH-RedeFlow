@@ -4501,3 +4501,25 @@ Implementar todas as ideias sugeridas, em lotes, começando pela integração. L
 - Teste novo `reports-batch2.test.ts`: produtividade, motivos com submotivos, área e mês, comparação com o período anterior, resumo e texto sem dados de cliente.
 - Teste HTTP dos 4 relatórios (período invertido → 400). Suíte 179/179.
 - Preview com 4 chamados finalizados na demo: produtividade, comparação e resumo conferidos. Contraste sem problemas nos 5 relatórios, claro e escuro.
+
+## Lote 3 das ideias: operação (2026-11-06)
+
+### Implementado
+- **Mapa da fila** (`/mapa`, em Operação, permissão `calls.view`, `GET /api/operacao/mapa`): chamados ativos agrupados por região e bairro.
+  - Cada região tem uma barra com a divisão por situação: no prazo, vence em menos de 2h, fora (6h–9h) e outlier (mais de 9h).
+  - Cada bairro tem a cor do chamado mais atrasado e mostra os chamados ao clicar: ordem, tipo, OLT, técnico e tempo.
+  - As regiões e bairros mais atrasados aparecem primeiro. A tela atualiza a cada minuto.
+  - O mapa não é geográfico: os chamados não têm coordenadas, e não mandamos endereços de cliente para serviço de geolocalização.
+- **Reincidência**: mesma regra da aba Repetidos (mesmo endereço + OLT + slot/PON, aberto até 30 dias depois do anterior), agora no servidor (`operations.ts`).
+  - Na fila, o selo "Reincidente" aparece ao lado da ordem (`POST /api/chamados/reincidencia`, até 300 ids por página).
+  - No detalhe do chamado, um aviso mostra quantos houve no mesmo ponto nos 30 dias anteriores, com "Ver histórico": ordem, data, status, técnico e fechamento (`GET /api/chamados/:id/reincidencia`).
+  - Cancelados não contam. A aba Repetidos continua igual.
+- **Carga dos técnicos** (`/carga`, em Equipes, `GET /api/operacao/carga`): para cada técnico trabalhando e ativo, mostra chamados ativos, o mais antigo, a pior situação de prazo, finalizados hoje (quantos no prazo) e o tempo médio de hoje.
+  - Os livres vêm primeiro, para ajudar a atribuir. Tem o filtro "Só livres", e os chamados de cada técnico abrem na própria linha.
+  - Cartões: livres, ocupados e ativos sem técnico (com link para Chamados abertos).
+  - O supervisor vê só a própria equipe.
+
+### Validação
+- Teste novo `operations.test.ts`: situação do prazo, reincidência (janela de 30 dias, cancelado e ponto incompleto fora), mapa por região e bairro, e ordem e números da carga.
+- Teste HTTP das 4 rotas, incluindo o escopo do supervisor na carga. Suíte 184/184; a primeira rodada teve o timeout conhecido em um teste não relacionado.
+- Preview: mapa com bairro aberto, carga com chamados abertos na linha, e reincidente no detalhe e na fila (dois chamados da demo apontados para o mesmo ponto). Contraste sem problemas no claro e no escuro.

@@ -1092,6 +1092,29 @@ test('OFS collector extension logs in with the system user and its session only 
   assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);
 });
 
+test('operations: queue map, technician load and repeat calls', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  const map = await fetch(`${baseUrl}/api/operacao/mapa`, { headers: admin });
+  assert.equal(map.status, 200);
+  assert.ok(Array.isArray((await map.json() as { regions: unknown[] }).regions));
+  const load = await fetch(`${baseUrl}/api/operacao/carga`, { headers: admin });
+  assert.equal(load.status, 200);
+  const loadBody = await load.json() as { technicians: { name: string }[] };
+  assert.ok(loadBody.technicians.length > 0);
+  // Supervisor ve so a propria equipe.
+  const supervisor = { authorization: `Bearer ${await login('joao@jhtelecom.com')}` };
+  const supervisorLoad = await (await fetch(`${baseUrl}/api/operacao/carga`, { headers: supervisor })).json() as { technicians: { name: string }[] };
+  assert.ok(supervisorLoad.technicians.length <= loadBody.technicians.length);
+  assert.equal((await fetch(`${baseUrl}/api/chamados/nao-existe/reincidencia`, { headers: admin })).status, 404);
+  const history = await fetch(`${baseUrl}/api/chamados/call-240918-01/reincidencia`, { headers: admin });
+  assert.equal(history.status, 200);
+  assert.equal(typeof (await history.json() as { isRepeat: boolean }).isRepeat, 'boolean');
+  const flags = await fetch(`${baseUrl}/api/chamados/reincidencia`, { method: 'POST', headers: admin, body: JSON.stringify({ ids: ['call-240918-01'] }) });
+  assert.equal(flags.status, 200);
+  assert.equal(typeof (await flags.json() as { flags: Record<string, number> }).flags, 'object');
+});
+
 test('batch 2 reports answer for the period and validate the range', async () => {
   const session = await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) })).json() as { token: string };
   const get = (path: string) => fetch(`${baseUrl}${path}`, { headers: { authorization: `Bearer ${session.token}` } });

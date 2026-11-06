@@ -2893,6 +2893,109 @@
     background: #f7f9fc;
     color: #1e1e43
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-legend {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-dot {
+    background: #1caa76
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-dot.is-soon {
+    background: #e6953d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-dot.is-late {
+    background: #d9622b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-dot.is-outlier {
+    background: #c42e3b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-region {
+    border-left: 4px solid #1caa76
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-region.is-soon {
+    border-left-color: #e6953d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-region.is-late {
+    border-left-color: #d9622b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-region.is-outlier {
+    border-left-color: #c42e3b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-region-count {
+    color: #66698d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bar i {
+    background: #1caa76
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bar i.is-soon {
+    background: #e6953d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bar i.is-late {
+    background: #d9622b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bar i.is-outlier {
+    background: #c42e3b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bairro {
+    border: 1px solid var(--line);
+    background: #fff
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bairro > button {
+    background: transparent;
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bairro > button:hover {
+    background: #f5f8fc
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bairro > button svg {
+    color: #66698d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-bairro > button b {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-calls li {
+    border-top: 1px solid #f0f3f7;
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-call-time {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-chip {
+    background: #e3f6ee;
+    color: #137a52
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-chip.is-soon {
+    background: #fdf0e1;
+    color: #9a5208
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-chip.is-late {
+    background: #fde9df;
+    color: #a8431a
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-chip.is-outlier {
+    background: #fde8ea;
+    color: #b3242f
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-chip.is-free {
+    background: #e3f6ee;
+    color: #137a52
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .op-load-calls td {
+    background: #fafbfd
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .call-badge.reincidente {
+    background: #f3e8fd;
+    color: #6b21a8
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .repeat-banner.is-repeat {
+    border-left: 4px solid #7e3bd0
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .repeat-banner-head > div {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .repeat-history li {
+    border-top: 1px solid #f0f3f7;
+    color: #56597b
+}
 /* light · update-notice.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #1e1e438c
@@ -6014,6 +6117,109 @@
     border: 1px solid var(--line);
     background: #13141d;
     color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-legend {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-dot {
+    background: #1caa76
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-dot.is-soon {
+    background: #e6953d
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-dot.is-late {
+    background: #d9622b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-dot.is-outlier {
+    background: #c42e3b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-region {
+    border-left: 4px solid #1caa76
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-region.is-soon {
+    border-left-color: #e6953d
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-region.is-late {
+    border-left-color: #d9622b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-region.is-outlier {
+    border-left-color: #c42e3b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-region-count {
+    color: #abadb9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bar i {
+    background: #1caa76
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bar i.is-soon {
+    background: #e6953d
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bar i.is-late {
+    background: #d9622b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bar i.is-outlier {
+    background: #c42e3b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bairro {
+    border: 1px solid var(--line);
+    background: #1a1b24
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bairro > button {
+    background: transparent;
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bairro > button:hover {
+    background: #12131c
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bairro > button svg {
+    color: #abadb9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-bairro > button b {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-calls li {
+    border-top: 1px solid #33343f;
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-call-time {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-chip {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-chip.is-soon {
+    background: #211302;
+    color: #f2a366
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-chip.is-late {
+    background: #261106;
+    color: #ff966e
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-chip.is-outlier {
+    background: #251013;
+    color: #ff8a86
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-chip.is-free {
+    background: #031c14;
+    color: #73cda0
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .op-load-calls td {
+    background: #151620
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .call-badge.reincidente {
+    background: #1e1028;
+    color: #cd9cff
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .repeat-banner.is-repeat {
+    border-left: 4px solid #7e3bd0
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .repeat-banner-head > div {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .repeat-history li {
+    border-top: 1px solid #33343f;
+    color: #b6b8c4
 }
 /* dark · update-notice.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .update-notice-backdrop {
