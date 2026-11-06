@@ -848,23 +848,74 @@
 :where(:root:not([data-theme="dark"])) .profile-avatar-link {
     color: inherit
 }
-:where(:root:not([data-theme="dark"])) .settings-profile-avatar {
-    color: #173a71
-}
-:where(:root:not([data-theme="dark"])) .settings-profile-info p {
-    color: var(--muted)
-}
-:where(:root:not([data-theme="dark"])) .settings-profile-info small {
-    color: var(--muted)
-}
-:where(:root:not([data-theme="dark"])) .settings-profile-banner {
-    color: #4a5a70
-}
 :where(:root:not([data-theme="dark"])) .history-banner-head strong {
     color: #ffffff
 }
 :where(:root:not([data-theme="dark"])) .history-banner-head small {
     color: #e4eaf3
+}
+:where(:root:not([data-theme="dark"])) .pf-banner-button {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .pf-avatar {
+    color: #173a71
+}
+:where(:root:not([data-theme="dark"])) .pf-avatar-edit {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .pf-hero-sub {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pf-hero-facts dt {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pf-hero-facts dd {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pf-hero-hint {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pf-card-heading p {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pf-card-heading p strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pf-card-icon {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .pf-mode button {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pf-mode button.is-active {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .pf-theme-label {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pf-theme-label svg {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .pf-theme-label small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-shortcut {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-shortcut strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-shortcut small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .settings-profile-shortcut > svg {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .profile-mini-name {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .profile-mini-name:hover strong {
+    color: var(--blue)
 }
 
 /* admin.css */

@@ -85,13 +85,44 @@ export async function saveSupabaseUserAvatar(userId: string, dataUrl: string): P
 }
 
 export async function deleteSupabaseUserAvatar(userId: string): Promise<void> {
-  // Com banner, so limpa a foto (data_url e obrigatorio: '' = sem foto); sem banner, apaga a linha.
-  const { data } = await getSupabaseAdmin().from('user_avatars').select('banner_data_url').eq('user_id', userId).maybeSingle();
-  const query = data?.banner_data_url
-    ? getSupabaseAdmin().from('user_avatars').update({ data_url: '', updated_at: new Date().toISOString() }).eq('user_id', userId)
-    : getSupabaseAdmin().from('user_avatars').delete().eq('user_id', userId);
-  const { error } = await query;
+  // So limpa a foto (data_url e obrigatorio: '' = sem foto); a linha some quando nao guarda mais nada.
+  const { error } = await getSupabaseAdmin().from('user_avatars').update({ data_url: '', updated_at: new Date().toISOString() }).eq('user_id', userId);
   if (error) throw new Error(error.message);
+  await pruneSupabaseUserAvatarRow(userId);
+}
+
+// A linha de user_avatars guarda foto, banner, apelido e tema: so e apagada quando todos estao vazios.
+// select('*') para funcionar tambem antes da migracao das colunas de apelido/tema.
+async function pruneSupabaseUserAvatarRow(userId: string) {
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('*').eq('user_id', userId).maybeSingle();
+  if (error || !data) return;
+  const row = data as Record<string, unknown>;
+  if (row.data_url || row.banner_data_url || row.nickname || row.palette) return;
+  await getSupabaseAdmin().from('user_avatars').delete().eq('user_id', userId);
+}
+
+// Preferencias do perfil: apelido (so aparece para a propria pessoa) e tema de cor.
+export async function getSupabaseUserPreferences(userId: string): Promise<{ nickname: string | null; palette: string | null }> {
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('*').eq('user_id', userId).maybeSingle();
+  if (error) throw new Error(error.message);
+  const row = (data || {}) as Record<string, unknown>;
+  return { nickname: typeof row.nickname === 'string' && row.nickname ? row.nickname : null, palette: typeof row.palette === 'string' && row.palette ? row.palette : null };
+}
+
+export async function saveSupabaseUserPreferences(userId: string, preferences: { nickname: string | null; palette: string | null }): Promise<void> {
+  const admin = getSupabaseAdmin();
+  const { data: existing, error: readError } = await admin.from('user_avatars').select('user_id').eq('user_id', userId).maybeSingle();
+  if (readError) throw new Error(readError.message);
+  const now = new Date().toISOString();
+  if (!existing && !preferences.nickname && !preferences.palette) return;
+  const { error } = existing
+    ? await admin.from('user_avatars').update({ nickname: preferences.nickname, palette: preferences.palette, updated_at: now }).eq('user_id', userId)
+    : await admin.from('user_avatars').insert({ user_id: userId, data_url: '', nickname: preferences.nickname, palette: preferences.palette, updated_at: now });
+  if (error) {
+    if (/nickname|palette/.test(error.message)) throw new Error('O apelido e o tema ainda não podem ser salvos: falta aplicar a migração 202611060001_user_preferences no banco.');
+    throw new Error(error.message);
+  }
+  await pruneSupabaseUserAvatarRow(userId);
 }
 
 // Banner do perfil (fundo das observacoes do usuario nos chamados).
@@ -113,11 +144,10 @@ export async function saveSupabaseUserBanner(userId: string, bannerDataUrl: stri
     if (error) throw new Error(error.message);
     return;
   }
-  // Sem foto e sem banner: a linha nao tem mais o que guardar.
-  const { error } = !bannerDataUrl && !existing.data_url
-    ? await admin.from('user_avatars').delete().eq('user_id', userId)
-    : await admin.from('user_avatars').update({ banner_data_url: bannerDataUrl, updated_at: now }).eq('user_id', userId);
+  const { error } = await admin.from('user_avatars').update({ banner_data_url: bannerDataUrl, updated_at: now }).eq('user_id', userId);
   if (error) throw new Error(error.message);
+  // Sem foto, banner, apelido e tema: a linha nao tem mais o que guardar.
+  if (!bannerDataUrl) await pruneSupabaseUserAvatarRow(userId);
 }
 
 export async function listSupabaseUsers() {

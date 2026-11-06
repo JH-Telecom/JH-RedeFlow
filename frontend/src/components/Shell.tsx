@@ -3,7 +3,7 @@ import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "reac
 import { Bell, ChevronDown, ChevronRight, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { isTabHidden, navItems } from "../lib/nav-items";
 export { navItems } from "../lib/nav-items";
-import { useTheme } from "../theme";
+import { applyPalette, isPaletteId, useTheme } from "../theme";
 import { UpdateNotice } from "./UpdateNotice";
 import { DueSoonBanner } from "./DueSoonBanner";
 import { CommandPalette } from "./CommandPalette";
@@ -11,7 +11,7 @@ import { HelpTip, PAGE_HELP } from "./HelpTip";
 import { ImageReadyToast } from "./ImageReadyToast";
 import { TvModePage } from "../pages/TvModePage";
 import faviconUrl from "../../image/favicon.ico";
-import { api, type Role, type User, type AppNotification } from "../api";
+import { api, type Role, type User, type AppNotification, type ProfilePreferences } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
 import { AccessDenied } from "./ui";
 import { ActivationsPage } from "../pages/ActivationsPage";
@@ -25,6 +25,7 @@ import { ImportsPage } from "../pages/ImportsPage";
 import { ManualProductionDashboard } from "../pages/ManualProductionPage";
 import { RolesPage } from "../pages/RolesPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { ProfilePage } from "../pages/ProfilePage";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
@@ -58,10 +59,10 @@ export async function resizeProfilePhoto(file: File) {
   return avatarDataUrl;
 }
 
-// Avatar da barra lateral e do topo: abre "Meu perfil" em Configuracoes (a troca de foto fica so la).
+// Avatar da barra lateral e do topo: abre a pagina Meu perfil (foto, banner, apelido e tema).
 function ProfileLink({ name, photo, className }: { name: string; photo: string | null; className: string }) {
   return (
-    <NavLink to="/configuracoes#perfil" className="profile-avatar-link" title={`${name} · Meu perfil`} aria-label="Meu perfil">
+    <NavLink to="/perfil" className="profile-avatar-link" title={`${name} · Meu perfil`} aria-label="Meu perfil">
       <ProfileAvatar name={name} photo={photo} className={className} />
     </NavLink>
   );
@@ -107,6 +108,9 @@ export function Shell({
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [profilePhotoError, setProfilePhotoError] = useState("");
   const [savingProfilePhoto, setSavingProfilePhoto] = useState(false);
+  // Apelido (so para a propria pessoa) e tema de cor do perfil.
+  const [preferences, setPreferences] = useState<ProfilePreferences>({ nickname: null, palette: null });
+  const displayName = preferences.nickname || user.name;
   const knownActivationIds = useRef<Set<string> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -143,8 +147,30 @@ export function Shell({
   useEffect(() => {
     let active = true;
     api.profileAvatar().then(({ avatarDataUrl }) => { if (active) setProfilePhoto(avatarDataUrl); }).catch(() => {});
+    // O tema salvo no perfil vale em qualquer computador; a copia local so serve para abrir ja com a cor certa.
+    api.profilePreferences().then((next) => {
+      if (!active) return;
+      setPreferences(next);
+      applyPalette(isPaletteId(next.palette) ? next.palette : "padrao");
+    }).catch(() => {});
     return () => { active = false; };
   }, [user.id]);
+  async function savePreferences(next: ProfilePreferences) {
+    const previous = preferences;
+    setPreferences(next);
+    if (next.palette !== previous.palette) applyPalette(isPaletteId(next.palette) ? next.palette : "padrao");
+    try {
+      setPreferences(await api.saveProfilePreferences(next));
+    } catch (error) {
+      setPreferences(previous);
+      applyPalette(isPaletteId(previous.palette) ? previous.palette : "padrao");
+      throw error;
+    }
+  }
+  function logout() {
+    applyPalette("padrao"); // o proximo login neste navegador comeca no Padrao ate carregar o tema dele
+    onLogout();
+  }
   async function handleProfilePhotoChange(file: File) {
     setProfilePhotoError("");
     setSavingProfilePhoto(true);
@@ -184,8 +210,9 @@ export function Shell({
   }
   const currentItem = navItemForPath(location.pathname);
   const isCallDetail = !currentItem && location.pathname.startsWith("/chamados/");
-  const section = isCallDetail ? "Operação" : currentItem?.section ?? "O&M";
-  const title = isCallDetail ? "Detalhe do chamado" : currentItem?.label ?? "Visão geral";
+  const isProfile = location.pathname === "/perfil";
+  const section = isCallDetail ? "Operação" : isProfile ? "Conta" : currentItem?.section ?? "O&M";
+  const title = isCallDetail ? "Detalhe do chamado" : isProfile ? "Meu perfil" : currentItem?.label ?? "Visão geral";
   const counters = {
     unassigned: notifications.find((item) => item.id === "unassigned-calls")?.count ?? 0,
     activations: activationCount,
@@ -262,12 +289,12 @@ export function Shell({
         </nav>
         <div className="sidebar-bottom">
           <div className="profile-mini">
-            <ProfileLink name={user.name} photo={profilePhoto} className="avatar" />
-            <div>
-              <strong>{user.name}</strong>
+            <ProfileLink name={displayName} photo={profilePhoto} className="avatar" />
+            <NavLink to="/perfil" className="profile-mini-name" title="Meu perfil">
+              <strong>{displayName}</strong>
               <small>{user.role.name}</small>
-            </div>
-            <button className="icon-button profile-logout" onClick={onLogout} title="Sair">
+            </NavLink>
+            <button className="icon-button profile-logout" onClick={logout} title="Sair">
               <LogOut size={16} />
             </button>
           </div>
@@ -291,7 +318,7 @@ export function Shell({
             <ChevronRight size={14} aria-hidden="true" />
             {isCallDetail ? <><NavLink to="/chamados/atendimento">Chamados</NavLink><ChevronRight size={14} aria-hidden="true" /></> : null}
             <strong aria-current="page">{title}</strong>
-            {(() => { const help = PAGE_HELP[isCallDetail ? "detalhe" : currentItem?.to ?? "/"]; return help ? <HelpTip lines={help} title={title} /> : null; })()}
+            {(() => { const help = PAGE_HELP[isCallDetail ? "detalhe" : isProfile ? "/perfil" : currentItem?.to ?? "/"]; return help ? <HelpTip lines={help} title={title} /> : null; })()}
           </nav>
           <div className="topbar-actions">
             <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"} aria-label={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>
@@ -302,7 +329,7 @@ export function Shell({
               </button>
               {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span></div>{notifications.length ? notifications.map((notification) => <button className="notification-item" key={notification.id} onClick={() => { setNotificationsOpen(false); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
             </div>
-            <ProfileLink name={user.name} photo={profilePhoto} className="topbar-avatar" />
+            <ProfileLink name={displayName} photo={profilePhoto} className="topbar-avatar" />
           </div>
         </header>
         {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
@@ -338,6 +365,7 @@ export function Shell({
             <Route path="/supervisores" element={guard("supervisors.view", <SupervisorsPage user={user} />)} />
             <Route path="/usuarios" element={guard("users.view", <UsersPage />)} />
             <Route path="/cargos" element={guard("roles.view", <RolesPage currentRoleId={user.roleId} />)} />
+            <Route path="/perfil" element={<ProfilePage user={user} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} preferences={preferences} onSavePreferences={savePreferences} theme={theme} onToggleTheme={toggleTheme} />} />
             <Route path="/configuracoes" element={<SettingsPage user={user} canManage={canAccess("settings.manage")} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

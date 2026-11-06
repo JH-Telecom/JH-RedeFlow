@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserBanners, saveUserBanner, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
@@ -232,6 +232,22 @@ app.delete('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
     return response.json({ deleted: true });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel remover a foto de perfil.' }); }
 });
+// Preferencias do perfil: apelido opcional (so aparece para a propria pessoa) e tema de cor.
+const PALETTE_IDS = ['padrao', 'jh-azul', 'ardosia', 'nevoa', 'flor', 'aurora', 'neon'] as const;
+app.get('/api/auth/preferences', auth, async (request: AuthRequest, response) => {
+  try { return response.json(await getUserPreferences(request.authUser!.id)); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o perfil.' }); }
+});
+app.put('/api/auth/preferences', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({
+    nickname: z.string().trim().max(40).nullish().transform((value) => value || null),
+    palette: z.enum(PALETTE_IDS).nullish().transform((value) => (value && value !== 'padrao' ? value : null)),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Apelido com ate 40 caracteres e um tema valido.' });
+  try { return response.json(await saveUserPreferences(request.authUser!.id, parsed.data)); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o perfil.' }); }
+});
+
 // Banner do perfil (1 imagem larga JPEG/PNG/WebP, ja reduzida no navegador).
 app.get('/api/auth/banner', auth, async (request: AuthRequest, response) => {
   try { return response.json({ bannerDataUrl: (await getUserBanners([request.authUser!.id]))[request.authUser!.id] ?? null }); }

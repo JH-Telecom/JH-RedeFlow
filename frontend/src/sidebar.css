@@ -50,6 +50,7 @@
   .sidebar.collapsed .nav-item span,
   .sidebar.collapsed .help-link span,
   .sidebar.collapsed .profile-mini > div,
+  .sidebar.collapsed .profile-mini-name,
   .sidebar.collapsed .profile-mini .profile-logout {
     display: none;
   }

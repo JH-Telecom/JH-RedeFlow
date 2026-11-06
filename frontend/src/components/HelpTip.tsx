@@ -20,7 +20,8 @@ export const PAGE_HELP: Record<string, string[]> = {
   "/importacoes": ["Importa planilhas: chamados em aberto/em atendimento e histórico de finalizados.", "Nada é gravado antes da prévia e da confirmação; repetidos são ignorados pelos identificadores."],
   "/usuarios": ["Quem acessa o sistema. Online = sistema aberto e logado nos últimos 2 minutos."],
   "/cargos": ["Cargos e as permissões de cada um."],
-  "/configuracoes": ["Sua foto, senha e preferências; OLTs e regiões para administradores."],
+  "/configuracoes": ["Preferências gerais; OLTs e regiões para administradores. Foto, banner, apelido e tema ficam em Meu perfil."],
+  "/perfil": ["Foto, banner, apelido e tema de cor. O apelido aparece só para você; o tema vale para o seu login em qualquer computador."],
   detalhe: ["Dados do chamado, distribuição para técnico, encerramento e histórico de observações e auditoria."],
 };
 

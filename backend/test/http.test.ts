@@ -130,6 +130,33 @@ test('users can save, read and remove their own profile photo', async () => {
   assert.equal((await deletedResponse.json() as { avatarDataUrl: string | null }).avatarDataUrl, null);
 });
 
+test('users can save their own nickname and color theme', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  type Prefs = { nickname: string | null; palette: string | null };
+
+  const initial = await fetch(`${baseUrl}/api/auth/preferences`, { headers });
+  assert.deepEqual(await initial.json() as Prefs, { nickname: null, palette: null });
+
+  const save = await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: '  Teteu  ', palette: 'aurora' }) });
+  assert.equal(save.status, 200);
+  const saved = await fetch(`${baseUrl}/api/auth/preferences`, { headers });
+  assert.deepEqual(await saved.json() as Prefs, { nickname: 'Teteu', palette: 'aurora' });
+
+  const invalid = await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: 'x', palette: 'arco-iris' }) });
+  assert.equal(invalid.status, 400);
+
+  // Padrao e apelido vazio voltam a "nada salvo".
+  await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: '', palette: 'padrao' }) });
+  const cleared = await fetch(`${baseUrl}/api/auth/preferences`, { headers });
+  assert.deepEqual(await cleared.json() as Prefs, { nickname: null, palette: null });
+});
+
 test('new users must change their password once before using the API', async () => {
   const adminLogin = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

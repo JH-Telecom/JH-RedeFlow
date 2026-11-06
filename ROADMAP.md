@@ -4318,3 +4318,49 @@ Uma aba de Relatórios. O primeiro relatório lista os chamados finalizados, de 
 ### Validação
 - Teste novo `reports.test.ts`: dentro e fora do período, exatamente 6h, chamado aberto, ordem. Suíte 166/166.
 - Preview local (demo) com 2 chamados finalizados: tabela, cartões e filtros conferidos. Auditoria de contraste sem problemas nos temas claro e escuro.
+
+## Página Meu perfil e temas de cor (2026-11-06)
+
+### Pedido
+Temas de cor como na prévia (JH Azul, Ardósia, Névoa, Flor, Aurora e Neon), com o atual como Padrão, e cada um com versão clara e escura. Uma página de perfil, aberta pelo avatar ou pelo nome na lateral e no topo, para trocar foto, banner, tema e um apelido opcional. O apelido aparece no lugar do nome só para a própria pessoa.
+
+### Implementado
+- Temas:
+  - O gerador `scripts/generate-dark-theme.mjs` agora também gera `src/themes/<tema>.css` para Ardósia, Névoa, Flor, Aurora e Neon.
+  - Cada arquivo troca o azul da marca e os cinzas azulados pelo matiz do tema, no claro e no escuro, mantendo a luminosidade.
+  - Vermelho, verde, laranja e amarelo de status não mudam.
+  - Cada arquivo só é carregado quando alguém escolhe aquele tema (cerca de 20 KB compactado).
+  - `src/palettes.css` (escrito à mão): lateral colorida, fundo em degradê e topo translúcido de cada tema. O Neon tem botão principal em degradê.
+  - JH Azul mantém o azul atual e muda só a lateral e o fundo. Padrão é o visual de antes, sem nada novo.
+  - O tema vai em `data-palette` no `<html>`. O claro/escuro continua sendo o botão do topo, e também pode ser trocado no perfil.
+- Página `/perfil` (`ProfilePage.tsx`): banner, foto, apelido (até 40 caracteres) e seletor de tema com miniaturas.
+  - O avatar e o nome na lateral e o avatar do topo abrem essa página.
+  - O apelido substitui o nome só na lateral e no topo de quem o definiu. Chamados, relatórios e a equipe continuam vendo o nome.
+  - Configurações ficou com um atalho para Meu perfil no lugar do antigo bloco de foto e banner.
+- Backend:
+  - `GET` e `PUT /api/auth/preferences`, com `{ nickname, palette }`. Escolher Padrão ou deixar o apelido vazio guarda nulo.
+  - Os dados ficam na mesma linha de `user_avatars` (foto e banner).
+  - A linha só é apagada quando foto, banner, apelido e tema estão todos vazios. Antes, remover a foto ou o banner podia apagar a linha inteira.
+- Migração `202611060001_user_preferences.sql`: colunas `nickname` e `palette` em `user_avatars`.
+  - Sem a migração, a leitura funciona (devolve vazio) e o salvamento avisa que a migração falta.
+- O tema escolhido também fica guardado no navegador e é aplicado pelo `index.html` antes do React, para não piscar. Ao sair, volta ao Padrão.
+
+### Validação
+- Teste novo em `http.test.ts`: salvar, ler, tema inválido e limpar. Suíte 167/167.
+- Auditoria de contraste em 7 temas × claro/escuro (perfil, visão geral, chamados abertos, relatórios e configurações): 0 problemas.
+  - Antes disso, o Ardósia claro deu 4,35 num título pequeno. Foi corrigido com um tom mais fechado (`--blue: #4a6886`).
+- Preview local: escolha de tema pelo clique e apelido aparecendo na lateral e no topo, conferidos.
+
+### Ajuste: banner no formato do Discord (2026-11-06)
+- O banner ficava em 3:1 (1500×500), mas aparecia numa faixa de altura fixa e mais larga, por isso saía cortado.
+- Agora o recorte é 17:6, a proporção do banner do Discord (1360×480, `banner-image.ts`).
+- A faixa do cartão usa `aspect-ratio: 17 / 6`: a imagem aparece inteira, sem corte, em qualquer largura.
+- O cartão do perfil ficou no estilo Discord:
+  - coluna própria de 380px, fixa ao rolar;
+  - foto de 96px sobreposta ao banner, com anel da cor do cartão e botão de câmera;
+  - nome ou apelido, e-mail e cargo num bloco;
+  - botões do banner sobre a imagem.
+  - Sem banner, a faixa usa a cor do tema.
+- Banners já salvos em 3:1 continuam funcionando: são ajustados ao novo formato, com um corte pequeno nas laterais.
+- O CSS antigo do cartão de perfil de Configurações (`.settings-profile*`) foi removido; ele não era mais usado.
+- Validação: faixa medida em 2,833 (17:6) com um banner de teste. Contraste do `/perfil` sem problemas no Padrão, Flor e Ardósia, claro e escuro.

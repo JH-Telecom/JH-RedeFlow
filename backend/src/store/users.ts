@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
-import { changeSupabaseUserPassword, createSupabaseUser, deleteSupabaseUserAvatar, getSupabaseUserBanners, saveSupabaseUserBanner, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseRoles, listSupabaseUsers, saveSupabaseUserAvatar, updateSupabaseUser } from "../integrations/supabase/client.js";
+import { changeSupabaseUserPassword, createSupabaseUser, deleteSupabaseUserAvatar, getSupabaseUserBanners, saveSupabaseUserBanner, getSupabaseUserPreferences, saveSupabaseUserPreferences, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseRoles, listSupabaseUsers, saveSupabaseUserAvatar, updateSupabaseUser } from "../integrations/supabase/client.js";
 import type { AuthUser, PermissionCode, Role, User } from "../types.js";
-import { allPermissions, ensureDemoData, permissionDescriptions, roles, userAvatars, userBanners, users } from "./demo-data.js";
+import { allPermissions, ensureDemoData, permissionDescriptions, roles, userAvatars, userBanners, userPreferences, users } from "./demo-data.js";
 
 export function getRole(roleId: string): Role | undefined { return roles.find((role) => role.id === roleId); }
 
@@ -197,4 +197,18 @@ export async function getUserBanners(userIds: string[]): Promise<Record<string, 
 export async function saveUserBanner(userId: string, bannerDataUrl: string | null): Promise<void> {
   if (isSupabaseConfigured()) return await saveSupabaseUserBanner(userId, bannerDataUrl);
   if (bannerDataUrl) userBanners.set(userId, bannerDataUrl); else userBanners.delete(userId);
+}
+
+// Preferencias do perfil: apelido (aparece so para a propria pessoa, no lugar do nome) e tema de cor.
+export type UserPreferences = { nickname: string | null; palette: string | null };
+export async function getUserPreferences(userId: string): Promise<UserPreferences> {
+  if (isSupabaseConfigured()) return await getSupabaseUserPreferences(userId);
+  return userPreferences.get(userId) ?? { nickname: null, palette: null };
+}
+
+export async function saveUserPreferences(userId: string, preferences: UserPreferences): Promise<UserPreferences> {
+  if (isSupabaseConfigured()) await saveSupabaseUserPreferences(userId, preferences);
+  else if (!preferences.nickname && !preferences.palette) userPreferences.delete(userId);
+  else userPreferences.set(userId, preferences);
+  return preferences;
 }

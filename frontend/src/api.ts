@@ -87,6 +87,9 @@ async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('jh-redeflow:calls-changed'));
   return result;
 }
+// Perfil: apelido (so para a propria pessoa) e tema de cor; palette nulo = Padrao.
+export type ProfilePreferences = { nickname: string | null; palette: string | null };
+
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
@@ -97,6 +100,8 @@ export const api = {
   profileBanner: () => request<{ bannerDataUrl: string | null }>('/api/auth/banner'),
   saveProfileBanner: (bannerDataUrl: string) => request<{ bannerDataUrl: string }>('/api/auth/banner', { method: 'PUT', body: JSON.stringify({ bannerDataUrl }) }),
   removeProfileBanner: () => request<{ deleted: boolean }>('/api/auth/banner', { method: 'DELETE' }),
+  profilePreferences: () => request<ProfilePreferences>('/api/auth/preferences'),
+  saveProfilePreferences: (preferences: ProfilePreferences) => request<ProfilePreferences>('/api/auth/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),

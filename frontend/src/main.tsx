@@ -40,5 +40,9 @@ import './contrast-fixes.css';
 import './theme-dark.css';
 import './theme-dark-manual.css';
 import './theme-light-contrast.css';
+import './palettes.css';
+import { restorePalette } from './theme';
+
+restorePalette();
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);

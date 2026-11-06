@@ -1,0 +1,60 @@
+/* Temas de cor (Perfil > Tema). O Padrao nao tem data-palette e nao usa nada daqui.
+   Aqui ficam a lateral colorida, o fundo da pagina e a barra do topo de cada tema, no claro e no escuro.
+   A troca do azul da marca pela cor do tema fica nos arquivos gerados em src/themes/<id>.css.
+   Fica fora do gerador do tema escuro (scripts/generate-dark-theme.mjs): o escuro de cada tema esta escrito aqui. */
+
+:root[data-palette="jh-azul"] { --pal-side: #0f2b52; --pal-side-2: #0a1d3a; --pal-side-muted: #a9bdd9; --pal-page: linear-gradient(160deg, #f5f9ff 0%, #e8f0fc 55%, #dbe8fa 100%); --pal-base: #e8f0fc; --pal-top: #ffffffc4; }
+:root[data-palette="jh-azul"][data-theme="dark"] { --pal-side: #0b1730; --pal-side-2: #070f22; --pal-side-muted: #9fb2cf; --pal-page: linear-gradient(160deg, #0e1526 0%, #101c35 60%, #12244a 100%); --pal-base: #101c35; --pal-top: #0e1526cc; }
+
+:root[data-palette="ardosia"] { --pal-side: #2b333f; --pal-side-2: #20262f; --pal-side-muted: #b0bac7; --pal-page: linear-gradient(160deg, #f5f6f8 0%, #eceff3 60%, #e3e7ed 100%); --pal-base: #eceff3; --pal-top: #ffffffc4; }
+:root[data-palette="ardosia"][data-theme="dark"] { --pal-side: #181c22; --pal-side-2: #121519; --pal-side-muted: #a3acb8; --pal-page: linear-gradient(160deg, #131619 0%, #181c22 60%, #1e232b 100%); --pal-base: #181c22; --pal-top: #15181dcc; }
+
+:root[data-palette="nevoa"] { --pal-side: #4a1a5e; --pal-side-2: #36104a; --pal-side-muted: #dcc0e8; --pal-page: linear-gradient(160deg, #fcf8fe 0%, #f5ebfa 60%, #eee0f6 100%); --pal-base: #f5ebfa; --pal-top: #ffffffc4; }
+:root[data-palette="nevoa"][data-theme="dark"] { --pal-side: #220c2d; --pal-side-2: #170720; --pal-side-muted: #c9acd6; --pal-page: linear-gradient(160deg, #160c1c 0%, #1e0f27 60%, #2c1338 100%); --pal-base: #1e0f27; --pal-top: #170d1ecc; }
+
+:root[data-palette="flor"] { --pal-side: #6b1d3a; --pal-side-2: #53132c; --pal-side-muted: #f0c4d3; --pal-page: linear-gradient(160deg, #fff8fa 0%, #fdecf1 60%, #fde9e4 100%); --pal-base: #fdecf1; --pal-top: #ffffffc4; }
+:root[data-palette="flor"][data-theme="dark"] { --pal-side: #2c0d19; --pal-side-2: #1f0811; --pal-side-muted: #dcaabb; --pal-page: linear-gradient(160deg, #180d11 0%, #211017 60%, #31141f 100%); --pal-base: #211017; --pal-top: #190e13cc; }
+
+:root[data-palette="aurora"] { --pal-side: #1d1440; --pal-side-2: #120c2a; --pal-side-muted: #c2b8e6; --pal-page: linear-gradient(160deg, #f8f7ff 0%, #efecfe 60%, #e6e0fc 100%); --pal-base: #efecfe; --pal-top: #ffffffc4; }
+:root[data-palette="aurora"][data-theme="dark"] { --pal-side: #110b26; --pal-side-2: #0a0718; --pal-side-muted: #b3a8d9; --pal-page: linear-gradient(160deg, #0d0a1a 0%, #141031 60%, #29174f 100%); --pal-base: #141031; --pal-top: #0f0b1fcc; }
+
+:root[data-palette="neon"] { --pal-side: linear-gradient(180deg, #101845 0%, #1d0d4a 100%); --pal-side-2: #1d0d4a; --pal-side-muted: #bcc3ef; --pal-page: linear-gradient(160deg, #f5f8ff 0%, #eef0ff 55%, #f1e9ff 100%); --pal-base: #eef0ff; --pal-top: #ffffffc4; }
+:root[data-palette="neon"][data-theme="dark"] { --pal-side: linear-gradient(180deg, #080c26 0%, #12072c 100%); --pal-side-2: #12072c; --pal-side-muted: #aab2e6; --pal-page: linear-gradient(160deg, #080b1a 0%, #0f0f2c 55%, #1c0c3a 100%); --pal-base: #0f0f2c; --pal-top: #0a0c20cc; }
+
+/* Ardosia claro: o azul-ardosia gerado fica no limite de contraste sobre o fundo; um tom mais fechado. */
+:root[data-palette="ardosia"]:not([data-theme="dark"]) { --blue: #4a6886; }
+
+/* Fundo da pagina */
+:root[data-palette] body { background: var(--pal-page) fixed; background-color: var(--pal-base); }
+:root[data-palette] .topbar { background: var(--pal-top); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+/* Lateral colorida (texto claro nos dois modos) */
+:root[data-palette] .sidebar { background: var(--pal-side); background-color: var(--pal-side-2); border-right-color: transparent; }
+:root[data-palette] .sidebar .sidebar-brand strong { color: #fff; }
+:root[data-palette] .sidebar .sidebar-brand small,
+:root[data-palette] .sidebar .nav-section-title,
+:root[data-palette] .sidebar button.nav-section-title:hover { color: var(--pal-side-muted); }
+:root[data-palette] .sidebar .sidebar-search { background: #ffffff14; border-color: #ffffff24; color: var(--pal-side-muted); }
+:root[data-palette] .sidebar .sidebar-search kbd { background: #ffffff14; border-color: #ffffff2e; color: var(--pal-side-muted); }
+:root[data-palette] .sidebar .sidebar-search:hover { border-color: #ffffff55; color: #fff; }
+:root[data-palette] .sidebar .nav-item,
+:root[data-palette] .sidebar .nav-item svg { color: var(--pal-side-muted); }
+:root[data-palette] .sidebar .nav-item:hover { background: #ffffff12; color: #fff; }
+:root[data-palette] .sidebar .nav-item:hover svg { color: #fff; }
+:root[data-palette] .sidebar .nav-item.active,
+:root[data-palette] .sidebar .nav-item.active:hover { background: #ffffff24; color: #fff; box-shadow: inset 3px 0 0 #ffffffb0; }
+:root[data-palette] .sidebar .nav-item.active svg { color: #fff; }
+:root[data-palette] .sidebar .nav-item:focus-visible,
+:root[data-palette] .sidebar button.nav-section-title:focus-visible { outline-color: #fff; }
+:root[data-palette] .sidebar .profile-mini { border-top-color: #ffffff22; }
+:root[data-palette] .sidebar .profile-mini strong { color: #fff; }
+:root[data-palette] .sidebar .profile-mini small { color: var(--pal-side-muted); }
+:root[data-palette] .sidebar .icon-button { color: var(--pal-side-muted); }
+:root[data-palette] .sidebar .icon-button:hover { background: #ffffff14; color: #fff; }
+:root[data-palette] .sidebar nav { scrollbar-color: #ffffff30 transparent; }
+:root[data-palette] .sidebar nav::-webkit-scrollbar-thumb { background: #ffffff30; }
+:root[data-palette] .sidebar.collapsed .nav-section + .nav-section { border-top-color: #ffffff22; }
+
+/* Neon: botao principal em degrade azul -> violeta */
+:root[data-palette="neon"] .primary-button { background-image: linear-gradient(135deg, #2f5be0 0%, #7a2ee0 100%); }
+:root[data-palette="neon"] .primary-button:hover { background-image: linear-gradient(135deg, #2448c4 0%, #6420c4 100%); }

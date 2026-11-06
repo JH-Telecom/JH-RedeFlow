@@ -1,16 +1,16 @@
-// Banner do perfil: recorta a imagem no formato 3:1 (centro) e reduz para 1500x500 JPEG,
+// Banner do perfil: recorta a imagem no formato 17:6 do Discord (centro) e reduz para 1360x480 JPEG,
 // baixando a qualidade se precisar para caber no limite do servidor (700 KB).
 export async function resizeBannerImage(file: File) {
   if (!file.type.startsWith("image/")) throw new Error("Selecione um arquivo de imagem.");
   if (file.size > 15 * 1024 * 1024) throw new Error("A imagem original deve ter no máximo 15 MB.");
   const bitmap = await createImageBitmap(file);
-  const targetRatio = 3;
+  const targetRatio = 17 / 6;
   let sourceWidth = bitmap.width;
   let sourceHeight = Math.round(bitmap.width / targetRatio);
   if (sourceHeight > bitmap.height) { sourceHeight = bitmap.height; sourceWidth = Math.round(bitmap.height * targetRatio); }
   const sourceX = Math.round((bitmap.width - sourceWidth) / 2);
   const sourceY = Math.round((bitmap.height - sourceHeight) / 2);
-  const width = Math.min(1500, sourceWidth);
+  const width = Math.min(1360, sourceWidth);
   const height = Math.round(width / targetRatio);
   const canvas = document.createElement("canvas");
   canvas.width = width;

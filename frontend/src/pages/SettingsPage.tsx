@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { Camera, ChevronRight, Image as ImageIcon, Plus, Search, Settings, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { ChevronRight, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { api, type OltRegionMapping, type OltRegionRequest, type Role, type User } from "../api";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { operationalRegions } from "../lib/constants";
-import { resizeBannerImage } from "../lib/banner-image";
 
 type ProfilePhotoControls = { photo: string | null; saving: boolean; error: string; onChange: (file: File) => Promise<void>; onRemove: () => Promise<void> };
 
-// Configuracoes: "Meu perfil" (foto) para todo usuario; o restante so para quem tem settings.manage.
+// Configuracoes: atalho para Meu perfil para todo usuario; o restante so para quem tem settings.manage.
 export function SettingsPage({ user, canManage, profile }: { user: User & { role: Role }; canManage: boolean; profile: ProfilePhotoControls }) {
   return (
     <>
@@ -15,93 +15,23 @@ export function SettingsPage({ user, canManage, profile }: { user: User & { role
         <div>
           <span className="section-kicker">SISTEMA</span>
           <h1>Configurações</h1>
-          <p>{canManage ? "Seu perfil e as preferências gerais do ambiente O&M." : "Seu perfil no JH RedeFlow."}</p>
+          <p>{canManage ? "Preferências gerais do ambiente O&M." : "Seu perfil no JH RedeFlow."}</p>
         </div>
       </div>
-      <ProfileSettings user={user} profile={profile} />
+      <ProfileShortcut user={user} photo={profile.photo} />
       {canManage && <SystemSettings />}
     </>
   );
 }
 
-function ProfileSettings({ user, profile }: { user: User & { role: Role }; profile: ProfilePhotoControls }) {
-  const input = useRef<HTMLInputElement | null>(null);
-  const bannerInput = useRef<HTMLInputElement | null>(null);
-  const [message, setMessage] = useState("");
-  // Banner: capa do cartao do perfil e fundo das suas observacoes nos chamados.
-  const [banner, setBanner] = useState<string | null>(null);
-  const [bannerSaving, setBannerSaving] = useState(false);
-  const [bannerError, setBannerError] = useState("");
-  useEffect(() => { api.profileBanner().then((data) => setBanner(data.bannerDataUrl)).catch(() => undefined); }, []);
-  async function changeBanner(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (!file) return;
-    setBannerError("");
-    setMessage("");
-    setBannerSaving(true);
-    try {
-      const dataUrl = await resizeBannerImage(file);
-      const saved = await api.saveProfileBanner(dataUrl);
-      setBanner(saved.bannerDataUrl);
-      setMessage("Banner atualizado. Ele aparece ao fundo das suas observações nos chamados.");
-    } catch (error) {
-      setBannerError(error instanceof Error ? error.message : "Não foi possível salvar o banner.");
-    } finally {
-      setBannerSaving(false);
-    }
-  }
-  async function removeBanner() {
-    setBannerError("");
-    setMessage("");
-    setBannerSaving(true);
-    try {
-      await api.removeProfileBanner();
-      setBanner(null);
-      setMessage("Banner removido.");
-    } catch (error) {
-      setBannerError(error instanceof Error ? error.message : "Não foi possível remover o banner.");
-    } finally {
-      setBannerSaving(false);
-    }
-  }
-  async function change(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (!file) return;
-    setMessage("");
-    await profile.onChange(file);
-    setMessage("Foto atualizada.");
-  }
-  async function remove() {
-    setMessage("");
-    await profile.onRemove();
-    setMessage("Foto removida.");
-  }
+// Foto, banner, apelido e tema ficam na pagina Meu perfil (/perfil); aqui fica so o atalho.
+function ProfileShortcut({ user, photo }: { user: User & { role: Role }; photo: string | null }) {
   return (
-    <section className={`panel settings-profile${banner ? " has-banner" : ""}`} id="perfil" aria-labelledby="settings-profile-title">
-      <div className="settings-profile-banner" style={banner ? { backgroundImage: `url(${banner})` } : undefined}>
-        {!banner && <span>Sem banner. Ele aparece aqui e ao fundo das suas observações nos chamados.</span>}
-        <div className="settings-profile-banner-actions">
-          <button className="secondary-button compact" type="button" onClick={() => bannerInput.current?.click()} disabled={bannerSaving}><ImageIcon size={15} />{bannerSaving ? "Salvando..." : banner ? "Trocar banner" : "Adicionar banner"}</button>
-          {banner && <button className="secondary-button compact" type="button" onClick={() => void removeBanner()} disabled={bannerSaving}><Trash2 size={15} /> Remover banner</button>}
-          <input ref={bannerInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void changeBanner(event)} />
-        </div>
-      </div>
-      <ProfileAvatar name={user.name} photo={profile.photo} className="settings-profile-avatar" />
-      <div className="settings-profile-info">
-        <span className="section-kicker">MEU PERFIL</span>
-        <h2 id="settings-profile-title">{user.name}</h2>
-        <p>{user.email} · {user.role.name}</p>
-        <div className="settings-profile-actions">
-          <button className="primary-button compact" type="button" onClick={() => input.current?.click()} disabled={profile.saving}><Camera size={15} />{profile.saving ? "Salvando..." : profile.photo ? "Trocar foto" : "Adicionar foto"}</button>
-          {profile.photo && <button className="secondary-button compact" type="button" onClick={() => void remove()} disabled={profile.saving}><Trash2 size={15} /> Remover foto</button>}
-          <input ref={input} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void change(event)} />
-        </div>
-        <small>Foto e banner em JPG, PNG ou WebP; as imagens são reduzidas automaticamente (banner recortado em 3:1).</small>
-        {profile.error || bannerError ? <div className="form-error" role="alert">{profile.error || bannerError}</div> : message && <div className="save-message" role="status">{message}</div>}
-      </div>
-    </section>
+    <Link to="/perfil" className="panel settings-profile-shortcut">
+      <ProfileAvatar name={user.name} photo={photo} className="avatar" />
+      <span><strong>Meu perfil</strong><small>Foto, banner, apelido e tema de cor agora ficam no seu perfil.</small></span>
+      <ChevronRight size={18} aria-hidden="true" />
+    </Link>
   );
 }
 

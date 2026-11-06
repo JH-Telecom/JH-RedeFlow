@@ -79,65 +79,6 @@
 }
 
 /* Configuracoes > Meu perfil */
-.settings-profile {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 22px;
-  scroll-margin-top: 90px;
-}
-
-.settings-profile-avatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: #e8f0fe;
-  color: #173a71;
-  font-size: 28px;
-  font-weight: 700;
-  cursor: default;
-}
-
-.settings-profile-info h2 {
-  margin: 2px 0 2px;
-}
-
-.settings-profile-info p {
-  margin: 0 0 12px;
-  color: var(--muted);
-}
-
-.settings-profile-info small {
-  display: block;
-  margin-top: 8px;
-  color: var(--muted);
-}
-
-.settings-profile-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-@media (max-width: 600px) {
-  .settings-profile {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-/* Banner do perfil: capa do cartao (faixa 3:1 no topo) com os botoes por cima */
-.settings-profile { flex-wrap: wrap; overflow: hidden; }
-.settings-profile-banner { position: relative; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex: 0 0 calc(100% + 44px); height: 170px; margin: -22px -22px 0; padding: 14px 18px; background: linear-gradient(120deg, #e9f1fd, #f4f7fb) center / cover no-repeat; color: #4a5a70; font-size: 12px; }
-.settings-profile.has-banner .settings-profile-banner { background-size: cover; background-position: center; }
-.settings-profile-banner > span { align-self: center; max-width: 60%; }
-.settings-profile-banner-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
-.settings-profile-banner-actions .secondary-button { background: #ffffffeb; box-shadow: 0 2px 8px #17233b26; }
-.settings-profile-avatar { position: relative; margin-top: -54px; border: 4px solid #fff; box-sizing: content-box; }
-.settings-profile-info { padding-top: 6px; }
-@media (max-width: 600px) { .settings-profile-banner { height: 120px; } .settings-profile-banner > span { display: none; } }
-
 /* Observacoes com o banner do autor ao fundo (CallDetailPage.tsx). O nome fica em faixa escurecida
    e o texto numa caixa quase opaca, para manter contraste nos dois temas. */
 .history-item.has-banner { display: block; overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 12px; background-color: #17233b; background-position: center; background-size: cover; }
@@ -148,3 +89,85 @@
 .history-banner-body { margin: 0 10px 10px; padding: 10px 12px; border-radius: 9px; background: #ffffffeb; }
 .history-banner-body p { margin: 0; }
 .history-banner-body .observation-attachments { margin-top: 8px; }
+
+/* Pagina Meu perfil (ProfilePage.tsx) */
+.pf-page { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); align-items: start; gap: 20px; max-width: 1160px; margin: 0 auto; }
+.pf-main { display: grid; gap: 18px; min-width: 0; }
+/* Cartao estilo Discord: banner 17:6, foto sobreposta com anel da cor do cartao */
+.pf-hero { position: sticky; top: 92px; overflow: hidden; padding: 0; }
+.pf-banner { position: relative; aspect-ratio: 17 / 6; background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%); background-position: center; background-size: cover; }
+.pf-banner.has-banner { background-color: #17233b; }
+.pf-banner-actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+.pf-banner-button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 15px; background: #0b1220b8; color: #fff; font-size: 12px; font-weight: 700; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.pf-banner-button:hover { background: #0b1220e6; }
+.pf-banner-button:disabled { cursor: wait; opacity: .8; }
+.pf-hero-body { position: relative; padding: 0 20px 20px; }
+.pf-avatar-button { position: relative; display: block; width: 96px; height: 96px; margin: -48px 0 10px -2px; padding: 0; border-radius: 50%; background: transparent; }
+.pf-avatar { width: 96px; height: 96px; border: 6px solid #fff; border-radius: 50%; box-sizing: border-box; background: #e8f0fe; color: #173a71; font-size: 30px; font-weight: 700; cursor: pointer; }
+.pf-avatar-edit { position: absolute; right: 2px; bottom: 4px; display: grid; place-items: center; width: 28px; height: 28px; border: 3px solid #fff; border-radius: 50%; background: var(--blue); color: #fff; }
+.pf-avatar-button:hover .pf-avatar-edit { background: var(--blue-deep); }
+.pf-avatar-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.pf-hero h1 { margin: 0; font-size: 22px; letter-spacing: -.4px; overflow-wrap: anywhere; }
+.pf-hero-sub { margin: 2px 0 14px; color: #5f6d84; font-size: 13px; }
+.pf-hero-facts { display: grid; gap: 10px; margin: 0 0 16px; padding: 12px 14px; border-radius: 9px; background: #f4f7fb; }
+.pf-hero-facts dt { color: #5f6d84; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.pf-hero-facts dd { margin: 2px 0 0; color: #17233b; font-size: 13px; overflow-wrap: anywhere; }
+.pf-hero-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pf-hero-hint { display: block; margin-top: 12px; color: #5f6d84; font-size: 11px; line-height: 1.5; }
+.pf-card { display: grid; gap: 18px; }
+.pf-card-heading { display: flex; align-items: flex-start; gap: 14px; }
+.pf-card-heading > div { flex: 1; min-width: 0; }
+.pf-card-heading h2 { font-size: 16px; margin-bottom: 4px; }
+.pf-card-heading p { color: #5f6d84; font-size: 13px; line-height: 1.55; }
+.pf-card-heading p strong { color: #17233b; }
+.pf-card-icon { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 9px; background: #edf4ff; color: var(--blue); }
+.pf-nickname { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.pf-nickname label { flex: 1 1 260px; max-width: 420px; }
+.pf-nickname input { padding: 10px 12px; }
+.pf-mode { display: inline-flex; flex-shrink: 0; padding: 3px; border: 1px solid var(--line); border-radius: 9px; background: #f7f9fc; }
+.pf-mode button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 7px; background: transparent; color: #5f6d84; font-size: 12px; font-weight: 700; }
+.pf-mode button.is-active { background: #fff; color: var(--blue); box-shadow: 0 1px 4px #17233b1f; }
+.pf-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.pf-theme { display: grid; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 11px; background: #fff; text-align: left; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.pf-theme:hover { border-color: #c5d5ed; transform: translateY(-1px); }
+.pf-theme.is-selected { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue); }
+.pf-theme:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.pf-theme:disabled { cursor: wait; }
+.pf-theme-preview { display: flex; height: 78px; overflow: hidden; border: 1px solid #17233b14; border-radius: 8px; }
+.pf-theme-side { display: grid; align-content: start; gap: 5px; width: 30%; padding: 9px 6px; }
+.pf-theme-side i { height: 4px; border-radius: 2px; background: #ffffff59; }
+.pf-theme-side i:first-child { width: 70%; background: #ffffffb3; }
+.pf-theme-preview.is-padrao.is-light .pf-theme-side { border-right: 1px solid #e8edf4; }
+.pf-theme-preview.is-padrao.is-light .pf-theme-side i { background: #dbe3ee; }
+.pf-theme-preview.is-padrao.is-light .pf-theme-side i:first-child { background: #b9c6d8; }
+.pf-theme-body { display: grid; flex: 1; align-content: start; gap: 6px; padding: 9px 8px; }
+.pf-theme-body b { width: 44%; height: 9px; border-radius: 4px; }
+.pf-theme-card { height: 16px; border-radius: 4px; background: #ffffffd9; box-shadow: 0 1px 2px #17233b14; }
+.pf-theme-preview.is-dark .pf-theme-card { background: #ffffff14; box-shadow: none; }
+.pf-theme-label { display: flex; align-items: center; gap: 7px; padding: 0 2px 2px; color: #17233b; font-size: 13px; font-weight: 700; }
+.pf-theme-label svg { margin-left: auto; color: var(--blue); }
+.pf-theme-label small { margin-left: auto; color: #5f6d84; font-size: 11px; font-weight: 600; }
+.pf-theme-dot { width: 14px; height: 14px; flex-shrink: 0; border-radius: 50%; box-shadow: inset 0 0 0 1px #17233b26; }
+@media (max-width: 1080px) {
+  .pf-page { grid-template-columns: 1fr; max-width: 720px; }
+  .pf-hero { position: static; }
+}
+@media (max-width: 640px) {
+  .pf-card-heading { flex-wrap: wrap; }
+  .pf-mode { width: 100%; }
+  .pf-mode button { flex: 1; justify-content: center; }
+  .pf-themes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Configuracoes: atalho para Meu perfil */
+.settings-profile-shortcut { display: flex; align-items: center; gap: 14px; max-width: 720px; margin-bottom: 18px; padding: 16px 18px; color: inherit; text-decoration: none; transition: border-color .15s ease; }
+.settings-profile-shortcut:hover { border-color: #c5d5ed; }
+.settings-profile-shortcut .avatar { width: 40px; height: 40px; font-size: 13px; }
+.settings-profile-shortcut > span:not(.avatar) { display: grid; flex: 1; gap: 3px; }
+.settings-profile-shortcut strong { color: #17233b; font-size: 14px; }
+.settings-profile-shortcut small { color: #5f6d84; font-size: 12px; }
+.settings-profile-shortcut > svg { color: #5f6d84; }
+
+/* Nome na lateral abre Meu perfil */
+.profile-mini-name { display: block; flex: 1; min-width: 0; color: inherit; text-decoration: none; border-radius: 6px; }
+.profile-mini-name:hover strong { color: var(--blue); }

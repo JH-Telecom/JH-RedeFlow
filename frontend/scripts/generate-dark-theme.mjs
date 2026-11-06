@@ -1,7 +1,7 @@
 // Gera src/theme-dark.css a partir dos CSS do app: cada declaracao com cor ganha uma copia sob
 // :root[data-theme="dark"], com a cor convertida pelo papel que ela cumpre (fundo, borda, texto ou grafico).
 // Os CSS originais nao mudam. Roda no build (npm run build) e manualmente com: npm run theme:dark
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
@@ -220,7 +220,7 @@ function darkRulesFor(css, from, mode = 'dark') {
 
 // Mesma ordem do main.tsx, para as regras escuras respeitarem a cascata original.
 const mainSource = readFileSync(join(root, 'main.tsx'), 'utf8');
-const GENERATED = new Set([OUTPUT, MANUAL, LIGHT_OUTPUT]);
+const GENERATED = new Set([OUTPUT, MANUAL, LIGHT_OUTPUT, 'palettes.css']);
 const ordered = [...mainSource.matchAll(/import '\.\/([^']+\.css)'/g)].map((match) => match[1]).filter((file) => !GENERATED.has(file));
 const extra = readdirSync(root).filter((file) => file.endsWith('.css') && !ordered.includes(file) && !GENERATED.has(file));
 if (extra.length) console.warn(`[theme:dark] CSS fora do main.tsx (ignorados): ${extra.join(', ')}`);
@@ -241,3 +241,97 @@ const lightParts = ordered.map((file) => {
 }).filter(Boolean);
 writeFileSync(join(root, LIGHT_OUTPUT), lightHeader + lightParts.join('\n'));
 console.log(`[theme:dark] ${LIGHT_OUTPUT} gerado.`);
+
+// ---- Temas de cor (perfil > Tema) ----
+// Cada tema troca o azul da marca (e os cinzas azulados) por outro matiz, no claro e no escuro, mantendo a
+// luminosidade: o contraste fica o mesmo do Padrao. Cores de status (vermelho, verde, laranja, amarelo) nao mudam.
+// Sai um arquivo por tema em src/themes/<id>.css, carregado so quando o tema e escolhido (theme.ts).
+// "padrao" e "jh-azul" usam o azul atual (o JH Azul so muda a lateral e o fundo, em palettes.css).
+export const PALETTES = {
+  ardosia: { hue: 250, chroma: 0.3, neutral: 0.7 },
+  nevoa: { hue: 318, chroma: 0.95, neutral: 1.1 },
+  flor: { hue: 355, chroma: 0.95, neutral: 1.1 },
+  aurora: { hue: 290, chroma: 1, neutral: 1.4 },
+  neon: { hue: 280, chroma: 1.15, neutral: 1.4 },
+};
+const DEG = Math.PI / 180;
+const isBrandHue = (h) => { const deg = ((h / DEG) % 360 + 360) % 360; return deg >= 235 && deg <= 290; };
+function paletteColor(text, palette, mode) {
+  const parsed = parseColor(text);
+  if (!parsed) return text;
+  const [L, C, h] = rgbToOklch(parsed.rgb);
+  // No escuro os cinzas do gerador ja vem com um toque de azul (C ~0.014): eles tambem ganham o matiz do tema.
+  if (C < (mode === 'dark' ? 0.009 : 0.012) || !isBrandHue(h)) return text;
+  const nextC = C < 0.06 ? C * palette.neutral : Math.min(C * palette.chroma, 0.32);
+  return formatColor(oklchToRgb([L, nextC, palette.hue * DEG]), parsed.alpha);
+}
+
+function paletteRulesFor(css, from, id, palette, mode, isManual = false) {
+  const source = postcss.parse(css, { from });
+  const output = postcss.root();
+  const scope = mode === 'dark' ? `[data-palette="${id}"][data-theme="dark"]` : `[data-palette="${id}"]:not([data-theme="dark"])`;
+  const prefix = (selector) => selector.split(',').map((part) => {
+    const trimmed = part.trim();
+    if (!trimmed) return trimmed;
+    // Ajustes manuais do escuro ja tem o escopo :root[data-theme="dark"]: so ganham o tema (e ficam mais especificos).
+    if (isManual) return trimmed.replace(/:root\[data-theme="dark"\]/g, `:root[data-palette="${id}"][data-theme="dark"]`);
+    if (/^:root\b/.test(trimmed)) return trimmed.replace(/^:root/, `:root:where(${scope})`);
+    if (/^html\b/.test(trimmed)) return trimmed.replace(/^html/, `html:where(${scope})`);
+    return `:where(:root${scope}) ${trimmed}`;
+  }).join(', ');
+  source.walkRules((rule) => {
+    if (rule.parent?.type === 'atrule' && /keyframes$/i.test(rule.parent.name)) return;
+    const declarations = [];
+    rule.each((node) => {
+      if (node.type !== 'decl') return;
+      const role = roleFor(node.prop);
+      if (!role) return;
+      let value = node.value;
+      if (mode === 'dark' && !isManual) {
+        value = value.replace(COLOR_PATTERN, (match) => convert(match, role));
+        COLOR_PATTERN.lastIndex = 0;
+        if (role === 'text' && !node.prop.startsWith('--')) value = value.replace(/var\(--blue(?:-deep)?\)/g, 'var(--accent-text)');
+      }
+      value = value.replace(COLOR_PATTERN, (match) => {
+        const shifted = paletteColor(match, palette, mode);
+        return mode === 'light' && role === 'text' && !node.prop.startsWith('--') && !LIGHT_SKIP.test(rule.selector) ? lightConvert(shifted) : shifted;
+      });
+      COLOR_PATTERN.lastIndex = 0;
+      // Tokens e ajustes manuais so entram se mudaram; as demais declaracoes de cor sao todas copiadas,
+      // para a camada do tema reproduzir a cascata inteira (como o tema escuro).
+      if ((node.prop.startsWith('--') || isManual) && value === node.value) return;
+      declarations.push(postcss.decl({ prop: node.prop, value, important: node.important }));
+    });
+    if (!declarations.length) return;
+    const clone = postcss.rule({ selector: prefix(rule.selector) });
+    declarations.forEach((declaration) => clone.append(declaration));
+    let target = output;
+    const chain = [];
+    for (let parent = rule.parent; parent && parent.type === 'atrule'; parent = parent.parent) chain.unshift(parent);
+    for (const atRule of chain) {
+      const wrapper = postcss.atRule({ name: atRule.name, params: atRule.params });
+      target.append(wrapper);
+      target = wrapper;
+    }
+    target.append(clone);
+  });
+  return output.toString().trim();
+}
+
+const themesDir = join(root, 'themes');
+mkdirSync(themesDir, { recursive: true });
+const sources = ordered.map((file) => [file, readFileSync(join(root, file), 'utf8')]);
+const manualSource = readFileSync(join(root, MANUAL), 'utf8');
+for (const [id, palette] of Object.entries(PALETTES)) {
+  const chunks = [`/* ARQUIVO GERADO por scripts/generate-dark-theme.mjs: tema "${id}". Nao edite. */`];
+  for (const mode of ['light', 'dark']) {
+    for (const [file, css] of sources) {
+      const generated = paletteRulesFor(css, file, id, palette, mode);
+      if (generated) chunks.push(`/* ${mode} · ${file} */\n${generated}`);
+    }
+  }
+  const manual = paletteRulesFor(manualSource, MANUAL, id, palette, 'dark', true);
+  if (manual) chunks.push(`/* dark · ${MANUAL} */\n${manual}`);
+  writeFileSync(join(themesDir, `${id}.css`), chunks.join('\n') + '\n');
+}
+console.log(`[theme:dark] temas gerados em src/themes: ${Object.keys(PALETTES).join(', ')}.`);

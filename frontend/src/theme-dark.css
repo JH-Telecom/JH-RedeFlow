@@ -1423,27 +1423,6 @@
 :where(:root[data-theme="dark"]) .profile-avatar-link:focus-visible {
     outline: 2px solid #1683ff
 }
-:where(:root[data-theme="dark"]) .settings-profile-avatar {
-    background: #0e1726;
-    color: #90b9fa
-}
-:where(:root[data-theme="dark"]) .settings-profile-info p {
-    color: var(--muted)
-}
-:where(:root[data-theme="dark"]) .settings-profile-info small {
-    color: var(--muted)
-}
-:where(:root[data-theme="dark"]) .settings-profile-banner {
-    background: linear-gradient(120deg, #0e1724, #0f1319) center / cover no-repeat;
-    color: #b6bcc4
-}
-:where(:root[data-theme="dark"]) .settings-profile-banner-actions .secondary-button {
-    background: #181c22eb;
-    box-shadow: 0 2px 8px #00000054
-}
-:where(:root[data-theme="dark"]) .settings-profile-avatar {
-    border: 4px solid #2c3038
-}
 :where(:root[data-theme="dark"]) .history-item.has-banner {
     border: 1px solid var(--line);
     background-color: #17233b
@@ -1461,6 +1440,149 @@
 }
 :where(:root[data-theme="dark"]) .history-banner-body {
     background: #181c22eb
+}
+:where(:root[data-theme="dark"]) .pf-banner {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%)
+}
+:where(:root[data-theme="dark"]) .pf-banner.has-banner {
+    background-color: #17233b
+}
+:where(:root[data-theme="dark"]) .pf-banner-button {
+    background: #0b1220bf;
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .pf-banner-button:hover {
+    background: #0b1220bf
+}
+:where(:root[data-theme="dark"]) .pf-avatar-button {
+    background: transparent
+}
+:where(:root[data-theme="dark"]) .pf-avatar {
+    border: 6px solid #2c3038;
+    background: #0e1726;
+    color: #90b9fa
+}
+:where(:root[data-theme="dark"]) .pf-avatar-edit {
+    border: 3px solid #2c3038;
+    background: var(--blue);
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .pf-avatar-button:hover .pf-avatar-edit {
+    background: var(--blue-deep)
+}
+:where(:root[data-theme="dark"]) .pf-avatar-button:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .pf-hero-sub {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pf-hero-facts {
+    background: #0f1319
+}
+:where(:root[data-theme="dark"]) .pf-hero-facts dt {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pf-hero-facts dd {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .pf-hero-hint {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pf-card-heading p {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pf-card-heading p strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .pf-card-icon {
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .pf-mode {
+    border: 1px solid var(--line);
+    background: #12151b
+}
+:where(:root[data-theme="dark"]) .pf-mode button {
+    background: transparent;
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pf-mode button.is-active {
+    background: #181c22;
+    color: var(--accent-text);
+    box-shadow: 0 1px 4px #00000044
+}
+:where(:root[data-theme="dark"]) .pf-theme {
+    border: 1px solid var(--line);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .pf-theme:hover {
+    border-color: #30425d
+}
+:where(:root[data-theme="dark"]) .pf-theme.is-selected {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px var(--blue)
+}
+:where(:root[data-theme="dark"]) .pf-theme:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .pf-theme-preview {
+    border: 1px solid #17233b14
+}
+:where(:root[data-theme="dark"]) .pf-theme-side i {
+    background: #181c2259
+}
+:where(:root[data-theme="dark"]) .pf-theme-side i:first-child {
+    background: #181c22b3
+}
+:where(:root[data-theme="dark"]) .pf-theme-preview.is-padrao.is-light .pf-theme-side {
+    border-right: 1px solid #33383f
+}
+:where(:root[data-theme="dark"]) .pf-theme-preview.is-padrao.is-light .pf-theme-side i {
+    background: #111a26
+}
+:where(:root[data-theme="dark"]) .pf-theme-preview.is-padrao.is-light .pf-theme-side i:first-child {
+    background: #2b3543
+}
+:where(:root[data-theme="dark"]) .pf-theme-card {
+    background: #181c22d9;
+    box-shadow: 0 1px 2px #0000002c
+}
+:where(:root[data-theme="dark"]) .pf-theme-preview.is-dark .pf-theme-card {
+    background: #181c2214;
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .pf-theme-label {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .pf-theme-label svg {
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .pf-theme-label small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pf-theme-dot {
+    box-shadow: inset 0 0 0 1px #00000054
+}
+:where(:root[data-theme="dark"]) .settings-profile-shortcut {
+    color: inherit
+}
+:where(:root[data-theme="dark"]) .settings-profile-shortcut:hover {
+    border-color: #30425d
+}
+:where(:root[data-theme="dark"]) .settings-profile-shortcut strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .settings-profile-shortcut small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .settings-profile-shortcut > svg {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .profile-mini-name {
+    color: inherit
+}
+:where(:root[data-theme="dark"]) .profile-mini-name:hover strong {
+    color: var(--accent-text)
 }
 
 /* admin.css */

@@ -82,6 +82,7 @@ export const observationAttachments = new Map<string, StoredCallObservationAttac
 
 export const userBanners = new Map<string, string>();
 export const userAvatars = new Map<string, string>();
+export const userPreferences = new Map<string, { nickname: string | null; palette: string | null }>();
 
 export const auditLogs = new Map<string, CallAuditLog>();
 
@@ -114,6 +115,7 @@ export function ensureDemoData() {
     observations.clear();
     observationAttachments.clear();
     userAvatars.clear();
+    userPreferences.clear();
     auditLogs.clear();
     activations.clear();
     imports.clear();
