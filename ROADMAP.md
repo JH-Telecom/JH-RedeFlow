@@ -4283,3 +4283,17 @@ O mesmo card chega por 2 ou 3 grupos do WhatsApp. A checagem de repetido na cheg
 
 ### Validação
 - Teste novo: casamento do Recurso (acento, balde, demitido, desconhecido) e escolha da linha (pendente vence suspensa). Chamado que já tem técnico não muda. Suíte 165/165.
+
+## Clusters: espera a barra de data do OFS (2026-11-06)
+
+### Problema
+Com a aba fixada já acordada (v1.3.2), os 4 baldes falharam com "Não achei o seletor de data do OFS". Depois de recarregar, o OFS mostra a árvore de alocação antes da barra de data, e a extensão procurava a data na hora.
+
+### Implementado
+- Extensão v1.3.3:
+  - `irParaData` espera até 20 s pela barra de data.
+  - Se a barra não aparecer, clica em "Console de Alocação" e espera mais 20 s.
+  - Se ainda assim não aparecer, o erro avisa que a aba não está no Console.
+
+### Validação
+- `node --check`. Não foi verificado no OFS: depende do próximo ciclo de clusters.

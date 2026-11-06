@@ -138,8 +138,15 @@ function acaoNaPagina({ alvo, alocacaoId, exportar, abrirConsole }) {
   };
 
   async function irParaData() {
-    const botao = document.querySelector('[data-ofsc-id="toolbar-date-button-value"]');
-    if (!botao) return { erro: "Não achei o seletor de data do OFS" };
+    // Depois de recarregar, o OFS mostra a arvore antes da barra de data: espera a barra e, se nao vier, abre o Console.
+    const seletor = '[data-ofsc-id="toolbar-date-button-value"]';
+    const esperarBotao = async (ms) => { for (let i = 0; i < ms / 500 && !document.querySelector(seletor); i += 1) await esperar(500); return document.querySelector(seletor); };
+    let botao = await esperarBotao(20_000);
+    if (!botao) {
+      const link = Array.from(document.querySelectorAll('a, button, [role="link"], [role="menuitem"]')).find((el) => (el.textContent || "").trim() === "Console de Alocação");
+      if (link) { link.click(); botao = await esperarBotao(20_000); }
+    }
+    if (!botao) return { erro: "Não achei o seletor de data do OFS (a aba fixada não está no Console de Alocação)" };
     const texto = () => (botao.getAttribute("title") || botao.textContent || "").trim();
     let atual = lerData(texto());
     if (!atual) return { erro: `Não consegui ler a data exibida no OFS ("${texto()}")` };
