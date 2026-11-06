@@ -32,6 +32,10 @@ export async function decideActivation(id: string, decision: 'Aceito' | 'Recusad
     const data = activation.extractedData;
     const analysis = activation.analysis;
     const olt = data.olt || analysis?.olt || '';
+    // Mesmo card vindo de outro grupo: liga ao chamado que ja existe para a ordem (nao cancelado).
+    const order = data.orderNumber?.trim();
+    const existing = order ? [...calls.values()].find((item) => item.status !== 'Cancelado' && (item.orderNumber === order || item.officeTrack === order)) : undefined;
+    if (existing) { activation.createdCallId = existing.id; return { activation, call: existing }; }
     const mappedRegion = resolveOltRegion(olt).region;
     const call: Call = { id: `call-${crypto.randomUUID()}`, orderNumber: data.orderNumber || `PEND-${id.slice(-6)}`, bdesk: data.bdesk || '', officeTrack: data.orderNumber || '', client: data.client || 'Cliente nao identificado', type: data.type || analysis?.tipo_registro || 'NOC ACESSO', reason: data.reason || analysis?.motivo || 'Acionamento recebido', region: mappedRegion || data.region || 'Nao informada', city: data.city || '', olt, slotPon: data.slotPon || analysis?.slot_pon?.join(', ') || '', atrelada: analysis?.atrelada || undefined, address: analysis?.endereco_principal || '', bairro: analysis?.bairro_principal || '', status: 'Aberto', openedAt: activation.receivedAt || new Date().toISOString(), eventAt: parseSaoPauloDateTime(analysis?.data_hora_evento), notes: analysis?.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${analysis.atrelada}` : 'Criado a partir de acionamento aceito.' };
     calls.set(call.id, call); activation.createdCallId = call.id;

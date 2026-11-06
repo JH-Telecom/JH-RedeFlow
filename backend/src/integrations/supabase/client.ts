@@ -492,7 +492,16 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
       // Atrelada a outra ordem: fica escrito nas observacoes para quem abrir o chamado.
       notes: structured.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${structured.atrelada}` : 'Criado a partir de acionamento aceito.',
     };
-    const { data: callRow, error: callError } = await admin.from('calls').insert(callInput).select('id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, atrelada_order, technician_id, opened_at, event_at, assigned_at, executed_at, result, cancellation_reason, notes').single();
+    const callColumns = 'id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, atrelada_order, technician_id, opened_at, event_at, assigned_at, executed_at, result, cancellation_reason, notes';
+    // O mesmo card chega por mais de um grupo do WhatsApp: se a ordem ja tem chamado (nao cancelado), o aceite liga o
+    // acionamento a esse chamado em vez de criar outro. Dois chamados ativos da mesma ordem travam o status do OFS.
+    let existingRow = null as Record<string, any> | null;
+    if (!orderNumber.startsWith('PEND-') && /^[A-Za-z0-9-]+$/.test(orderNumber)) {
+      const { data: found, error: findError } = await admin.from('calls').select(callColumns).neq('status', 'Cancelado').or(`order_number.eq.${orderNumber},office_track.eq.${orderNumber}`).order('created_at', { ascending: true }).limit(1);
+      if (findError) throw new Error(findError.message);
+      existingRow = found?.[0] || null;
+    }
+    const { data: callRow, error: callError } = existingRow ? { data: existingRow, error: null } : await admin.from('calls').insert(callInput).select(callColumns).single();
     if (callError || !callRow) throw new Error(callError?.message || 'Nao foi possivel criar o chamado.');
     call = { id: callRow.id, orderNumber: callRow.order_number, bdesk: callRow.bdesk || '', officeTrack: callRow.office_track || '', client: callRow.client || '', type: callRow.type || '', reason: callRow.reason || '', region: callRow.region || '', city: callRow.city || '', address: callRow.address || '', bairro: callRow.bairro || '', olt: callRow.olt || '', slotPon: callRow.slot_pon || '', status: callRow.status as CallStatus, atrelada: callRow.atrelada_order || undefined, technicianId: callRow.technician_id || undefined, openedAt: callRow.opened_at, eventAt: callRow.event_at || undefined, assignedAt: callRow.assigned_at || undefined, executedAt: callRow.executed_at || undefined, result: callRow.result || undefined, cancellationReason: callRow.cancellation_reason || undefined, notes: callRow.notes || '' };
   }

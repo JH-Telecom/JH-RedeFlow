@@ -4252,3 +4252,15 @@ Várias atividades são concluídas no OFS sem Motivo, Submotivo e Tipo do cabo.
 
 ### Validação
 - Teste novo: fechamento vazio → marca, sai da fila e finaliza. Um fechamento em texto que já existe não é sobrescrito. Suíte 164/164.
+
+## Card repetido em outro grupo não cria um segundo chamado (2026-11-06)
+
+### Problema
+O mesmo card chega por 2 ou 3 grupos do WhatsApp. A checagem de repetido na chegada só olha o mesmo grupo, então cada cópia virava um acionamento. Ao aceitar, cada uma criava um chamado. Com dois chamados ativos da mesma ordem, a base do OFS não sabe qual atualizar e nenhum dos dois recebia o Status OFS. Em 06/11 às 07:20, 24 acionamentos foram aceitos de uma vez e 7 ordens ficaram duplicadas.
+
+### Implementado
+- Ao aceitar um acionamento (Supabase e modo local), se a ordem já tem um chamado não cancelado (pela ordem ou pelo Office Track), o acionamento é ligado a esse chamado e nenhum novo é criado.
+
+### Validação
+- Teste novo: segundo acionamento da mesma ordem, vindo de outro grupo, devolve o mesmo chamado.
+- Suíte 164/164.

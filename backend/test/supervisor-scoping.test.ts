@@ -6,6 +6,7 @@ import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.j
 import { findAtreladaCallOrder } from '../src/integrations/wuzapi/noc-consolidation.js';
 import { decideActivation, receiveActivation } from '../src/store.js';
 import { calculateIgpMetrics, classifyIgpArea } from '../src/igp.js';
+import { activations as demoActivations } from '../src/store/demo-data.js';
 
 test('Google Drive preserves the OFS activity status separately from internal call status', () => {
   const row = { 'Número da Ordem': '12517410', 'Tipo de Atividade': 'Manutencao de Rede Field', 'Status da Atividade': 'Concluido', 'Status OFS': 'Concluída', 'Data Abertura': '29/09/2026 13:12', 'Data-Fim': '29/09/2026 18:08', 'Nome do Cliente': 'Cliente de teste' };
@@ -442,6 +443,11 @@ test('accepted NOC and Drive FIELD calls persist the official neighborhood and a
     assert.equal(accepted.call?.region, 'CIDADE TIRADENTES 1');
     assert.equal(accepted.call?.openedAt, activation.receivedAt, 'abertura = horario da mensagem no grupo');
     const actor = { id: 'user-matheus', name: 'Test Operator', email: 'operator@example.com', roleId: 'role-operator', active: true, createdAt: new Date().toISOString() };
+    // Mesmo card vindo de outro grupo: o aceite usa o chamado que ja existe, sem criar um segundo.
+    const repeated = { ...activation, id: 'activation-outro-grupo', source: 'wuzapi-outro-grupo', status: 'Pendente' as const, createdCallId: undefined };
+    demoActivations.set(repeated.id, repeated);
+    const repeatedAccepted = await decideActivation(repeated.id, 'Aceito', actor);
+    assert.equal(repeatedAccepted.call?.id, accepted.call!.id);
     const originalNocAddress = accepted.call!.address;
     const updatedNoc = await updateCall(accepted.call!.id, { olt: 'VIP-SZN-SPO-OHW-01', bairro: '', address: '' }, actor);
     assert.equal(updatedNoc?.bairro, 'COLOMBIA');
