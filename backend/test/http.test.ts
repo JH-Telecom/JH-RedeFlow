@@ -1092,6 +1092,23 @@ test('OFS collector extension logs in with the system user and its session only 
   assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);
 });
 
+test('change history lists who changed which call in the period', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  assert.equal((await fetch(`${baseUrl}/api/chamados/call-240918-01`, { method: 'PATCH', headers: admin, body: JSON.stringify({ notes: `Teste historico ${Date.now()}` }) })).status, 200);
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const response = await fetch(`${baseUrl}/api/auditoria?from=${today}&to=${today}`, { headers: admin });
+  assert.equal(response.status, 200);
+  const body = await response.json() as { logs: { callId: string; orderNumber: string; userName: string; field: string }[]; truncated: boolean };
+  const log = body.logs.find((item) => item.callId === 'call-240918-01' && item.field === 'notes');
+  assert.ok(log, 'alteracao de hoje aparece');
+  assert.equal(log.orderNumber, 'RF-240918');
+  assert.equal(log.userName, 'Administrador JH');
+  assert.equal(body.truncated, false);
+  assert.equal((await fetch(`${baseUrl}/api/auditoria?from=${today}&to=2000-01-01`, { headers: admin })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/auditoria?from=${today}&to=${today}`, { headers: { authorization: `Bearer ${await login('joao@jhtelecom.com')}` } })).status, 403);
+});
+
 test('team: own status shows in Pessoas, mentions notify the person until read', async () => {
   const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string; user: { id: string; name: string } });
   const admin = await login('admin@jhtelecom.com');

@@ -3102,6 +3102,15 @@
     border-top: 1px solid #31353c;
     color: #b5b9c1
 }
+:where(:root[data-theme="dark"]) .cq-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .cq-row:focus-visible > td {
+    background: #0f1722
+}
+:where(:root[data-theme="dark"]) .au-search {
+    background: #181c22
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {

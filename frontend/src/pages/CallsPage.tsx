@@ -218,6 +218,20 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [, setClock] = useState(Date.now());
   const navigate = useNavigate();
+  // Atalhos da fila: "/" vai para a busca; seta para baixo (fora de campos) entra na primeira linha.
+  // Nas linhas: setas ou j/k navegam, Home/End vao ao inicio/fim, Enter abre o chamado.
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+      if (typing || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "/") { event.preventDefault(); searchRef.current?.focus(); }
+      else if (event.key === "ArrowDown" && (!target || target === document.body)) { event.preventDefault(); document.querySelector<HTMLElement>(".cq-row")?.focus(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
   useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage, sortState }); }, [pageKey, sortState, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
@@ -516,7 +530,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           <div className="cq-filters-top">
             <label className="cq-search">
               <Search size={16} aria-hidden="true" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por ordem, BDESK, técnico, região ou OLT" aria-label="Buscar chamados" />
+              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); document.querySelector<HTMLElement>(".cq-row")?.focus(); } }} placeholder="Buscar por ordem, BDESK, técnico, região ou OLT  ( / )" aria-label="Buscar chamados" />
               {query && <button type="button" className="cq-search-clear" onClick={() => setQuery("")} aria-label="Limpar busca"><X size={14} /></button>}
             </label>
             {statusChoices.length > 0 && (
@@ -565,7 +579,15 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
               })}</tr></thead>
               <tbody>
                 {currentCalls.map((call) => (
-                  <tr key={call.id} className={`cq-row is-${rowSla(call)}`} tabIndex={0} onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)} onKeyDown={(event) => { if (event.key === "Enter") navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`); }}>
+                  <tr key={call.id} className={`cq-row is-${rowSla(call)}`} tabIndex={0} onClick={() => navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`)} onKeyDown={(event) => {
+                    // So quando a propria linha esta em foco (nao o seletor de status dentro dela).
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === "Enter") navigate(`/chamados/${call.id}${teamScoped ? "?teamScope=true" : ""}`);
+                    else if (event.key === "ArrowDown" || event.key === "j") { event.preventDefault(); (event.currentTarget.nextElementSibling as HTMLElement | null)?.focus(); }
+                    else if (event.key === "ArrowUp" || event.key === "k") { event.preventDefault(); (event.currentTarget.previousElementSibling as HTMLElement | null)?.focus(); }
+                    else if (event.key === "Home") { event.preventDefault(); (event.currentTarget.parentElement?.firstElementChild as HTMLElement | null)?.focus(); }
+                    else if (event.key === "End") { event.preventDefault(); (event.currentTarget.parentElement?.lastElementChild as HTMLElement | null)?.focus(); }
+                  }}>
                     {closedView ? <>
                       {orderCell(call)}{technicianCell(call)}{eventCell(call)}{placeCell(call)}
                       <td data-label="Abertura">{shortDateTime(call.openedAt)}</td>

@@ -96,6 +96,7 @@ export type ReasonsReport = { total: number; withReason: number; withoutReason: 
 export type PeriodMetrics = { from: string; to: string; opened: number; finished: number; onTime: number; late: number; outliers: number; onTimePercent: number | null; outlierPercent: number | null; avgHours: number | null; cancelled: number };
 export type CompareReport = { days: number; current: PeriodMetrics; previous: PeriodMetrics };
 export type DailySummary = PeriodMetrics & { date: string; activeNow: number; activeLate: number; topTechnicians: ProductivityRow[]; topReasons: { reason: string; count: number }[]; igp: { month: string; orders: number; onTimePercent: number | null; outlierPercent: number | null } };
+export type AuditLogRow = CallAuditLog & { orderNumber: string };
 // Operacao (lote 3): mapa da fila, carga dos tecnicos e reincidencia.
 export type QueueState = 'ok' | 'soon' | 'late' | 'outlier';
 export type MapCall = { id: string; orderNumber: string; type: string; technicianName?: string; status: string; openedAt: string; olt: string; state: QueueState; minutes: number };
@@ -143,6 +144,7 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
+  auditHistory: (from: string, to: string) => request<{ logs: AuditLogRow[]; truncated: boolean }>(`/api/auditoria?from=${from}&to=${to}`),
   queueMap: () => request<QueueMap>('/api/operacao/mapa'),
   technicianLoad: () => request<TechnicianLoad>('/api/operacao/carga'),
   repeatHistory: (id: string) => request<RepeatHistory>(`/api/chamados/${encodeURIComponent(id)}/reincidencia`),

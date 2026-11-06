@@ -208,3 +208,9 @@
 .repeat-history { display: grid; margin: 0; padding: 0; list-style: none; }
 .repeat-history li { display: grid; grid-template-columns: 110px 130px minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; padding: 8px 0; border-top: 1px solid #f0f3f7; color: #4f5d73; font-size: 12px; }
 @media (max-width: 640px) { .repeat-history li { grid-template-columns: 1fr 1fr; } }
+
+/* Lote 5: atalhos da fila e Historico de alteracoes (CallsPage.tsx, AuditHistoryPage.tsx) */
+.cq-row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.cq-row:focus-visible > td { background: #edf4ff; }
+.au-search { flex: 1 1 220px; max-width: 320px; height: 40px; align-self: flex-end; background: #fff; }
+.au-table .au-value { max-width: 320px; overflow-wrap: anywhere; }

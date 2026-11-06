@@ -3064,6 +3064,15 @@
     border-top: 1px solid #f0f3f7;
     color: #67556c
 }
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cq-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cq-row:focus-visible > td {
+    background: #f9f0fc
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .au-search {
+    background: #fff
+}
 /* light · update-notice.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #2e1b348c
@@ -6370,6 +6379,15 @@
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .repeat-history li {
     border-top: 1px solid #38333a;
     color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cq-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cq-row:focus-visible > td {
+    background: #1c121f
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .au-search {
+    background: #1f1a20
 }
 /* dark · update-notice.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .update-notice-backdrop {

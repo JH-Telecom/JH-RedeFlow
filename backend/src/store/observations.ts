@@ -1,6 +1,6 @@
 import { getSupabaseAdmin, isSupabaseConfigured } from "../integrations/supabase/client.js";
 import type { CallAuditLog, CallObservation, CallObservationAttachment, CallObservationAttachmentInput, StoredCallObservationAttachment, User } from "../types.js";
-import { auditLogs, observationAttachments, observations } from "./demo-data.js";
+import { auditLogs, calls, observationAttachments, observations } from "./demo-data.js";
 
 export function mapObservationAttachment(row: { id: string; file_name: string; mime_type: string; size_bytes: number | string; created_at: string }): CallObservationAttachment {
   return { id: row.id, fileName: row.file_name, mimeType: row.mime_type, sizeBytes: Number(row.size_bytes), createdAt: row.created_at };
@@ -72,6 +72,29 @@ export async function getObservationAttachment(callId: string, observationId: st
   const observation = observations.get(observationId);
   const attachment = observationAttachments.get(attachmentId);
   return observation?.callId === callId && attachment?.observationId === observationId ? attachment : undefined;
+}
+
+// Historico de alteracoes de todos os chamados (tela Historico de alteracoes), mais recentes primeiro, com a ordem
+// de cada chamado. Periodo pela data da alteracao (dia de Sao Paulo, de 00:00 de "from" ate 23:59 de "to").
+export type AuditLogRow = CallAuditLog & { orderNumber: string };
+export async function listAllAuditLogs(range: { fromIso: string; toIso: string }, limit = 2000): Promise<{ logs: AuditLogRow[]; truncated: boolean }> {
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin.from('call_logs').select('id, call_id, user_id, action, field, previous_value, new_value, created_at, profiles(name)').gte('created_at', range.fromIso).lte('created_at', range.toIso).order('created_at', { ascending: false }).limit(limit + 1);
+    if (error) throw new Error(error.message);
+    const rows = (data || []) as any[];
+    const callIds = [...new Set(rows.slice(0, limit).map((row) => row.call_id).filter(Boolean))];
+    const orders = new Map<string, string>();
+    for (let offset = 0; offset < callIds.length; offset += 300) {
+      const { data: callRows, error: callError } = await admin.from('calls').select('id, order_number').in('id', callIds.slice(offset, offset + 300));
+      if (callError) throw new Error(callError.message);
+      for (const row of callRows || []) orders.set(row.id, row.order_number);
+    }
+    const logs = rows.slice(0, limit).map((row) => ({ id: row.id, callId: row.call_id, orderNumber: orders.get(row.call_id) || '', userId: row.user_id || '', userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Sistema' : row.profiles?.name || 'Sistema', action: row.action, field: row.field, previousValue: row.previous_value || '', newValue: row.new_value || '', createdAt: row.created_at }));
+    return { logs, truncated: rows.length > limit };
+  }
+  const all = [...auditLogs.values()].filter((item) => item.createdAt >= range.fromIso && item.createdAt <= range.toIso).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return { logs: all.slice(0, limit).map((item) => ({ ...item, orderNumber: calls.get(item.callId)?.orderNumber || '' })), truncated: all.length > limit };
 }
 
 export async function listAuditLogs(callId: string): Promise<CallAuditLog[]> {

@@ -29,6 +29,7 @@ import { ProfilePage } from "../pages/ProfilePage";
 import { PeoplePage } from "../pages/PeoplePage";
 import { IntegrationHealthPage } from "../pages/IntegrationHealthPage";
 import { QueueMapPage, TechnicianLoadPage } from "../pages/OperationsPages";
+import { AuditHistoryPage } from "../pages/AuditHistoryPage";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
@@ -381,6 +382,7 @@ export function Shell({
             <Route path="/supervisores" element={guard("supervisors.view", <SupervisorsPage user={user} />)} />
             <Route path="/usuarios" element={guard("users.view", <UsersPage />)} />
             <Route path="/cargos" element={guard("roles.view", <RolesPage currentRoleId={user.roleId} />)} />
+            <Route path="/historico-alteracoes" element={guard("calls.view_logs", <AuditHistoryPage />)} />
             <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
             <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />
             <Route path="/integracao-ofs" element={guard("imports.view", <IntegrationHealthPage />)} />

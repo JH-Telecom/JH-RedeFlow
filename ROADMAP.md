@@ -4563,3 +4563,23 @@ Juntar "Resultado" e "Observação final" no formulário de finalizar o chamado.
 
 ### Validação
 - Preview: chamado da demo finalizado com "Reparo realizado / GIGA+, fibra emendada na CTO". Ficou Resultado = "Reparo realizado" e observação final = o texto inteiro. Typecheck do frontend ok.
+
+## Lote 5 das ideias: usabilidade (2026-11-06)
+
+### Implementado
+- **Atalhos na fila** (Chamados abertos, Em atendimento, Finalizados e cancelados):
+  - `/` vai para a busca;
+  - seta para baixo (na busca ou fora de campos) entra na primeira linha;
+  - nas linhas, setas ou `j`/`k` sobem e descem, Home/End vão ao início/fim e Enter abre o chamado.
+  - A linha em foco fica destacada.
+  - As setas no seletor de status dentro da linha continuam mudando o status, não a linha.
+- **Modo TV com rotação**: já existia (troca de visão a cada 20 s, com pausa e setas). Ganhou a visão "Destaques" no lote 4.
+- **Histórico de alterações** (`/historico-alteracoes`, em Administração, mesma permissão da aba Auditoria do chamado, `calls.view_logs`):
+  - todas as alterações de chamados no período (padrão: últimos 7 dias), com quando, pessoa, ordem (link), o que mudou, antes e depois;
+  - filtros por pessoa, campo e busca por ordem ou valor, e exportação em Excel;
+  - até 2.000 registros por consulta, com aviso para escolher um período menor.
+  - Rota `GET /api/auditoria?from&to` (`listAllAuditLogs`; no Supabase, a ordem vem de uma segunda consulta em `calls`).
+
+### Validação
+- Teste HTTP do histórico: alteração de hoje com ordem e pessoa, período inválido → 400, supervisor → 403. Suíte 189/189; a primeira rodada teve o timeout conhecido em um teste não relacionado.
+- Preview: `/` foca a busca, as setas andam entre as linhas, e o histórico mostra as alterações feitas na demo. Contraste sem problemas no claro e no escuro, inclusive com a linha em foco.
