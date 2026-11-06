@@ -145,3 +145,16 @@
 .ih-spin { animation: ih-spin 1s linear infinite; }
 @keyframes ih-spin { to { transform: rotate(360deg); } }
 @media (max-width: 640px) { .ih-events > li { grid-template-columns: 20px minmax(0, 1fr); } .ih-event-kind, .ih-events time { grid-column: 2; } }
+
+/* Relatorios do lote 2 (ReportsPage.tsx) */
+.rp-aside { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.rp-meter { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.rp-meter-bar { display: inline-block; width: 70px; height: 6px; overflow: hidden; border-radius: 3px; background: #e8edf4; }
+.rp-meter-bar i { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+.rp-compare th small { display: block; margin-top: 2px; color: #5f6d84; font-size: 10px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.rp-compare-value { color: #17233b; font-size: 14px; }
+.rp-delta { display: inline-flex; align-items: center; gap: 4px; color: #4f5d73; font-weight: 700; white-space: nowrap; }
+.rp-delta.is-good { color: #137a52; }
+.rp-delta.is-bad { color: #b3242f; }
+.rp-note { margin-top: 12px; color: #5f6d84; font-size: 12px; line-height: 1.5; }
+.rp-summary-text { margin: 0; padding: 14px 16px; overflow-x: auto; border: 1px solid var(--line); border-radius: 9px; background: #f7f9fc; color: #17233b; font: 13px/1.6 'DM Sans', sans-serif; white-space: pre-wrap; }

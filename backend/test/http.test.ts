@@ -1092,6 +1092,24 @@ test('OFS collector extension logs in with the system user and its session only 
   assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);
 });
 
+test('batch 2 reports answer for the period and validate the range', async () => {
+  const session = await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) })).json() as { token: string };
+  const get = (path: string) => fetch(`${baseUrl}${path}`, { headers: { authorization: `Bearer ${session.token}` } });
+  for (const path of ['produtividade', 'motivos', 'comparar']) {
+    assert.equal((await get(`/api/relatorios/${path}?from=2026-01-01&to=2026-12-31`)).status, 200, path);
+    assert.equal((await get(`/api/relatorios/${path}?from=2026-12-31&to=2026-01-01`)).status, 400, `${path} periodo invertido`);
+  }
+  const compare = await (await get('/api/relatorios/comparar?from=2026-11-01&to=2026-11-07')).json() as { days: number; previous: { from: string } };
+  assert.equal(compare.days, 7);
+  assert.equal(compare.previous.from, '2026-10-25');
+  const summary = await get('/api/relatorios/resumo-dia?date=2026-11-03');
+  assert.equal(summary.status, 200);
+  const body = await summary.json() as { summary: { date: string }; text: string; whatsapp: { configured: boolean } };
+  assert.equal(body.summary.date, '2026-11-03');
+  assert.match(body.text, /resumo de 03\/11\/2026/);
+  assert.equal(body.whatsapp.configured, false);
+});
+
 test('extension reports land in the OFS integration health panel', async () => {
   const collector = await (await fetch(`${baseUrl}/api/integrations/ofs/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) })).json() as { token: string };
   const relato = (body: unknown, token = collector.token) => fetch(`${baseUrl}/api/integrations/ofs/relato`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(body) });

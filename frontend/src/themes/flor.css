@@ -2864,6 +2864,35 @@
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .ih-falhas b {
     color: #371825
 }
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-meter-bar {
+    background: #e8edf4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-meter-bar i {
+    background: var(--blue)
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-compare th small {
+    color: #82626d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-compare-value {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-delta {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-delta.is-good {
+    color: #137a52
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-delta.is-bad {
+    color: #b3242f
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-note {
+    color: #82626d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .rp-summary-text {
+    border: 1px solid var(--line);
+    background: #f7f9fc;
+    color: #371825
+}
 /* light · update-notice.css */
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #3718258c
@@ -5955,6 +5984,35 @@
     color: #c0b6b9
 }
 :where(:root[data-palette="flor"][data-theme="dark"]) .ih-falhas b {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-meter-bar {
+    background: #1d1518
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-meter-bar i {
+    background: var(--blue)
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-compare th small {
+    color: #b5abae
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-compare-value {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-delta {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-delta.is-good {
+    color: #73cda0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-delta.is-bad {
+    color: #ff8a86
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-note {
+    color: #b5abae
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .rp-summary-text {
+    border: 1px solid var(--line);
+    background: #1a1215;
     color: #eee0e5
 }
 /* dark · update-notice.css */

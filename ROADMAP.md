@@ -4481,3 +4481,23 @@ Implementar todas as ideias sugeridas, em lotes, começando pela integração. L
 - Teste novo `integration-health.test.ts` (fila parada, semáforo, janela de prazo, texto do WhatsApp, envio desligado sem as variáveis).
 - Teste HTTP do relato e do painel, incluindo supervisor sem acesso. Suíte 174/174.
 - Preview: relatos e export de teste aparecem no painel e na fila, com motivos e filtro. Contraste sem problemas (Padrão e Aurora, claro e escuro).
+
+## Lote 2 das ideias: relatórios (2026-11-06)
+
+### Implementado
+- Quatro tipos novos no seletor da aba Relatórios. Todos usam a mesma regra de prazo (até 6h, acima de 6h, acima de 9h), o filtro de área e o escopo do supervisor, e exportam Excel. O tipo pode vir no endereço (`?tipo=`).
+  - **Produtividade por técnico e supervisor** (`GET /api/relatorios/produtividade`): finalizados no período (pela Data Fim), no prazo, fora, outliers, % no prazo (com barra) e tempo médio. Os cartões mostram quem mais finalizou e o melhor % no prazo (mínimo de 3 chamados).
+  - **Motivos de fechamento** (`GET /api/relatorios/motivos`): ranking com participação, tempo médio, principais submotivos, contagem por área e evolução por mês. Mostra quantos finalizados ficaram sem motivo.
+  - **Comparar com o período anterior** (`GET /api/relatorios/comparar`): abertos, finalizados, % no prazo, % outliers, outliers e tempo médio, lado a lado com o período anterior de mesmo tamanho. A variação vem com seta, em verde quando melhorou e em vermelho quando piorou.
+  - **Resumo do dia** (`GET /api/relatorios/resumo-dia?date=`): abertos, finalizados, prazo, ativos agora, IGP do mês até o dia, quem mais finalizou e os principais motivos. Tem o texto pronto para copiar.
+- Envio agendado do resumo: todo dia, a partir das 7h de São Paulo, vai o resumo do dia anterior no WhatsApp, uma vez por dia.
+  - O registro fica em `integration_events`, tipo `daily_report`.
+  - Usa as mesmas variáveis do aviso de prazo. `WUZAPI_REPORT_CHAT` (opcional) manda para outro grupo.
+  - Fica desligado até configurar. O texto não leva dados de cliente.
+- Regras em `backend/src/reports.ts`. A lista de chamados desses relatórios vem sem filtro de data, porque o período é aplicado pela Data Fim ou pela abertura, e o período anterior fica fora do de/até.
+- O relatório "Finalizados fora do prazo" continua igual; só o botão de Excel foi para dentro do painel.
+
+### Validação
+- Teste novo `reports-batch2.test.ts`: produtividade, motivos com submotivos, área e mês, comparação com o período anterior, resumo e texto sem dados de cliente.
+- Teste HTTP dos 4 relatórios (período invertido → 400). Suíte 179/179.
+- Preview com 4 chamados finalizados na demo: produtividade, comparação e resumo conferidos. Contraste sem problemas nos 5 relatórios, claro e escuro.

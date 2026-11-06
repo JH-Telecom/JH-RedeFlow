@@ -2902,6 +2902,35 @@
 :where(:root[data-theme="dark"]) .ih-falhas b {
     color: #dfe5ef
 }
+:where(:root[data-theme="dark"]) .rp-meter-bar {
+    background: #14181e
+}
+:where(:root[data-theme="dark"]) .rp-meter-bar i {
+    background: var(--blue)
+}
+:where(:root[data-theme="dark"]) .rp-compare th small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .rp-compare-value {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .rp-delta {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .rp-delta.is-good {
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .rp-delta.is-bad {
+    color: #ff8a86
+}
+:where(:root[data-theme="dark"]) .rp-note {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .rp-summary-text {
+    border: 1px solid var(--line);
+    background: #12151b;
+    color: #dfe5ef
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {

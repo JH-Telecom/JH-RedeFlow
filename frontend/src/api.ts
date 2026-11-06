@@ -89,6 +89,13 @@ async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
 }
 // Perfil: apelido (so para a propria pessoa) e tema de cor; palette nulo = Padrao.
 export type ProfilePreferences = { nickname: string | null; palette: string | null };
+// Relatorios do lote 2.
+export type ProductivityRow = { name: string; detail?: string; finished: number; onTime: number; late: number; outliers: number; onTimePercent: number | null; avgHours: number | null };
+export type ProductivityReport = { total: number; technicians: ProductivityRow[]; supervisors: ProductivityRow[] };
+export type ReasonsReport = { total: number; withReason: number; withoutReason: number; reasons: { reason: string; count: number; percent: number | null; avgHours: number; byArea: Record<string, number>; subreasons: { name: string; count: number }[] }[]; byMonth: { month: string; total: number; top: { reason: string; count: number }[] }[] };
+export type PeriodMetrics = { from: string; to: string; opened: number; finished: number; onTime: number; late: number; outliers: number; onTimePercent: number | null; outlierPercent: number | null; avgHours: number | null; cancelled: number };
+export type CompareReport = { days: number; current: PeriodMetrics; previous: PeriodMetrics };
+export type DailySummary = PeriodMetrics & { date: string; activeNow: number; activeLate: number; topTechnicians: ProductivityRow[]; topReasons: { reason: string; count: number }[]; igp: { month: string; orders: number; onTimePercent: number | null; outlierPercent: number | null } };
 // Integracao OFS (painel de saude).
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type StuckReason = 'sem-tecnico' | 'sem-data-fim' | 'sem-fechamento' | 'fechamento-codigo' | 'ordem-duplicada' | 'pronto';
@@ -122,6 +129,10 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
+  productivityReport: (from: string, to: string, area: SlaArea = 'ALL') => request<ProductivityReport>(`/api/relatorios/produtividade?from=${from}&to=${to}&area=${area}`),
+  reasonsReport: (from: string, to: string, area: SlaArea = 'ALL') => request<ReasonsReport>(`/api/relatorios/motivos?from=${from}&to=${to}&area=${area}`),
+  compareReport: (from: string, to: string, area: SlaArea = 'ALL') => request<CompareReport>(`/api/relatorios/comparar?from=${from}&to=${to}&area=${area}`),
+  dailySummary: (date: string) => request<{ summary: DailySummary; text: string; whatsapp: { configured: boolean; sendsAt: string } }>(`/api/relatorios/resumo-dia?date=${date}`),
   lateFinishedReport: (from: string, to: string, area: SlaArea = 'ALL') => request<{ calls: LateCallRow[] }>(`/api/relatorios/fora-do-prazo?from=${from}&to=${to}&area=${area}`),
   slaAnalysis: (from: string, to: string, area: SlaArea = 'ALL') => request<{ analysis: SlaAnalysis }>(`/api/dashboards/prazo?from=${from}&to=${to}&area=${area}`),
   igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics; plan?: IgpPlan }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),

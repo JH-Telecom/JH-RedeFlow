@@ -1635,6 +1635,27 @@
 :where(:root:not([data-theme="dark"])) .ih-falhas b {
     color: #17233b
 }
+:where(:root:not([data-theme="dark"])) .rp-compare th small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .rp-compare-value {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .rp-delta {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .rp-delta.is-good {
+    color: #137a52
+}
+:where(:root:not([data-theme="dark"])) .rp-delta.is-bad {
+    color: #b3242f
+}
+:where(:root:not([data-theme="dark"])) .rp-note {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .rp-summary-text {
+    color: #17233b
+}
 
 /* update-notice.css */
 :where(:root:not([data-theme="dark"])) .update-notice-icon {

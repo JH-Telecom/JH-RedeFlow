@@ -8,6 +8,7 @@ import { extractOperationalData, parseIncomingMessage } from './integrations/wuz
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
+import { closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, productivityReport } from './reports.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
@@ -298,6 +299,34 @@ app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), asyn
   }
 });
 // Relatorios. "fora-do-prazo": finalizados no periodo (Data Fim) com mais de 6h entre abertura e fim.
+// Relatorios do lote 2: produtividade, motivos de fechamento, comparar periodos e resumo do dia. Mesmo escopo
+// de supervisor dos outros relatorios. A lista vem sem filtro de data (o periodo e aplicado pela Data Fim/abertura
+// em reports.ts, e o "periodo anterior" fica fora de from/to).
+const reportQuery = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC', 'OUTRAS']).default('ALL') });
+async function reportCalls(request: AuthRequest, statuses?: CallStatus[]) {
+  const scope = await getScopedCallQuery(request, true);
+  return listCalls(statuses, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined });
+}
+function reportRoute(path: string, statuses: CallStatus[] | undefined, build: (calls: Awaited<ReturnType<typeof listCalls>>, from: string, to: string, area: z.infer<typeof reportQuery>['area']) => unknown) {
+  app.get(path, auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+    const parsed = reportQuery.safeParse(request.query);
+    if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
+    try { return response.json(build(await reportCalls(request, statuses), parsed.data.from, parsed.data.to, parsed.data.area)); }
+    catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel gerar o relatorio.' }); }
+  });
+}
+reportRoute('/api/relatorios/produtividade', ['Finalizado'], productivityReport);
+reportRoute('/api/relatorios/motivos', ['Finalizado'], closingReasonsReport);
+reportRoute('/api/relatorios/comparar', undefined, comparePeriods);
+app.get('/api/relatorios/resumo-dia', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  const date = typeof request.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(request.query.date) ? request.query.date : addDays(toOperationalDate(), -1);
+  try {
+    const summary = dailySummary(await reportCalls(request), date);
+    const config = whatsappConfig();
+    return response.json({ summary, text: dailySummaryText(summary), whatsapp: { configured: Boolean(config), sendsAt: '07:00' } });
+  } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel gerar o resumo.' }); }
+});
+
 app.get('/api/relatorios/fora-do-prazo', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC', 'OUTRAS']).default('ALL') }).safeParse(request.query);
   if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
@@ -876,6 +905,36 @@ async function runWhatsAppSlaAlerts() {
   }
 }
 
+// Resumo de ontem no WhatsApp as 7h (Sao Paulo), uma vez por dia. Vai para WUZAPI_REPORT_CHAT (ou, sem ela,
+// para o mesmo WUZAPI_ALERT_CHAT dos avisos). Registro em integration_events (kind daily_report).
+const spHour = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' });
+let dailyReportRunning = false;
+async function runDailySummaryReport(now = new Date()) {
+  const config = whatsappConfig();
+  if (!config || dailyReportRunning || Number(spHour.format(now)) < 7) return;
+  dailyReportRunning = true;
+  const date = addDays(toOperationalDate(now.toISOString()), -1);
+  try {
+    const sent = (await listIntegrationEvents(36, ['daily_report'])).some((event) => event.ok && event.details.date === date);
+    if (sent) return;
+    const chat = process.env.WUZAPI_REPORT_CHAT?.trim() || config.chat;
+    const text = dailySummaryText(dailySummary(await listCalls(), date));
+    try {
+      await sendWhatsAppText({ ...config, chat }, text);
+      await recordIntegrationEvent('daily_report', true, `Resumo de ${date} enviado`, { date });
+      console.log(`[Resumo diario] WhatsApp enviado (${date}).`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await recordIntegrationEvent('daily_report', false, `Falha ao enviar o resumo de ${date}: ${message}`, { date });
+      console.warn(`[Resumo diario] falha no WhatsApp: ${message}`);
+    }
+  } catch (error) {
+    console.warn(`[Resumo diario] erro: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    dailyReportRunning = false;
+  }
+}
+
 // Diagnostico dos grupos: quais grupos mandam mensagens e quantas parecem acionamento. Ajuda a achar o ID
 // certo para WUZAPI_ACTIVATION_GROUP_ID quando o grupo muda (novo grupo, numero removido etc.).
 type WuzApiGroupSighting = { chatId: string; authorized: boolean; messages: number; activationLike: number; lastAt: string; lastSender?: string; lastActivationAt?: string };
@@ -1182,7 +1241,7 @@ async function startServer() {
   app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
   if (whatsappConfig()) {
     console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => void runWhatsAppSlaAlerts(), 5 * 60_000).unref();
+    setInterval(() => { void runWhatsAppSlaAlerts(); void runDailySummaryReport(); }, 5 * 60_000).unref();
   }
 }
 void startServer();
