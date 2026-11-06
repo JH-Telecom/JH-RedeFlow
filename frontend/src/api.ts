@@ -109,6 +109,14 @@ export type QueueMap = { total: number; states: Record<QueueState, number>; noTe
 export type TechnicianLoadRow = { id: string; name: string; supervisorName?: string; region: string; currentStatus: string; active: number; oldestMinutes: number | null; worst: QueueState | null; activeCalls: MapCall[]; finishedToday: number; onTimeToday: number; avgHoursToday: number | null; free: boolean };
 export type TechnicianLoad = { technicians: TechnicianLoadRow[]; free: number; busy: number; unassignedActive: number };
 export type RepeatHistory = { eligible: boolean; isRepeat: boolean; previousWithin30Days: number; history: { id: string; orderNumber: string; status: string; openedAt: string; executedAt?: string; technicianName?: string; result?: string; closingReason?: string; closingSubreason?: string; type: string }[] };
+// Lote C: gargalos e mapa de calor.
+export type StageStats = { name: string; calls: number; waitMedian: number | null; waitP90: number | null; execMedian: number | null; execP90: number | null; waitShare: number | null; late: number; lateByWait: number };
+export type BottleneckReport = { total: StageStats; byRegion: StageStats[]; byTechnician: StageStats[] };
+export type HeatmapReport = { weekdayCount: number[]; incoming: number[][]; technicians: number[][]; callsPerTechnician: (number | null)[][]; latePercent: (number | null)[][]; totalIncoming: number };
+// Lote D: reincidencia por tecnico e exportacao completa.
+export type RepeatRankingRow = { name: string; finished: number; eligible: number; repeated: number; percent: number | null; items: { orderNumber: string; id: string; nextOrder: string; nextId: string; days: number }[] };
+export type RepeatRanking = { finished: number; eligible: number; repeated: number; percent: number | null; technicians: RepeatRankingRow[] };
+export type FullExport = { calls: Call[]; observations: { id: string; callId: string; userName: string; text: string; attachments: string; createdAt: string }[]; logs: AuditLogRow[]; truncated: boolean };
 // Integracao OFS (painel de saude).
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type StuckReason = 'sem-tecnico' | 'sem-data-fim' | 'sem-fechamento' | 'fechamento-codigo' | 'ordem-duplicada' | 'pronto';
@@ -159,6 +167,10 @@ export const api = {
   repeatFlags: (ids: string[]) => request<{ flags: Record<string, number> }>('/api/chamados/reincidencia', { method: 'POST', body: JSON.stringify({ ids }) }),
   productivityReport: (from: string, to: string, area: SlaArea = 'ALL') => request<ProductivityReport>(`/api/relatorios/produtividade?from=${from}&to=${to}&area=${area}`),
   reasonsReport: (from: string, to: string, area: SlaArea = 'ALL') => request<ReasonsReport>(`/api/relatorios/motivos?from=${from}&to=${to}&area=${area}`),
+  bottleneckReport: (from: string, to: string, area: SlaArea = 'ALL') => request<BottleneckReport>(`/api/relatorios/gargalos?from=${from}&to=${to}&area=${area}`),
+  heatmapReport: (from: string, to: string, area: SlaArea = 'ALL') => request<HeatmapReport>(`/api/relatorios/mapa-de-calor?from=${from}&to=${to}&area=${area}`),
+  repeatRanking: (from: string, to: string, area: SlaArea = 'ALL') => request<RepeatRanking>(`/api/relatorios/reincidencia-tecnico?from=${from}&to=${to}&area=${area}`),
+  fullExport: (from: string, to: string) => request<FullExport>(`/api/exportacao?from=${from}&to=${to}`),
   compareReport: (from: string, to: string, area: SlaArea = 'ALL') => request<CompareReport>(`/api/relatorios/comparar?from=${from}&to=${to}&area=${area}`),
   dailySummary: (date: string) => request<{ summary: DailySummary; text: string; whatsapp: { configured: boolean; sendsAt: string } }>(`/api/relatorios/resumo-dia?date=${date}`),
   lateFinishedReport: (from: string, to: string, area: SlaArea = 'ALL') => request<{ calls: LateCallRow[] }>(`/api/relatorios/fora-do-prazo?from=${from}&to=${to}&area=${area}`),

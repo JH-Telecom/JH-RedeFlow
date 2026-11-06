@@ -4,6 +4,7 @@ import { ChevronRight, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { api, type OltRegionMapping, type OltRegionRequest, type Role, type User } from "../api";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { operationalRegions } from "../lib/constants";
+import { FullExportPanel } from "../components/FullExportPanel";
 
 type ProfilePhotoControls = { photo: string | null; saving: boolean; error: string; onChange: (file: File) => Promise<void>; onRemove: () => Promise<void> };
 
@@ -20,6 +21,7 @@ export function SettingsPage({ user, canManage, profile }: { user: User & { role
       </div>
       <ProfileShortcut user={user} photo={profile.photo} />
       {canManage && <SystemSettings />}
+      {canManage && <FullExportPanel />}
     </>
   );
 }

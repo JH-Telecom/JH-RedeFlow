@@ -2,6 +2,7 @@ import { calculateIgpMetrics, classifyCallArea, classifySlaHours } from './igp.j
 import type { SlaArea } from './sla-analysis.js';
 import { addDays, toOperationalDate } from './timezone.js';
 import type { Call } from './types.js';
+import { repeatKey } from './operations.js';
 
 // Relatorios da aba Relatorios (alem de "Finalizados fora do prazo", em sla-analysis.ts).
 // Mesma regra de prazo de todo o sistema: ate 6h no prazo, acima de 6h fora, acima de 9h outlier.
@@ -140,4 +141,122 @@ export function dailySummaryText(summary: ReturnType<typeof dailySummary>) {
   if (summary.topTechnicians.length) lines.push(`Mais finalizados: ${summary.topTechnicians.map((row) => `${row.name} (${row.finished})`).join(', ')}`);
   if (summary.topReasons.length) lines.push(`Motivos: ${summary.topReasons.map((item) => `${item.reason} (${item.count})`).join(', ')}`);
   return lines.join('\n');
+}
+
+// ---------- Lote C: gargalos (6) e mapa de calor por horario (7) ----------
+const median = (values: number[]) => { if (!values.length) return null; const sorted = [...values].sort((a, b) => a - b); const mid = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; };
+const p90 = (values: number[]) => { if (!values.length) return null; const sorted = [...values].sort((a, b) => a - b); return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.9))]; };
+export type StageStats = { name: string; calls: number; waitMedian: number | null; waitP90: number | null; execMedian: number | null; execP90: number | null; waitShare: number | null; late: number; lateByWait: number };
+
+function stageStats(name: string, items: { wait: number; exec: number; total: number }[]): StageStats {
+  const waits = items.map((item) => item.wait);
+  const execs = items.map((item) => item.exec);
+  const totalWait = waits.reduce((sum, value) => sum + value, 0);
+  const total = items.reduce((sum, item) => sum + item.total, 0);
+  const late = items.filter((item) => item.total > 360);
+  return {
+    name, calls: items.length,
+    waitMedian: median(waits), waitP90: p90(waits), execMedian: median(execs), execP90: p90(execs),
+    waitShare: total ? round((totalWait / total) * 100) : null,
+    late: late.length,
+    // Fora do prazo em que mais da metade do tempo foi esperando tecnico.
+    lateByWait: late.filter((item) => item.wait > item.total / 2).length,
+  };
+}
+
+// (6) Onde o tempo se perde: espera por tecnico (abertura -> atribuicao) x atendimento (atribuicao -> Data Fim),
+// em minutos (mediana e p90). Geral, por regiao e por tecnico. Ignora chamado com atribuicao fora da janela.
+export function bottleneckReport(calls: Call[], from: string, to: string, area: SlaArea = 'ALL') {
+  const items = finishedIn(calls, from, to, area)
+    .map(({ call }) => ({ call, opened: Date.parse(call.openedAt), assigned: call.assignedAt ? Date.parse(call.assignedAt) : NaN, executed: Date.parse(call.executedAt!) }))
+    .filter(({ opened, assigned, executed }) => Number.isFinite(assigned) && assigned >= opened && assigned <= executed)
+    .map(({ call, opened, assigned, executed }) => ({ call, wait: (assigned - opened) / 60_000, exec: (executed - assigned) / 60_000, total: (executed - opened) / 60_000 }));
+  const groupBy = (keyOf: (call: Call) => string) => {
+    const map = new Map<string, typeof items>();
+    for (const item of items) { const key = keyOf(item.call) || 'Não informado'; map.set(key, [...(map.get(key) || []), item]); }
+    return [...map.entries()].map(([name, list]) => stageStats(name, list)).filter((row) => row.calls >= 3).sort((a, b) => (b.waitMedian ?? 0) - (a.waitMedian ?? 0));
+  };
+  return {
+    total: stageStats('Geral', items),
+    byRegion: groupBy((call) => call.region?.trim() || '').slice(0, 20),
+    byTechnician: groupBy((call) => call.technicianName?.trim() || '').sort((a, b) => (b.execMedian ?? 0) - (a.execMedian ?? 0)).slice(0, 20),
+  };
+}
+
+// (7) Mapa de calor: por dia da semana (0 = domingo) x hora de Sao Paulo, media por dia do periodo de:
+// chamados que entraram, tecnicos diferentes que finalizaram chamados naquela hora, e % fora do prazo dos que
+// abriram naquela hora (finalizados).
+const spParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', hourCycle: 'h23' });
+const WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function slotOf(iso: string) {
+  const parts = spParts.formatToParts(new Date(iso));
+  return { weekday: WEEK.indexOf(parts.find((part) => part.type === 'weekday')!.value), hour: Number(parts.find((part) => part.type === 'hour')!.value) % 24 };
+}
+export function heatmapReport(calls: Call[], from: string, to: string, area: SlaArea = 'ALL') {
+  const weekdayCount = Array(7).fill(0);
+  for (let day = from; day <= to; day = addDays(day, 1)) weekdayCount[new Date(`${day}T12:00:00Z`).getUTCDay()] += 1;
+  const grid = () => Array.from({ length: 7 }, () => Array(24).fill(0));
+  const incoming = grid();
+  const techSets = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => new Map<string, Set<string>>()));
+  const finishedByOpen = grid();
+  const lateByOpen = grid();
+  const scoped = calls.filter((call) => matchesArea(call, area));
+  for (const call of scoped) {
+    if (call.status !== 'Cancelado' && inRange(call.openedAt, from, to)) { const { weekday, hour } = slotOf(call.openedAt); incoming[weekday][hour] += 1; }
+    if (call.status === 'Finalizado' && call.executedAt && inRange(call.executedAt, from, to) && call.technicianId) {
+      const { weekday, hour } = slotOf(call.executedAt);
+      const day = toOperationalDate(call.executedAt);
+      const set = techSets[weekday][hour].get(day) || new Set<string>();
+      set.add(call.technicianId);
+      techSets[weekday][hour].set(day, set);
+    }
+    if (call.status === 'Finalizado' && call.executedAt && inRange(call.openedAt, from, to)) {
+      const { weekday, hour } = slotOf(call.openedAt);
+      finishedByOpen[weekday][hour] += 1;
+      if ((Date.parse(call.executedAt) - Date.parse(call.openedAt)) / 3_600_000 > 6) lateByOpen[weekday][hour] += 1;
+    }
+  }
+  const perDay = (value: number, weekday: number) => (weekdayCount[weekday] ? round(value / weekdayCount[weekday], 2) : 0);
+  const techs = techSets.map((row, weekday) => row.map((days) => perDay([...days.values()].reduce((sum, set) => sum + set.size, 0), weekday)));
+  const incomingAvg = incoming.map((row, weekday) => row.map((value) => perDay(value, weekday)));
+  return {
+    weekdayCount,
+    incoming: incomingAvg,
+    technicians: techs,
+    callsPerTechnician: incomingAvg.map((row, weekday) => row.map((value, hour) => (techs[weekday][hour] ? round(value / techs[weekday][hour], 2) : null))),
+    latePercent: lateByOpen.map((row, weekday) => row.map((value, hour) => (finishedByOpen[weekday][hour] >= 3 ? round((value / finishedByOpen[weekday][hour]) * 100) : null))),
+    totalIncoming: incoming.flat().reduce((sum, value) => sum + value, 0),
+  };
+}
+
+// ---------- Lote D: reincidencia por tecnico (12) ----------
+// Para cada chamado finalizado no periodo (pela Data Fim), se o mesmo ponto (endereco + OLT + slot/PON) teve
+// outro chamado aberto ate 30 dias depois da Data Fim: o reparo "nao segurou". Taxa por tecnico (minimo 5).
+export function repeatRanking(calls: Call[], from: string, to: string, area: SlaArea = 'ALL') {
+  const opensByKey = new Map<string, { at: number; orderNumber: string; id: string }[]>();
+  for (const call of calls) {
+    if (call.status === 'Cancelado') continue;
+    const key = repeatKey(call);
+    if (!key) continue;
+    opensByKey.set(key, [...(opensByKey.get(key) || []), { at: Date.parse(call.openedAt), orderNumber: call.orderNumber, id: call.id }]);
+  }
+  const groups = new Map<string, { finished: number; eligible: number; repeated: { orderNumber: string; id: string; nextOrder: string; nextId: string; days: number }[] }>();
+  for (const { call } of finishedIn(calls, from, to, area)) {
+    const name = call.technicianName?.trim() || 'Sem técnico';
+    const group = groups.get(name) || { finished: 0, eligible: 0, repeated: [] };
+    group.finished += 1;
+    const key = repeatKey(call);
+    if (key) {
+      group.eligible += 1;
+      const done = Date.parse(call.executedAt!);
+      const next = (opensByKey.get(key) || []).filter((item) => item.id !== call.id && item.at > done && item.at - done <= 30 * 86_400_000).sort((a, b) => a.at - b.at)[0];
+      if (next) group.repeated.push({ orderNumber: call.orderNumber, id: call.id, nextOrder: next.orderNumber, nextId: next.id, days: round((next.at - done) / 86_400_000, 1) });
+    }
+    groups.set(name, group);
+  }
+  const rows = [...groups.entries()].map(([name, group]) => ({ name, finished: group.finished, eligible: group.eligible, repeated: group.repeated.length, percent: group.eligible ? round((group.repeated.length / group.eligible) * 100) : null, items: group.repeated.slice(0, 20) }))
+    .sort((a, b) => (b.eligible >= 5 ? 1 : 0) - (a.eligible >= 5 ? 1 : 0) || (b.percent ?? 0) - (a.percent ?? 0) || b.repeated - a.repeated);
+  const eligible = rows.reduce((sum, row) => sum + row.eligible, 0);
+  const repeated = rows.reduce((sum, row) => sum + row.repeated, 0);
+  return { finished: rows.reduce((sum, row) => sum + row.finished, 0), eligible, repeated, percent: eligible ? round((repeated / eligible) * 100) : null, technicians: rows };
 }

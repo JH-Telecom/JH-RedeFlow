@@ -1764,6 +1764,99 @@
 :where(:root:not([data-theme="dark"])) .in-actions .is-active {
     color: var(--blue)
 }
+:where(:root:not([data-theme="dark"])) .ct-head {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .ct-head span {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .ct-head b {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .ct-legend {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .ct-legend b {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .rp-table th small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .hm-metrics button {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .hm-metrics button.is-active {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .hm-table th {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .hm-table td {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .hm-table td.is-strong {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .mg-panel header strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .mg-panel header small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .mg-icon {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .mg-goals span {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mg-goals strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .mg-goals small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .mg-goals p {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .rp-muted-row td {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .rp-repeat-list {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .fx-row label {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .mr-page {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .mr-toolbar {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-header > div {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-header strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .mr-header small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .mr-kpis span {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-kpis small {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .mr-table th {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-note {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-footer {
+    color: #5f6d84
+}
 
 /* update-notice.css */
 :where(:root:not([data-theme="dark"])) .update-notice-icon {

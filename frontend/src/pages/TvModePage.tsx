@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type DashboardMetrics, type DueSoonResult, type Highlight, type SlaAnalysis } from "../api";
 import { toOperationalDate } from "../dates";
+import { goalSentence, useMonthGoals } from "../components/MonthGoals";
 
 // Modo TV: painel em tela cheia para a TV da operacao. Alterna sozinho entre as visoes a cada 20 s e
 // atualiza os dados a cada minuto. Teclas: setas trocam a visao, espaco pausa, Esc sai.
@@ -31,6 +32,7 @@ export function TvModePage() {
   const [dueSoon, setDueSoon] = useState<DueSoonResult | null>(null);
   const [month, setMonth] = useState<SlaAnalysis | null>(null);
   const [highlights, setHighlights] = useState<Highlight[] | null>(null);
+  const goals = useMonthGoals();
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement));
 
@@ -151,6 +153,7 @@ export function TvModePage() {
                 <div className="tv-kpi"><span>Média de entrantes</span><strong>{month.incoming.avgPerDay === null ? "–" : month.incoming.avgPerDay.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</strong><small>chamados por dia</small></div>
               </div>
               <div className="tv-split">
+                {goals?.plan && <section className="tv-card tv-goals"><h2>Meta do mês</h2><p>{goalSentence("onTime", goals.plan.onTime.target)}</p><p>{goalSentence("outlier", goals.plan.outlier.target)}</p></section>}
                 <section className="tv-card"><h2>Técnicos que mais perdem prazo</h2><ol className="tv-rank">{month.technicians.filter((item) => item.lost).slice(0, 6).map((item) => <li key={item.name}><span>{item.name}</span><strong>{item.lost}</strong><small>{pct(item.lostPercent)}</small></li>)}{!month.technicians.some((item) => item.lost) && <li className="tv-muted">Ninguém perdeu prazo no mês até agora.</li>}</ol></section>
                 <section className="tv-card"><h2>Bairros que mais perdem prazo</h2><ol className="tv-rank">{month.neighborhoods.filter((item) => item.lost).slice(0, 6).map((item) => <li key={item.name}><span>{item.name}</span><strong>{item.lost}</strong><small>{pct(item.lostPercent)}</small></li>)}{!month.neighborhoods.some((item) => item.lost) && <li className="tv-muted">Ninguém perdeu prazo no mês até agora.</li>}</ol></section>
               </div>

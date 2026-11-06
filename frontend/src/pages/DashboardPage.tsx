@@ -1,3 +1,4 @@
+import { MonthGoals } from "../components/MonthGoals";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, AlertTriangle, BarChart3, BellRing, CheckCircle2, ChevronRight, Clock3, Inbox, RefreshCcw, SlidersHorizontal, Timer, UserX, XCircle } from "lucide-react";
@@ -158,6 +159,7 @@ export function OperationalDashboard({ preset, onPresetChange, dateRange, onDate
   return (
     <div className="dv-dashboard">
       {heading}
+      <MonthGoals />
       {error && <div className="dv-inline-error" role="alert">{error} Exibindo os últimos dados carregados.</div>}
 
       <h2 className="dv-section-title">Agora <small>fila ativa, independente do período</small></h2>

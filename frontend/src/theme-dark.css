@@ -3164,6 +3164,159 @@
     color: var(--accent-text);
     background: #0f1722
 }
+:where(:root[data-theme="dark"]) .ct-head {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ct-head span {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ct-head b {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ct-bar i {
+    background: #333d4a
+}
+:where(:root[data-theme="dark"]) .ct-bar i.is-wait, :where(:root[data-theme="dark"]) .ct-legend i.is-wait {
+    background: #e6953d
+}
+:where(:root[data-theme="dark"]) .ct-bar i.is-assigned, :where(:root[data-theme="dark"]) .ct-legend i.is-assigned {
+    background: var(--blue)
+}
+:where(:root[data-theme="dark"]) .ct-bar i.is-travel, :where(:root[data-theme="dark"]) .ct-legend i.is-travel {
+    background: #7e3bd0
+}
+:where(:root[data-theme="dark"]) .ct-bar i.is-field, :where(:root[data-theme="dark"]) .ct-legend i.is-field {
+    background: #1caa76
+}
+:where(:root[data-theme="dark"]) .ct-deadline {
+    border-left: 2px dashed #c42e3b
+}
+:where(:root[data-theme="dark"]) .ct-legend {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ct-legend b {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .rp-table th small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .hm-metrics button {
+    border: 1px solid var(--line);
+    background: #181c22;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .hm-metrics button.is-active {
+    border-color: var(--blue);
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .hm-table th {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .hm-table td {
+    background: color-mix(in srgb, var(--blue) var(--hm), #13161d);
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .hm-table.is-latePercent td {
+    background: color-mix(in srgb, #c42e3b var(--hm), #13161d)
+}
+:where(:root[data-theme="dark"]) .hm-table td.is-strong {
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .mg-panel header strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mg-panel header small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .mg-icon {
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .mg-goals article {
+    border-left: 4px solid #1caa76;
+    background: #12151b
+}
+:where(:root[data-theme="dark"]) .mg-goals article.is-missed {
+    border-left-color: #c42e3b
+}
+:where(:root[data-theme="dark"]) .mg-goals span {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mg-goals strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mg-goals small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .mg-goals p {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .rp-muted-row td {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .rp-repeat-list {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .fx-row label {
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .mr-page {
+    background: #181c22;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mr-toolbar {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-header {
+    border-bottom: 3px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .mr-header > div {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-header strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mr-header small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .mr-kpis article {
+    border: 1px solid #343b45;
+    border-top: 4px solid #9aa6b5
+}
+:where(:root[data-theme="dark"]) .mr-kpis article.is-met {
+    border-top-color: #1caa76
+}
+:where(:root[data-theme="dark"]) .mr-kpis article.is-missed {
+    border-top-color: #c42e3b
+}
+:where(:root[data-theme="dark"]) .mr-kpis span {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-kpis small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .mr-table th, :where(:root[data-theme="dark"]) .mr-table td {
+    border-bottom: 1px solid #353941
+}
+:where(:root[data-theme="dark"]) .mr-table th {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-note {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-footer {
+    border-top: 1px solid #353941;
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .tv-goals p {
+    color: #dbe3ee
+}
+@media print {
+    :where(:root[data-theme="dark"]) body {
+        background: #181c22 !important
+    }
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {

@@ -80,9 +80,14 @@ export type AuditLogRow = CallAuditLog & { orderNumber: string };
 export async function listAllAuditLogs(range: { fromIso: string; toIso: string }, limit = 2000): Promise<{ logs: AuditLogRow[]; truncated: boolean }> {
   if (isSupabaseConfigured()) {
     const admin = getSupabaseAdmin();
-    const { data, error } = await admin.from('call_logs').select('id, call_id, user_id, action, field, previous_value, new_value, created_at, profiles(name)').gte('created_at', range.fromIso).lte('created_at', range.toIso).order('created_at', { ascending: false }).limit(limit + 1);
-    if (error) throw new Error(error.message);
-    const rows = (data || []) as any[];
+    const rows: any[] = [];
+    // O PostgREST devolve no maximo 1000 linhas por consulta: busca em paginas ate limit + 1.
+    for (let offset = 0; rows.length <= limit; offset += 1000) {
+      const { data, error } = await admin.from('call_logs').select('id, call_id, user_id, action, field, previous_value, new_value, created_at, profiles(name)').gte('created_at', range.fromIso).lte('created_at', range.toIso).order('created_at', { ascending: false }).order('id', { ascending: true }).range(offset, Math.min(offset + 999, limit));
+      if (error) throw new Error(error.message);
+      rows.push(...(data || []));
+      if (!data || data.length < Math.min(1000, limit + 1 - offset)) break;
+    }
     const callIds = [...new Set(rows.slice(0, limit).map((row) => row.call_id).filter(Boolean))];
     const orders = new Map<string, string>();
     for (let offset = 0; offset < callIds.length; offset += 300) {
@@ -95,6 +100,27 @@ export async function listAllAuditLogs(range: { fromIso: string; toIso: string }
   }
   const all = [...auditLogs.values()].filter((item) => item.createdAt >= range.fromIso && item.createdAt <= range.toIso).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return { logs: all.slice(0, limit).map((item) => ({ ...item, orderNumber: calls.get(item.callId)?.orderNumber || '' })), truncated: all.length > limit };
+}
+
+// Exportacao completa: observacoes de todos os chamados no periodo (texto e autor; anexos so pelo nome).
+export type ObservationExportRow = { id: string; callId: string; userName: string; text: string; attachments: string; createdAt: string };
+export async function listObservationsInRange(range: { fromIso: string; toIso: string }, limit = 50_000): Promise<{ rows: ObservationExportRow[]; truncated: boolean }> {
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const rows: any[] = [];
+    for (let offset = 0; rows.length <= limit; offset += 1000) {
+      const { data, error } = await admin.from('call_observations').select('id, call_id, text, created_at, profiles(name), call_observation_attachments(file_name)').gte('created_at', range.fromIso).lte('created_at', range.toIso).order('created_at', { ascending: true }).order('id', { ascending: true }).range(offset, offset + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    return {
+      rows: rows.slice(0, limit).map((row) => ({ id: row.id, callId: row.call_id, userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || '' : row.profiles?.name || '', text: row.text || '', attachments: (row.call_observation_attachments || []).map((item: { file_name: string }) => item.file_name).join('; '), createdAt: row.created_at })),
+      truncated: rows.length > limit,
+    };
+  }
+  const all = [...observations.values()].filter((item) => item.createdAt >= range.fromIso && item.createdAt <= range.toIso).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return { rows: all.slice(0, limit).map((item) => ({ id: item.id, callId: item.callId, userName: item.userName, text: item.text, attachments: (item.attachments || []).map((attachment) => attachment.fileName).join('; '), createdAt: item.createdAt })), truncated: all.length > limit };
 }
 
 export async function listAuditLogs(callId: string): Promise<CallAuditLog[]> {

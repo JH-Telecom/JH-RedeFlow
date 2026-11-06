@@ -1,19 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, ClipboardList, Copy, FileSpreadsheet, Minus, Timer } from "lucide-react";
-import { api, type CompareReport, type DailySummary, type LateCallRow, type PeriodMetrics, type ProductivityReport, type ProductivityRow, type ReasonsReport, type SlaArea } from "../api";
+import { api, type RepeatRanking, type BottleneckReport, type HeatmapReport, type StageStats, type CompareReport, type DailySummary, type LateCallRow, type PeriodMetrics, type ProductivityReport, type ProductivityRow, type ReasonsReport, type SlaArea } from "../api";
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount, formatHours } from "../components/charts";
 
 // Relatorios. Mesma regra de prazo de todo o sistema: ate 6h no prazo, acima de 6h fora, acima de 9h outlier.
 // Finalizados contam pela Data Fim; abertos pela abertura.
 
-type ReportType = "late-finished" | "productivity" | "reasons" | "compare" | "daily";
+type ReportType = "late-finished" | "productivity" | "reasons" | "compare" | "daily" | "bottlenecks" | "heatmap" | "repeat-ranking" | "monthly";
 const REPORTS: { value: ReportType; label: string; description: string }[] = [
   { value: "late-finished", label: "Finalizados fora do prazo (acima de 6h)", description: "Chamados finalizados no período, pela Data Fim, que levaram mais de 6h entre a abertura e o fim. Acima de 9h é outlier." },
   { value: "productivity", label: "Produtividade por técnico e supervisor", description: "Finalizados no período por técnico e por supervisor, com quantos ficaram no prazo, fora e outliers, e o tempo médio." },
   { value: "reasons", label: "Motivos de fechamento", description: "Ranking dos motivos de fechamento dos finalizados no período, com submotivos, área e evolução por mês." },
   { value: "compare", label: "Comparar com o período anterior", description: "Os indicadores do período lado a lado com o período anterior de mesmo tamanho." },
+  { value: "bottlenecks", label: "Gargalos: espera x atendimento", description: "Onde o tempo se perde nos finalizados do período: esperando técnico (da abertura à atribuição) ou em atendimento (da atribuição à Data Fim). Mediana e p90 (9 em cada 10 ficaram abaixo), por região e por técnico." },
+  { value: "heatmap", label: "Mapa de calor por horário", description: "Por dia da semana e hora: chamados que entram, técnicos que finalizaram chamados e quantos chamados por técnico. Ajuda a montar escala e plantão." },
+  { value: "repeat-ranking", label: "Reincidência por técnico", description: "Dos reparos finalizados no período, quantos tiveram outro chamado no mesmo endereço, OLT e slot/PON em até 30 dias depois da Data Fim (o reparo não segurou). % por técnico (ranking a partir de 5 reparos)." },
+  { value: "monthly", label: "Relatório mensal (PDF)", description: "Relatório do mês para enviar ao contrato: indicadores contra as metas, por área, comparação com o mês anterior, motivos de fechamento e reincidência. Abre numa página para imprimir ou salvar em PDF." },
   { value: "daily", label: "Resumo do dia", description: "O resumo de um dia (o mesmo que vai no WhatsApp às 7h, com o dia anterior, quando ligado)." },
 ];
 const AREAS: { value: SlaArea; label: string }[] = [
@@ -76,7 +80,7 @@ export function ReportsPage() {
 
       <div className="rp-filters">
         <label className="sa-area rp-type">Relatório<select value={report} onChange={(event) => setReport(event.target.value as ReportType)}>{REPORTS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-        {report === "daily" ? (
+        {report === "monthly" ? null : report === "daily" ? (
           <div className="sa-dates"><label>Dia<input type="date" value={day} max={today} onChange={(event) => setDay(event.target.value)} /></label></div>
         ) : (
           <div className="sa-dates">
@@ -84,14 +88,18 @@ export function ReportsPage() {
             <label>Até<input type="date" value={range.to} min={range.from || undefined} onChange={(event) => setRange({ ...range, to: event.target.value })} /></label>
           </div>
         )}
-        {report !== "daily" && <label className="sa-area">Área<select value={area} onChange={(event) => setArea(event.target.value as SlaArea)}>{AREAS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>}
+        {report !== "daily" && report !== "monthly" && <label className="sa-area">Área<select value={area} onChange={(event) => setArea(event.target.value as SlaArea)}>{AREAS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>}
       </div>
 
-      {report === "daily" ? (day ? <DailyReport date={day} /> : <div className="dv-empty">Escolha um dia.</div>)
+      {report === "monthly" ? <MonthlyLauncher />
+        : report === "daily" ? (day ? <DailyReport date={day} /> : <div className="dv-empty">Escolha um dia.</div>)
         : !validRange ? <div className="dv-empty" role="status">Escolha um período válido: a data "De" não pode ser depois de "Até".</div>
         : report === "late-finished" ? <LateReport from={range.from} to={range.to} area={area} />
         : report === "productivity" ? <ProductivityView from={range.from} to={range.to} area={area} />
         : report === "reasons" ? <ReasonsView from={range.from} to={range.to} area={area} />
+        : report === "repeat-ranking" ? <RepeatRankingView from={range.from} to={range.to} area={area} />
+        : report === "bottlenecks" ? <BottleneckView from={range.from} to={range.to} area={area} />
+        : report === "heatmap" ? <HeatmapView from={range.from} to={range.to} area={area} />
         : <CompareView from={range.from} to={range.to} area={area} />}
     </div>
   );
@@ -334,4 +342,136 @@ function DailyReport({ date }: { date: string }) {
       <p className="rp-note">{data.whatsapp.configured ? `Envio automático ligado: todo dia às ${data.whatsapp.sendsAt} vai o resumo do dia anterior.` : "Envio automático desligado: liga junto com o aviso de prazo, ao configurar o WuzAPI no Render (veja Integração OFS). Opcional: WUZAPI_REPORT_CHAT manda o resumo para outro grupo."}</p>
     </Panel>
   </>;
+}
+
+// ---------- Gargalos ----------
+const mins = (value: number | null) => (value === null ? "–" : value < 60 ? `${Math.round(value)} min` : `${Math.floor(value / 60)}h${String(Math.round(value % 60)).padStart(2, "0")}`);
+function StageTable({ rows, first }: { rows: StageStats[]; first: string }) {
+  if (!rows.length) return <div className="dv-empty">Sem chamados suficientes (mínimo 3 por linha).</div>;
+  return (
+    <div className="sa-table-wrap">
+      <table className="sa-table rp-table">
+        <thead><tr><th>{first}</th><th>Chamados</th><th>Esperando técnico<small>mediana · p90</small></th><th>Em atendimento<small>mediana · p90</small></th><th>% do tempo esperando</th><th>Fora do prazo<small>por espera</small></th></tr></thead>
+        <tbody>{rows.map((row) => (
+          <tr key={row.name}>
+            <td><strong>{row.name}</strong></td>
+            <td>{row.calls}</td>
+            <td><b>{mins(row.waitMedian)}</b><small>p90 {mins(row.waitP90)}</small></td>
+            <td><b>{mins(row.execMedian)}</b><small>p90 {mins(row.execP90)}</small></td>
+            <td><span className="rp-meter"><span className="rp-meter-bar" aria-hidden="true"><i style={{ width: `${row.waitShare ?? 0}%` }} /></span>{pct(row.waitShare)}</span></td>
+            <td>{row.late}{row.late ? <small>{row.lateByWait} por espera</small> : null}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+const stageSheet = (rows: StageStats[], first: string) => rows.map((row) => ({ [first]: row.name, Chamados: row.calls, "Espera mediana (min)": row.waitMedian === null ? null : Math.round(row.waitMedian), "Espera p90 (min)": row.waitP90 === null ? null : Math.round(row.waitP90), "Atendimento mediana (min)": row.execMedian === null ? null : Math.round(row.execMedian), "Atendimento p90 (min)": row.execP90 === null ? null : Math.round(row.execP90), "% esperando": row.waitShare, "Fora do prazo": row.late, "Fora por espera": row.lateByWait }));
+
+function BottleneckView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
+  const { data, error } = useReport<BottleneckReport>(() => api.bottleneckReport(from, to, area), [from, to, area]);
+  if (!data) return <ReportState error={error} />;
+  const total = data.total;
+  return <>
+    <div className="dv-kpi-grid">
+      <KpiTile label="Esperando técnico" value={mins(total.waitMedian)} note={`Mediana · p90 ${mins(total.waitP90)}`} icon={Timer} tone={(total.waitMedian ?? 0) > 60 ? "warning" : "default"} />
+      <KpiTile label="Em atendimento" value={mins(total.execMedian)} note={`Mediana · p90 ${mins(total.execP90)}`} icon={Timer} />
+      <KpiTile label="Tempo esperando" value={pct(total.waitShare)} note="Do tempo total dos chamados" icon={ClipboardList} />
+      <KpiTile label="Fora do prazo por espera" value={formatCount(total.lateByWait)} note={`De ${total.late} acima de 6h: mais da metade esperando técnico`} icon={AlertTriangle} tone={total.lateByWait ? "critical" : "default"} />
+    </div>
+    <Panel kicker="POR REGIÃO" title="Onde se espera mais por técnico" aside={<span className="rp-aside"><ExportButton disabled={!total.calls} onClick={() => writeExcel(`Gargalos ${fileDate(from)} a ${fileDate(to)}.xlsx`, [{ name: "Geral", rows: stageSheet([total], "Recorte") }, { name: "Por região", rows: stageSheet(data.byRegion, "Região") }, { name: "Por técnico", rows: stageSheet(data.byTechnician, "Técnico") }])} /></span>}>
+      <StageTable rows={data.byRegion} first="Região" />
+    </Panel>
+    <Panel kicker="POR TÉCNICO" title="Quem demora mais em atendimento">
+      <StageTable rows={data.byTechnician} first="Técnico" />
+    </Panel>
+    <p className="rp-note">Conta {total.calls} finalizados do período com horário de atribuição coerente (entre a abertura e a Data Fim). Mediana: metade ficou abaixo; p90: 9 em cada 10 ficaram abaixo.</p>
+  </>;
+}
+
+// ---------- Mapa de calor ----------
+type HeatMetric = "incoming" | "technicians" | "callsPerTechnician" | "latePercent";
+const HEAT_METRICS: { value: HeatMetric; label: string; note: string }[] = [
+  { value: "incoming", label: "Chamados que entram", note: "Média por dia, pela hora de abertura" },
+  { value: "technicians", label: "Técnicos finalizando", note: "Técnicos diferentes que finalizaram chamados naquela hora (média por dia)" },
+  { value: "callsPerTechnician", label: "Chamados por técnico", note: "Entradas ÷ técnicos finalizando: quanto maior, mais apertado" },
+  { value: "latePercent", label: "% fora do prazo", note: "Dos finalizados que abriram naquela hora (mínimo 3)" },
+];
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+function HeatmapView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
+  const { data, error } = useReport<HeatmapReport>(() => api.heatmapReport(from, to, area), [from, to, area]);
+  const [metric, setMetric] = useState<HeatMetric>("incoming");
+  if (!data) return <ReportState error={error} />;
+  const grid = data[metric];
+  const max = Math.max(0, ...grid.flat().map((value) => value ?? 0));
+  const current = HEAT_METRICS.find((item) => item.value === metric)!;
+  const show = (value: number | null) => (value === null || (value === 0 && metric !== "latePercent") ? "" : metric === "latePercent" ? `${Math.round(value)}` : value >= 10 ? value.toFixed(0) : value.toLocaleString("pt-BR", { maximumFractionDigits: 1 }));
+  return (
+    <Panel kicker="ESCALA" title="Mapa de calor por dia e hora" aside={<span className="rp-aside"><ExportButton disabled={!data.totalIncoming} onClick={() => writeExcel(`Mapa de calor ${fileDate(from)} a ${fileDate(to)}.xlsx`, HEAT_METRICS.map((item) => ({ name: item.label, rows: data[item.value].map((row, weekday) => ({ Dia: WEEKDAYS[weekday], ...Object.fromEntries(row.map((value, hour) => [`${hour}h`, value])) })) })))} /></span>}>
+      <div className="hm-metrics" role="group" aria-label="O que mostrar">{HEAT_METRICS.map((item) => <button key={item.value} type="button" className={metric === item.value ? "is-active" : ""} aria-pressed={metric === item.value} onClick={() => setMetric(item.value)}>{item.label}</button>)}</div>
+      <p className="rp-note">{current.note}. {data.totalIncoming.toLocaleString("pt-BR")} chamados no período.</p>
+      <div className="hm-wrap">
+        <table className={`hm-table is-${metric}`}>
+          <thead><tr><th />{Array.from({ length: 24 }, (_, hour) => <th key={hour} scope="col">{hour}h</th>)}</tr></thead>
+          <tbody>{grid.map((row, weekday) => (
+            <tr key={weekday}><th scope="row">{WEEKDAYS[weekday]}</th>{row.map((value, hour) => {
+              const level = value === null || !max ? 0 : value / max;
+              return <td key={hour} className={level > 0.55 ? "is-strong" : ""} style={{ ["--hm" as string]: `${Math.round(level * 100)}%` }} title={`${WEEKDAYS[weekday]} ${hour}h: ${value === null ? "sem dados" : show(value)}${metric === "latePercent" && value !== null ? "%" : ""}`}>{show(value)}</td>;
+            })}</tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </Panel>
+  );
+}
+
+// ---------- Reincidencia por tecnico ----------
+function RepeatRankingView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
+  const { data, error } = useReport<RepeatRanking>(() => api.repeatRanking(from, to, area), [from, to, area]);
+  const [open, setOpen] = useState<string | null>(null);
+  if (!data) return <ReportState error={error} />;
+  const ranked = data.technicians.filter((row) => row.eligible >= 5);
+  const worst = ranked[0];
+  return <>
+    <div className="dv-kpi-grid">
+      <KpiTile label="Reparos com ponto completo" value={formatCount(data.eligible)} note={`De ${data.finished} finalizados (endereço, OLT e slot/PON)`} icon={ClipboardList} />
+      <KpiTile label="Voltaram em 30 dias" value={formatCount(data.repeated)} note={pct(data.percent)} icon={AlertTriangle} tone={data.repeated ? "warning" : "default"} />
+      <KpiTile label="Maior reincidência" value={worst?.name || "–"} note={worst ? `${pct(worst.percent)} de ${worst.eligible} reparos` : "Ninguém com 5 ou mais"} icon={Timer} />
+    </div>
+    <Panel kicker="RANKING" title="Reincidência por técnico" aside={<span className="rp-aside"><ExportButton disabled={!data.technicians.length} onClick={() => writeExcel(`Reincidência por técnico ${fileDate(from)} a ${fileDate(to)}.xlsx`, [{ name: "Técnicos", rows: data.technicians.map((row) => ({ "Técnico": row.name, Finalizados: row.finished, "Com ponto completo": row.eligible, "Voltaram em 30 dias": row.repeated, "%": row.percent })) }, { name: "Reparos que voltaram", rows: data.technicians.flatMap((row) => row.items.map((item) => ({ "Técnico": row.name, Ordem: item.orderNumber, "Voltou como": item.nextOrder, "Dias depois": item.days }))) }])} /></span>}>
+      {!data.technicians.length ? <div className="dv-empty">Nenhum reparo finalizado no período.</div> : (
+        <div className="sa-table-wrap">
+          <table className="sa-table rp-table">
+            <thead><tr><th>Técnico</th><th>Finalizados</th><th>Com ponto completo</th><th>Voltaram em 30 dias</th><th>%</th><th aria-label="Ver ordens" /></tr></thead>
+            <tbody>{data.technicians.map((row) => (
+              <Fragment key={row.name}>
+                <tr className={row.eligible < 5 ? "rp-muted-row" : ""}>
+                  <td><strong>{row.name}</strong>{row.eligible < 5 && <small>menos de 5 reparos: fora do ranking</small>}</td>
+                  <td>{row.finished}</td><td>{row.eligible}</td><td>{row.repeated}</td>
+                  <td><span className="rp-meter"><span className="rp-meter-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, (row.percent ?? 0) * 2)}%` }} /></span>{pct(row.percent)}</span></td>
+                  <td>{row.items.length > 0 && <button type="button" className="link-button" onClick={() => setOpen(open === row.name ? null : row.name)} aria-expanded={open === row.name}>{open === row.name ? "Esconder" : "Ver ordens"}</button>}</td>
+                </tr>
+                {open === row.name && <tr><td colSpan={6}><ul className="rp-repeat-list">{row.items.map((item) => <li key={item.id}><Link to={`/chamados/${item.id}`} className="rp-order">{item.orderNumber}</Link> voltou como <Link to={`/chamados/${item.nextId}`} className="rp-order">{item.nextOrder}</Link> {item.days.toLocaleString("pt-BR")} dia(s) depois</li>)}</ul></td></tr>}
+              </Fragment>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
+  </>;
+}
+
+// ---------- Relatorio mensal (PDF) ----------
+function MonthlyLauncher() {
+  const thisMonth = toOperationalDate().slice(0, 7);
+  const [month, setMonth] = useState(() => { const date = new Date(`${thisMonth}-15T12:00:00`); date.setMonth(date.getMonth() - 1); return toOperationalDate(date).slice(0, 7); });
+  return (
+    <Panel kicker="PDF" title="Relatório mensal">
+      <div className="rp-monthly">
+        <label className="sa-area">Mês<input type="month" value={month} max={thisMonth} onChange={(event) => setMonth(event.target.value)} /></label>
+        <a className="primary-button compact" href={`/relatorio-mensal/${month}`} target="_blank" rel="noreferrer"><FileSpreadsheet size={15} /> Abrir para imprimir / PDF</a>
+      </div>
+      <p className="rp-note">Abre o relatório numa aba nova, no formato de folha A4. Use "Imprimir" e escolha "Salvar como PDF". O mês atual sai como parcial.</p>
+    </Panel>
+  );
 }

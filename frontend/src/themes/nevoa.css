@@ -3126,6 +3126,159 @@
     color: var(--blue);
     background: #f9f0fc
 }
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-head {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-head span {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-head b {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-bar i {
+    background: #aca0b1
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-bar i.is-wait, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-legend i.is-wait {
+    background: #e6953d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-bar i.is-assigned, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-legend i.is-assigned {
+    background: var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-bar i.is-travel, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-legend i.is-travel {
+    background: #7e3bd0
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-bar i.is-field, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-legend i.is-field {
+    background: #1caa76
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-deadline {
+    border-left: 2px dashed #c42e3b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-legend {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .ct-legend b {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .rp-table th small {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .hm-metrics button {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .hm-metrics button.is-active {
+    border-color: var(--blue);
+    background: #f9f0fc;
+    color: var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .hm-table th {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .hm-table td {
+    background: color-mix(in srgb, var(--blue) var(--hm), #f1f4f8);
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .hm-table.is-latePercent td {
+    background: color-mix(in srgb, #c42e3b var(--hm), #f1f4f8)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .hm-table td.is-strong {
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-panel header strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-panel header small {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-icon {
+    background: #f9f0fc;
+    color: var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-goals article {
+    border-left: 4px solid #1caa76;
+    background: #f7f9fc
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-goals article.is-missed {
+    border-left-color: #c42e3b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-goals span {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-goals strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-goals small {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mg-goals p {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .rp-muted-row td {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .rp-repeat-list {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .fx-row label {
+    color: #5e4a64
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-page {
+    background: #fff;
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-toolbar {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-header {
+    border-bottom: 3px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-header > div {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-header strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-header small {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-kpis article {
+    border: 1px solid #e9e2eb;
+    border-top: 4px solid #aca0b1
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-kpis article.is-met {
+    border-top-color: #1caa76
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-kpis article.is-missed {
+    border-top-color: #c42e3b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-kpis span {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-kpis small {
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-table th, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-table td {
+    border-bottom: 1px solid #e3e8ef
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-table th {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-note {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .mr-footer {
+    border-top: 1px solid #e3e8ef;
+    color: #77657d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .tv-goals p {
+    color: #e8dfeb
+}
+@media print {
+    :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) body {
+        background: #fff !important
+    }
+}
 /* light · update-notice.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #2e1b348c
@@ -6494,6 +6647,159 @@
     border-color: var(--blue);
     color: var(--accent-text);
     background: #1c121f
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-head {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-head span {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-head b {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-bar i {
+    background: #433846
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-bar i.is-wait, :where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-legend i.is-wait {
+    background: #e6953d
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-bar i.is-assigned, :where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-legend i.is-assigned {
+    background: var(--blue)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-bar i.is-travel, :where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-legend i.is-travel {
+    background: #7e3bd0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-bar i.is-field, :where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-legend i.is-field {
+    background: #1caa76
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-deadline {
+    border-left: 2px dashed #c42e3b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-legend {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .ct-legend b {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .rp-table th small {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .hm-metrics button {
+    border: 1px solid var(--line);
+    background: #1f1a20;
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .hm-metrics button.is-active {
+    border-color: var(--blue);
+    background: #1c121f;
+    color: var(--accent-text)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .hm-table th {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .hm-table td {
+    background: color-mix(in srgb, var(--blue) var(--hm), #19141b);
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .hm-table.is-latePercent td {
+    background: color-mix(in srgb, #c42e3b var(--hm), #19141b)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .hm-table td.is-strong {
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-panel header strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-panel header small {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-icon {
+    background: #1c121f;
+    color: var(--accent-text)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-goals article {
+    border-left: 4px solid #1caa76;
+    background: #181319
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-goals article.is-missed {
+    border-left-color: #c42e3b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-goals span {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-goals strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-goals small {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mg-goals p {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .rp-muted-row td {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .rp-repeat-list {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .fx-row label {
+    color: #c4bdc6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-page {
+    background: #1f1a20;
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-toolbar {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-header {
+    border-bottom: 3px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-header > div {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-header strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-header small {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-kpis article {
+    border: 1px solid #3f3742;
+    border-top: 4px solid #aca0b1
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-kpis article.is-met {
+    border-top-color: #1caa76
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-kpis article.is-missed {
+    border-top-color: #c42e3b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-kpis span {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-kpis small {
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-table th, :where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-table td {
+    border-bottom: 1px solid #3d363f
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-table th {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-note {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .mr-footer {
+    border-top: 1px solid #3d363f;
+    color: #b2abb4
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .tv-goals p {
+    color: #e8dfeb
+}
+@media print {
+    :where(:root[data-palette="nevoa"][data-theme="dark"]) body {
+        background: #1f1a20 !important
+    }
 }
 /* dark · update-notice.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .update-notice-backdrop {

@@ -1113,6 +1113,18 @@ test('assist: technician suggestions, risk, incidents and batch actions with the
   assert.equal(result.results.find((item) => item.callId === 'nao-existe')?.ok, false);
 });
 
+test('full export is admin only, limited to 366 days, and brings calls, observations and history', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  const ok = await fetch(`${baseUrl}/api/exportacao?from=2026-01-01&to=2026-12-31`, { headers: admin });
+  assert.equal(ok.status, 200);
+  const body = await ok.json() as { calls: unknown[]; observations: unknown[]; logs: unknown[]; truncated: boolean };
+  assert.ok(Array.isArray(body.calls) && Array.isArray(body.observations) && Array.isArray(body.logs));
+  assert.equal((await fetch(`${baseUrl}/api/exportacao?from=2025-01-01&to=2026-12-31`, { headers: admin })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/exportacao?from=2026-01-01&to=2026-12-31`, { headers: { authorization: `Bearer ${await login('joao@jhtelecom.com')}` } })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/relatorios/reincidencia-tecnico?from=2026-01-01&to=2026-12-31`, { headers: admin })).status, 200);
+});
+
 test('change history lists who changed which call in the period', async () => {
   const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
   const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };

@@ -6,6 +6,7 @@ import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
 import { MentionTextarea, withMentions } from "../components/MentionTextarea";
 import { TechnicianSuggestions } from "../components/AssistWidgets";
+import { CallTimeline } from "../components/CallTimeline";
 import { operationalRegions } from "../lib/constants";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
@@ -204,6 +205,7 @@ export function CallDetailBase() {
         </span>
       </div>
       <RepeatBanner callId={call.id} />
+      <CallTimeline call={call} />
       <div className="detail-layout">
         <section className="panel detail-main">
           <div className="panel-heading">

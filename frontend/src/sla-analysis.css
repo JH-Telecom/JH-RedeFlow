@@ -241,3 +241,83 @@
 .in-form label { display: grid; gap: 6px; }
 .in-form select, .in-form input, .in-form textarea { padding: 9px 11px; }
 .in-form .primary-button { justify-self: start; }
+
+/* Lote C: linha do tempo do chamado, gargalos e mapa de calor */
+.ct-panel { display: grid; gap: 10px; margin-bottom: 18px; padding: 14px 18px; }
+.ct-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; color: #17233b; font-size: 13px; }
+.ct-head span { color: #4f5d73; }
+.ct-head b { color: #17233b; }
+.ct-bar { position: relative; display: flex; gap: 2px; height: 14px; overflow: visible; border-radius: 7px; }
+.ct-bar i { min-width: 4px; border-radius: 3px; background: #9aa6b5; }
+.ct-bar i.is-wait, .ct-legend i.is-wait { background: #e6953d; }
+.ct-bar i.is-assigned, .ct-legend i.is-assigned { background: var(--blue); }
+.ct-bar i.is-travel, .ct-legend i.is-travel { background: #7e3bd0; }
+.ct-bar i.is-field, .ct-legend i.is-field { background: #1caa76; }
+.ct-deadline { position: absolute; top: -4px; bottom: -4px; width: 0; border-left: 2px dashed #c42e3b; }
+.ct-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0; padding: 0; list-style: none; color: #4f5d73; font-size: 12px; }
+.ct-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.ct-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.ct-legend b { color: #17233b; }
+.rp-table th small { display: block; margin-top: 2px; color: #5f6d84; font-size: 10px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.hm-metrics { display: flex; flex-wrap: wrap; gap: 6px; }
+.hm-metrics button { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 15px; background: #fff; color: #4f5d73; font-size: 12px; font-weight: 600; }
+.hm-metrics button.is-active { border-color: var(--blue); background: #edf4ff; color: var(--blue); }
+.hm-wrap { overflow-x: auto; margin-top: 10px; }
+.hm-table { width: 100%; min-width: 860px; border-collapse: separate; border-spacing: 2px; font-size: 11px; }
+.hm-table th { color: #5f6d84; font-weight: 700; text-align: center; }
+.hm-table tbody th { padding-right: 6px; text-align: right; }
+.hm-table td { height: 30px; border-radius: 4px; background: color-mix(in srgb, var(--blue) var(--hm), #f1f4f8); color: #17233b; text-align: center; }
+.hm-table.is-latePercent td { background: color-mix(in srgb, #c42e3b var(--hm), #f1f4f8); }
+.hm-table td.is-strong { color: #fff; font-weight: 700; }
+
+/* Lote D: meta do mes, relatorio mensal (impressao), reincidencia por tecnico e exportacao */
+.mg-panel { display: grid; gap: 12px; margin-bottom: 18px; padding: 16px 18px; }
+.mg-panel header { display: flex; align-items: center; gap: 10px; }
+.mg-panel header div { display: grid; flex: 1; gap: 2px; }
+.mg-panel header strong { color: #17233b; font-size: 14px; }
+.mg-panel header small { color: #5f6d84; font-size: 12px; }
+.mg-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: #edf4ff; color: var(--blue); }
+.mg-goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.mg-goals article { display: grid; gap: 3px; padding: 12px 14px; border-left: 4px solid #1caa76; border-radius: 9px; background: #f7f9fc; }
+.mg-goals article.is-missed { border-left-color: #c42e3b; }
+.mg-goals span { color: #4f5d73; font-size: 12px; font-weight: 700; }
+.mg-goals strong { color: #17233b; font: 700 24px 'Manrope', sans-serif; }
+.mg-goals small { color: #5f6d84; font-size: 12px; }
+.mg-goals p { margin-top: 4px; color: #17233b; font-size: 12px; line-height: 1.5; }
+.rp-monthly { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.rp-monthly a.primary-button { text-decoration: none; }
+.rp-muted-row td { color: #5f6d84; }
+.rp-repeat-list { display: grid; gap: 4px; margin: 0; padding-left: 16px; color: #4f5d73; font-size: 12px; }
+.fx-panel { display: grid; gap: 12px; max-width: 720px; margin-top: 18px; }
+.fx-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.fx-row label { display: grid; gap: 6px; color: #45536b; font-size: 12px; font-weight: 700; }
+.fx-row input { padding: 9px 11px; }
+.mr-page { max-width: 820px; margin: 0 auto; padding: 32px 28px 48px; background: #fff; color: #17233b; font-size: 13px; }
+.mr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; color: #4f5d73; font-size: 12px; }
+.mr-header { display: grid; gap: 4px; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 3px solid var(--blue); }
+.mr-header > div { display: flex; justify-content: space-between; gap: 12px; color: #4f5d73; font-size: 12px; }
+.mr-header strong { color: #17233b; }
+.mr-header h1 { font-size: 28px; }
+.mr-header small { color: #5f6d84; font-size: 11px; }
+.mr-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+.mr-kpis article { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid #dfe5ee; border-top: 4px solid #9aa6b5; border-radius: 8px; }
+.mr-kpis article.is-met { border-top-color: #1caa76; }
+.mr-kpis article.is-missed { border-top-color: #c42e3b; }
+.mr-kpis span { color: #4f5d73; font-size: 11px; font-weight: 700; }
+.mr-kpis strong { font: 700 22px 'Manrope', sans-serif; }
+.mr-kpis small { color: #5f6d84; font-size: 11px; }
+.mr-page h2 { margin: 20px 0 8px; font-size: 15px; }
+.mr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mr-table th, .mr-table td { padding: 7px 8px; border-bottom: 1px solid #e3e8ef; text-align: left; }
+.mr-table th { color: #4f5d73; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.mr-total td { font-weight: 700; }
+.mr-note { margin-top: 8px; color: #4f5d73; font-size: 12px; line-height: 1.55; }
+.mr-footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e3e8ef; color: #5f6d84; font-size: 11px; }
+.tv-goals p { margin-top: 10px; color: #dbe3ee; font-size: 17px; line-height: 1.5; }
+@media print {
+  .mr-toolbar { display: none; }
+  .mr-page { max-width: none; padding: 0; }
+  body { background: #fff !important; }
+  @page { size: A4; margin: 14mm; }
+}
+@media (max-width: 640px) { .mr-kpis { grid-template-columns: repeat(2, 1fr); } }

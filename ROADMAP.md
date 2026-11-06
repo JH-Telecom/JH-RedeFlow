@@ -4632,3 +4632,54 @@ Implementar as 15 novas ideias. O segundo fator de login (13) ficou de fora por 
 - Teste HTTP: sugestões (supervisor → 403), risco, incidentes, ação em lote com técnico inválido (422), supervisor finalizando (403), observação em 2 chamados com 1 inexistente (1 ok). Suíte 195/195.
 - Preview: incidente com 3 chamados da demo na mesma OLT, "Observação em todos" aplicada (3 de 3), sugestões no detalhe. Contraste sem problemas no claro e no escuro.
 - O selo de risco não aparece na demo, que tem poucos finalizados. Em produção há 3.296 finalizados em 90 dias.
+
+## Novas ideias, lote C: linha do tempo, gargalos e mapa de calor (2026-11-06)
+
+### Implementado
+- **Linha do tempo do chamado** (`CallTimeline.tsx`, no detalhe, abaixo do aviso de reincidência): uma barra com quanto tempo o chamado ficou em cada etapa, da abertura à Data Fim (ou até agora).
+  - Etapas: aguardando técnico (até `assignedAt`) e depois cada status (Atribuído, Deslocamento, Em campo), a partir das trocas de status do histórico.
+  - Mostra a linha pontilhada do prazo de 6h, o total e o tempo por etapa.
+  - Só a parte do histórico depende da permissão de auditoria; sem ela, mostra espera e atendimento.
+  - Em produção, o histórico de status começa em 04/11 e quase todo chamado vai de Aberto a Atribuído e depois a Finalizado.
+- **Gargalos: espera x atendimento** (novo tipo em Relatórios, `GET /api/relatorios/gargalos`): nos finalizados do período, mostra o tempo esperando técnico (abertura → atribuição) e o tempo em atendimento (atribuição → Data Fim).
+  - Mediana e p90, % do tempo total que foi espera, e quantos passaram de 6h com mais da metade do tempo esperando.
+  - Por região (mais espera primeiro) e por técnico (mais atendimento primeiro), com mínimo de 3 chamados por linha, e Excel.
+  - Ignora atribuição fora da janela. Em produção, 3.217 dos 3.297 finalizados de 90 dias têm atribuição coerente.
+- **Mapa de calor por horário** (novo tipo em Relatórios, `GET /api/relatorios/mapa-de-calor`): grade dia da semana × hora (São Paulo), em média por dia do período, com quatro visões:
+  - chamados que entram;
+  - técnicos diferentes que finalizaram chamados naquela hora;
+  - chamados por técnico;
+  - % fora do prazo pela hora de abertura (mínimo 3).
+  - Tem Excel com uma aba por visão.
+- Correção: o Histórico de alterações busca em páginas de 1.000. O Supabase devolve no máximo 1.000 linhas por consulta, então antes parava em 1.000 mesmo prometendo 2.000.
+
+### Validação
+- Teste novo `reports-batchc.test.ts`: mediana e espera, atribuição incoerente fora, mínimo de 3 por grupo; grade por dia e hora, cancelado fora, técnicos por hora, % só com 3 ou mais.
+- Suíte completa verde. Preview: linha do tempo num chamado da demo e mapa de calor. Contraste sem problemas no claro e no escuro.
+
+## Novas ideias, lote D: meta do mês, relatório mensal, reincidência por técnico e exportação (2026-11-06)
+
+### Implementado
+- **Meta do mês com projeção** (`MonthGoals.tsx`):
+  - na Visão geral, um cartão com % no prazo e % outliers do mês contra a meta (89% e 4,9%);
+  - mostra o que ainda precisa nas ordens que devem fechar até o fim do mês no ritmo atual, com a mesma conta da aba IGP;
+  - no Modo TV, as duas frases entram na visão "Prazo do mês";
+  - atualiza a cada 5 min e não aparece se o mês ainda não tem ordens.
+- **Relatório mensal (PDF)** (novo tipo em Relatórios): escolhe o mês e abre `/relatorio-mensal/AAAA-MM` numa aba nova, sem lateral nem topo, em formato A4, com "Imprimir / salvar em PDF". O conteúdo:
+  - ordens finalizadas, % no prazo, outliers e MTTR contra as metas;
+  - por área (SP, GRU, Alto Tietê, ABC), e acesso × backbone;
+  - comparação com o mês anterior;
+  - os 10 principais motivos de fechamento e a reincidência do mês.
+  - A página força o tema claro, porque o papel é branco. É um modelo padrão; dá para ajustar quando houver o formato da operadora.
+- **Reincidência por técnico** (novo tipo em Relatórios, `GET /api/relatorios/reincidencia-tecnico`): dos reparos finalizados no período com endereço, OLT e slot/PON completos, quantos tiveram outro chamado no mesmo ponto em até 30 dias depois da Data Fim.
+  - Ranking por técnico a partir de 5 reparos, com as ordens que voltaram (link para as duas) e Excel.
+- **Exportar tudo** (Configurações, só administrador, `GET /api/exportacao`): uma planilha com três abas.
+  - Chamados abertos ou finalizados no período, com todos os campos.
+  - Observações, com os anexos só pelo nome.
+  - Histórico de alterações.
+  - Até 366 dias por vez e 50 mil observações ou alterações; busca no banco em páginas de 1.000.
+
+### Validação
+- Testes novos: reincidência por técnico (janela de 30 dias, ponto incompleto, 47 dias não conta) e exportação (administrador 200, mais de 366 dias 400, supervisor 403). Suíte 199/199.
+- Preview: relatório mensal aberto, rota de exportação respondendo. Contraste sem problemas em Configurações, Relatórios e Visão geral, claro e escuro.
+- Na demo, a meta do mês não aparece (o mês não tem ordens finalizadas).

@@ -3,12 +3,12 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
-import { closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, productivityReport } from './reports.js';
+import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
 import { activeStatus, findMentions, monthHighlights } from './team.js';
 import { ESCALATION_LABEL, escalations, escalationText, integrationOutage, outageText, recoveryText } from './alerts.js';
@@ -337,6 +337,25 @@ function reportRoute(path: string, statuses: CallStatus[] | undefined, build: (c
 reportRoute('/api/relatorios/produtividade', ['Finalizado'], productivityReport);
 reportRoute('/api/relatorios/motivos', ['Finalizado'], closingReasonsReport);
 reportRoute('/api/relatorios/comparar', undefined, comparePeriods);
+reportRoute('/api/relatorios/gargalos', ['Finalizado'], bottleneckReport);
+reportRoute('/api/relatorios/mapa-de-calor', undefined, heatmapReport);
+reportRoute('/api/relatorios/reincidencia-tecnico', undefined, repeatRanking);
+// (14) Exportacao completa (Configuracoes, so administrador): chamados abertos ou finalizados no periodo, todas as
+// observacoes e todo o historico de alteracoes do periodo. Ate 366 dias por vez; a planilha e montada no navegador.
+app.get('/api/exportacao', auth, requirePermission('settings.manage'), async (request, response) => {
+  const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).safeParse(request.query);
+  if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
+  const days = (Date.parse(`${parsed.data.to}T12:00:00Z`) - Date.parse(`${parsed.data.from}T12:00:00Z`)) / 86_400_000 + 1;
+  if (days > 366) return response.status(400).json({ message: 'Exporte no maximo 366 dias por vez.' });
+  try {
+    const fromIso = new Date(`${parsed.data.from}T00:00:00-03:00`).toISOString();
+    const toIso = new Date(`${parsed.data.to}T23:59:59.999-03:00`).toISOString();
+    const inRange = (iso?: string | null) => Boolean(iso) && iso! >= fromIso && iso! <= toIso;
+    const [calls, observations, logs] = await Promise.all([listCalls(), listObservationsInRange({ fromIso, toIso }), listAllAuditLogs({ fromIso, toIso }, 50_000)]);
+    const scoped = calls.filter((call) => inRange(call.openedAt) || inRange(call.executedAt));
+    return response.json({ calls: scoped.map(({ lastObservationAt: _last, ...call }) => call), observations: observations.rows, logs: logs.logs, truncated: observations.truncated || logs.truncated });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel exportar.' }); }
+});
 app.get('/api/relatorios/resumo-dia', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   const date = typeof request.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(request.query.date) ? request.query.date : addDays(toOperationalDate(), -1);
   try {

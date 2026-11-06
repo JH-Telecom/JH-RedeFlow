@@ -30,6 +30,7 @@ import { PeoplePage } from "../pages/PeoplePage";
 import { IntegrationHealthPage } from "../pages/IntegrationHealthPage";
 import { QueueMapPage, TechnicianLoadPage } from "../pages/OperationsPages";
 import { AuditHistoryPage } from "../pages/AuditHistoryPage";
+import { MonthlyReportPage } from "../pages/MonthlyReportPage";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
@@ -242,6 +243,8 @@ export function Shell({
   }, [title]);
   // Modo TV: tela cheia, sem lateral nem barra do topo (o aviso de atualizacao continua valendo).
   if (location.pathname === "/modo-tv") return canAccess("dashboard.view") ? <><UpdateNotice /><TvModePage /></> : <AccessDenied />;
+  // Relatorio mensal para imprimir/PDF: sem lateral nem topo.
+  if (location.pathname.startsWith("/relatorio-mensal/")) return canAccess("dashboard.view") ? <Routes><Route path="/relatorio-mensal/:month" element={<MonthlyReportPage />} /></Routes> : <AccessDenied />;
   return (
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       <UpdateNotice />
