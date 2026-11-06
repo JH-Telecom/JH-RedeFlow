@@ -2597,6 +2597,15 @@
 :where(:root[data-theme="dark"]) .sa-heatmap td.is-total {
     box-shadow: inset 0 0 0 1px #101a27
 }
+:where(:root[data-theme="dark"]) .rp-order {
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .rp-state.is-late b, :where(:root[data-theme="dark"]) .rp-state.is-late small {
+    color: var(--dv-warning-ink)
+}
+:where(:root[data-theme="dark"]) .rp-state.is-outlier b, :where(:root[data-theme="dark"]) .rp-state.is-outlier small {
+    color: var(--dv-critical-ink)
+}
 
 /* update-notice.css */
 :where(:root[data-theme="dark"]) .update-notice-backdrop {

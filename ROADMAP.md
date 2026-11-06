@@ -4297,3 +4297,24 @@ Com a aba fixada já acordada (v1.3.2), os 4 baldes falharam com "Não achei o s
 
 ### Validação
 - `node --check`. Não foi verificado no OFS: depende do próximo ciclo de clusters.
+
+## Aba Relatórios: finalizados fora do prazo (2026-11-06)
+
+### Pedido
+Uma aba de Relatórios. O primeiro relatório lista os chamados finalizados, de uma data a outra, que ficaram fora do prazo (acima de 6h).
+
+### Implementado
+- Backend:
+  - `lateFinishedCalls` (`sla-analysis.ts`): status Finalizado, Data Fim no período e mais de 6h entre abertura e fim. É a mesma regra da Análise de prazo; acima de 9h é outlier.
+  - Ordem: do mais demorado para o menos.
+  - Rota `GET /api/relatorios/fora-do-prazo?from&to&area`, com a permissão `dashboard.view` e o mesmo escopo de supervisor.
+- Frontend: nova aba "Relatórios" em Indicadores (`/relatorios`).
+  - Seletor de tipo de relatório, preparado para os próximos.
+  - Filtros De/Até (padrão: começo do mês até hoje) e Área. O período também pode vir no endereço (`?de=&ate=`).
+  - Cartões: total, entre 6h e 9h, acima de 9h e tempo médio.
+  - Tabela: ordem (abre o chamado), técnico, abertura, Data Fim, tempo, evento, local e fechamento.
+  - Exportar Excel.
+
+### Validação
+- Teste novo `reports.test.ts`: dentro e fora do período, exatamente 6h, chamado aberto, ordem. Suíte 166/166.
+- Preview local (demo) com 2 chamados finalizados: tabela, cartões e filtros conferidos. Auditoria de contraste sem problemas nos temas claro e escuro.

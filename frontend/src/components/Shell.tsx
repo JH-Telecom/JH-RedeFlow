@@ -20,6 +20,7 @@ import { CallsPage, SupervisorOrdersPage } from "../pages/CallsPage";
 import { DashboardWithDateFilter } from "../pages/DashboardPage";
 import { IGPPage } from "../pages/IgpPage";
 import { SlaAnalysisPage } from "../pages/SlaAnalysisPage";
+import { ReportsPage } from "../pages/ReportsPage";
 import { ImportsPage } from "../pages/ImportsPage";
 import { ManualProductionDashboard } from "../pages/ManualProductionPage";
 import { RolesPage } from "../pages/RolesPage";
@@ -330,6 +331,7 @@ export function Shell({
             <Route path="/painel-diario" element={guard("dashboard.view", <ManualProductionDashboard />)} />
             <Route path="/igp" element={guard("dashboard.view", <IGPPage />)} />
             <Route path="/analise-prazo" element={guard("dashboard.view", <SlaAnalysisPage />)} />
+            <Route path="/relatorios" element={guard("dashboard.view", <ReportsPage />)} />
             <Route path="/importacoes" element={guard("imports.view", <ImportsPage />)} />
             <Route path="/chamados/:id" element={guard("calls.view", <CallDetailRoute />)} />
             <Route path="/tecnicos" element={guard("technicians.view", <TechniciansPage />)} />

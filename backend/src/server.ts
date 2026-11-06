@@ -7,7 +7,7 @@ import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, add
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
-import { calculateSlaAnalysis } from './sla-analysis.js';
+import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
@@ -273,6 +273,17 @@ app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), asyn
     return response.json({ analysis: calculateSlaAnalysis(calls, parsed.data.from, parsed.data.to, parsed.data.area) });
   } catch (error) {
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular a analise de prazo.' });
+  }
+});
+// Relatorios. "fora-do-prazo": finalizados no periodo (Data Fim) com mais de 6h entre abertura e fim.
+app.get('/api/relatorios/fora-do-prazo', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC', 'OUTRAS']).default('ALL') }).safeParse(request.query);
+  if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
+  try {
+    const calls = await listCalls(['Finalizado'], await getScopedCallQuery(request, true));
+    return response.json({ calls: lateFinishedCalls(calls, parsed.data.from, parsed.data.to, parsed.data.area) });
+  } catch (error) {
+    return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel gerar o relatorio.' });
   }
 });
 app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {

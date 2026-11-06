@@ -1473,6 +1473,15 @@
 :where(:root:not([data-theme="dark"])) .sa-heatmap td.is-empty {
     color: #606a78
 }
+:where(:root:not([data-theme="dark"])) .rp-order {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .rp-state.is-late b, :where(:root:not([data-theme="dark"])) .rp-state.is-late small {
+    color: var(--dv-warning-ink)
+}
+:where(:root:not([data-theme="dark"])) .rp-state.is-outlier b, :where(:root:not([data-theme="dark"])) .rp-state.is-outlier small {
+    color: var(--dv-critical-ink)
+}
 
 /* update-notice.css */
 :where(:root:not([data-theme="dark"])) .update-notice-icon {

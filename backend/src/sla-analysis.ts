@@ -260,3 +260,29 @@ export function calculateSlaAnalysis(calls: Call[], from: string, to: string, ar
     },
   };
 }
+
+// Relatorio "Finalizados fora do prazo": chamados finalizados no periodo (pela Data Fim) que passaram de 6h entre
+// abertura e fim. Mesma regra da analise: acima de 6h = fora do prazo, acima de 9h = outlier.
+export type LateCallRow = {
+  id: string; orderNumber: string; bdesk: string; type: string; reason: string; area: string; cluster?: string;
+  region: string; bairro: string; olt: string; technicianName: string; supervisorName: string;
+  openedAt: string; executedAt: string; hours: number; state: 'late' | 'outlier';
+  result: string; closingReason: string; closingSubreason: string; cableType: string;
+};
+export function lateFinishedCalls(calls: Call[], from: string, to: string, area: SlaArea = 'ALL'): LateCallRow[] {
+  return calls
+    .filter((call) => call.status === 'Finalizado' && call.executedAt)
+    .filter((call) => { const date = toOperationalDate(call.executedAt!); return date >= from && date <= to; })
+    .filter((call) => area === 'ALL' || classifyCallArea(call) === area)
+    .map((call) => ({ call, hours: (Date.parse(call.executedAt!) - Date.parse(call.openedAt)) / 3_600_000 }))
+    .filter(({ hours }) => Number.isFinite(hours) && hours > ON_TIME_MAX_HOURS)
+    .sort((left, right) => right.hours - left.hours)
+    .map(({ call, hours }) => ({
+      id: call.id, orderNumber: call.orderNumber, bdesk: call.bdesk || '', type: call.type || '', reason: call.reason || '',
+      area: classifyCallArea(call), cluster: call.cluster, region: call.region || '', bairro: call.bairro || '', olt: call.olt || '',
+      technicianName: call.technicianName || '', supervisorName: call.supervisorName || '',
+      openedAt: call.openedAt, executedAt: call.executedAt!, hours: Math.round(hours * 100) / 100,
+      state: hours > OUTLIER_AFTER_HOURS ? 'outlier' as const : 'late' as const,
+      result: call.result || '', closingReason: call.closingReason || '', closingSubreason: call.closingSubreason || '', cableType: call.cableType || '',
+    }));
+}

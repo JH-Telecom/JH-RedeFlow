@@ -12,6 +12,7 @@ export const PAGE_HELP: Record<string, string[]> = {
   "/acionamentos": ["Cards recebidos do grupo de acionamento no WhatsApp.", "Aceitar cria o chamado com a abertura no horário em que o card foi enviado; a Data/Hora do Evento fica guardada.", "Recusar exige um motivo."],
   "/painel-diario": ["Produção do dia a partir da base importada: ordens, técnicos e atividades."],
   "/igp": ["Indicadores do mês pela Data Fim dos chamados finalizados.", "Clusters: C.8 São Paulo, C.12 Guarulhos e C.11 Alto Tietê.", "Meta de 89% no prazo; mínimo de 85%."],
+  "/relatorios": ["Escolha o relatório, o período e a área.", "Finalizados fora do prazo: Data Fim no período e mais de 6h entre abertura e fim; acima de 9h é outlier.", "Exportar Excel leva o relatório inteiro."],
   "/analise-prazo": ["Quem, onde e quando se perde prazo (mais de 6h entre abertura e Data Fim).", "Média de entrantes conta todos os chamados abertos no período.", "O estudo noturno compara aberturas entre 18h e 06h com o dia."],
   "/modo-tv": ["Painel para a TV da operação: troca de visão a cada 20 s e atualiza a cada minuto.", "Setas trocam a visão, espaço pausa, Esc sai."],
   "/tecnicos": ["Cadastro dos técnicos, vínculo e supervisor. Técnicos inativos não recebem chamados."],

@@ -1,4 +1,4 @@
-import { Archive, BellRing, CalendarDays, ClipboardCheck, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
+import { Archive, BellRing, CalendarDays, ClipboardCheck, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
 
 // Abas do menu lateral. Usado pelo Shell (menu, rotas, busca Ctrl+K) e pela tela de Cargos (abas visiveis por cargo).
 export type NavItem = { label: string; to: string; icon: LucideIcon; permission: string; section: string; roles?: string[]; counter?: "unassigned" | "activations" };
@@ -14,6 +14,7 @@ export const navItems: NavItem[] = [
   { section: "Indicadores", label: "Painel diário", to: "/painel-diario", icon: CalendarDays, permission: "dashboard.view" },
   { section: "Indicadores", label: "IGP", to: "/igp", icon: Gauge, permission: "dashboard.view" },
   { section: "Indicadores", label: "Análise de prazo", to: "/analise-prazo", icon: Hourglass, permission: "dashboard.view" },
+  { section: "Indicadores", label: "Relatórios", to: "/relatorios", icon: FileBarChart, permission: "dashboard.view" },
   { section: "Indicadores", label: "Modo TV", to: "/modo-tv", icon: Tv, permission: "dashboard.view" },
   { section: "Equipes", label: "Técnicos", to: "/tecnicos", icon: HardHat, permission: "technicians.view" },
   { section: "Equipes", label: "Supervisores", to: "/supervisores", icon: UserCog, permission: "supervisors.view" },

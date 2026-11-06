@@ -39,6 +39,7 @@ export type CallListResult = { calls: Call[]; total: number; page: number; pageS
 export type IgpGroup = { orders: number; outliers: number; onTime: number; totalRepairHours: number; outlierPercent: number | null; onTimePercent: number | null; mttrHours: number | null };
 export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC';
 export type SlaArea = IgpArea | 'OUTRAS';
+export type LateCallRow = { id: string; orderNumber: string; bdesk: string; type: string; reason: string; area: string; cluster?: string; region: string; bairro: string; olt: string; technicianName: string; supervisorName: string; openedAt: string; executedAt: string; hours: number; state: 'late' | 'outlier'; result: string; closingReason: string; closingSubreason: string; cableType: string };
 export type SlaCounters = { orders: number; lost: number; outliers: number; lostPercent: number | null; outlierPercent: number | null; avgHours: number | null; avgExecutionHours: number | null; withExecution: number };
 export type SlaRankItem = SlaCounters & { name: string; detail?: string };
 export type SlaHourItem = SlaCounters & { hour: number };
@@ -99,6 +100,7 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
+  lateFinishedReport: (from: string, to: string, area: SlaArea = 'ALL') => request<{ calls: LateCallRow[] }>(`/api/relatorios/fora-do-prazo?from=${from}&to=${to}&area=${area}`),
   slaAnalysis: (from: string, to: string, area: SlaArea = 'ALL') => request<{ analysis: SlaAnalysis }>(`/api/dashboards/prazo?from=${from}&to=${to}&area=${area}`),
   igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics; plan?: IgpPlan }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),
   dailyBase: () => request<{ base?: ManualDailyBase }>('/api/dashboards/painel-diario/base'),
