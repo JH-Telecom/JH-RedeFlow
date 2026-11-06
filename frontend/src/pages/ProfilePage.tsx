@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Check, Image as ImageIcon, Moon, Palette, Sun, Trash2, UserRound } from "lucide-react";
-import { api, type ProfilePreferences, type Role, type User } from "../api";
+import { api, type ProfilePreferences, type Role, type User, type UserStatus } from "../api";
+import { StatusEditor } from "../components/StatusEditor";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { resizeBannerImage } from "../lib/banner-image";
 import { PALETTES, type PaletteId, type Theme } from "../theme";
@@ -9,13 +10,15 @@ type ProfilePhotoControls = { photo: string | null; saving: boolean; error: stri
 
 // Meu perfil: foto, banner, apelido e tema. Abre pelo avatar/nome na lateral e no topo.
 // O apelido aparece so para a propria pessoa (lateral e topo); para a equipe continua o nome.
-export function ProfilePage({ user, profile, preferences, onSavePreferences, theme, onToggleTheme }: {
+export function ProfilePage({ user, profile, preferences, onSavePreferences, theme, onToggleTheme, status, onSaveStatus }: {
   user: User & { role: Role };
   profile: ProfilePhotoControls;
   preferences: ProfilePreferences;
   onSavePreferences: (next: ProfilePreferences) => Promise<void>;
   theme: Theme;
   onToggleTheme: () => void;
+  status: UserStatus | null;
+  onSaveStatus: (next: UserStatus | null) => Promise<void>;
 }) {
   const photoInput = useRef<HTMLInputElement | null>(null);
   const bannerInput = useRef<HTMLInputElement | null>(null);
@@ -127,6 +130,8 @@ export function ProfilePage({ user, profile, preferences, onSavePreferences, the
           {preferences.nickname && <button className="secondary-button compact" type="button" disabled={nicknameSaving} onClick={() => { setNickname(""); void onSavePreferences({ ...preferences, nickname: null }).then(() => feedback("Apelido removido. Voltou a aparecer o seu nome.")).catch((err) => feedback(err instanceof Error ? err.message : "Não foi possível remover o apelido.", true)); }}>Remover</button>}
         </div>
       </form>
+
+      <StatusEditor status={status} onSave={onSaveStatus} />
 
       <section className="panel pf-card" aria-labelledby="pf-theme-title">
         <div className="pf-card-heading">

@@ -4,6 +4,7 @@ import { ChevronRight, Download, FileText, Paperclip, X } from "lucide-react";
 import { api, type Call, type CallAuditLog, type CallObservation, type CallStatus, type RepeatHistory, type Technician } from "../api";
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
+import { MentionTextarea, withMentions } from "../components/MentionTextarea";
 import { operationalRegions } from "../lib/constants";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
@@ -21,6 +22,14 @@ const looksLikeCode = (value?: string) => /^\d+$/.test(value?.trim() || "") || /
 function defaultResult(call: Call) {
   if (call.result?.trim() && !looksLikeCode(call.result)) return call.result.trim();
   return [call.closingReason, call.closingSubreason].filter((part) => part?.trim() && !looksLikeCode(part)).join(" — ");
+}
+
+// Resultado e observacao final num campo so ao finalizar: a primeira linha e o Resultado (ate 255, usado nos
+// relatorios) e o texto inteiro e a observacao final.
+function splitFinishText(text: string) {
+  const full = text.trim();
+  const firstLine = full.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || full;
+  return { result: firstLine.slice(0, 255), notes: full };
 }
 
 // Ordem a que este chamado esta atrelado: copiar (para conferir no OFS) ou abrir o chamado dela, se existir aqui.
@@ -83,7 +92,6 @@ export function CallDetailBase() {
   // Encerramento no proprio card de Atendimento: os campos aparecem conforme o status escolhido.
   const [result, setResult] = useState("");
   const [executedAt, setExecutedAt] = useState("");
-  const [finishNotes, setFinishNotes] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [canDeleteCall, setCanDeleteCall] = useState(false);
@@ -132,7 +140,7 @@ export function CallDetailBase() {
     }
     const executionDate = new Date(executedAt);
     if (finishing) {
-      const pending = [!technicianId && "Tecnico", !result.trim() && "Resultado", (!executedAt || Number.isNaN(executionDate.getTime())) && "Data e hora de execucao", !finishNotes.trim() && "Observacao final"].filter(Boolean) as string[];
+      const pending = [!technicianId && "Tecnico", (!executedAt || Number.isNaN(executionDate.getTime())) && "Data e hora de execucao", !result.trim() && "Resultado e observacao"].filter(Boolean) as string[];
       if (pending.length) { setMissing(pending); setMessage("Preencha os campos para finalizar."); return; }
     }
     if (cancelling && cancelReason.trim().length < 3) { setMessage("Informe o motivo do cancelamento."); return; }
@@ -142,7 +150,7 @@ export function CallDetailBase() {
       if (finishing || cancelling) {
         // Primeiro salva os dados (ex.: tecnico escolhido agora), depois encerra.
         await api.updateCall(id, { ...fields, status: current.status });
-        if (finishing) await api.finishCall(id, { result: result.trim(), executedAt: executionDate.toISOString(), notes: finishNotes.trim() });
+        if (finishing) await api.finishCall(id, { ...splitFinishText(result), executedAt: executionDate.toISOString() });
         else await api.cancelCall(id, cancelReason.trim());
         setMessage(finishing ? "Chamado finalizado com sucesso." : "Chamado cancelado com sucesso.");
       } else {
@@ -277,13 +285,16 @@ export function CallDetailBase() {
           </div>
           {showFinish && (
             <div className="status-fields">
-              <label className="detail-label">Resultado<input value={result} onChange={(event) => setResult(event.target.value)} placeholder="Ex.: reparo realizado" /></label>
               <label className="detail-label">
                 Data e hora de execucao
                 <input type="datetime-local" value={executedAt} onChange={(event) => setExecutedAt(event.target.value)} />
                 {call.executedAt && <span className="field-hint">Data Fim do OFS: {new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>}
               </label>
-              <label className="detail-label">Observacao final<textarea value={finishNotes} onChange={(event) => setFinishNotes(event.target.value)} rows={3} placeholder="Descreva a execucao" /></label>
+              <label className="detail-label">
+                Resultado e observacao
+                <textarea value={result} onChange={(event) => setResult(event.target.value)} rows={4} placeholder={"Ex.: Reparo realizado\nGIGA+, fibra emendada na CTO"} />
+                <span className="field-hint">A primeira linha vira o Resultado (relatórios); o texto todo fica como observação final.</span>
+              </label>
             </div>
           )}
           {showCancel && (
@@ -384,11 +395,11 @@ export function AuditedCallDetailPage() {
         {tab === "observations" ? (
           <>
             <div className="observation-compose">
-              <textarea
+              <MentionTextarea
                 value={text}
-                onChange={(event) => setText(event.target.value)}
+                onChange={setText}
                 onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void addNote(); } }}
-                placeholder="Registrar uma observacao operacional... (Ctrl+Enter salva)"
+                placeholder="Registrar uma observacao operacional... Use @ para mencionar alguém (Ctrl+Enter salva)"
                 rows={3}
               />
               <div className="observation-compose-actions">
@@ -424,7 +435,7 @@ export function AuditedCallDetailPage() {
                     </div>
                     {(item.text || item.attachments?.length > 0) && (
                       <div className="history-banner-body">
-                        {item.text && <p>{item.text}</p>}
+                        {item.text && <p>{withMentions(item.text)}</p>}
                         {item.attachments?.length > 0 && <div className="observation-attachments">{item.attachments.map((attachment) => <ObservationAttachmentItem key={attachment.id} callId={id} observationId={item.id} attachment={attachment} teamScoped={teamScoped}/>)}</div>}
                       </div>
                     )}
@@ -439,7 +450,7 @@ export function AuditedCallDetailPage() {
                       <small>
                         {new Date(item.createdAt).toLocaleString("pt-BR")}
                       </small>
-                      {item.text && <p>{item.text}</p>}
+                      {item.text && <p>{withMentions(item.text)}</p>}
                       {item.attachments?.length > 0 && <div className="observation-attachments">{item.attachments.map((attachment) => <ObservationAttachmentItem key={attachment.id} callId={id} observationId={item.id} attachment={attachment} teamScoped={teamScoped}/>)}</div>}
                     </div>
                   </div>

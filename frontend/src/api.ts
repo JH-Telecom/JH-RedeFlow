@@ -117,6 +117,8 @@ export type IntegrationHealth = {
   whatsapp: { configured: boolean; chat: string | null; alerts: IntegrationEventRow[] };
 };
 // Pessoas (diretorio so de leitura, aberto a todos).
+export type UserStatus = { text: string; emoji: string; until: string | null };
+export type Highlight = { kind: 'most-finished' | 'best-on-time' | 'best-supervisor'; title: string; name: string; detail: string; userId?: string };
 export type PersonCard = { id: string; name: string; email: string; roleName: string; online: boolean; lastSeenAt?: string; createdAt: string };
 
 export const api = {
@@ -131,8 +133,12 @@ export const api = {
   removeProfileBanner: () => request<{ deleted: boolean }>('/api/auth/banner', { method: 'DELETE' }),
   profilePreferences: () => request<ProfilePreferences>('/api/auth/preferences'),
   integrationHealth: () => request<IntegrationHealth>('/api/integracoes/saude'),
-  people: () => request<{ people: PersonCard[]; avatars: Record<string, string> }>('/api/people'),
-  person: (id: string) => request<{ person: PersonCard; avatar: string | null; banner: string | null }>(`/api/people/${encodeURIComponent(id)}`),
+  people: () => request<{ people: PersonCard[]; avatars: Record<string, string>; status?: Record<string, UserStatus> }>('/api/people'),
+  person: (id: string) => request<{ person: PersonCard; avatar: string | null; banner: string | null; status?: UserStatus | null }>(`/api/people/${encodeURIComponent(id)}`),
+  myStatus: () => request<{ status: UserStatus | null }>('/api/auth/status'),
+  saveMyStatus: (status: UserStatus | null) => request<{ status: UserStatus | null }>('/api/auth/status', { method: 'PUT', body: JSON.stringify(status ?? { status: null }) }),
+  markNotificationsRead: (ids?: string[]) => request<{ read: number }>('/api/notificacoes/lidas', { method: 'POST', body: JSON.stringify(ids ? { ids } : {}) }),
+  highlights: (month?: string) => request<{ month: string; highlights: Highlight[] }>(`/api/destaques${month ? `?month=${month}` : ''}`),
   saveProfilePreferences: (preferences: ProfilePreferences) => request<ProfilePreferences>('/api/auth/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),

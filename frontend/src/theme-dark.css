@@ -1666,6 +1666,74 @@
 :where(:root[data-theme="dark"]) .pp-modal-facts a {
     color: var(--accent-text)
 }
+:where(:root[data-theme="dark"]) .st-presets button {
+    border: 1px solid var(--line);
+    background: #181c22;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .st-presets button:hover {
+    border-color: #30425d
+}
+:where(:root[data-theme="dark"]) .st-presets button.is-active {
+    border-color: var(--blue);
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .st-emoji-grid {
+    border: 1px solid var(--line);
+    background: #181c22;
+    box-shadow: 0 12px 30px #0000004f
+}
+:where(:root[data-theme="dark"]) .st-emoji-grid button {
+    background: transparent
+}
+:where(:root[data-theme="dark"]) .st-emoji-grid button:hover, :where(:root[data-theme="dark"]) .st-emoji-grid button[aria-selected="true"] {
+    background: #0f1722
+}
+:where(:root[data-theme="dark"]) .st-emoji-grid .st-emoji-none {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .pp-custom-status {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .pp-modal-highlight {
+    color: #e1ad66
+}
+:where(:root[data-theme="dark"]) .pp-highlight {
+    border-left: 4px solid #5d4919
+}
+:where(:root[data-theme="dark"]) .pp-highlight small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pp-highlight strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .pp-highlight span {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mention-list {
+    border: 1px solid var(--line);
+    background: #181c22;
+    box-shadow: 0 12px 30px #0000004f
+}
+:where(:root[data-theme="dark"]) .mention-list button {
+    background: transparent
+}
+:where(:root[data-theme="dark"]) .mention-list button strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mention-list button small {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .mention-list button.is-active, :where(:root[data-theme="dark"]) .mention-list button:hover {
+    background: #0f1722
+}
+:where(:root[data-theme="dark"]) .mention {
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .notification-item.is-personal {
+    border-left: 3px solid var(--blue)
+}
 
 /* admin.css */
 :where(:root[data-theme="dark"]) .brand-logo-image {
@@ -3235,6 +3303,20 @@
 }
 :where(:root[data-theme="dark"]) .tv-mode .tv-muted, :where(:root[data-theme="dark"]) .tv-mode .tv-oldest td .tv-muted {
     color: #878a8f
+}
+:where(:root[data-theme="dark"]) .tv-highlight {
+    border: 1px solid #2c30381f;
+    border-top: 4px solid #5d4919;
+    background: #181c220d
+}
+:where(:root[data-theme="dark"]) .tv-highlight small {
+    color: #c7d0dd
+}
+:where(:root[data-theme="dark"]) .tv-highlight strong {
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .tv-highlight em {
+    color: #dbe3ee
 }
 
 /* contrast-fixes.css */

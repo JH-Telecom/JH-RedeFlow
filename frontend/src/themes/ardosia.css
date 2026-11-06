@@ -1648,6 +1648,74 @@
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pp-modal-facts a {
     color: var(--blue)
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-presets button {
+    border: 1px solid var(--line);
+    background: #fff;
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-presets button:hover {
+    border-color: #c7d6e5
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-presets button.is-active {
+    border-color: var(--blue);
+    background: #eef4fb;
+    color: var(--blue)
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-emoji-grid {
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: 0 12px 30px #17253324
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-emoji-grid button {
+    background: transparent
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-emoji-grid button:hover, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-emoji-grid button[aria-selected="true"] {
+    background: #eef4fb
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .st-emoji-grid .st-emoji-none {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pp-custom-status {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pp-modal-highlight {
+    color: #8a5a00
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pp-highlight {
+    border-left: 4px solid #e8b008
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pp-highlight small {
+    color: #606e7c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pp-highlight strong {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pp-highlight span {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .mention-list {
+    border: 1px solid var(--line);
+    background: #fff;
+    box-shadow: 0 12px 30px #17253324
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .mention-list button {
+    background: transparent
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .mention-list button strong {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .mention-list button small {
+    color: #606e7c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .mention-list button.is-active, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .mention-list button:hover {
+    background: #eef4fb
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .mention {
+    color: var(--blue)
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .notification-item.is-personal {
+    border-left: 3px solid var(--blue)
+}
 /* light · admin.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .brand-logo-image {
     box-shadow: 0 8px 18px #5272932b
@@ -3194,6 +3262,20 @@
 }
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .tv-mode .tv-muted, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .tv-mode .tv-oldest td .tv-muted {
     color: #9ca6b1
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .tv-highlight {
+    border: 1px solid #ffffff1f;
+    border-top: 4px solid #e8b008;
+    background: #ffffff0d
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .tv-highlight small {
+    color: #c8d0d9
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .tv-highlight strong {
+    color: #ffffff
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .tv-highlight em {
+    color: #dce3ea
 }
 /* light · contrast-fixes.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .role-row-button {
@@ -4863,6 +4945,74 @@
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .pp-modal-facts a {
     color: var(--accent-text)
 }
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .st-presets button {
+    border: 1px solid var(--line);
+    background: #191c20;
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .st-presets button:hover {
+    border-color: #334354
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .st-presets button.is-active {
+    border-color: var(--blue);
+    background: #10171e;
+    color: var(--accent-text)
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .st-emoji-grid {
+    border: 1px solid var(--line);
+    background: #191c20;
+    box-shadow: 0 12px 30px #0000004f
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .st-emoji-grid button {
+    background: transparent
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .st-emoji-grid button:hover, :where(:root[data-palette="ardosia"][data-theme="dark"]) .st-emoji-grid button[aria-selected="true"] {
+    background: #10171e
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .st-emoji-grid .st-emoji-none {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pp-custom-status {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pp-modal-highlight {
+    color: #e1ad66
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pp-highlight {
+    border-left: 4px solid #5d4919
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pp-highlight small {
+    color: #aaaeb3
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pp-highlight strong {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pp-highlight span {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .mention-list {
+    border: 1px solid var(--line);
+    background: #191c20;
+    box-shadow: 0 12px 30px #0000004f
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .mention-list button {
+    background: transparent
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .mention-list button strong {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .mention-list button small {
+    color: #aaaeb3
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .mention-list button.is-active, :where(:root[data-palette="ardosia"][data-theme="dark"]) .mention-list button:hover {
+    background: #10171e
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .mention {
+    color: var(--accent-text)
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .notification-item.is-personal {
+    border-left: 3px solid var(--blue)
+}
 /* dark · admin.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .brand-logo-image {
     box-shadow: 0 8px 18px #55759645
@@ -6419,6 +6569,20 @@
 }
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .tv-mode .tv-muted, :where(:root[data-palette="ardosia"][data-theme="dark"]) .tv-mode .tv-oldest td .tv-muted {
     color: #878a8f
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .tv-highlight {
+    border: 1px solid #2c30351f;
+    border-top: 4px solid #5d4919;
+    background: #191c200d
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .tv-highlight small {
+    color: #c8d0d9
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .tv-highlight strong {
+    color: #ffffff
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .tv-highlight em {
+    color: #dce3ea
 }
 /* dark · contrast-fixes.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .role-row-button {

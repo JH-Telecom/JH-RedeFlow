@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Mail, Search, X } from "lucide-react";
-import { api, type PersonCard } from "../api";
+import { Mail, Search, Trophy, X } from "lucide-react";
+import { api, type Highlight, type PersonCard, type UserStatus } from "../api";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 
 // Pessoas: diretorio SO DE LEITURA, aberto a todos. Mostra quem faz parte do O&M e quem esta online,
@@ -19,6 +19,8 @@ function lastSeenText(person: PersonCard) {
 export function PeoplePage({ currentUserId }: { currentUserId: string }) {
   const [people, setPeople] = useState<PersonCard[] | null>(null);
   const [avatars, setAvatars] = useState<Record<string, string>>({});
+  const [statuses, setStatuses] = useState<Record<string, UserStatus>>({});
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [onlyOnline, setOnlyOnline] = useState(false);
@@ -28,9 +30,10 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
   useEffect(() => {
     let active = true;
     const load = () => api.people()
-      .then((data) => { if (!active) return; setPeople(data.people); setAvatars(data.avatars); setError(""); })
+      .then((data) => { if (!active) return; setPeople(data.people); setAvatars(data.avatars); setStatuses(data.status ?? {}); setError(""); })
       .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Não foi possível carregar as pessoas."); });
     void load();
+    api.highlights().then((data) => { if (active) setHighlights(data.highlights); }).catch(() => undefined);
     const interval = window.setInterval(load, 30000); // status online atualiza sozinho
     return () => { active = false; window.clearInterval(interval); };
   }, []);
@@ -47,6 +50,20 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
           <p>Quem faz parte do O&amp;M e quem está online agora. Clique em alguém para ver o perfil.</p>
         </div>
       </div>
+
+      {highlights.length > 0 && (
+        <section className="pp-highlights" aria-label="Destaques do mês">
+          <span className="section-kicker"><Trophy size={13} aria-hidden="true" /> DESTAQUES DO MÊS</span>
+          <div className="pp-highlight-list">
+            {highlights.map((item) => (
+              <article key={item.kind} className="panel pp-highlight">
+                <span className="pp-highlight-icon" aria-hidden="true">🏆</span>
+                <div><small>{item.title}</small><strong>{item.name}</strong><span>{item.detail}</span></div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="pp-toolbar">
         <label className="search-field pp-search"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nome, cargo ou e-mail" aria-label="Buscar pessoas" /></label>
@@ -68,8 +85,9 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
                   <i className={`pp-dot${person.online ? " is-online" : ""}`} aria-hidden="true" />
                 </span>
                 <span className="pp-card-text">
-                  <strong>{person.name}{person.id === currentUserId && <small className="pp-you">você</small>}</strong>
+                  <strong>{person.name}{person.id === currentUserId && <small className="pp-you">você</small>}{highlights.some((item) => item.userId === person.id) && <span className="pp-trophy" title="Destaque do mês">🏆</span>}</strong>
                   <span>{person.roleName}</span>
+                  {statuses[person.id] && <span className="pp-custom-status">{statuses[person.id].emoji} {statuses[person.id].text}</span>}
                   <small className={person.online ? "pp-status is-online" : "pp-status"}>{lastSeenText(person)}</small>
                 </span>
               </button>
@@ -77,19 +95,20 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
           </div>
         )}
 
-      {openId && <PersonModal id={openId} card={people?.find((person) => person.id === openId)} photo={avatars[openId] ?? null} onClose={closeModal} />}
+      {openId && <PersonModal id={openId} card={people?.find((person) => person.id === openId)} photo={avatars[openId] ?? null} highlight={highlights.find((item) => item.userId === openId)} onClose={closeModal} />}
     </div>
   );
 }
 
-function PersonModal({ id, card, photo, onClose }: { id: string; card?: PersonCard; photo: string | null; onClose: () => void }) {
+function PersonModal({ id, card, photo, highlight, onClose }: { id: string; card?: PersonCard; photo: string | null; highlight?: Highlight; onClose: () => void }) {
+  const [status, setStatus] = useState<UserStatus | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [person, setPerson] = useState<PersonCard | undefined>(card);
   const [avatar, setAvatar] = useState<string | null>(photo);
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
-    api.person(id).then((data) => { if (!active) return; setPerson(data.person); setAvatar(data.avatar); setBanner(data.banner); })
+    api.person(id).then((data) => { if (!active) return; setPerson(data.person); setAvatar(data.avatar); setBanner(data.banner); setStatus(data.status ?? null); })
       .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Não foi possível abrir o perfil."); });
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -110,6 +129,8 @@ function PersonModal({ id, card, photo, onClose }: { id: string; card?: PersonCa
             </span>
             <h2 id="pp-modal-name">{person.name}</h2>
             <p className="pp-modal-role">{person.roleName}</p>
+            {status && <p className="pp-custom-status pp-modal-status">{status.emoji} {status.text}</p>}
+            {highlight && <p className="pp-modal-highlight">🏆 {highlight.title}: {highlight.detail}</p>}
             <p className={person.online ? "pp-status is-online" : "pp-status"}>{lastSeenText(person)}</p>
             <dl className="pf-hero-facts pp-modal-facts">
               <div><dt>E-mail</dt><dd><a href={`mailto:${person.email}`}><Mail size={13} aria-hidden="true" /> {person.email}</a></dd></div>

@@ -11,7 +11,7 @@ import { HelpTip, PAGE_HELP } from "./HelpTip";
 import { ImageReadyToast } from "./ImageReadyToast";
 import { TvModePage } from "../pages/TvModePage";
 import faviconUrl from "../../image/favicon.ico";
-import { api, type Role, type User, type AppNotification, type ProfilePreferences } from "../api";
+import { api, type Role, type User, type AppNotification, type ProfilePreferences, type UserStatus } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
 import { AccessDenied } from "./ui";
 import { ActivationsPage } from "../pages/ActivationsPage";
@@ -124,6 +124,8 @@ export function Shell({
   // Apelido (so para a propria pessoa) e tema de cor do perfil.
   const [preferences, setPreferences] = useState<ProfilePreferences>({ nickname: null, palette: null });
   const displayName = preferences.nickname || user.name;
+  const [myStatus, setMyStatus] = useState<UserStatus | null>(null);
+  async function saveMyStatus(next: UserStatus | null) { setMyStatus((await api.saveMyStatus(next)).status); }
   const knownActivationIds = useRef<Set<string> | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -161,6 +163,7 @@ export function Shell({
     let active = true;
     api.profileAvatar().then(({ avatarDataUrl }) => { if (active) setProfilePhoto(avatarDataUrl); }).catch(() => {});
     // O tema salvo no perfil vale em qualquer computador; a copia local so serve para abrir ja com a cor certa.
+    api.myStatus().then(({ status }) => { if (active) setMyStatus(status); }).catch(() => {});
     api.profilePreferences().then((next) => {
       if (!active) return;
       setPreferences(next);
@@ -305,7 +308,7 @@ export function Shell({
             <ProfileLink name={displayName} photo={profilePhoto} className="avatar" />
             <NavLink to="/perfil" className="profile-mini-name" title="Meu perfil">
               <strong>{displayName}</strong>
-              <small>{user.role.name}</small>
+              <small>{myStatus ? `${myStatus.emoji} ${myStatus.text}`.trim() : user.role.name}</small>
             </NavLink>
             <button className="icon-button profile-logout" onClick={logout} title="Sair">
               <LogOut size={16} />
@@ -340,7 +343,7 @@ export function Shell({
                 <Bell size={18} />
                 {notifications.length > 0 && <i />}
               </button>
-              {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span></div>{notifications.length ? notifications.map((notification) => <button className="notification-item" key={notification.id} onClick={() => { setNotificationsOpen(false); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
+              {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span>{notifications.some((item) => item.id.startsWith("user:")) && <button type="button" className="link-button notification-read-all" onClick={() => void api.markNotificationsRead().then(() => loadNotifications())}>Marcar menções como lidas</button>}</div>{notifications.length ? notifications.map((notification) => <button className={`notification-item${notification.id.startsWith("user:") ? " is-personal" : ""}`} key={notification.id} onClick={() => { setNotificationsOpen(false); if (notification.id.startsWith("user:")) void api.markNotificationsRead([notification.id]).then(() => loadNotifications()); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
             </div>
             <ProfileLink name={displayName} photo={profilePhoto} className="topbar-avatar" />
           </div>
@@ -382,7 +385,7 @@ export function Shell({
             <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />
             <Route path="/integracao-ofs" element={guard("imports.view", <IntegrationHealthPage />)} />
             <Route path="/pessoas" element={<PeoplePage currentUserId={user.id} />} />
-            <Route path="/perfil" element={<ProfilePage user={user} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} preferences={preferences} onSavePreferences={savePreferences} theme={theme} onToggleTheme={toggleTheme} />} />
+            <Route path="/perfil" element={<ProfilePage user={user} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} preferences={preferences} onSavePreferences={savePreferences} theme={theme} onToggleTheme={toggleTheme} status={myStatus} onSaveStatus={saveMyStatus} />} />
             <Route path="/configuracoes" element={<SettingsPage user={user} canManage={canAccess("settings.manage")} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -10,6 +10,8 @@ import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.j
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, productivityReport } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
+import { activeStatus, findMentions, monthHighlights } from './team.js';
+import { createUserNotifications, getUserStatuses, listUnreadNotifications, markNotificationsRead, saveUserStatus } from './store/team.js';
 import { parseImport } from './imports/parser.js';
 import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistoricalActivationWorkbook, type HistoricalActivationCandidate } from './imports/historical-activations.js';
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
@@ -255,6 +257,20 @@ app.put('/api/auth/preferences', auth, async (request: AuthRequest, response) =>
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o perfil.' }); }
 });
 
+// Status personalizado (como no Discord): emoji + texto, opcionalmente ate uma hora. Aparece na aba Pessoas.
+app.get('/api/auth/status', auth, async (request: AuthRequest, response) => {
+  try { return response.json({ status: activeStatus((await getUserStatuses([request.authUser!.id]))[request.authUser!.id]) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o status.' }); }
+});
+app.put('/api/auth/status', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({ text: z.string().trim().max(60).default(''), emoji: z.string().trim().max(16).default(''), until: z.string().datetime().nullish() }).nullable().safeParse(request.body?.status === null ? null : request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Status com ate 60 caracteres.' });
+  const status = parsed.data && (parsed.data.text || parsed.data.emoji) ? { text: parsed.data.text, emoji: parsed.data.emoji, until: parsed.data.until ?? null } : null;
+  if (status?.until && Date.parse(status.until) <= Date.now()) return response.status(400).json({ message: 'O horario para limpar o status ja passou.' });
+  try { await saveUserStatus(request.authUser!.id, status); return response.json({ status }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o status.' }); }
+});
+
 // Banner do perfil (1 imagem larga JPEG/PNG/WebP, ja reduzida no navegador).
 app.get('/api/auth/banner', auth, async (request: AuthRequest, response) => {
   try { return response.json({ bannerDataUrl: (await getUserBanners([request.authUser!.id]))[request.authUser!.id] ?? null }); }
@@ -411,7 +427,26 @@ app.get('/api/notificacoes', auth, async (request: AuthRequest, response) => {
       if (near.length) notifications.unshift({ id: 'near-deadline', type: 'warning', title: `${near.length} chamado(s) vencem em menos de 2h`, detail: `Mais perto: ${near[0].orderNumber}, faltam ${near[0].minutesLeft} min.`, href: '/chamados/atendimento', count: near.length });
     } catch { /* supervisor sem equipe: sem o aviso */ }
   }
+  // Avisos da propria pessoa (mencoes), ate marcar como lido.
+  try {
+    for (const item of await listUnreadNotifications(request.authUser!.id)) notifications.unshift({ id: `user:${item.id}`, type: 'info', title: item.title, detail: item.detail, href: item.href, count: 1 });
+  } catch { /* tabela ainda nao criada: sem os avisos pessoais */ }
   return response.json({ notifications });
+});
+app.post('/api/notificacoes/lidas', auth, async (request: AuthRequest, response) => {
+  const parsed = z.object({ ids: z.array(z.string().max(80)).max(100).optional() }).safeParse(request.body || {});
+  if (!parsed.success) return response.status(400).json({ message: 'Ids invalidos.' });
+  const ids = parsed.data.ids?.map((id) => id.replace(/^user:/, ''));
+  try { return response.json({ read: await markNotificationsRead(request.authUser!.id, ids) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel marcar como lido.' }); }
+});
+// Destaques do mes (aba Pessoas e Modo TV): mais finalizados no prazo, melhor % no prazo e melhor supervisor.
+app.get('/api/destaques', auth, async (request: AuthRequest, response) => {
+  const month = typeof request.query.month === 'string' && /^\d{4}-\d{2}$/.test(request.query.month) ? request.query.month : toOperationalDate().slice(0, 7);
+  try {
+    const [calls, technicians, supervisors] = await Promise.all([listCalls(['Finalizado']), listTechnicians(), listSupervisors()]);
+    return response.json({ month, highlights: monthHighlights(calls, technicians, supervisors, month) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular os destaques.' }); }
 });
 app.get('/api/users', auth, requirePermission('users.view'), async (_request, response) => response.json({ users: (await listUsers()).map((user) => ({ ...user, ...presenceOf(user.id) })) }));
 // Pessoas: diretorio SO DE LEITURA para qualquer usuario logado (nome, cargo, e-mail, foto, banner e se esta online).
@@ -425,16 +460,20 @@ function personCard(user: Awaited<ReturnType<typeof listUsers>>[number]): Person
 app.get('/api/people', auth, async (_request, response) => {
   try {
     const people = (await listUsers()).filter((user) => user.active).map(personCard).sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name, 'pt-BR'));
-    const avatars = await getUserAvatars(people.map((person) => person.id)).catch(() => ({}));
-    return response.json({ people, avatars });
+    const [avatars, statuses] = await Promise.all([
+      getUserAvatars(people.map((person) => person.id)).catch(() => ({})),
+      getUserStatuses(people.map((person) => person.id)).catch(() => ({} as Awaited<ReturnType<typeof getUserStatuses>>)),
+    ]);
+    const status = Object.fromEntries(Object.entries(statuses).map(([id, value]) => [id, activeStatus(value)]).filter(([, value]) => value));
+    return response.json({ people, avatars, status });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar as pessoas.' }); }
 });
 app.get('/api/people/:id', auth, async (request, response) => {
   try {
     const user = (await listUsers()).find((item) => item.id === request.params.id && item.active);
     if (!user) return response.status(404).json({ message: 'Pessoa nao encontrada.' });
-    const [avatars, banners] = await Promise.all([getUserAvatars([user.id]).catch(() => ({} as Record<string, string>)), getUserBanners([user.id]).catch(() => ({} as Record<string, string>))]);
-    return response.json({ person: personCard(user), avatar: avatars[user.id] ?? null, banner: banners[user.id] ?? null });
+    const [avatars, banners, statuses] = await Promise.all([getUserAvatars([user.id]).catch(() => ({} as Record<string, string>)), getUserBanners([user.id]).catch(() => ({} as Record<string, string>)), getUserStatuses([user.id]).catch(() => ({} as Awaited<ReturnType<typeof getUserStatuses>>))]);
+    return response.json({ person: personCard(user), avatar: avatars[user.id] ?? null, banner: banners[user.id] ?? null, status: activeStatus(statuses[user.id]) });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o perfil.' }); }
 });
 
@@ -696,7 +735,17 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
   const existing = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
   if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
-  return response.status(201).json({ observation: await addObservation(String(request.params.id), request.authUser!, parsed.data.text, decodedAttachments) });
+  const observation = await addObservation(String(request.params.id), request.authUser!, parsed.data.text, decodedAttachments);
+  // Mencoes (@Nome Completo): cada pessoa mencionada recebe um aviso no sino ate abrir.
+  if (parsed.data.text.includes('@')) {
+    try {
+      const users = await listUsers();
+      const mentioned = findMentions(parsed.data.text, users, request.authUser!.id).filter((id) => users.find((user) => user.id === id)?.role?.permissions?.includes('calls.view'));
+      const snippet = parsed.data.text.replace(/\s+/g, ' ').slice(0, 140);
+      await createUserNotifications(mentioned.map((userId) => ({ userId, kind: 'mention', title: `${request.authUser!.name} mencionou você`, detail: `${existing.orderNumber}: ${snippet}`, href: `/chamados/${existing.id}` })));
+    } catch (error) { console.warn(`[Mencoes] nao foi possivel avisar: ${error instanceof Error ? error.message : error}`); }
+  }
+  return response.status(201).json({ observation });
 });
 app.get('/api/chamados/:id/observacoes/:observationId/anexos/:attachmentId', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const callId = String(request.params.id);

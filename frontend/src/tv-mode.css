@@ -64,3 +64,11 @@
 .tv-mode .tv-oldest td, .tv-mode .tv-oldest td strong, .tv-mode .tv-card, .tv-mode .tv-bars li, .tv-mode .tv-rank li { color: #e6ebf2; }
 .tv-mode .tv-oldest td strong { color: #fff; }
 .tv-mode .tv-muted, .tv-mode .tv-oldest td .tv-muted { color: #9aa6b6; }
+
+/* Destaques do mes (4a visao do Modo TV) */
+.tv-highlight-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 16px; }
+.tv-highlight { display: grid; justify-items: center; gap: 8px; padding: 28px 20px; border: 1px solid #ffffff1f; border-top: 4px solid #e8b008; border-radius: 14px; background: #ffffff0d; text-align: center; }
+.tv-highlight span { font-size: 46px; }
+.tv-highlight small { color: #c7d0dd; font-size: 15px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.tv-highlight strong { color: #ffffff; font-size: 30px; }
+.tv-highlight em { color: #dbe3ee; font-size: 17px; font-style: normal; }

@@ -97,8 +97,36 @@ async function pruneSupabaseUserAvatarRow(userId: string) {
   const { data, error } = await getSupabaseAdmin().from('user_avatars').select('*').eq('user_id', userId).maybeSingle();
   if (error || !data) return;
   const row = data as Record<string, unknown>;
-  if (row.data_url || row.banner_data_url || row.nickname || row.palette) return;
+  if (row.data_url || row.banner_data_url || row.nickname || row.palette || row.status_text || row.status_emoji) return;
   await getSupabaseAdmin().from('user_avatars').delete().eq('user_id', userId);
+}
+
+// Status personalizado (aba Pessoas): texto, emoji e ate quando vale. select('*') para nao quebrar antes da migracao.
+export async function getSupabaseUserStatuses(userIds: string[]): Promise<Record<string, { text: string; emoji: string; until: string | null }>> {
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('*').in('user_id', userIds);
+  if (error) throw new Error(error.message);
+  const result: Record<string, { text: string; emoji: string; until: string | null }> = {};
+  for (const row of (data || []) as Record<string, unknown>[]) {
+    if (!row.status_text && !row.status_emoji) continue;
+    result[String(row.user_id)] = { text: String(row.status_text || ''), emoji: String(row.status_emoji || ''), until: row.status_until ? String(row.status_until) : null };
+  }
+  return result;
+}
+
+export async function saveSupabaseUserStatus(userId: string, status: { text: string; emoji: string; until: string | null } | null): Promise<void> {
+  const admin = getSupabaseAdmin();
+  const { data: existing, error: readError } = await admin.from('user_avatars').select('user_id').eq('user_id', userId).maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if (!existing && !status) return;
+  const fields = { status_text: status?.text || null, status_emoji: status?.emoji || null, status_until: status?.until || null, updated_at: new Date().toISOString() };
+  const { error } = existing
+    ? await admin.from('user_avatars').update(fields).eq('user_id', userId)
+    : await admin.from('user_avatars').insert({ user_id: userId, data_url: '', ...fields });
+  if (error) {
+    if (/status_/.test(error.message)) throw new Error('O status ainda não pode ser salvo: falta aplicar a migração 202611060003_team_features no banco.');
+    throw new Error(error.message);
+  }
+  if (!status) await pruneSupabaseUserAvatarRow(userId);
 }
 
 // Preferencias do perfil: apelido (so aparece para a propria pessoa) e tema de cor.

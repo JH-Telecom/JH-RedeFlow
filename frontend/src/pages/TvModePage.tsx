@@ -1,14 +1,14 @@
 import { AlertTriangle, ChevronLeft, ChevronRight, Maximize2, Minimize2, Pause, Play, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type DashboardMetrics, type DueSoonResult, type SlaAnalysis } from "../api";
+import { api, type DashboardMetrics, type DueSoonResult, type Highlight, type SlaAnalysis } from "../api";
 import { toOperationalDate } from "../dates";
 
 // Modo TV: painel em tela cheia para a TV da operacao. Alterna sozinho entre as visoes a cada 20 s e
 // atualiza os dados a cada minuto. Teclas: setas trocam a visao, espaco pausa, Esc sai.
 const SLIDE_MS = 20_000;
 const REFRESH_MS = 60_000;
-const SLIDES = ["Agora", "Mais antigos", "Prazo do mês"] as const;
+const SLIDES = ["Agora", "Mais antigos", "Prazo do mês", "Destaques"] as const;
 
 const elapsed = (iso: string, now: number) => {
   const minutes = Math.max(0, Math.floor((now - Date.parse(iso)) / 60_000));
@@ -30,6 +30,7 @@ export function TvModePage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [dueSoon, setDueSoon] = useState<DueSoonResult | null>(null);
   const [month, setMonth] = useState<SlaAnalysis | null>(null);
+  const [highlights, setHighlights] = useState<Highlight[] | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement));
 
@@ -38,11 +39,12 @@ export function TvModePage() {
     async function load() {
       const today = toOperationalDate();
       const from = `${today.slice(0, 8)}01`;
-      const [dashboard, due, analysis] = await Promise.allSettled([api.dashboard(), api.dueSoon(), api.slaAnalysis(from, today)]);
+      const [dashboard, due, analysis, monthHighlights] = await Promise.allSettled([api.dashboard(), api.dueSoon(), api.slaAnalysis(from, today), api.highlights()]);
       if (!active) return;
       if (dashboard.status === "fulfilled") setMetrics(dashboard.value.metrics);
       if (due.status === "fulfilled") setDueSoon(due.value);
       if (analysis.status === "fulfilled") setMonth(analysis.value.analysis);
+      if (monthHighlights.status === "fulfilled") setHighlights(monthHighlights.value.highlights);
       setUpdatedAt(Date.now());
     }
     void load();
@@ -132,6 +134,12 @@ export function TvModePage() {
                 <tr key={call.id}><td><strong>{call.orderNumber}</strong></td><td>{call.type}</td><td>{call.region}</td><td>{call.technicianName || <span className="tv-muted">sem técnico</span>}</td><td>{call.status}</td><td><b className={slaTone(call.openedAt, now)}>{elapsed(call.openedAt, now)}</b></td></tr>
               ))}{!metrics.oldestActive.length && <tr><td colSpan={6} className="tv-muted">Nenhum chamado ativo.</td></tr>}</tbody>
             </table>
+          </section>
+        ) : slide === 3 ? (
+          <section className="tv-card tv-highlights"><h2>Destaques do mês</h2>
+            {!highlights ? <div className="tv-empty">Carregando...</div> : !highlights.length ? <p className="tv-muted">Ainda sem destaques neste mês (precisa de chamados finalizados; o % no prazo conta a partir de 10).</p> : (
+              <div className="tv-highlight-list">{highlights.map((item) => <article key={item.kind} className="tv-highlight"><span aria-hidden="true">🏆</span><small>{item.title}</small><strong>{item.name}</strong><em>{item.detail}</em></article>)}</div>
+            )}
           </section>
         ) : (
           <div className="tv-month">

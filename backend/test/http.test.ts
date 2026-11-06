@@ -1092,6 +1092,38 @@ test('OFS collector extension logs in with the system user and its session only 
   assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);
 });
 
+test('team: own status shows in Pessoas, mentions notify the person until read', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string; user: { id: string; name: string } });
+  const admin = await login('admin@jhtelecom.com');
+  const supervisor = await login('joao@jhtelecom.com');
+  const adminHeaders = { 'content-type': 'application/json', authorization: `Bearer ${admin.token}` };
+  const supHeaders = { 'content-type': 'application/json', authorization: `Bearer ${supervisor.token}` };
+
+  const until = new Date(Date.now() + 3_600_000).toISOString();
+  assert.equal((await fetch(`${baseUrl}/api/auth/status`, { method: 'PUT', headers: adminHeaders, body: JSON.stringify({ text: 'Em campo', emoji: '🚗', until }) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/auth/status`, { method: 'PUT', headers: adminHeaders, body: JSON.stringify({ text: 'x', until: new Date(Date.now() - 1000).toISOString() }) })).status, 400);
+  const people = await (await fetch(`${baseUrl}/api/people`, { headers: supHeaders })).json() as { status: Record<string, { text: string; emoji: string }> };
+  assert.deepEqual({ text: people.status[admin.user.id].text, emoji: people.status[admin.user.id].emoji }, { text: 'Em campo', emoji: '🚗' });
+  assert.equal((await fetch(`${baseUrl}/api/auth/status`, { method: 'PUT', headers: adminHeaders, body: JSON.stringify({ status: null }) })).status, 200);
+  const cleared = await (await fetch(`${baseUrl}/api/auth/status`, { headers: adminHeaders })).json() as { status: unknown };
+  assert.equal(cleared.status, null);
+
+  const observation = await fetch(`${baseUrl}/api/chamados/call-240918-01/observacoes`, { method: 'POST', headers: adminHeaders, body: JSON.stringify({ text: `@${supervisor.user.name} pode olhar esse?` }) });
+  assert.equal(observation.status, 201);
+  const bell = await (await fetch(`${baseUrl}/api/notificacoes`, { headers: supHeaders })).json() as { notifications: { id: string; title: string; href: string }[] };
+  const mention = bell.notifications.find((item) => item.id.startsWith('user:'));
+  assert.ok(mention, 'supervisor recebeu a mencao');
+  assert.match(mention.title, /mencionou você/);
+  assert.equal(mention.href, '/chamados/call-240918-01');
+  assert.equal((await (await fetch(`${baseUrl}/api/notificacoes`, { headers: adminHeaders })).json() as { notifications: { id: string }[] }).notifications.some((item) => item.id.startsWith('user:')), false, 'quem escreveu nao e avisado');
+  assert.equal((await fetch(`${baseUrl}/api/notificacoes/lidas`, { method: 'POST', headers: supHeaders, body: JSON.stringify({ ids: [mention.id] }) })).status, 200);
+  const after = await (await fetch(`${baseUrl}/api/notificacoes`, { headers: supHeaders })).json() as { notifications: { id: string }[] };
+  assert.equal(after.notifications.some((item) => item.id === mention.id), false);
+
+  const highlights = await fetch(`${baseUrl}/api/destaques?month=2026-11`, { headers: supHeaders });
+  assert.equal(highlights.status, 200);
+});
+
 test('operations: queue map, technician load and repeat calls', async () => {
   const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
   const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };

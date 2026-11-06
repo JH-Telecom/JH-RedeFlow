@@ -4523,3 +4523,43 @@ Implementar todas as ideias sugeridas, em lotes, começando pela integração. L
 - Teste novo `operations.test.ts`: situação do prazo, reincidência (janela de 30 dias, cancelado e ponto incompleto fora), mapa por região e bairro, e ordem e números da carga.
 - Teste HTTP das 4 rotas, incluindo o escopo do supervisor na carga. Suíte 184/184; a primeira rodada teve o timeout conhecido em um teste não relacionado.
 - Preview: mapa com bairro aberto, carga com chamados abertos na linha, e reincidente no detalhe e na fila (dois chamados da demo apontados para o mesmo ponto). Contraste sem problemas no claro e no escuro.
+
+## Lote 4 das ideias: equipe (2026-11-06)
+
+### Implementado
+- **Status personalizado** (como no Discord): emoji + texto de até 60 caracteres, editado em Meu perfil (`StatusEditor.tsx`).
+  - Atalhos: Em campo, Em reunião, Almoço, Focado, Home office e Ausente.
+  - "Limpar depois de": 1h, 4h, fim do dia ou não limpar.
+  - Aparece no cartão e no perfil da aba Pessoas e na lateral de quem definiu (no lugar do cargo). Status vencido some sozinho.
+  - Rotas `GET/PUT /api/auth/status`. Fica na linha de `user_avatars` (colunas `status_text`, `status_emoji`, `status_until`), e a linha só é apagada quando foto, banner, apelido, tema e status estão todos vazios.
+- **Menções**: ao digitar `@` numa observação aparece a lista de pessoas, e a escolhida entra como "@Nome Completo" (`MentionTextarea.tsx`, com setas, Enter/Tab e Esc).
+  - No texto salvo, a menção aparece em destaque.
+  - O servidor reconhece o nome completo (sem diferença de acento ou maiúscula; nome mais longo primeiro) e avisa no sino quem foi mencionado e pode ver chamados. Quem escreveu não é avisado.
+  - O aviso fica até a pessoa clicar nele ou usar "Marcar menções como lidas".
+  - Nova tabela `user_notifications` e rota `POST /api/notificacoes/lidas`.
+- **Destaques do mês** (`GET /api/destaques`): técnico com mais finalizados no prazo, técnico com melhor % no prazo (mínimo 10) e supervisor com melhor % no prazo (mínimo 10).
+  - Aparecem no topo da aba Pessoas, com troféu no cartão do supervisor destacado quando ele tem usuário, e numa 4ª visão do Modo TV ("Destaques").
+- Migração `202611060003_team_features.sql`: três colunas de status em `user_avatars` e a tabela `user_notifications` (RLS ligado, sem políticas).
+  - Sem a migração, a leitura não quebra e o salvamento do status avisa que ela falta.
+
+### Validação
+- Teste novo `team.test.ts`: status vencido, menções (acentos, nome mais longo, palavra parcial, inativo, autor) e destaques.
+- Teste HTTP do status na aba Pessoas e da menção chegando ao sino só de quem foi mencionado e saindo ao marcar como lida. Suíte 188/188.
+- Preview:
+  - status salvo e na lateral e no cartão;
+  - `@Jo` abriu a lista, "Joao da Silva" foi escolhido, a observação saiu com a menção destacada e o sino do João recebeu o aviso.
+  - Contraste sem problemas no claro e no escuro.
+
+## Finalizar chamado: Resultado e Observação final num campo só (2026-11-06)
+
+### Pedido
+Juntar "Resultado" e "Observação final" no formulário de finalizar o chamado.
+
+### Implementado
+- O formulário de finalizar (`CallDetailPage.tsx`) agora tem "Data e hora de execução" e um campo só, "Resultado e observação" (4 linhas), já preenchido com o resultado sugerido (o que havia, ou "Motivo — Submotivo" do OFS).
+- Ao finalizar, `splitFinishText` manda a primeira linha não vazia como Resultado (até 255 caracteres, usado nos relatórios) e o texto inteiro como observação final.
+  - O servidor não mudou: os dois campos continuam preenchidos e obrigatórios, então relatórios e auditoria seguem iguais.
+- A dica embaixo do campo explica a regra da primeira linha.
+
+### Validação
+- Preview: chamado da demo finalizado com "Reparo realizado / GIGA+, fibra emendada na CTO". Ficou Resultado = "Reparo realizado" e observação final = o texto inteiro. Typecheck do frontend ok.
