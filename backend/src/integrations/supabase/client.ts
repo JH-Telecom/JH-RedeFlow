@@ -125,6 +125,14 @@ export async function saveSupabaseUserPreferences(userId: string, preferences: {
   await pruneSupabaseUserAvatarRow(userId);
 }
 
+// Fotos de varias pessoas de uma vez (aba Pessoas). "" = so tem banner, sem foto.
+export async function getSupabaseUserAvatars(userIds: string[]): Promise<Record<string, string>> {
+  if (!userIds.length) return {};
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('user_id, data_url').in('user_id', userIds);
+  if (error) throw new Error(error.message);
+  return Object.fromEntries((data || []).filter((row) => row.data_url).map((row) => [row.user_id, row.data_url as string]));
+}
+
 // Banner do perfil (fundo das observacoes do usuario nos chamados).
 export async function getSupabaseUserBanners(userIds: string[]): Promise<Record<string, string>> {
   if (!userIds.length) return {};

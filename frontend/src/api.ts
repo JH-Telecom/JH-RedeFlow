@@ -89,6 +89,8 @@ async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
 }
 // Perfil: apelido (so para a propria pessoa) e tema de cor; palette nulo = Padrao.
 export type ProfilePreferences = { nickname: string | null; palette: string | null };
+// Pessoas (diretorio so de leitura, aberto a todos).
+export type PersonCard = { id: string; name: string; email: string; roleName: string; online: boolean; lastSeenAt?: string; createdAt: string };
 
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -101,6 +103,8 @@ export const api = {
   saveProfileBanner: (bannerDataUrl: string) => request<{ bannerDataUrl: string }>('/api/auth/banner', { method: 'PUT', body: JSON.stringify({ bannerDataUrl }) }),
   removeProfileBanner: () => request<{ deleted: boolean }>('/api/auth/banner', { method: 'DELETE' }),
   profilePreferences: () => request<ProfilePreferences>('/api/auth/preferences'),
+  people: () => request<{ people: PersonCard[]; avatars: Record<string, string> }>('/api/people'),
+  person: (id: string) => request<{ person: PersonCard; avatar: string | null; banner: string | null }>(`/api/people/${encodeURIComponent(id)}`),
   saveProfilePreferences: (preferences: ProfilePreferences) => request<ProfilePreferences>('/api/auth/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),

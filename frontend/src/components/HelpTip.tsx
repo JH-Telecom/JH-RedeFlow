@@ -21,6 +21,7 @@ export const PAGE_HELP: Record<string, string[]> = {
   "/usuarios": ["Quem acessa o sistema. Online = sistema aberto e logado nos últimos 2 minutos."],
   "/cargos": ["Cargos e as permissões de cada um."],
   "/configuracoes": ["Preferências gerais; OLTs e regiões para administradores. Foto, banner, apelido e tema ficam em Meu perfil."],
+  "/pessoas": ["Todos veem quem faz parte do O&M e quem está online (atualiza a cada 30 s). Clique para ver foto, banner, cargo e e-mail. Aqui não dá para criar nem alterar ninguém."],
   "/perfil": ["Foto, banner, apelido e tema de cor. O apelido aparece só para você; o tema vale para o seu login em qualquer computador."],
   detalhe: ["Dados do chamado, distribuição para técnico, encerramento e histórico de observações e auditoria."],
 };

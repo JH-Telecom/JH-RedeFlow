@@ -183,3 +183,44 @@
 /* Nome na lateral abre Meu perfil */
 .profile-mini-name { display: block; flex: 1; min-width: 0; color: inherit; text-decoration: none; border-radius: 6px; }
 .profile-mini-name:hover strong { color: var(--blue); }
+
+/* Pessoas (PeoplePage.tsx): diretorio so de leitura, aberto a todos */
+.pp-page { display: grid; gap: 18px; }
+.pp-page .page-heading { margin-bottom: 0; }
+.pp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pp-search { flex: 1 1 280px; max-width: 420px; height: 40px; background: #fff; }
+.pp-filter { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.pp-filter button { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 7px; background: transparent; color: #5f6d84; font-size: 12px; font-weight: 700; }
+.pp-filter button b { color: #5f6d84; font-weight: 700; }
+.pp-filter button.is-active { background: #edf4ff; color: var(--blue); }
+.pp-filter button.is-active b { color: var(--blue); }
+.pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.pp-card { display: flex; align-items: center; gap: 14px; padding: 16px; text-align: left; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.pp-card:hover { border-color: #c5d5ed; box-shadow: 0 6px 18px #17233b14; transform: translateY(-1px); }
+.pp-card:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.pp-avatar-wrap, .pp-modal-avatar-wrap { position: relative; flex: none; }
+.pp-avatar { width: 52px; height: 52px; border-radius: 50%; background: #e8f0fe; color: #173a71; font-size: 16px; font-weight: 700; cursor: pointer; }
+.pp-dot { display: inline-block; width: 10px; height: 10px; flex: none; border-radius: 50%; background: #9aa6b5; }
+.pp-dot.is-online { background: #1caa76; }
+.pp-avatar-wrap .pp-dot { position: absolute; right: 0; bottom: 1px; width: 14px; height: 14px; border: 3px solid #fff; }
+.pp-card-text { display: grid; gap: 2px; min-width: 0; }
+.pp-card-text strong { display: flex; align-items: center; gap: 6px; overflow: hidden; color: #17233b; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; }
+.pp-card-text > span { overflow: hidden; color: #5f6d84; font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+.pp-you { padding: 1px 6px; border-radius: 9px; background: #edf4ff; color: var(--blue); font-size: 10px; font-weight: 700; }
+.pp-status { color: #5f6d84; font-size: 11px; font-weight: 600; }
+.pp-status.is-online { color: #137a52; }
+/* Perfil aberto: cartao estilo Discord, banner 7:2 no topo */
+.pp-modal { width: min(520px, 100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 22px 70px #17233b40; }
+.pp-modal-banner { position: relative; aspect-ratio: 7 / 2; background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%); }
+.pp-modal-banner.has-banner { background: #0b1220 var(--pf-banner) center / cover no-repeat; }
+.pp-close { position: absolute; top: 10px; right: 10px; width: 34px; justify-content: center; padding: 0; }
+.pp-modal-body { padding: 0 24px 24px; }
+.pp-modal-avatar-wrap { display: inline-block; margin-top: -52px; }
+.pp-modal-avatar { width: 104px; height: 104px; border: 6px solid #fff; border-radius: 50%; box-sizing: border-box; background: #e8f0fe; color: #173a71; font-size: 34px; font-weight: 700; cursor: default; }
+.pp-modal-avatar-wrap .pp-dot { position: absolute; right: 6px; bottom: 8px; width: 22px; height: 22px; border: 5px solid #fff; }
+.pp-modal-body h2 { margin: 6px 0 2px; font-size: 22px; letter-spacing: -.4px; overflow-wrap: anywhere; }
+.pp-modal-role { color: #5f6d84; font-size: 13px; }
+.pp-modal-body .pp-status { margin-top: 4px; font-size: 12px; }
+.pp-modal-facts { grid-template-columns: 1fr; margin-top: 16px; }
+.pp-modal-facts a { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); text-decoration: none; overflow-wrap: anywhere; }
+.pp-modal-facts a:hover { text-decoration: underline; }

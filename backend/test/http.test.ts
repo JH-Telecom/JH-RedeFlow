@@ -161,6 +161,35 @@ test('profile banner accepts an animated GIF up to 3 MB and rejects larger ones'
   await fetch(`${baseUrl}/api/auth/banner`, { method: 'DELETE', headers });
 });
 
+test('any signed-in user can read the people directory, which has no write routes', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string; user: { id: string } };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+
+  assert.equal((await fetch(`${baseUrl}/api/people`)).status, 401);
+  const list = await fetch(`${baseUrl}/api/people`, { headers });
+  assert.equal(list.status, 200);
+  const { people } = await list.json() as { people: { id: string; name: string; email: string; roleName: string; online: boolean }[] };
+  const me = people.find((person) => person.id === session.user.id);
+  assert.ok(me);
+  assert.equal(me.online, true);
+  assert.equal(me.email, 'admin@jhtelecom.com');
+  assert.equal('passwordHash' in me, false);
+
+  const detail = await fetch(`${baseUrl}/api/people/${session.user.id}`, { headers });
+  assert.equal(detail.status, 200);
+  assert.equal((await detail.json() as { person: { name: string } }).person.name, me.name);
+  assert.equal((await fetch(`${baseUrl}/api/people/nao-existe`, { headers })).status, 404);
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    const write = await fetch(`${baseUrl}/api/people/${session.user.id}`, { method, headers, body: method === 'DELETE' ? undefined : '{}' });
+    assert.equal(write.status, 404, `${method} nao deve existir`);
+  }
+});
+
 test('users can save their own nickname and color theme', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',

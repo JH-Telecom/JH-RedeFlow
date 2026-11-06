@@ -1584,6 +1584,88 @@
 :where(:root[data-theme="dark"]) .profile-mini-name:hover strong {
     color: var(--accent-text)
 }
+:where(:root[data-theme="dark"]) .pp-search {
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .pp-filter {
+    border: 1px solid var(--line);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .pp-filter button {
+    background: transparent;
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pp-filter button b {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pp-filter button.is-active {
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .pp-filter button.is-active b {
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .pp-card:hover {
+    border-color: #30425d;
+    box-shadow: 0 6px 18px #0000002c
+}
+:where(:root[data-theme="dark"]) .pp-card:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .pp-avatar {
+    background: #0e1726;
+    color: #90b9fa
+}
+:where(:root[data-theme="dark"]) .pp-dot {
+    background: #333d4a
+}
+:where(:root[data-theme="dark"]) .pp-dot.is-online {
+    background: #1caa76
+}
+:where(:root[data-theme="dark"]) .pp-avatar-wrap .pp-dot {
+    border: 3px solid #2c3038
+}
+:where(:root[data-theme="dark"]) .pp-card-text strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .pp-card-text > span {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pp-you {
+    background: #0f1722;
+    color: var(--accent-text)
+}
+:where(:root[data-theme="dark"]) .pp-status {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pp-status.is-online {
+    color: #73cda0
+}
+:where(:root[data-theme="dark"]) .pp-modal {
+    border: 1px solid var(--line);
+    background: #181c22;
+    box-shadow: 0 22px 70px #0000008d
+}
+:where(:root[data-theme="dark"]) .pp-modal-banner {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%)
+}
+:where(:root[data-theme="dark"]) .pp-modal-banner.has-banner {
+    background: #0b1220 var(--pf-banner) center / cover no-repeat
+}
+:where(:root[data-theme="dark"]) .pp-modal-avatar {
+    border: 6px solid #2c3038;
+    background: #0e1726;
+    color: #90b9fa
+}
+:where(:root[data-theme="dark"]) .pp-modal-avatar-wrap .pp-dot {
+    border: 5px solid #2c3038
+}
+:where(:root[data-theme="dark"]) .pp-modal-role {
+    color: #aaaeb6
+}
+:where(:root[data-theme="dark"]) .pp-modal-facts a {
+    color: var(--accent-text)
+}
 
 /* admin.css */
 :where(:root[data-theme="dark"]) .brand-logo-image {

@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { changeSupabaseUserPassword, createSupabaseUser, deleteSupabaseUserAvatar, getSupabaseUserBanners, saveSupabaseUserBanner, getSupabaseUserPreferences, saveSupabaseUserPreferences, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseRoles, listSupabaseUsers, saveSupabaseUserAvatar, updateSupabaseUser } from "../integrations/supabase/client.js";
+import { changeSupabaseUserPassword, createSupabaseUser, deleteSupabaseUserAvatar, getSupabaseUserBanners, saveSupabaseUserBanner, getSupabaseUserAvatars, getSupabaseUserPreferences, saveSupabaseUserPreferences, getSupabaseRole, getSupabaseAdmin, getSupabaseUserAvatar, isSupabaseConfigured, listSupabaseRoles, listSupabaseUsers, saveSupabaseUserAvatar, updateSupabaseUser } from "../integrations/supabase/client.js";
 import type { AuthUser, PermissionCode, Role, User } from "../types.js";
 import { allPermissions, ensureDemoData, permissionDescriptions, roles, userAvatars, userBanners, userPreferences, users } from "./demo-data.js";
 
@@ -211,4 +211,12 @@ export async function saveUserPreferences(userId: string, preferences: UserPrefe
   else if (!preferences.nickname && !preferences.palette) userPreferences.delete(userId);
   else userPreferences.set(userId, preferences);
   return preferences;
+}
+
+// Fotos de varias pessoas (aba Pessoas, so leitura).
+export async function getUserAvatars(userIds: string[]): Promise<Record<string, string>> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (isSupabaseConfigured()) return await getSupabaseUserAvatars(ids);
+  ensureDemoData();
+  return Object.fromEntries(ids.filter((id) => userAvatars.get(id)).map((id) => [id, userAvatars.get(id)!]));
 }

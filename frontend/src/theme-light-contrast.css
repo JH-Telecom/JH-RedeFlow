@@ -917,6 +917,45 @@
 :where(:root:not([data-theme="dark"])) .profile-mini-name:hover strong {
     color: var(--blue)
 }
+:where(:root:not([data-theme="dark"])) .pp-filter button {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pp-filter button b {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pp-filter button.is-active {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .pp-filter button.is-active b {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .pp-avatar {
+    color: #173a71
+}
+:where(:root:not([data-theme="dark"])) .pp-card-text strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pp-card-text > span {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pp-you {
+    color: var(--blue)
+}
+:where(:root:not([data-theme="dark"])) .pp-status {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pp-status.is-online {
+    color: #137a52
+}
+:where(:root:not([data-theme="dark"])) .pp-modal-avatar {
+    color: #173a71
+}
+:where(:root:not([data-theme="dark"])) .pp-modal-role {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .pp-modal-facts a {
+    color: var(--blue)
+}
 
 /* admin.css */
 :where(:root:not([data-theme="dark"])) .admin-form label, :where(:root:not([data-theme="dark"])) .settings-fields label {

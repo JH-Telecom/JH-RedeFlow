@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
@@ -343,6 +343,30 @@ app.get('/api/notificacoes', auth, async (request: AuthRequest, response) => {
   return response.json({ notifications: await listNotifications(includeOperational) });
 });
 app.get('/api/users', auth, requirePermission('users.view'), async (_request, response) => response.json({ users: (await listUsers()).map((user) => ({ ...user, ...presenceOf(user.id) })) }));
+// Pessoas: diretorio SO DE LEITURA para qualquer usuario logado (nome, cargo, e-mail, foto, banner e se esta online).
+// Nao ha rota de escrita aqui: criar e editar contas continua so em /api/users, com as permissoes de Usuarios.
+// Contas inativas ficam de fora; o apelido nao aparece (ele e so para a propria pessoa).
+type PersonCard = { id: string; name: string; email: string; roleName: string; online: boolean; lastSeenAt?: string; createdAt: string };
+function personCard(user: Awaited<ReturnType<typeof listUsers>>[number]): PersonCard {
+  const presence = presenceOf(user.id);
+  return { id: user.id, name: user.name, email: user.email, roleName: user.role?.name || 'Sem cargo', online: presence.online, lastSeenAt: presence.lastSeenAt, createdAt: user.createdAt };
+}
+app.get('/api/people', auth, async (_request, response) => {
+  try {
+    const people = (await listUsers()).filter((user) => user.active).map(personCard).sort((a, b) => Number(b.online) - Number(a.online) || a.name.localeCompare(b.name, 'pt-BR'));
+    const avatars = await getUserAvatars(people.map((person) => person.id)).catch(() => ({}));
+    return response.json({ people, avatars });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar as pessoas.' }); }
+});
+app.get('/api/people/:id', auth, async (request, response) => {
+  try {
+    const user = (await listUsers()).find((item) => item.id === request.params.id && item.active);
+    if (!user) return response.status(404).json({ message: 'Pessoa nao encontrada.' });
+    const [avatars, banners] = await Promise.all([getUserAvatars([user.id]).catch(() => ({} as Record<string, string>)), getUserBanners([user.id]).catch(() => ({} as Record<string, string>))]);
+    return response.json({ person: personCard(user), avatar: avatars[user.id] ?? null, banner: banners[user.id] ?? null });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o perfil.' }); }
+});
+
 // Logout: tira o usuario da lista de online na hora (o token continua so no navegador, que o apaga).
 app.post('/api/auth/logout', auth, (request: AuthRequest, response) => {
   clearPresence(request.authUser!.id);

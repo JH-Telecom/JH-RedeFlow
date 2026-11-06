@@ -4417,3 +4417,31 @@ Temas de cor como na prévia (JH Azul, Ardósia, Névoa, Flor, Aurora e Neon), c
   - A foto só é carregada pela própria pessoa (lateral, topo e perfil).
   - Teste de `http.test.ts` ampliado: GIF aceito, JPEG grande recusado, GIF acima de 2 MB recusado. Suíte 168/168.
   - Preview: GIF de 10 quadros animando na foto do perfil, na lateral e no topo.
+
+## Aba Pessoas: perfis e quem está online, só leitura (2026-11-06)
+
+### Pedido
+Uma página que todos possam ver, com os perfis das pessoas e se estão online. Ao abrir uma pessoa, ver nome, cargo, e-mail, foto e banner. Ninguém pode criar perfil nem alterar nada de ninguém.
+
+### Implementado
+- Backend: duas rotas só de leitura, liberadas para qualquer usuário logado (`auth`, sem permissão extra).
+  - `GET /api/people`: pessoas ativas, com nome, e-mail, cargo, online/visto por último e data de cadastro, mais as fotos (`getUserAvatars`). Ordem: quem está online primeiro, depois por nome.
+  - `GET /api/people/:id`: os mesmos dados de uma pessoa, mais foto e banner.
+  - Não há rota de escrita em `/api/people`. Criar e editar contas continua só em Usuários (`/api/users`, com as permissões de antes).
+  - Contas inativas ficam de fora. O apelido não aparece, porque é só para a própria pessoa.
+- Frontend: aba "Pessoas" em Equipes (`/pessoas`, `PeoplePage.tsx`), visível para todos os cargos.
+  - Um administrador ainda pode esconder a aba de um cargo em Cargos e permissões.
+  - Cartões com foto, bolinha de status, nome, cargo e "Online agora", "Visto há X min" ou "Offline".
+  - Busca por nome, cargo ou e-mail, e filtro Todos/Online. O status atualiza sozinho a cada 30 s.
+  - Ao clicar, abre o perfil no estilo do Meu perfil: banner 7:2, foto sobreposta com status, nome, cargo, e-mail (link), cargo e data de entrada no sistema. Sem nenhum botão de edição. Fecha com X, Esc ou clique fora.
+- A aba Usuários não mudou e continua restrita a quem tem `users.view`.
+
+### Validação
+- Teste novo em `http.test.ts`:
+  - sem login → 401;
+  - logado lista as pessoas, sem senha;
+  - o próprio usuário aparece online;
+  - o perfil abre, e uma pessoa que não existe dá 404;
+  - POST, PUT, PATCH e DELETE em `/api/people/:id` não existem (404).
+  - Suíte 169/169.
+- Preview: lista, filtro e perfil com banner e foto conferidos. Contraste sem problemas na lista e com o perfil aberto (Padrão e Flor, claro e escuro).
