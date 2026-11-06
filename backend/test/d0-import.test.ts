@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import XLSX from 'xlsx';
-import { matchD0Rows, parseD0FinishedAt, type D0Row } from '../src/imports/d0.js';
+import { matchD0Rows, matchOfsTechnician, parseD0FinishedAt, technicianAssignmentsFromRows, type D0Row } from '../src/imports/d0.js';
 import { parseImport } from '../src/imports/parser.js';
 import { clearD0Base, getD0BaseSummary, listCalls, replaceD0Base } from '../src/store.js';
 import type { Call } from '../src/types.js';
@@ -163,4 +163,27 @@ test('an order repeated by a cancelled copy updates the active call', () => {
   assert.equal(result.matches[0]?.fields.ofsStatus, 'em rota');
   // Dois ativos: continua sem adivinhar.
   assert.equal(matchD0Rows([{ 'Ordem de Serviço': call.orderNumber }], [active, { ...active, id: 'other' }]).unmatchedRows, 1);
+});
+
+test('OFS Recurso fills the technician of calls that have none', () => {
+  const techs = [
+    { id: 't1', name: 'Caíque da Silva Bento Aguiar', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+    { id: 't2', name: 'Carlos Roberto Oliveira Filho', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+    { id: 't3', name: 'Maicon Torres dos Santos', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+    { id: 't4', name: 'Fulano Demitido Silva', active: true, teamRole: 'Tecnico', employmentStatus: 'Demitido' },
+  ];
+  assert.equal(matchOfsTechnician('CAIQUE DA SILVA BENTO AGUIAR', techs)?.id, 't1');
+  assert.equal(matchOfsTechnician('CLUSTER_C08', techs), undefined);
+  assert.equal(matchOfsTechnician('Fulano Demitido Silva', techs), undefined);
+  assert.equal(matchOfsTechnician('Desconhecido da Silva', techs), undefined);
+
+  const open = { ...call, id: 'open', status: 'Aberto' as const };
+  const assigned = { ...call, id: 'assigned', orderNumber: 'OS-2', bdesk: 'B2', officeTrack: 'O2', status: 'Atribuido' as const, technicianId: 'tX' };
+  const rows: D0Row[] = [
+    // mesma ordem duas vezes: a suspensa (Carlos) perde para a pendente (Maicon)
+    { 'Ordem de Serviço': `BDESK-${call.orderNumber}`, Recurso: 'Carlos Roberto Oliveira Filho', 'Status da Atividade': 'suspenso' },
+    { 'Ordem de Serviço': `BDESK-${call.orderNumber}`, Recurso: 'Maicon Torres dos Santos', 'Status da Atividade': 'pendente' },
+    { 'Ordem de Serviço': 'OS-2', Recurso: 'Carlos Roberto Oliveira Filho', 'Status da Atividade': 'concluído' },
+  ];
+  assert.deepEqual(technicianAssignmentsFromRows(rows, [open, assigned], techs), [{ callId: 'open', technicianId: 't3', status: 'Atribuido' }]);
 });

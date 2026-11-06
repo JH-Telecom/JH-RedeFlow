@@ -1,5 +1,6 @@
 import { getSupabaseAdmin, isSupabaseConfigured } from "../integrations/supabase/client.js";
-import { matchD0Rows, type D0Row } from "../imports/d0.js";
+import { matchD0Rows, technicianAssignmentsFromRows, type D0Row } from "../imports/d0.js";
+import { listTechnicians } from "./teams.js";
 import { toOperationalDate } from "../timezone.js";
 import type { Call, ImportRecord, ManualDailyBase, ManualProductionData, User } from "../types.js";
 import { listCalls, updateCall } from "./calls.js";
@@ -63,6 +64,13 @@ export async function replaceD0Base(fileName: string, uploadedBy: string, rows: 
 export async function applyOfsRowsToCalls(rows: D0Row[], actorName: string): Promise<D0SyncResult> {
   const currentCalls = await listCalls();
   const { matches, unmatchedRows } = matchD0Rows(rows, currentCalls);
+  // Tecnico do OFS ("Recurso") entra no chamado que ainda nao tem tecnico.
+  for (const assignment of technicianAssignmentsFromRows(rows, currentCalls, await listTechnicians())) {
+    const { callId, ...fields } = assignment;
+    const match = matches.find((item) => item.callId === callId);
+    if (match) Object.assign(match.fields, fields);
+    else matches.push({ callId, fields });
+  }
   const callsById = new Map(currentCalls.map((call) => [call.id, call]));
   const actor: User = { id: 'system-d0-import', name: actorName, email: 'system-d0@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date().toISOString() };
   let updatedCalls = 0;

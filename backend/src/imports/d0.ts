@@ -2,7 +2,7 @@ import type { Call, EditableCallFields } from '../types.js';
 import { inferNeighborhood } from '../integrations/wuzapi/noc-consolidation.js';
 
 export type D0Row = Record<string, string>;
-export type D0CallFields = Partial<Pick<EditableCallFields, 'client' | 'address' | 'bairro' | 'city' | 'region' | 'olt' | 'ofsStatus' | 'executedAt'>>;
+export type D0CallFields = Partial<Pick<EditableCallFields, 'client' | 'address' | 'bairro' | 'city' | 'region' | 'olt' | 'ofsStatus' | 'executedAt' | 'technicianId' | 'status'>>;
 export type D0Match = { callId: string; fields: D0CallFields };
 export type D0MatchResult = { matches: D0Match[]; unmatchedRows: number };
 
@@ -133,4 +133,37 @@ export function matchRowsToCalls(rows: D0Row[], calls: Call[]): Array<{ row: D0R
 // "SP-000GRS3-WZ001": zona de trabalho do OFS. Cada uma pertence a um cluster.
 export function rowWorkzone(row: D0Row) {
   return value(row, 'Chave Workzone', 'Workzone', 'Chave da Workzone').trim().toUpperCase();
+}
+
+// "Recurso" do OFS = tecnico que esta com a atividade. Baldes ("CLUSTER_C08", "BKI_...") nao sao pessoas.
+// So devolve quando o nome bate (sem acento/caixa) com UM tecnico ativo e trabalhando.
+type TechnicianLike = { id: string; name: string; active: boolean; teamRole: string; employmentStatus?: string };
+const personKey = (value: string) => normalize(value).replace(/\s+/g, ' ');
+export function matchOfsTechnician<T extends TechnicianLike>(recurso: string, technicians: T[]): T | undefined {
+  const key = personKey(recurso);
+  if (!key || /^(cluster|bki)_|_/.test(key) || !/\s/.test(key)) return undefined;
+  const found = technicians.filter((technician) => technician.teamRole === 'Tecnico' && technician.active && technician.employmentStatus !== 'Demitido' && personKey(technician.name) === key);
+  return found.length === 1 ? found[0] : undefined;
+}
+
+// Prioridade da linha quando a mesma ordem aparece mais de uma vez no export (ex.: uma suspensa e outra pendente).
+const rowWeight = (row: D0Row) => {
+  const status = normalize(value(row, 'Status da Atividade', 'Status OFS'));
+  return /^(conclu|finaliz|encerrad|executad)/.test(status) ? 3 : /^(suspens|cancel|nao concl)/.test(status) ? 1 : 2;
+};
+
+// Chamado sem tecnico + linha do OFS com Recurso conhecido -> tecnico do OFS. "Aberto" vira "Atribuido".
+export function technicianAssignmentsFromRows<T extends TechnicianLike>(rows: D0Row[], calls: Call[], technicians: T[]) {
+  const best = new Map<string, { row: D0Row; call: Call }>();
+  for (const pair of matchRowsToCalls(rows, calls)) {
+    const previous = best.get(pair.call.id);
+    if (!previous || rowWeight(pair.row) >= rowWeight(previous.row)) best.set(pair.call.id, pair);
+  }
+  const assignments: Array<{ callId: string; technicianId: string; status?: 'Atribuido' }> = [];
+  for (const { row, call } of best.values()) {
+    if (call.technicianId || ['Cancelado', 'Finalizado', 'Baixar'].includes(call.status)) continue;
+    const technician = matchOfsTechnician(value(row, 'Recurso', 'Técnico', 'Tecnico'), technicians);
+    if (technician) assignments.push({ callId: call.id, technicianId: technician.id, ...(call.status === 'Aberto' ? { status: 'Atribuido' as const } : {}) });
+  }
+  return assignments;
 }

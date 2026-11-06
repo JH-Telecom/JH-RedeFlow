@@ -16,6 +16,7 @@ const ALARME_FECH = "rf-fechamentos";
 const OFS_ORIGEM = "https://alloha.fs.ocs.oraclecloud.com/";
 const FECH_POR_CICLO = 12; // atividades abertas por ciclo
 const FECH_ESPERA_MS = 60 * 60_000; // a mesma ordem so e tentada de novo depois de 1 h
+const FECH_ESPERA_ERRO_MS = 15 * 60_000; // depois de uma falha tecnica, tenta de novo em 15 min
 const JANELA_CAPTURA_MS = 90_000;
 const LIMITE_AVISO_FALHAS = 3;
 const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10, clusterMin: 60 };
@@ -222,7 +223,7 @@ async function exportarDia(data, automatico, cluster) {
   if (!cluster) atualizarSelo();
   let res;
   try {
-    if (cluster && !(await ofsPronto(aba.id))) throw new Error("O OFS não carregou na aba fixada (confira o login)");
+    if (cluster && !(await ofsPronto(aba.id))) throw new Error(motivoAbaFixada);
     res = await rodarNaPagina(aba.id, { alvo: data, alocacaoId: cluster ? cluster.id : cfg.alocacaoId.trim(), exportar: true, abrirConsole: Boolean(cluster) });
   } catch (e) { res = { ok: false, erro: e?.message || String(e) }; }
   if (!res.ok) {
@@ -342,16 +343,34 @@ async function abaDeFechamento() {
   return aba;
 }
 
-async function ofsPronto(tabId) {
-  const fim = Date.now() + 90_000;
+// "ok" | "login" (OFS mostrando a tela de login) | "timeout"
+async function esperarOfs(tabId, ms) {
+  const fim = Date.now() + ms;
+  let estado = "timeout";
   while (Date.now() < fim) {
     try {
-      const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, world: "MAIN", func: () => typeof $app !== "undefined" && Boolean(document.querySelector("input.global-search-bar-input-button")) });
-      if (result) return true;
-    } catch (_) { /* ainda carregando */ }
+      const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, world: "MAIN", func: () => (typeof $app !== "undefined" && document.querySelector("input.global-search-bar-input-button") ? "ok" : document.querySelector('input[type="password"]') ? "login" : "carregando") });
+      if (result === "ok") return "ok";
+      if (result === "login") estado = "login";
+    } catch (_) { /* ainda carregando ou aba dormindo */ }
     await new Promise((r) => setTimeout(r, 2000));
   }
-  return false;
+  return estado;
+}
+
+// Aba fixada pronta? O Chrome "dorme" abas fixadas em segundo plano (Economia de memoria) e o OFS para de responder:
+// impede o descarte, acorda a aba se estiver dormindo e, se nao responder, recarrega uma vez antes de desistir.
+let motivoAbaFixada = "";
+async function ofsPronto(tabId) {
+  try { await chrome.tabs.update(tabId, { autoDiscardable: false }); } catch (_) { /* aba fechada */ }
+  try { const aba = await chrome.tabs.get(tabId); if (aba.discarded) await chrome.tabs.reload(tabId); } catch (_) { /* aba fechada */ }
+  let estado = await esperarOfs(tabId, 45_000);
+  if (estado === "timeout") {
+    try { await chrome.tabs.reload(tabId); } catch (_) { /* aba fechada */ }
+    estado = await esperarOfs(tabId, 90_000);
+  }
+  motivoAbaFixada = estado === "login" ? "O OFS pediu login na aba fixada: abra a aba fixada do OFS e entre de novo" : "O OFS não carregou na aba fixada (recarreguei e não voltou)";
+  return estado === "ok";
 }
 
 async function registrarFechamento(resultado) {
@@ -381,7 +400,7 @@ async function coletarFechamentos(automatico) {
     if (!fila.length) return registrarFechamento({ ok: true, lidos: 0, atualizados: 0, finalizados, pendentes: ordens.length });
 
     const aba = await abaDeFechamento();
-    if (!(await ofsPronto(aba.id))) return registrarFechamento({ ok: false, erro: "O OFS não carregou na aba de fechamentos (confira o login)" });
+    if (!(await ofsPronto(aba.id))) return registrarFechamento({ ok: false, erro: motivoAbaFixada });
     const itens = [];
     // Ordens que nao trouxeram fechamento, com o motivo, para mostrar no popup.
     const falhas = [];
@@ -396,7 +415,8 @@ async function coletarFechamentos(automatico) {
       // Concluida no OFS, mas sem nada no formulario de fechamento: o RedeFlow marca "Não preenchido no OFS" e finaliza.
       else if (res?.aid && !res?.erro) { itens.push({ ordem, semFechamento: true }); falhas.push({ ordem, tipo: "aviso", motivo: `Atividade ${res.aid} concluída sem Motivo, Submotivo e Tipo do cabo: finalizada como "Não preenchido no OFS"` }); }
       else if (res?.semConcluida || res?.naoEncontrada) { semConcluida += 1; falhas.push({ ordem, tipo: "aviso", motivo: res.naoEncontrada ? "Não encontrada na pesquisa do OFS" : "Nenhuma atividade concluída no OFS ainda" }); }
-      else { erros += 1; falhas.push({ ordem, tipo: "erro", motivo: res?.erro || (res?.aid ? `Atividade ${res.aid} concluída, mas sem Motivo, Submotivo e Tipo do cabo preenchidos` : "Sem resposta da aba do OFS") }); }
+      // Falha tecnica (pesquisa nao respondeu, atividade nao abriu...): tenta de novo em 15 min, nao em 1 h.
+      else { erros += 1; fechTentativas[ordem] = Date.now() - FECH_ESPERA_MS + FECH_ESPERA_ERRO_MS; falhas.push({ ordem, tipo: "erro", motivo: res?.erro || (res?.aid ? `Atividade ${res.aid} concluída, mas sem Motivo, Submotivo e Tipo do cabo preenchidos` : "Sem resposta da aba do OFS") }); }
     }
     await chrome.storage.local.set({ fechTentativas });
     let atualizados = 0;

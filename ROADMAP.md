@@ -4264,3 +4264,22 @@ O mesmo card chega por 2 ou 3 grupos do WhatsApp. A checagem de repetido na cheg
 ### Validação
 - Teste novo: segundo acionamento da mesma ordem, vindo de outro grupo, devolve o mesmo chamado.
 - Suíte 164/164.
+
+## Técnico do OFS no chamado e aba fixada mais resistente (2026-11-06)
+
+### Problema
+- Vários chamados ficaram concluídos no OFS e sem técnico no RedeFlow. Sem técnico, o encerramento automático nunca acontece.
+- A aba fixada do OFS (fechamentos e clusters) parava de responder: "O OFS não carregou na aba fixada". As ordens que falhavam esperavam 1 h para uma nova tentativa.
+
+### Implementado
+- `d0.ts`:
+  - `matchOfsTechnician`: o "Recurso" da linha do OFS precisa bater, ignorando acento e caixa, com UM técnico ativo, trabalhando e com função Técnico. Baldes (`CLUSTER_…`) são ignorados.
+  - `technicianAssignmentsFromRows`: se a mesma ordem aparece em várias linhas, vale a concluída, depois a pendente e por último a suspensa.
+- `applyOfsRowsToCalls` (exportação de hoje e do dia anterior): o chamado sem técnico recebe o técnico do OFS. Se estava "Aberto", passa para "Atribuido". Chamado encerrado ou que já tem técnico não muda.
+- Extensão v1.3.2:
+  - A aba fixada não pode mais ser descartada pelo Chrome (`autoDiscardable: false`). Se estiver dormindo, é acordada. Se não responder, é recarregada uma vez.
+  - Quando o OFS mostra a tela de login, o popup avisa isso.
+  - Falha técnica na leitura de um fechamento é tentada de novo em 15 min, e não mais em 1 h.
+
+### Validação
+- Teste novo: casamento do Recurso (acento, balde, demitido, desconhecido) e escolha da linha (pendente vence suspensa). Chamado que já tem técnico não muda. Suíte 165/165.
