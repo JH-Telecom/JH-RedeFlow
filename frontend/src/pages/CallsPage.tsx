@@ -236,7 +236,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [oltFilter, setOltFilter] = useState(initialState.oltFilter ?? "Todas");
   const [availableOlts, setAvailableOlts] = useState<string[]>([]);
   const savedStatusFilter = initialState.statusFilter ?? "Todos";
-  const initialStatusFilter = unassignedOnly ? "Aberto" : assignedOnly && savedStatusFilter !== "Todos" && !attendanceStatusOptions.includes(savedStatusFilter as CallStatus) ? "Todos" : savedStatusFilter;
+  const initialStatusFilter = unassignedOnly ? "Aberto" : assignedOnly && savedStatusFilter !== "Todos" && savedStatusFilter !== "GIGA+" && !attendanceStatusOptions.includes(savedStatusFilter as CallStatus) ? "Todos" : savedStatusFilter;
   const [statusFilter, setStatusFilter] = useState<CallStatus | "Todos">(initialStatusFilter);
   const [dateRange, setDateRange] = useState(initialState.dateRange ?? { from: "", to: "" });
   const [showFilters, setShowFilters] = useState(Boolean(initialState.showFilters));
@@ -330,7 +330,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const queueOrder: Pick<CallListQuery, "sort" | "direction"> = sortState ? { sort: sortState.sort, direction: sortState.direction } : {};
   const statusesFor = (choice: CallStatus | "Todos"): CallStatus | CallStatus[] | undefined =>
     unassignedOnly ? inProgressCallStatuses : choice === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar", "GIGA+"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : choice;
-  const listFilters = (): CallListQuery => ({
+  // Aba GIGA+ (Em atendimento): chamados do outro escritorio, com ou sem tecnico.
+  const listFilters = (choice: CallStatus | "Todos" = statusFilter): CallListQuery => ({
     from: dateRange.from,
     to: dateRange.to,
     teamScope: teamScoped,
@@ -339,7 +340,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     area: areaFilter === "Todas" ? undefined : areaFilter,
     neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
     olt: oltFilter === "Todas" ? undefined : oltFilter,
-    hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
+    hasTechnician: assignedOnly ? (choice === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined,
     ...queueOrder,
   });
   function toggleSort(key: CallSortKey) {
@@ -400,7 +401,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     area: areaFilter === "Todas" ? undefined : areaFilter,
         neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
         olt: oltFilter === "Todas" ? undefined : oltFilter,
-        hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
+        hasTechnician: assignedOnly ? (statusFilter === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
         ...queueOrder,
@@ -423,7 +424,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
-    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, area: areaFilter, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, order: queueOrder, closedOnly, assignedOnly, unassignedOnly });
+    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, area: areaFilter, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? (statusFilter === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, order: queueOrder, closedOnly, assignedOnly, unassignedOnly });
     const cached = callsPageCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       if (active) {
@@ -447,7 +448,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         area: areaFilter === "Todas" ? undefined : areaFilter,
         neighborhood: requestNeighborhood,
         olt: requestOlt,
-        hasTechnician: assignedOnly ? true : unassignedOnly ? false : undefined,
+        hasTechnician: assignedOnly ? (statusFilter === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
         ...queueOrder,
@@ -494,13 +495,13 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const regions = [...new Set([...operationalRegions, ...calls.map((call) => call.region), ...(regionFilter === "Todas" ? [] : [regionFilter])].filter(Boolean))].sort((left, right) => left.localeCompare(right, "pt-BR"));
   const neighborhoods = [...new Set([...calls.map((call) => call.bairro).filter((item): item is string => Boolean(item)), ...(neighborhoodFilter === "Todos" ? [] : [neighborhoodFilter])])].sort((left, right) => left.localeCompare(right, "pt-BR"));
   const olts = [...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])];
-  const statusChoices: (CallStatus | "Todos")[] = unassignedOnly ? [] : closedView ? ["Todos", "Finalizado", "Cancelado", "Baixar", "GIGA+"] : assignedOnly ? ["Todos", ...attendanceStatusOptions] : ["Todos", ...CALL_STATUSES];
+  const statusChoices: (CallStatus | "Todos")[] = unassignedOnly ? [] : closedView ? ["Todos", "Finalizado", "Cancelado", "Baixar", "GIGA+"] : assignedOnly ? ["Todos", ...attendanceStatusOptions, "GIGA+"] : ["Todos", ...CALL_STATUSES];
   // Quantos chamados cada aba de status teria com os filtros atuais (uma consulta leve por aba: pageSize 1).
   useEffect(() => {
     if (!statusChoices.length) return;
     let active = true;
     const timer = window.setTimeout(() => {
-      void Promise.all(statusChoices.map((choice) => api.calls(statusesFor(choice), { ...listFilters(), page: 1, pageSize: 1 }).then((result) => [choice, result.total] as const).catch(() => [choice, undefined] as const)))
+      void Promise.all(statusChoices.map((choice) => api.calls(statusesFor(choice), { ...listFilters(choice), page: 1, pageSize: 1 }).then((result) => [choice, result.total] as const).catch(() => [choice, undefined] as const)))
         .then((entries) => { if (active) setStatusCounts(Object.fromEntries(entries)); });
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
@@ -578,7 +579,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             </label>
             {statusChoices.length > 0 && (
               <div className="cq-status-tabs" role="group" aria-label="Filtrar por status">
-                {statusChoices.map((item) => <button key={item} type="button" className={statusFilter === item ? "is-selected" : ""} aria-pressed={statusFilter === item} onClick={() => setStatusFilter(item)}>{item}{statusCounts[item] !== undefined && <span className="cq-tab-count">{statusCounts[item]!.toLocaleString("pt-BR")}</span>}</button>)}
+                {statusChoices.map((item) => <button key={item} type="button" title={assignedOnly && item === "GIGA+" ? "Chamados do outro escritório (GIGA+): ficam à parte e não entram no Todos" : undefined} className={`${statusFilter === item ? "is-selected" : ""}${assignedOnly && item === "GIGA+" ? " cq-tab-apart" : ""}`.trim()} aria-pressed={statusFilter === item} onClick={() => setStatusFilter(item)}>{item}{statusCounts[item] !== undefined && <span className="cq-tab-count">{statusCounts[item]!.toLocaleString("pt-BR")}</span>}</button>)}
               </div>
             )}
           </div>

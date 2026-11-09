@@ -5188,3 +5188,8 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - Ao passar o mouse, o número ganha uma borda tracejada e o cursor de copiar.
 - Componente `frontend/src/components/CopyText.tsx`. Sem permissão de área de transferência, copia pelo jeito antigo do navegador.
 - **Preview**: o clique copiou "RF-240916", a página não saiu da fila e o "Copiado" apareceu. Contraste OK no claro e no escuro.
+- Aba GIGA+ em "Chamados em atendimento" (2026-11-09):
+  - Nova aba **GIGA+** no fim das abas de status, separada por uma linha e com cor própria. Mostra os chamados do outro escritório, com ou sem técnico.
+  - **Não entra no "Todos"**: ele continua somando só Atribuído, Atrelado, Deslocamento e Em campo.
+  - A tela lembra a aba escolhida. Os GIGA+ continuam também em Finalizados e cancelados.
+  - **Preview**: Todos 2, aba GIGA+ 1. Ao abrir a aba aparece só o GIGA+, e o Todos lista só os 2 em atendimento. Contraste OK no claro e no escuro.

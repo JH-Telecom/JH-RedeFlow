@@ -2789,6 +2789,16 @@
     background: #e3f6ec;
     color: #137a4b
 }
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cq-status-tabs .cq-tab-apart {
+    color: #0b5f6b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cq-status-tabs .cq-tab-apart::before {
+    background: #e0d3e3
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .cq-status-tabs .cq-tab-apart.is-selected {
+    background: #effbfd;
+    color: #0b5f6b
+}
 /* light · sla-analysis.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .sa-dates label, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .sa-area {
     color: var(--muted)
@@ -6712,6 +6722,16 @@
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .copy-text-tip {
     background: #031c12;
     color: #73ce9a
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cq-status-tabs .cq-tab-apart {
+    color: #afc3c7
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cq-status-tabs .cq-tab-apart::before {
+    background: #231427
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .cq-status-tabs .cq-tab-apart.is-selected {
+    background: #081719;
+    color: #afc3c7
 }
 /* dark · sla-analysis.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .sa-dates label, :where(:root[data-palette="nevoa"][data-theme="dark"]) .sa-area {

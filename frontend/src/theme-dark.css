@@ -2826,6 +2826,16 @@
     background: #031c12;
     color: #73ce9a
 }
+:where(:root[data-theme="dark"]) .cq-status-tabs .cq-tab-apart {
+    color: #afc3c7
+}
+:where(:root[data-theme="dark"]) .cq-status-tabs .cq-tab-apart::before {
+    background: #101b2c
+}
+:where(:root[data-theme="dark"]) .cq-status-tabs .cq-tab-apart.is-selected {
+    background: #081719;
+    color: #afc3c7
+}
 
 /* sla-analysis.css */
 :where(:root[data-theme="dark"]) .sa-dates label, :where(:root[data-theme="dark"]) .sa-area {
