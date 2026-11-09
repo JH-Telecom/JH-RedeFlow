@@ -4919,3 +4919,14 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - O campo continua no banco e no backend, sem mudar tabelas. Cadastros antigos marcados como Demitido seguem fora da atribuição de chamados.
 - Preview: tabela com 8 colunas e nenhum texto de vínculo na tela. O console só tinha erros antigos, de testes anteriores.
 - Filtro por tipo (2026-11-09): em Filtros, na tela Técnicos, dá para escolher Todos os tipos, Técnicos ou Auxiliares. O filtro vale junto com a busca, a situação e a região. Preview: "Técnicos" mostra só técnicos; "Auxiliares" fica vazio na demonstração, que não tem auxiliares.
+
+## README refeito (2026-11-09)
+- O README novo traz:
+  - visão geral e funcionalidades por área;
+  - diagrama da arquitetura (Mermaid) e tabela de onde roda cada parte;
+  - como rodar (preview com dados fictícios e desenvolvimento com Supabase);
+  - tabelas das variáveis de ambiente da API e do site;
+  - deploy (Render, Vercel e Supabase) e integrações (WuzAPI, Coletor OFS, Drive), com links para os guias em `docs/`;
+  - comandos, estrutura de pastas e combinados do projeto (roadmap, 100 por página, contraste, preview antes do push);
+  - licença.
+- Os fatos foram conferidos no código: scripts, variáveis lidas pela API, `render.yaml`, `vercel.json`, versão da extensão e temas.
