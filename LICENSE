@@ -1,0 +1,20 @@
+Copyright (c) 2026 Matheus Terra Farias. Todos os direitos reservados.
+
+Este software (JH RedeFlow / Rede O&M), incluindo código-fonte, telas, textos, layout,
+relatórios e documentação, é obra protegida pela Lei 9.610/1998 (Direitos Autorais) e pela
+Lei 9.609/1998 (Programa de Computador).
+
+Sem autorização prévia e por escrito do titular, NÃO é permitido copiar, reproduzir,
+modificar, distribuir, sublicenciar, vender, publicar, fazer engenharia reversa ou criar
+obras derivadas deste software, no todo ou em parte.
+
+O acesso ao sistema concedido a usuários autorizados é só uma permissão de uso
+operacional, revogável, e não transfere nenhum direito sobre o software.
+
+A marca, o nome e a logo "JH Telecom" pertencem aos seus titulares.
+
+O software usa componentes de código aberto, cada um sob a sua própria licença (MIT, ISC,
+BSD, Apache-2.0, SIL OFL 1.1). A lista, com autores e textos das licenças, está em
+frontend/src/lib/third-party-licenses.json e na página /licencas do sistema.
+
+Contato: planilhasjh@gmail.com

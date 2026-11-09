@@ -3705,6 +3705,45 @@
 :where(:root[data-theme="dark"]) .pf-data-feedback {
     color: #b5b9c1
 }
+:where(:root[data-theme="dark"]) .copyright-notice {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .copyright-notice a {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .legal-links.copyright-notice {
+    border-top: 1px solid #33383f
+}
+:where(:root[data-theme="dark"]) .legal-links.copyright-notice a {
+    color: #7bb6ff
+}
+:where(:root[data-theme="dark"]) .license-list li {
+    border: 1px solid #33383f;
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .license-head a {
+    color: #7bb6ff
+}
+:where(:root[data-theme="dark"]) .license-version {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .license-badge {
+    background: #0f1722;
+    color: #7cb6ff
+}
+:where(:root[data-theme="dark"]) .license-list small {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .license-list summary {
+    color: #7bb6ff
+}
+:where(:root[data-theme="dark"]) .license-list pre {
+    background: #12151b;
+    color: #c0c5cd
+}
+:where(:root[data-theme="dark"]) .license-generated {
+    color: #b5b9c1
+}
 
 /* contrast-fixes.css */
 :where(:root[data-theme="dark"]) .role-row-button {

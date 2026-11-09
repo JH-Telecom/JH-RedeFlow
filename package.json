@@ -2,6 +2,8 @@
   "name": "jh-redeflow",
   "private": true,
   "version": "0.1.0",
+  "author": "Matheus Terra Farias",
+  "license": "UNLICENSED",
   "description": "Sistema operacional de Rede da JH Telecom",
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace frontend\" \"npm run dev --workspace backend\"",

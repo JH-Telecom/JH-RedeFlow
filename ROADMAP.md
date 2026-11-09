@@ -4839,3 +4839,25 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - responsável e encarregado: Matheus Terra Farias;
   - contato sobre dados pessoais: planilhasjh@gmail.com.
   - O sistema é de pessoa física. O CPF não é exigido pela LGPD e ficou de fora de propósito, porque a página é pública.
+
+## Direitos autorais (2026-11-09)
+- **Aviso ©**:
+  - "© 2026 Matheus Terra Farias. Todos os direitos reservados." com links para Privacidade, Termos e Licenças;
+  - aparece na tela de login, no rodapé do menu lateral (some com o menu recolhido) e no fim das páginas legais;
+  - o ano final se atualiza sozinho (2026–2027...).
+- **Termos de Uso**: nova seção "Direitos autorais e propriedade intelectual".
+  - O software é de Matheus Terra Farias (Leis 9.610/1998 e 9.609/1998).
+  - O acesso é só permissão de uso. É proibido copiar, modificar, distribuir ou fazer engenharia reversa sem autorização.
+  - A marca JH Telecom é de seus titulares.
+  - Fotos de perfil continuam de quem enviou.
+  - Há um canal para avisar violação de direitos autorais.
+- **Página `/licencas`**:
+  - lista as bibliotecas de código aberto com versão, licença, autor e texto completo da licença: 14 no site, 8 no servidor, mais as 2 fontes do Google Fonts;
+  - os dados vêm de `frontend/src/lib/third-party-licenses.json`, que só carrega nessa página;
+  - para atualizar a lista depois de instalar pacotes: `node frontend/scripts/generate-licenses.mjs`.
+- **Arquivo `LICENSE`** na raiz: software proprietário, todos os direitos reservados, com o contato do titular.
+- **Metadados de autoria**:
+  - `package.json` (raiz, frontend e backend) com `author` e `license: UNLICENSED` (o termo do npm para "não licenciado para terceiros");
+  - `index.html` com as meta tags `author` e `copyright`.
+- **Política de Privacidade**: o Google Fonts entrou na lista de fornecedores. Ele recebe o IP de quem abre o sistema para entregar as fontes, sem cookies.
+- **Validação**: typecheck e build sem erros. Contraste OK em `/licencas`, `/termos` e `/perfil`, no claro e no escuro. O aviso no menu cabe sem rolagem.

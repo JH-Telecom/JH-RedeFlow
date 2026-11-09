@@ -2,6 +2,8 @@
   "name": "jh-redeflow-backend",
   "private": true,
   "version": "0.1.0",
+  "author": "Matheus Terra Farias",
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

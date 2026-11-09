@@ -3663,6 +3663,45 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .pf-data-feedback {
     color: #5b577a
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .copyright-notice {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .copyright-notice a {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .legal-links.copyright-notice {
+    border-top: 1px solid #e8edf4
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .legal-links.copyright-notice a {
+    color: #653fc7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-list li {
+    border: 1px solid #e8edf4;
+    background: #ffffff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-head a {
+    color: #653fc7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-version {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-badge {
+    background: #f3f1ff;
+    color: #5331a7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-list small {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-list summary {
+    color: #653fc7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-list pre {
+    background: #f7f9fc;
+    color: #4c476a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-generated {
+    color: #5b577a
+}
 /* light · contrast-fixes.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .role-row-button {
     background: transparent;
@@ -7354,6 +7393,45 @@
     color: #b2a5fb
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .pf-data-feedback {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .copyright-notice {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .copyright-notice a {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .legal-links.copyright-notice {
+    border-top: 1px solid #373641
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .legal-links.copyright-notice a {
+    color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-list li {
+    border: 1px solid #373641;
+    background: #1b1a24
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-head a {
+    color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-version {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-badge {
+    background: #161425;
+    color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-list small {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-list summary {
+    color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-list pre {
+    background: #15141d;
+    color: #c4c3d0
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .license-generated {
     color: #b8b7c3
 }
 /* dark · contrast-fixes.css */

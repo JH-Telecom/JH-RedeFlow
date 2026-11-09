@@ -36,6 +36,7 @@ import { ProfileAvatar } from "./ProfileAvatar";
 import { SupervisorsPage } from "../pages/SupervisorsPage";
 import { TechniciansPage } from "../pages/TechniciansPage";
 import { UsersPage } from "../pages/UsersPage";
+import { CopyrightNotice } from "./Copyright";
 
 
 
@@ -324,6 +325,7 @@ export function Shell({
               <LogOut size={16} />
             </button>
           </div>
+          <CopyrightNotice className="sidebar-copyright" />
         </div>
       </aside>
       {mobileOpen && (

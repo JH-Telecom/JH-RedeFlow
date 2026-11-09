@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import faviconUrl from "../../image/favicon.ico";
+import { CopyrightNotice } from "../components/Copyright";
 import { COMPANY, LEGAL_REVISION_LABEL } from "../lib/company";
 
 // Politica de Privacidade e Termos de Uso. Abrem com ou sem login (/privacidade e /termos), para quem ainda vai
@@ -23,7 +24,7 @@ function CompanyBlock() {
   );
 }
 
-function LegalLayout({ title, intro, children }: { title: string; intro: string; children: ReactNode }) {
+export function LegalLayout({ title, intro, children, hideResponsible = false }: { title: string; intro: string; children: ReactNode; hideResponsible?: boolean }) {
   useEffect(() => { document.title = `${title} · ${COMPANY.name} - Rede`; }, [title]);
   return (
     <div className="legal-page">
@@ -37,12 +38,8 @@ function LegalLayout({ title, intro, children }: { title: string; intro: string;
           <h1>{title}</h1>
           <p className="legal-intro">{intro}</p>
           {children}
-          <h2>Quem é o responsável</h2>
-          <CompanyBlock />
-          <nav className="legal-links" aria-label="Documentos">
-            <Link to="/privacidade">Política de Privacidade</Link>
-            <Link to="/termos">Termos de Uso</Link>
-          </nav>
+          {!hideResponsible && <><h2>Quem é o responsável</h2><CompanyBlock /></>}
+          <CopyrightNotice className="legal-links" />
         </article>
       </main>
     </div>
@@ -94,6 +91,7 @@ export function PrivacyPolicyPage() {
         <li><strong>Render</strong>: servidor da aplicação.</li>
         <li><strong>Vercel</strong>: hospedagem das telas.</li>
         <li><strong>WhatsApp (via WuzAPI)</strong>: recebimento dos acionamentos e envio de avisos para grupos internos.</li>
+        <li><strong>Google Fonts</strong>: entrega as fontes das telas. Recebe só os dados técnicos da conexão (endereço IP e navegador), sem cookies.</li>
       </ul>
       <p>Esses serviços podem guardar dados em servidores fora do Brasil. A transferência segue o art. 33 da LGPD. Os dados não são compartilhados com terceiros para outras finalidades.</p>
 
@@ -155,6 +153,17 @@ export function TermsOfUsePage() {
         <li>Fotos de perfil, banners, observações e anexos devem ser seus ou de uso autorizado.</li>
         <li>Não envie conteúdo ofensivo, discriminatório, ilegal ou que viole direitos de imagem ou autorais de outras pessoas.</li>
         <li>Fotos de campo devem mostrar só o necessário para o atendimento. Evite rostos, placas de veículos e documentos de clientes.</li>
+      </ul>
+
+      <h2>Direitos autorais e propriedade intelectual</h2>
+      <ul>
+        <li>O software do sistema (código, telas, textos, layout e relatórios) é obra protegida pela Lei de Direitos Autorais (Lei 9.610/1998) e pela Lei de Software (Lei 9.609/1998). Os direitos são de <strong>{COMPANY.copyrightHolder}</strong>, e todos estão reservados.</li>
+        <li>O acesso dá apenas o direito de usar o sistema no trabalho, enquanto a conta estiver ativa. Não transfere a propriedade nem dá licença para outros usos.</li>
+        <li>Sem autorização por escrito, não é permitido copiar, reproduzir, modificar, distribuir, revender ou publicar o sistema ou partes dele. Também não é permitido fazer engenharia reversa ou criar sistemas derivados.</li>
+        <li>A marca, o nome e a logo <strong>JH Telecom</strong> pertencem aos seus titulares e aparecem no sistema só para identificar a operação atendida.</li>
+        <li>Os dados lançados (chamados, observações, fotos de campo) pertencem à operação. Fotos de perfil e banners continuam sendo de quem enviou. Ao enviar, a pessoa autoriza a exibição dentro do sistema.</li>
+        <li>O sistema usa bibliotecas e fontes de código aberto, cada uma com a sua licença. A lista completa, com autores e textos das licenças, está em <Link to="/licencas">Licenças de terceiros</Link>.</li>
+        <li>Suspeita de violação de direitos autorais (inclusive em imagens enviadas por usuários): avise pelo contato abaixo. O conteúdo será analisado e, se for o caso, removido.</li>
       </ul>
 
       <h2>Registro de atividades</h2>

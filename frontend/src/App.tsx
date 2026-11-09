@@ -6,6 +6,7 @@ import { clearDataCache } from "./lib/data-cache";
 import { Shell } from "./components/Shell";
 import { FirstLoginPasswordChange, Login } from "./pages/LoginPage";
 import { PrivacyPolicyPage, TermsOfUsePage } from "./pages/LegalPages";
+import { LicensesPage } from "./pages/LicensesPage";
 import { StorageNotice } from "./components/StorageNotice";
 
 export default function App() {
@@ -67,6 +68,7 @@ export default function App() {
   // Privacidade e Termos abrem com ou sem login.
   if (location.pathname === "/privacidade") return <><PrivacyPolicyPage /><StorageNotice /></>;
   if (location.pathname === "/termos") return <><TermsOfUsePage /><StorageNotice /></>;
+  if (location.pathname === "/licencas") return <><LicensesPage /><StorageNotice /></>;
   if (hydrating)
     return (
       <div className="app-loading">

@@ -2024,6 +2024,36 @@
 :where(:root:not([data-theme="dark"])) .pf-data-feedback {
     color: #4f5d73
 }
+:where(:root:not([data-theme="dark"])) .copyright-notice {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .copyright-notice a {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .legal-links.copyright-notice a {
+    color: #0b56cf
+}
+:where(:root:not([data-theme="dark"])) .license-head a {
+    color: #0b56cf
+}
+:where(:root:not([data-theme="dark"])) .license-version {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .license-badge {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .license-list small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .license-list summary {
+    color: #0b56cf
+}
+:where(:root:not([data-theme="dark"])) .license-list pre {
+    color: #3f4d63
+}
+:where(:root:not([data-theme="dark"])) .license-generated {
+    color: #4f5d73
+}
 
 /* contrast-fixes.css */
 :where(:root:not([data-theme="dark"])) .role-row-button {

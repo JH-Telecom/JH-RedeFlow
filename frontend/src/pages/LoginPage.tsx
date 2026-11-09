@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Activity, ChevronRight, LockKeyhole } from "lucide-react";
 import faviconUrl from "../../image/favicon.ico";
-import { Link } from "react-router-dom";
+import { CopyrightNotice } from "../components/Copyright";
 import { api, type Role, type User } from "../api";
 
 export function Login({
@@ -99,10 +99,7 @@ export function Login({
             Esqueci minha senha
           </button>
           {forgotOpen && <p id="login-forgot" className="login-forgot" role="status">Peça a um administrador do sistema para redefinir a sua senha. No próximo acesso você escolhe uma senha nova.</p>}
-          <nav className="login-legal" aria-label="Documentos">
-            <Link to="/privacidade">Política de Privacidade</Link>
-            <Link to="/termos">Termos de Uso</Link>
-          </nav>
+          <CopyrightNotice className="login-legal" />
         </div>
       </section>
     </main>
