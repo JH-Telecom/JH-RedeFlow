@@ -13,7 +13,7 @@ export function TechniciansPage() {
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
-  const [employmentFilter, setEmploymentFilter] = useState<Technician["employmentStatus"] | "Todos">("Trabalhando");
+  const [roleFilter, setRoleFilter] = useState<Technician["teamRole"] | "Todos">("Todos");
   const [regionFilter, setRegionFilter] = useState("Todas");
   const [showFilters, setShowFilters] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -67,16 +67,13 @@ export function TechniciansPage() {
     }
   }
   const regions = [...new Set(technicians.map((technician) => technician.region))];
-  const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (employmentFilter === "Todos" || (technician.employmentStatus || "Trabalhando") === employmentFilter) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
+  const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (roleFilter === "Todos" || technician.teamRole === roleFilter) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
   const pagedTechnicians = usePaged(visibleTechnicians, visibleTechnicians.length);
   async function changeStatus(technician: Technician, currentStatus: Technician["currentStatus"]) {
     try { const result = await api.updateTechnician(technician.id, { currentStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar status."); }
   }
   async function changeActive(technician: Technician, active: boolean) {
     try { const result = await api.updateTechnician(technician.id, { active }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar a ativacao."); }
-  }
-  async function changeEmploymentStatus(technician: Technician, employmentStatus: Technician["employmentStatus"]) {
-    try { const result = await api.updateTechnician(technician.id, { employmentStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar o vinculo."); }
   }
   async function assignAssistant(technician: Technician, leadTechnicianId: string) {
     try { const result = await api.updateTechnician(technician.id, { leadTechnicianId: leadTechnicianId || null }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); setSelectedTechnician(result.technician); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel vincular o auxiliar."); }
@@ -99,11 +96,11 @@ export function TechniciansPage() {
       </div>
       <div className="metric-grid team-metrics">
         <Metric
-          label="Trabalhando"
+          label="Na equipe"
           value={String(
             technicians.filter((technician) => technician.employmentStatus !== "Demitido").length,
           )}
-          note="Vínculo empregatício"
+          note="Técnicos e auxiliares cadastrados"
           positive
         />
         <Metric
@@ -142,7 +139,7 @@ export function TechniciansPage() {
           <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
-          {showFilters && <><select className="toolbar-select" aria-label="Filtrar por vínculo" value={employmentFilter} onChange={(event) => setEmploymentFilter(event.target.value as Technician["employmentStatus"] | "Todos")}><option value="Trabalhando">Trabalhando</option><option value="Demitido">Demitido</option><option value="Todos">Todos os vínculos</option></select><select className="toolbar-select" aria-label="Filtrar por situação operacional" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select></>}
+          {showFilters && <><select className="toolbar-select" aria-label="Filtrar por tipo" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as Technician["teamRole"] | "Todos")}><option value="Todos">Todos os tipos</option><option value="Tecnico">Técnicos</option><option value="Auxiliar">Auxiliares</option></select><select className="toolbar-select" aria-label="Filtrar por situação operacional" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select></>}
         </div>
         {error ? (
           <div className="empty-state">{error}</div>
@@ -159,7 +156,6 @@ export function TechniciansPage() {
                 <th>Turno</th>
                 <th>Situacao</th>
                 <th>Status</th>
-                <th>Vinculo</th>
               </tr>
             </thead>
             <tbody>
@@ -193,12 +189,6 @@ export function TechniciansPage() {
                       <option value="false">Inativo</option>
                     </select>
                   </td>
-                  <td>
-                    <select className="status-select" value={technician.employmentStatus || "Trabalhando"} onClick={(event) => event.stopPropagation()} onChange={(event) => void changeEmploymentStatus(technician, event.target.value as Technician["employmentStatus"])} aria-label={`Vinculo de ${technician.name}`}>
-                      <option value="Trabalhando">Trabalhando</option>
-                      <option value="Demitido">Demitido</option>
-                    </select>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -215,12 +205,11 @@ export function TechniciansPage() {
         <label>Regiao<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} /></label>
         <label>Turno<input value={form.shift} onChange={(event) => setForm({ ...form, shift: event.target.value })} placeholder="07:00 - 16:00" required /></label>
         <label>Status<select value={form.currentStatus} onChange={(event) => setForm({ ...form, currentStatus: event.target.value as Technician["currentStatus"] })}><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select></label>
-        <label>Vínculo<select value={form.employmentStatus} onChange={(event) => setForm({ ...form, employmentStatus: event.target.value as Technician["employmentStatus"] })}><option value="Trabalhando">Trabalhando</option><option value="Demitido">Demitido</option></select></label>
         <button className="primary-button" type="submit">Cadastrar tecnico <ChevronRight size={16} /></button>
       </form></AdminModal>}
       {selectedTechnician && <AdminModal title={selectedTechnician.name} onClose={() => setSelectedTechnician(null)}>
         <div className="detail-grid">
-          <DetailItem label="Tipo" value={selectedTechnician.teamRole} /><DetailItem label="Matrícula" value={selectedTechnician.registration} /><DetailItem label="Região" value={selectedTechnician.region} /><DetailItem label="Turno" value={selectedTechnician.shift} /><DetailItem label="Supervisor" value={selectedTechnician.supervisorName || "Sem supervisor"} /><DetailItem label="Situação operacional" value={selectedTechnician.currentStatus} /><DetailItem label="Vínculo" value={selectedTechnician.employmentStatus || "Trabalhando"} />
+          <DetailItem label="Tipo" value={selectedTechnician.teamRole} /><DetailItem label="Matrícula" value={selectedTechnician.registration} /><DetailItem label="Região" value={selectedTechnician.region} /><DetailItem label="Turno" value={selectedTechnician.shift} /><DetailItem label="Supervisor" value={selectedTechnician.supervisorName || "Sem supervisor"} /><DetailItem label="Situação operacional" value={selectedTechnician.currentStatus} />
         </div>
         <button className="secondary-button compact" type="button" onClick={() => editTechnician(selectedTechnician)}><Pencil size={15}/> Editar cadastro</button>
         {selectedTechnician.teamRole === "Tecnico" && <TechnicianUserLink technicianId={selectedTechnician.id} />}
@@ -236,7 +225,6 @@ export function TechniciansPage() {
         <label>Região<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} maxLength={100} /></label>
         <label>Turno<input value={form.shift} onChange={(event) => setForm({ ...form, shift: event.target.value })} minLength={2} maxLength={80} required /></label>
         <label>Status<select value={form.currentStatus} onChange={(event) => setForm({ ...form, currentStatus: event.target.value as Technician["currentStatus"] })}><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select></label>
-        <label>Vínculo<select value={form.employmentStatus} onChange={(event) => setForm({ ...form, employmentStatus: event.target.value as Technician["employmentStatus"] })}><option value="Trabalhando">Trabalhando</option><option value="Demitido">Demitido</option></select></label>
         <label>Status do cadastro<select value={form.active ? "true" : "false"} onChange={(event) => setForm({ ...form, active: event.target.value === "true" })}><option value="true">Ativo</option><option value="false">Inativo</option></select></label>
         {error && <div className="form-error">{error}</div>}
         <button className="primary-button" type="submit">Salvar alterações <ChevronRight size={16} /></button>

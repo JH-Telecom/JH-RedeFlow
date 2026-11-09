@@ -4907,3 +4907,15 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Reativados**: Edson Luan Parras De Oliveira e Enedino Assis Costa Neto.
 - **Nomes corrigidos como na planilha**: Carlos Roberto Oliveira Junior e Ricardo Mendes de Sousa.
 - **Resultado**: 27 técnicos e 20 auxiliares, todos ativos.
+
+## Técnicos sem a coluna "Vínculo" (2026-11-09)
+- A pedido do usuário, saiu da tela Técnicos tudo o que era de vínculo (Trabalhando/Demitido):
+  - a coluna da tabela;
+  - o filtro;
+  - o campo nos formulários de criar e editar;
+  - a linha nos detalhes.
+- Quem sai da equipe agora é excluído pelo botão Excluir. O nome continua nas ordens antigas.
+- O cartão "Trabalhando" virou "Na equipe" (técnicos e auxiliares cadastrados).
+- O campo continua no banco e no backend, sem mudar tabelas. Cadastros antigos marcados como Demitido seguem fora da atribuição de chamados.
+- Preview: tabela com 8 colunas e nenhum texto de vínculo na tela. O console só tinha erros antigos, de testes anteriores.
+- Filtro por tipo (2026-11-09): em Filtros, na tela Técnicos, dá para escolher Todos os tipos, Técnicos ou Auxiliares. O filtro vale junto com a busca, a situação e a região. Preview: "Técnicos" mostra só técnicos; "Auxiliares" fica vazio na demonstração, que não tem auxiliares.
