@@ -5004,3 +5004,8 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Contraste**: o tom "muted" das etiquetas da imagem (ex.: "Técnico" na coluna Tipo) estava apagado demais. Passou de #a0abba para #5f6c80 sobre #f3f5f8.
 - **Arquivos**: `splitReportSpec` e `shareReportImage` em `frontend/src/lib/report-image.ts`; aviso em `ImageReadyToast.tsx`.
 - **Preview**: 45 linhas viraram 3 imagens (20 + 20 + 5), com o total só na última e o aviso com 3 botões de copiar.
+- Fonte maior nas imagens (2026-11-09): as imagens geradas por "Copiar imagem" (fila, Técnicos, Painel diário) ficaram mais legíveis no celular.
+  - Tamanhos de fonte que mudaram: texto das células 17→21 px, linha de baixo 14→17 px, etiquetas coloridas 16→19 px, cabeçalho da tabela 14→17 px, título 30→36 px, subtítulo 15→18 px, contador 15→18 px e rodapé 12→14 px.
+  - As colunas ficaram 20% mais largas para acompanhar a fonte.
+  - Os cinzas das linhas de baixo e do rodapé ficaram um pouco mais escuros.
+  - Preview: imagem de teste com as 7 colunas da fila gerada sem erro.

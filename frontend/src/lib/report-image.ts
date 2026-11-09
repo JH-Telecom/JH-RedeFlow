@@ -43,15 +43,17 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, css: string, tex
 function cellContent(cell: ReportCell, align: ReportAlign, total: boolean) {
   const wrapper = element("div", `display:flex;flex-direction:column;gap:3px;align-items:${align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start"}`);
   if (cell.tone) {
-    wrapper.appendChild(element("span", `display:inline-block;min-width:38px;padding:5px 10px;border-radius:7px;box-sizing:border-box;text-align:center;font-size:16px;font-weight:700;line-height:1.25;${TONES[cell.tone]}${total ? ";box-shadow:inset 0 0 0 1px rgba(23,35,59,.08);background-color:#fff" : ""}`, cell.text));
+    wrapper.appendChild(element("span", `display:inline-block;min-width:38px;padding:5px 10px;border-radius:7px;box-sizing:border-box;text-align:center;font-size:19px;font-weight:700;line-height:1.25;${TONES[cell.tone]}${total ? ";box-shadow:inset 0 0 0 1px rgba(23,35,59,.08);background-color:#fff" : ""}`, cell.text));
   } else {
-    wrapper.appendChild(element("span", `color:${cell.strong || total ? "#13223a" : "#22324a"};font-size:17px;font-weight:${cell.strong || total ? 700 : 600};line-height:1.35;overflow-wrap:anywhere`, cell.text || "–"));
+    wrapper.appendChild(element("span", `color:${cell.strong || total ? "#13223a" : "#22324a"};font-size:21px;font-weight:${cell.strong || total ? 700 : 600};line-height:1.35;overflow-wrap:anywhere`, cell.text || "–"));
   }
-  if (cell.sub) wrapper.appendChild(element("span", "color:#6b7a90;font-size:14px;font-weight:500;line-height:1.35;overflow-wrap:anywhere", cell.sub));
+  if (cell.sub) wrapper.appendChild(element("span", "color:#5f6c80;font-size:17px;font-weight:500;line-height:1.35;overflow-wrap:anywhere", cell.sub));
   return wrapper;
 }
 
-function buildReport(spec: ReportSpec) {
+function buildReport(input: ReportSpec) {
+  // Fonte maior (melhor de ler no celular): colunas 20% mais largas para acompanhar.
+  const spec: ReportSpec = { ...input, columns: input.columns.map((column) => ({ ...column, width: Math.round(column.width * 1.2) })) };
   const tableWidth = spec.columns.reduce((sum, column) => sum + column.width, 0);
   const width = tableWidth + 2 * 24;
   const host = element("div", `position:fixed;left:-100000px;top:0;width:${width}px;box-sizing:border-box;padding:24px;background:#eef2f7;font-family:${FONT};color:#13223a`);
@@ -59,11 +61,11 @@ function buildReport(spec: ReportSpec) {
 
   const header = element("div", "display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 28px 20px");
   const titles = element("div", "min-width:0");
-  if (spec.kicker) titles.appendChild(element("div", "margin-bottom:6px;color:#2563eb;font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase", spec.kicker));
-  titles.appendChild(element("div", `color:#13223a;font-family:${TITLE_FONT};font-size:30px;font-weight:800;line-height:1.2;letter-spacing:-.3px`, spec.title));
-  if (spec.subtitle) titles.appendChild(element("div", "margin-top:8px;color:#5b6b80;font-size:15px;font-weight:500", spec.subtitle));
+  if (spec.kicker) titles.appendChild(element("div", "margin-bottom:6px;color:#2563eb;font-size:15px;font-weight:800;letter-spacing:.12em;text-transform:uppercase", spec.kicker));
+  titles.appendChild(element("div", `color:#13223a;font-family:${TITLE_FONT};font-size:36px;font-weight:800;line-height:1.2;letter-spacing:-.3px`, spec.title));
+  if (spec.subtitle) titles.appendChild(element("div", "margin-top:8px;color:#5b6b80;font-size:18px;font-weight:500", spec.subtitle));
   header.appendChild(titles);
-  if (spec.badge) header.appendChild(element("div", "flex:none;padding:9px 14px;border:1px solid #d6e3f7;border-radius:10px;background:#f2f7fe;color:#1d4fd7;font-size:15px;font-weight:700;white-space:nowrap", spec.badge));
+  if (spec.badge) header.appendChild(element("div", "flex:none;padding:9px 14px;border:1px solid #d6e3f7;border-radius:10px;background:#f2f7fe;color:#1d4fd7;font-size:18px;font-weight:700;white-space:nowrap", spec.badge));
 
   const table = element("table", `width:${tableWidth}px;table-layout:fixed;border-collapse:collapse`);
   const colgroup = document.createElement("colgroup");
@@ -72,7 +74,7 @@ function buildReport(spec: ReportSpec) {
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
   spec.columns.forEach((column, index) => {
-    const th = element("th", `padding:14px ${index === 0 ? 28 : 14}px 14px ${index === 0 ? 28 : 14}px;border-top:1px solid #e6ecf3;border-bottom:1px solid #e6ecf3;background:#f5f8fc;color:#4b5a6e;font-size:14px;font-weight:700;text-align:${column.align ?? "left"};white-space:nowrap`, column.label);
+    const th = element("th", `padding:14px ${index === 0 ? 28 : 14}px 14px ${index === 0 ? 28 : 14}px;border-top:1px solid #e6ecf3;border-bottom:1px solid #e6ecf3;background:#f5f8fc;color:#4b5a6e;font-size:17px;font-weight:700;text-align:${column.align ?? "left"};white-space:nowrap`, column.label);
     headRow.appendChild(th);
   });
   head.appendChild(headRow);
@@ -91,7 +93,7 @@ function buildReport(spec: ReportSpec) {
   spec.rows.forEach((row, index) => addRow(row, index));
   if (!spec.rows.length) {
     const tr = document.createElement("tr");
-    const td = element("td", "padding:36px;color:#6b7a90;font-size:17px;text-align:center", spec.empty ?? "Nada para mostrar com os filtros atuais.");
+    const td = element("td", "padding:36px;color:#5f6c80;font-size:20px;text-align:center", spec.empty ?? "Nada para mostrar com os filtros atuais.");
     td.colSpan = spec.columns.length;
     tr.appendChild(td);
     body.appendChild(tr);
@@ -99,7 +101,7 @@ function buildReport(spec: ReportSpec) {
   if (spec.totalRow) addRow(spec.totalRow, 0, true);
   table.appendChild(body);
 
-  card.append(header, table, element("div", "padding:14px 28px;color:#94a1b2;font-size:12px;font-weight:600;text-align:right", `JH Telecom · RedeFlow · gerado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`));
+  card.append(header, table, element("div", "padding:14px 28px;color:#7a879a;font-size:14px;font-weight:600;text-align:right", `JH Telecom · RedeFlow · gerado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`));
   host.appendChild(card);
   return { host, width };
 }
