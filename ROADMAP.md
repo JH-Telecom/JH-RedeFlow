@@ -4892,3 +4892,7 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - data antes da abertura e data no futuro são recusadas (422).
 - Suíte 207/207.
 - Preview: correção salva com confirmação, data antes da abertura recusada com mensagem, contraste OK no tema claro e no escuro.
+- Correção (2026-11-09): em produção, "Salvar Data Fim" respondia "Chamado nao encontrado".
+  - **Causa**: a atualização no Supabase recusa qualquer mudança em chamado encerrado que não seja de status. A etapa anterior também acrescenta região e endereço à atualização. O modo local não tem essa trava, por isso os testes passavam.
+  - **Correção**: nova função `updateCallEndDate`, que grava só `executed_at` e o log "Data de finalização alterado". Ela não passa pela trava nem altera outros campos.
+  - Teste atualizado para usar o mesmo caminho. Suíte 207/207.

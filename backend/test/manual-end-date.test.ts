@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyOfsRowsToCalls, listCalls, updateCall } from '../src/store.js';
+import { applyOfsRowsToCalls, listCalls, updateCallEndDate } from '../src/store.js';
 import { calls } from '../src/store/demo-data.js';
 import type { Call, User } from '../src/types.js';
 
@@ -20,7 +20,8 @@ test('an end date corrected by a person is kept when the OFS sync runs again; ot
   calls.set(untouched.id, untouched);
 
   const manual = '2026-11-01T18:30:00.000Z';
-  const saved = await updateCall(corrected.id, { executedAt: manual }, person);
+  const saved = await updateCallEndDate(corrected.id, manual, person);
+  assert.equal(saved?.status, 'Baixar', 'continua encerrado');
   assert.equal(saved?.executedAt, manual);
 
   const rows = [corrected, untouched].map((call) => ({ 'Número OS': call.orderNumber, 'Status OFS': 'Concluída', Data: '06/11/2026', Fim: '15:35' }));

@@ -375,6 +375,29 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   return updated;
 }
 
+// Corrige so a Data Fim, inclusive com o chamado encerrado (sem reabrir e sem mexer em mais nada). O log
+// "Data de finalizacao alterado" com usuario faz a sincronizacao do OFS manter esta data (callsWithManualEndDate).
+export async function updateCallEndDate(id: string, executedAt: string, actor: User): Promise<Call | undefined> {
+  ensureDemoData();
+  const current = await getCall(id);
+  if (!current) return undefined;
+  const previousValue = current.executedAt ?? '';
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin.from('calls').update({ executed_at: executedAt, updated_at: new Date().toISOString() }).eq('id', id).select('id').maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) return undefined;
+    const { error: logError } = await admin.from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Data de finalizacao alterado', field: 'executedAt', previous_value: previousValue, new_value: executedAt });
+    if (logError) throw new Error(logError.message);
+    return getCall(id);
+  }
+  const updated = { ...current, executedAt };
+  calls.set(id, updated);
+  const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Data de finalizacao alterado', field: 'executedAt', previousValue, newValue: executedAt, createdAt: new Date().toISOString() };
+  auditLogs.set(log.id, log);
+  return updated;
+}
+
 export async function finishCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: User): Promise<{ call?: Call; missing: string[] }> {
   if (isSupabaseConfigured()) {
     const current = await getCall(id);
