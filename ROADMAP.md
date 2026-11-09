@@ -4896,3 +4896,14 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - **Causa**: a atualização no Supabase recusa qualquer mudança em chamado encerrado que não seja de status. A etapa anterior também acrescenta região e endereço à atualização. O modo local não tem essa trava, por isso os testes passavam.
   - **Correção**: nova função `updateCallEndDate`, que grava só `executed_at` e o log "Data de finalização alterado". Ela não passa pela trava nem altera outros campos.
   - Teste atualizado para usar o mesmo caminho. Suíte 207/207.
+
+## Limpeza do cadastro de técnicos (2026-11-09, dados de produção, autorizada pelo usuário)
+- **Pedido**: ficar só com os técnicos da planilha de 09/11 (27 técnicos), sem tirar o técnico das ordens já finalizadas.
+- **Técnicos**: os 27 da planilha já existiam. Os outros 27 foram excluídos, entre eles demitidos, duplicados, o registro "JH Telecom" e um cadastro de teste.
+  - A exclusão é a mesma do botão Excluir: preenche `deleted_at` e desativa.
+  - As ordens mantêm o `technician_id`, então o nome continua aparecendo nos 1.389 chamados encerrados desses técnicos.
+  - Nenhum deles tinha chamado em aberto. A operação conferia isso e cancelaria tudo se encontrasse algum.
+- **Auxiliares**: ficaram os 20 da coluna AUXILIAR. Saíram Andre Pereira da Silva, Édson Luan Parras de Oliveira Alves, Nelson Quaitti, Ryan Robert e um "Francisco Roberto" duplicado (ficou o ligado a Paulo Herculano). Vínculos com técnicos excluídos foram limpos.
+- **Reativados**: Edson Luan Parras De Oliveira e Enedino Assis Costa Neto.
+- **Nomes corrigidos como na planilha**: Carlos Roberto Oliveira Junior e Ricardo Mendes de Sousa.
+- **Resultado**: 27 técnicos e 20 auxiliares, todos ativos.
