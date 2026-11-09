@@ -1852,6 +1852,26 @@
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .roles-v2-error {
     color: #b4232c
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ext-card-head h2 {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ext-card-head p {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ext-card-icon {
+    background: #f0f2ff;
+    color: #432fba
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ext-steps {
+    color: #46496b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ext-steps code, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .ext-update code {
+    background: #f1f5fa;
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ext-update {
+    color: #56597b
+}
 /* light · settings-olt.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .settings-olt-heading p {
     color: var(--muted)
@@ -5709,6 +5729,26 @@
 }
 :where(:root[data-palette="neon"][data-theme="dark"]) .roles-v2-error {
     color: #ff8a84
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ext-card-head h2 {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ext-card-head p {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ext-card-icon {
+    background: #131526;
+    color: #a2a8ff
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ext-steps {
+    color: #c2c4d0
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ext-steps code, :where(:root[data-palette="neon"][data-theme="dark"]) .ext-update code {
+    background: #14151f;
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ext-update {
+    color: #b6b8c4
 }
 /* dark · settings-olt.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .settings-olt-heading p {

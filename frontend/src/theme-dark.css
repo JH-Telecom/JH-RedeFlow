@@ -1871,6 +1871,26 @@
 :where(:root[data-theme="dark"]) .roles-v2-error {
     color: #ff8a84
 }
+:where(:root[data-theme="dark"]) .ext-card-head h2 {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ext-card-head p {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ext-card-icon {
+    background: #0f1722;
+    color: #7cb6ff
+}
+:where(:root[data-theme="dark"]) .ext-steps {
+    color: #c0c5cd
+}
+:where(:root[data-theme="dark"]) .ext-steps code, :where(:root[data-theme="dark"]) .ext-update code {
+    background: #13161d;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ext-update {
+    color: #b5b9c1
+}
 
 /* settings-olt.css */
 :where(:root[data-theme="dark"]) .settings-olt-heading p {

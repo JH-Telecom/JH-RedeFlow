@@ -31,6 +31,7 @@ import type { ActivationAnalysis, AuthUser, CallObservationAttachmentInput, Call
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite } from './read-cache.js';
 import { runDailyReset } from './daily-reset-job.js';
+import { buildExtensionZip, extensionInfo } from './extension-package.js';
 import { latestObservations } from './store/observations.js';
 import { createPublicViewToken, extractAllSlotPons, extractNoticeAddresses, isNoticeOlt, isOltNoticeMessage, OLT_NOTICE_DEFAULT_CHAT, OLT_NOTICE_TEST_CHAT, publicViewExpired, readPublicViewToken } from './olt-notice.js';
 import { dueSoonCalls } from './due-soon.js';
@@ -74,7 +75,7 @@ app.use((_request, response, next) => {
   next();
 });
 // ETag exposto: o navegador pergunta "mudou algo?" (If-None-Match) e recebe 304 sem corpo quando nada mudou.
-app.use(cors({ origin: corsOrigins, credentials: true, exposedHeaders: ['ETag'] }));
+app.use(cors({ origin: corsOrigins, credentials: true, exposedHeaders: ['ETag', 'Content-Disposition'] }));
 app.use((request, response, next) => {
   if (request.method === 'GET' && request.path.startsWith('/api/')) {
     response.setHeader('Cache-Control', 'private, no-cache');
@@ -1330,6 +1331,22 @@ app.post('/api/integracoes/informativo/teste', auth, requirePermission('settings
     await recordIntegrationEvent('olt_notice', false, `Falha no informativo de TESTE: ${message}`, { test: true });
     return response.status(502).json({ message: `Não foi possível enviar: ${message}` });
   }
+});
+
+// Extensao do Chrome para instalar nos computadores (Configuracoes): versao atual e o .zip montado na hora.
+app.get('/api/extensao', auth, (_request, response) => {
+  const info = extensionInfo();
+  if (!info) return response.status(404).json({ message: 'A pasta da extensão não está neste servidor.' });
+  return response.json(info);
+});
+app.get('/api/extensao/download', auth, (_request, response) => {
+  const info = extensionInfo();
+  const zip = buildExtensionZip();
+  if (!info || !zip) return response.status(404).json({ message: 'A pasta da extensão não está neste servidor.' });
+  response.setHeader('Content-Type', 'application/zip');
+  response.setHeader('Content-Disposition', `attachment; filename="${info.fileName}"`);
+  response.setHeader('Cache-Control', 'no-store');
+  return response.end(zip);
 });
 
 // Consulta publica (link do informativo): so leitura, so este acionamento/chamado, sem login.

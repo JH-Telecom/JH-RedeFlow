@@ -5114,3 +5114,26 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
     - Causa: o código veio da extensão do Agendamentos, que guarda a validade da sessão em `expira` (milissegundos). O RedeFlow guarda em `expiraEm` (data ISO).
     - Correção: o menu lê os dois formatos e mostra "conectado ao JH RedeFlow".
   - **Popup**: tirada a rolagem interna (eram duas barras de rolagem) e o texto dos cartões Fechamentos e Clusters ficou limitado a 6 linhas. O detalhe completo continua na tela Integração OFS.
+
+## Baixar a extensão pelo sistema (2026-11-09)
+- **Onde**: Configurações → **Extensão do Chrome**, visível para qualquer usuário logado. Tem o botão "Baixar extensão (.zip)" e o passo a passo para instalar no computador dos mesários:
+  1. extrair numa pasta fixa;
+  2. `chrome://extensions` com o Modo do desenvolvedor ligado;
+  3. Carregar sem compactação;
+  4. fixar a extensão, entrar com o login e conferir o nome do WhatsApp;
+  5. recarregar o WhatsApp Web.
+  - O cartão também explica como atualizar.
+- **Servidor**:
+  - `GET /api/extensao` devolve a versão atual, lida do `manifest.json`;
+  - `GET /api/extensao/download` monta o .zip na hora a partir da pasta `extensao-rede` do deploy, então o download é sempre a versão atual;
+  - os dois exigem login;
+  - zip feito no próprio código (`backend/src/extension-package.ts`, deflate + CRC32), sem dependência nova;
+  - os arquivos ficam dentro da pasta `jh-redeflow-extensao`;
+  - o .zip fica em cache até algum arquivo mudar;
+  - a pasta pode ser apontada por `EXTENSION_DIR`, se um dia sair do repositório.
+- `Content-Disposition` exposto no CORS, para o nome do arquivo chegar ao navegador.
+- **Validação**:
+  - teste HTTP: sem login dá 401; com login vem um zip válido, e o `manifest.json` de dentro tem a mesma versão do endpoint;
+  - `unzip -t` sem erros;
+  - preview: o cartão mostra "Versão atual: 1.6.2" e o download veio com 95 KB;
+  - contraste OK em `/configuracoes`, no claro e no escuro.

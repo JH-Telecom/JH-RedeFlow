@@ -174,11 +174,20 @@ export type UserStatus = { text: string; emoji: string; until: string | null };
 export type Highlight = { kind: 'most-finished' | 'best-on-time' | 'best-supervisor'; title: string; name: string; detail: string; userId?: string };
 export type PersonCard = { id: string; name: string; email: string; roleName: string; online: boolean; lastSeenAt?: string; createdAt: string };
 
+// Baixa o .zip da extensao do Chrome (precisa do login; vem como arquivo, nao JSON).
+export async function downloadExtensionZip(): Promise<{ blob: Blob; fileName: string }> {
+  const token = localStorage.getItem('jh-redeflow-token');
+  const response = await fetch(`${API_URL}/api/extensao/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: 'no-store' });
+  if (!response.ok) throw new Error((await response.json().catch(() => null))?.message || `Download recusado (${response.status}).`);
+  const fileName = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') || '')?.[1] || 'jh-redeflow-extensao.zip';
+  return { blob: await response.blob(), fileName };
+}
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
   // Consulta publica do informativo (link so de leitura, sem login).
   sendNoticeTest: () => request<{ mode: 'botao' | 'texto'; chat: string }>('/api/integracoes/informativo/teste', { method: 'POST' }),
+  extensionInfo: () => request<{ name: string; version: string; fileName: string }>('/api/extensao'),
   publicView: (token: string) => request<PublicView>(`/api/public/consulta/${encodeURIComponent(token)}`),
   // LGPD: os dados pessoais da propria pessoa, para baixar em JSON (Meu perfil).
   myData: () => request<Record<string, unknown>>('/api/auth/meus-dados'),

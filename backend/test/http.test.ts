@@ -1530,3 +1530,47 @@ test('read-only link from the Casa Cliente notice shows the card while pending a
   assert.equal((await fetch(`${baseUrl}/api/public/consulta/token-invalido`)).status, 404);
   assert.equal((await fetch(`${baseUrl}/api/public/consulta/${createPublicViewToken(activationId, 'outro-segredo')}`)).status, 404);
 });
+
+test('the Chrome extension can be downloaded as a valid zip with the current manifest', async () => {
+  const { inflateRawSync } = await import('node:zlib');
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { authorization: `Bearer ${session.token}` };
+
+  assert.equal((await fetch(`${baseUrl}/api/extensao/download`)).status, 401);
+  const info = await (await fetch(`${baseUrl}/api/extensao`, { headers })).json() as { version: string; fileName: string };
+  assert.match(info.version, /^\d+\.\d+\.\d+$/);
+
+  const response = await fetch(`${baseUrl}/api/extensao/download`, { headers });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'application/zip');
+  assert.match(response.headers.get('content-disposition') || '', new RegExp(info.fileName.replace(/\./g, '\.')));
+  const zip = Buffer.from(await response.arrayBuffer());
+  assert.equal(zip.readUInt32LE(0), 0x04034b50);
+
+  // Le o diretorio central e confere o manifest.json de dentro do zip.
+  const endAt = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  const count = zip.readUInt16LE(endAt + 10);
+  let pointer = zip.readUInt32LE(endAt + 16);
+  const names: string[] = [];
+  let manifestText = '';
+  for (let index = 0; index < count; index += 1) {
+    const nameLength = zip.readUInt16LE(pointer + 28);
+    const extraLength = zip.readUInt16LE(pointer + 30);
+    const commentLength = zip.readUInt16LE(pointer + 32);
+    const localOffset = zip.readUInt32LE(pointer + 42);
+    const compressedSize = zip.readUInt32LE(pointer + 20);
+    const name = zip.subarray(pointer + 46, pointer + 46 + nameLength).toString('utf8');
+    names.push(name);
+    if (name === 'jh-redeflow-extensao/manifest.json') {
+      const localName = zip.readUInt16LE(localOffset + 26);
+      const localExtra = zip.readUInt16LE(localOffset + 28);
+      const start = localOffset + 30 + localName + localExtra;
+      manifestText = inflateRawSync(zip.subarray(start, start + compressedSize)).toString('utf8');
+    }
+    pointer += 46 + nameLength + extraLength + commentLength;
+  }
+  assert.ok(names.includes('jh-redeflow-extensao/background.js'));
+  assert.ok(names.includes('jh-redeflow-extensao/whatsapp/wa.js'));
+  assert.equal((JSON.parse(manifestText) as { version: string }).version, info.version);
+});
