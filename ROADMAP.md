@@ -5073,3 +5073,35 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - sintaxe dos arquivos conferida;
   - teste do identificador numa página que imita a caixa do WhatsApp Web: mensagem comum saiu com o nome (Enter e botão), mensagem já identificada e card não foram alterados;
   - não testado no WhatsApp Web real nem no OFS real (depende das contas do usuário).
+
+## Extensão 1.5.0: ferramentas de WhatsApp da extensão JH Agendamentos + nome corrigido (2026-11-09)
+- **Nome duplicado** ("Matheus Terra: Matheus Terra:"):
+  - Causa: o WhatsApp mostra o texto colado alguns milissegundos depois. A extensão conferia na hora, achava que a colagem tinha falhado e escrevia o nome de novo.
+  - Correção: a conferência agora espera 150 ms e o envio acontece em 320 ms.
+  - Pedido do usuário: o identificador usa só o primeiro nome do cadastro (`*Matheus:*`).
+- **Módulo de WhatsApp da extensão JH Telecom 2.1.1** copiado para `extensao-rede/whatsapp/` (wa.js, wa-page.js, temas.js, wa.css, carregando.js) e registrado no manifest. A ponte `wa-page.js` roda no mundo da página.
+  - **Fica na Rede**: temas, modo escuro, tela de carregamento, privacidade (desfocar), agendar mensagem, mensagens agendadas, respostas rápidas, corretor, conversar sem contato e o visual enxuto.
+  - **Fica desligado**, porque depende do site do JH Agendamentos aberto: painel do cliente, Minha fila, nome do cliente na lista e faixa de mensagens prontas de agendamento. Essas opções saíram do menu JH e são forçadas para desligado.
+  - **Preferências** (respostas rápidas e mensagens fixadas): no `background.js` da Rede ficam em `chrome.storage.local` (`waPrefs`), não no Supabase do Agendamentos.
+- **Popup**: aviso sobre o botão JH. Se a extensão do Agendamentos também estiver com o WhatsApp ligado, deixar ligado em uma só.
+- **Manifest**: versão 1.5.0.
+- **Validação**:
+  - sintaxe de todos os arquivos conferida;
+  - teste numa página que imita o WhatsApp: o módulo e os temas carregaram sem erro e o identificador mandou `*Matheus:* oi` uma vez só;
+  - não testado no WhatsApp Web real.
+
+## Extensão 1.6.0: popup redesenhado (2026-11-09)
+- **Pedido**: visual parecido com a extensão JH Telecom do irmão do usuário, mas melhor.
+- **Novo popup** (380 px):
+  - cabeçalho com a marca, o subtítulo "Coletor OFS e WhatsApp da Rede" e a versão numa etiqueta;
+  - abas **Início**, **OFS**, **WhatsApp** e **Ajustes**, e o popup lembra a última aba aberta;
+  - cartões arredondados com ícone e título;
+  - conta com avatar de iniciais e botões Sair e Testar conexão;
+  - resumo da coleta (último envio, fechamentos e clusters lado a lado);
+  - interruptores no lugar das caixinhas;
+  - prévia em balão verde de como a mensagem sai no WhatsApp (`*Matheus:*`), que acompanha o nome digitado;
+  - escolha do CSV como botão;
+  - mensagens das ações (exportar, enviar CSV) numa faixa abaixo das abas, visível em qualquer aba;
+  - tema escuro automático, que segue o tema do sistema.
+- Todos os campos e botões anteriores continuam, com os mesmos IDs, e o popup.js funciona igual.
+- **Prévia no navegador** com dados de exemplo, no claro e no escuro: abas, conta logada, resumo da coleta e aba WhatsApp conferidos. A versão aparecia "vv1.6.0" e foi corrigida.

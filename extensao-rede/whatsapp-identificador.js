@@ -21,9 +21,9 @@
   void carregar();
   chrome.storage.onChanged.addListener((mudancas, area) => { if (area === "local" && (mudancas.waIdentificador || mudancas.sessao)) void carregar(); });
 
-  // "Matheus Terra Farias" -> "Matheus Terra" (nome e sobrenome, como no WhatsApp).
-  const nomeCurto = (nome) => String(nome || "").trim().split(/\s+/).filter((parte) => !/^(da|de|do|das|dos|e)$/i.test(parte)).slice(0, 2).join(" ");
-  const nomeAtual = () => (cfg.nome || "").trim() || nomeCurto(nomeSessao);
+  // So o primeiro nome do cadastro no sistema: "Matheus Terra Farias" -> "Matheus".
+  const primeiroNome = (nome) => { const p = String(nome || "").trim().split(/\s+/)[0] || ""; return p ? p[0].toUpperCase() + p.slice(1).toLowerCase() : ""; };
+  const nomeAtual = () => (cfg.nome || "").trim() || primeiroNome(nomeSessao);
   const prefixo = () => `*${nomeAtual()}:*`;
 
   const caixa = () => document.querySelector('#main footer div[contenteditable="true"]');
@@ -62,14 +62,14 @@
     selecao.removeAllRanges();
     selecao.addRange(inicio);
     const texto = `${prefixo()}\n`;
-    const antes = cx.innerText;
     try {
       const dados = new DataTransfer();
       dados.setData("text/plain", texto);
       cx.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dados, bubbles: true, cancelable: true }));
     } catch (_) { /* cai no jeito abaixo */ }
-    if (cx.innerText === antes) document.execCommand("insertText", false, `${prefixo()} `);
   }
+  // O WhatsApp so mostra o texto colado um pouco depois: conferir na hora fazia o nome entrar duas vezes.
+  const jaTemIdentificador = (cx) => (cx.innerText || "").trim().startsWith(prefixo());
 
   let liberado = false; // envio feito por nos depois de colocar o identificador
   function identificarEEnviar(evento) {
@@ -78,6 +78,8 @@
     evento.preventDefault();
     evento.stopImmediatePropagation();
     colocarIdentificador(cx);
+    // Colagem nao pegou (outra versao do WhatsApp): escreve direto no comeco, uma vez so.
+    setTimeout(() => { if (!jaTemIdentificador(cx)) document.execCommand("insertText", false, `${prefixo()} `); }, 150);
     setTimeout(() => {
       const botao = botaoEnviar();
       liberado = true;
@@ -87,7 +89,7 @@
       } finally {
         setTimeout(() => { liberado = false; }, 300);
       }
-    }, 120);
+    }, 320);
   }
 
   // Enter (sem Shift) na caixa de digitar da conversa.

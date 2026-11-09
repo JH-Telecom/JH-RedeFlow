@@ -33,11 +33,11 @@ Os mesários usam o mesmo número de WhatsApp. Com a extensão no Chrome de cada
 Web sai com o nome de quem mandou no começo, sem ninguém precisar digitar:
 
 ```
-*Matheus Terra:*
+*Matheus:*
 Técnico a caminho da CTO.
 ```
 
-- **Nome**: o do login no popup (nome e sobrenome) ou um nome escrito em **WhatsApp Web → Nome que aparece**. Quem não tem a
+- **Nome**: o primeiro nome do cadastro no sistema (login do popup) ou um nome escrito em **WhatsApp Web → Nome que aparece**. Quem não tem a
   permissão de Importações (não consegue entrar) escreve o nome ali.
 - **Onde**: todas as conversas (padrão) ou só em grupos.
 - **Como funciona**: ao apertar Enter ou o botão Enviar, a extensão cola só o identificador no começo da caixa de texto. O resto
@@ -47,6 +47,20 @@ Técnico a caminho da CTO.
 - **Conversar sem salvar o contato**: no popup, digite o número com DDD e clique em **Abrir**. A ideia veio da extensão
   JH Agendamentos 2.1.1.
 - Depois de atualizar a extensão, recarregue a aba do WhatsApp Web.
+
+## WhatsApp Web: ferramentas JH (v1.5)
+
+Trazidas da extensão JH Telecom 2.1.1 (JH Agendamentos). Ficam no botão **JH** no topo da lista de conversas:
+
+- **Temas** de cor para o WhatsApp Web, com **modo escuro** e uma tela de carregamento nas cores do tema.
+- **Privacidade**: desfoca nomes, fotos e mensagens na tela (passar o mouse mostra).
+- **Agendar mensagem** e **Mensagens agendadas**. A mensagem só sai com o WhatsApp Web aberto neste Chrome.
+- **Respostas rápidas** no menu de cada mensagem (↩), guardadas neste Chrome.
+- **Conversar sem contato** e visual enxuto.
+
+O que dependia do site do JH Agendamentos aberto fica desligado na Rede: painel do cliente, Minha fila, nome do cliente na
+lista e a faixa de mensagens prontas de agendamento. Se a extensão JH Agendamentos também estiver com o WhatsApp ligado,
+deixe ligado em uma só (as duas desenham no mesmo lugar).
 
 ## Instalação
 

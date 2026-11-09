@@ -626,3 +626,26 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
   Promise.resolve(tarefa()).then(responder, (e) => responder({ ok: false, erro: e?.message || String(e) }));
   return true;
 });
+
+// ---------- WhatsApp Web (modulo trazido da extensao JH Agendamentos) ----------
+// Respostas rapidas e mensagens fixadas ficam neste Chrome (chrome.storage). O que dependia do site do JH Agendamentos
+// (cliente pelo telefone, Minha fila, nomes na lista) responde "sem site" e fica desligado.
+chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
+  if (!msg || msg.wa !== true) return;
+  (async () => {
+    if (msg.tipo === "prefsLer") {
+      const { waPrefs } = await chrome.storage.local.get("waPrefs");
+      return { ok: true, prefs: waPrefs || null };
+    }
+    if (msg.tipo === "prefsSalvar") {
+      const { waPrefs = {} } = await chrome.storage.local.get("waPrefs");
+      const novo = { ...waPrefs, atualizado_em: new Date().toISOString() };
+      if (Array.isArray(msg.respostas)) novo.respostas = msg.respostas.slice(0, 30);
+      if (Array.isArray(msg.faixa_fixas)) novo.faixa_fixas = msg.faixa_fixas.slice(0, 6);
+      await chrome.storage.local.set({ waPrefs: novo });
+      return { ok: true };
+    }
+    return { ok: false, semSite: true };
+  })().then(responder, () => responder({ ok: false }));
+  return true;
+});

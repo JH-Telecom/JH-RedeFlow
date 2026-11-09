@@ -199,14 +199,14 @@ async function carregarWhatsapp() {
   const cfg = { ativo: true, nome: "", escopo: "todas", ...(waIdentificador || {}) };
   $("waAtivo").checked = cfg.ativo !== false;
   $("waNome").value = cfg.nome || "";
-  $("waNome").placeholder = sessao?.nome ? `em branco = ${sessao.nome.split(/\s+/).slice(0, 2).join(" ")}` : "em branco = nome do login";
+  $("waNome").placeholder = sessao?.nome ? `em branco = ${sessao.nome.split(/\s+/)[0]}` : "em branco = nome do login";
   $("waEscopo").value = cfg.escopo === "grupos" ? "grupos" : "todas";
 }
 $("waSalvar").onclick = async () => {
   const cfg = { ativo: $("waAtivo").checked, nome: $("waNome").value.trim().slice(0, 40), escopo: $("waEscopo").value };
   await chrome.storage.local.set({ waIdentificador: cfg });
   const { sessao } = await chrome.storage.local.get("sessao");
-  const nome = cfg.nome || (sessao?.nome || "").split(/\s+/).slice(0, 2).join(" ");
+  const nome = cfg.nome || (sessao?.nome || "").split(/\s+/)[0];
   $("waStatus").textContent = !cfg.ativo ? "Identificador desligado." : nome ? `✓ Suas mensagens vão sair como *${nome}:*. Recarregue o WhatsApp Web se ele já estava aberto.` : "Entre com seu usuário ou escreva um nome.";
   $("waStatus").className = `hint ${cfg.ativo && nome ? "ok" : ""}`;
 };
@@ -221,3 +221,27 @@ $("waAbrir").onclick = async () => {
   $("waNumeroStatus").textContent = "";
 };
 carregarWhatsapp();
+
+// ---------- visual 1.6: abas, avatar e previa do nome no WhatsApp ----------
+function mostrarAba(nome) {
+  document.querySelectorAll(".abas [data-aba]").forEach((botao) => botao.setAttribute("aria-selected", String(botao.dataset.aba === nome)));
+  document.querySelectorAll("[data-painel]").forEach((painel) => { painel.hidden = painel.dataset.painel !== nome; });
+  chrome.storage.local.set({ popupAba: nome });
+}
+document.querySelectorAll(".abas [data-aba]").forEach((botao) => { botao.onclick = () => mostrarAba(botao.dataset.aba); });
+chrome.storage.local.get("popupAba").then(({ popupAba }) => { if (popupAba && document.querySelector(`[data-painel="${popupAba}"]`)) mostrarAba(popupAba); });
+
+// Iniciais no avatar da conta (acompanha o nome mostrado).
+new MutationObserver(() => {
+  const nome = $("usuarioNome").textContent.trim();
+  $("avatar").textContent = nome ? nome.split(/\s+/).filter(Boolean).slice(0, 2).map((parte) => parte[0].toUpperCase()).join("") : "JH";
+}).observe($("usuarioNome"), { childList: true, characterData: true, subtree: true });
+
+// Previa "*Nome:*" enquanto digita o nome.
+async function atualizarPrevia() {
+  const { sessao } = await chrome.storage.local.get("sessao");
+  const nome = $("waNome").value.trim() || (sessao?.nome || "").split(/\s+/)[0] || "Seu nome";
+  $("waPrevia").textContent = `*${nome}:*`;
+}
+$("waNome").addEventListener("input", atualizarPrevia);
+atualizarPrevia();

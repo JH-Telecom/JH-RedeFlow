@@ -2,145 +2,186 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <title>JH RedeFlow – Coletor OFS</title>
+  <title>JH RedeFlow</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header>
-    <img src="icons/icon48.png" alt="" width="28" height="28">
-    <div><strong>JH RedeFlow</strong><small>Coletor OFS · <span id="versao"></span></small></div>
-  </header>
-
-  <section class="card" id="cardConta">
-    <h2>Conta do JH RedeFlow</h2>
-    <form id="formLogin">
-      <label class="campo">E-mail
-        <input id="email" type="email" autocomplete="username" required>
-      </label>
-      <label class="campo">Senha
-        <input id="senha" type="password" autocomplete="current-password" required>
-      </label>
-      <button id="entrar" class="primario" type="submit">Entrar</button>
-      <p class="hint">Use o mesmo login do sistema. O perfil precisa da permissão de Importações.</p>
-    </form>
-    <div id="logado" hidden>
-      <div class="status ok">✓ <span id="usuarioNome"></span></div>
-      <div class="hint"><span id="usuarioEmail"></span> · sessão até <span id="sessaoAte"></span></div>
-      <div class="botoes">
-        <button id="testarConexao" type="button">Testar conexão</button>
-        <button id="sair" type="button">Sair</button>
+  <header class="topo">
+    <div class="marca">
+      <span class="logo"><img src="icons/icon48.png" alt="" width="26" height="26"></span>
+      <div>
+        <strong>JH RedeFlow</strong>
+        <small>Coletor OFS e WhatsApp da Rede</small>
       </div>
     </div>
-    <div id="contaStatus" class="hint"></div>
-  </section>
+    <span class="versao"><span id="versao"></span></span>
+  </header>
 
-  <section class="card" id="cardStatus">
-    <h2>Último envio</h2>
-    <div id="status" class="status">Nenhum envio ainda.</div>
-    <div id="proximas" class="hint"></div>
-    <div id="fechamentoStatus" class="hint"></div>
-    <ol id="fechamentoFalhas" class="historico" hidden></ol>
-    <button id="lerFechamentos" type="button">Ler fechamentos agora</button>
-    <div id="clusterStatus" class="hint"></div>
-    <button id="lerClusters" type="button">Ler clusters agora</button>
-  </section>
+  <nav class="abas" role="tablist" aria-label="Seções">
+    <button role="tab" data-aba="inicio" aria-selected="true">Início</button>
+    <button role="tab" data-aba="ofs" aria-selected="false">OFS</button>
+    <button role="tab" data-aba="whats" aria-selected="false">WhatsApp</button>
+    <button role="tab" data-aba="ajustes" aria-selected="false">Ajustes</button>
+  </nav>
 
-  <section class="card">
-    <h2>Exportar agora</h2>
-    <p class="hint">Precisa de uma aba do OFS (Console de Alocação) aberta e logada neste Chrome.</p>
-    <div class="botoes">
-      <button id="exportarHoje" class="primario">Hoje</button>
-      <button id="exportarOntem">Dia anterior</button>
-    </div>
-    <div class="linha">
-      <input id="dataEscolhida" type="date">
-      <button id="exportarData">Exportar data</button>
-    </div>
-    <div id="acaoStatus" class="hint"></div>
-  </section>
+  <div id="acaoStatus" class="hint aviso-global" role="status"></div>
+  <main>
+    <!-- ================= INÍCIO ================= -->
+    <section class="painel" data-painel="inicio" role="tabpanel">
+      <div class="card" id="cardConta">
+        <form id="formLogin">
+          <div class="card-titulo"><span class="ic">🔐</span><div><h2>Entrar no JH RedeFlow</h2><p class="hint">Mesmo e-mail e senha do sistema.</p></div></div>
+          <label class="campo">E-mail
+            <input id="email" type="email" autocomplete="username" required>
+          </label>
+          <label class="campo">Senha
+            <input id="senha" type="password" autocomplete="current-password" required>
+          </label>
+          <button id="entrar" class="primario largo" type="submit">Entrar</button>
+          <p class="hint">A coleta do OFS precisa da permissão de Importações. O WhatsApp funciona com qualquer login.</p>
+        </form>
+        <div id="logado" hidden>
+          <div class="conta">
+            <span class="avatar" id="avatar" aria-hidden="true">JH</span>
+            <div class="conta-txt">
+              <strong id="usuarioNome"></strong>
+              <small><span id="usuarioEmail"></span> · até <span id="sessaoAte"></span></small>
+            </div>
+            <button id="sair" type="button" class="suave">Sair</button>
+          </div>
+          <button id="testarConexao" type="button" class="suave largo">Testar conexão</button>
+        </div>
+        <div id="contaStatus" class="hint"></div>
+      </div>
 
-  <section class="card">
-    <h2>Configuração</h2>
-    <label class="campo">Atualizar hoje
-      <select id="intervaloMin">
-        <option value="0">Desligado</option>
-        <option value="15">A cada 15 min</option>
-        <option value="30">A cada 30 min</option>
-        <option value="60">A cada 1 hora</option>
-        <option value="120">A cada 2 horas</option>
-      </select>
-    </label>
-    <label class="campo">Ler fechamentos do OFS (submotivo e tipo do cabo)
-      <select id="fechamentoMin">
-        <option value="0">Desligado</option>
-        <option value="10">A cada 10 min</option>
-        <option value="30">A cada 30 min</option>
-      </select>
-      <span class="hint">Abre cada atividade concluída numa aba fixada do OFS, só para ler.</span>
-    </label>
-    <label class="campo">Ler clusters (C08 SP, C09 ABC, C11 Alto Tietê, C12 GRU)
-      <select id="clusterMin">
-        <option value="0">Desligado</option>
-        <option value="60">A cada 1 hora</option>
-        <option value="120">A cada 2 horas</option>
-      </select>
-      <span class="hint">Exporta cada balde de cluster na aba fixada do OFS para saber a área de cada ordem.</span>
-    </label>
-    <label class="campo">Exportar o dia anterior todo dia às
-      <input id="horaDiaAnterior" type="time">
-      <span class="hint">Em branco = não exporta o dia anterior automaticamente.</span>
-    </label>
-    <details>
-      <summary>Avançado</summary>
-      <label class="campo">ID da alocação da Rede (data-id)
-        <input id="alocacaoId" type="text" placeholder="em branco = a alocação selecionada no OFS">
-        <span class="hint">Garante exportar sempre a mesma alocação da árvore do OFS.</span>
-      </label>
-      <label class="campo">Token de máquina (opcional)
-        <input id="token" type="password" autocomplete="off" placeholder="só se não usar o login">
-        <span class="hint">Alternativa antiga ao login. Com usuário logado, o login é usado.</span>
-      </label>
-    </details>
-    <label class="interruptor"><input id="ativo" type="checkbox"> Coleta automática ligada</label>
-    <button id="salvar" class="primario">Salvar</button>
-    <div id="configStatus" class="hint"></div>
-  </section>
+      <div class="card" id="cardStatus">
+        <div class="card-titulo"><span class="ic">📡</span><div><h2>Coleta do OFS</h2><p class="hint" id="proximas"></p></div></div>
+        <div id="status" class="status">Nenhum envio ainda.</div>
+        <div class="mini-status">
+          <div><span class="rotulo">Fechamentos</span><div id="fechamentoStatus" class="hint"></div></div>
+          <div><span class="rotulo">Clusters</span><div id="clusterStatus" class="hint"></div></div>
+        </div>
+        <ol id="fechamentoFalhas" class="historico" hidden></ol>
+      </div>
 
-  <section class="card" id="cardWhatsapp">
-    <h2>WhatsApp Web</h2>
-    <p class="hint">Quem usa o mesmo número: cada mensagem enviada por este Chrome sai com o seu nome no começo (ex.: <b>*Matheus Terra:*</b>). Não precisa digitar nada.</p>
-    <label class="interruptor"><input id="waAtivo" type="checkbox"> Identificar minhas mensagens</label>
-    <label>Nome que aparece
-      <input id="waNome" type="text" maxlength="40" placeholder="em branco = nome do login">
-    </label>
-    <label>Onde
-      <select id="waEscopo">
-        <option value="todas">Todas as conversas</option>
-        <option value="grupos">Só em grupos</option>
-      </select>
-    </label>
-    <button id="waSalvar" type="button">Salvar</button>
-    <div id="waStatus" class="hint"></div>
-    <hr>
-    <label>Conversar sem salvar o contato
-      <div class="linha"><input id="waNumero" type="tel" placeholder="(11) 99999-9999"><button id="waAbrir" type="button">Abrir</button></div>
-    </label>
-    <div id="waNumeroStatus" class="hint"></div>
-  </section>
+      <div class="card destaque">
+        <div class="card-titulo"><span class="ic">⚡</span><div><h2>Exportar agora</h2><p class="hint">Com o Console de Alocação aberto e logado neste Chrome.</p></div></div>
+        <div class="botoes">
+          <button id="exportarHoje" class="primario">Hoje</button>
+          <button id="exportarOntem">Dia anterior</button>
+        </div>
+      </div>
+    </section>
 
-  <section class="card">
-    <h2>Envio manual</h2>
-    <p class="hint">Se o automático falhar: exporte no OFS (Ações → Exportar), escolha o dia do arquivo e selecione o CSV.</p>
-    <div class="linha">
-      <input id="arquivoData" type="date">
-      <input id="arquivo" type="file" accept=".csv">
-    </div>
-  </section>
+    <!-- ================= OFS ================= -->
+    <section class="painel" data-painel="ofs" role="tabpanel" hidden>
+      <div class="card">
+        <div class="card-titulo"><span class="ic">📅</span><div><h2>Exportar outra data</h2><p class="hint">Qualquer dia dos últimos 31.</p></div></div>
+        <div class="linha">
+          <input id="dataEscolhida" type="date" aria-label="Data para exportar">
+          <button id="exportarData">Exportar</button>
+        </div>
+      </div>
 
-  <section class="card">
-    <h2>Histórico</h2>
-    <ol id="historico" class="historico"></ol>
-  </section>
+      <div class="card">
+        <div class="card-titulo"><span class="ic">🔎</span><div><h2>Leituras na aba fixada</h2><p class="hint">Só leitura: nada é alterado no OFS.</p></div></div>
+        <div class="botoes">
+          <button id="lerFechamentos" type="button">Ler fechamentos</button>
+          <button id="lerClusters" type="button">Ler clusters</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-titulo"><span class="ic">📤</span><div><h2>Envio manual</h2><p class="hint">Se o automático falhar: no OFS, Ações → Exportar, e selecione o CSV aqui.</p></div></div>
+        <div class="linha">
+          <input id="arquivoData" type="date" aria-label="Dia do arquivo">
+          <label class="arquivo">Escolher CSV<input id="arquivo" type="file" accept=".csv"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-titulo"><span class="ic">🕘</span><div><h2>Histórico</h2></div></div>
+        <ol id="historico" class="historico"></ol>
+      </div>
+    </section>
+
+    <!-- ================= WHATSAPP ================= -->
+    <section class="painel" data-painel="whats" role="tabpanel" hidden>
+      <div class="card" id="cardWhatsapp">
+        <div class="card-titulo"><span class="ic">🏷️</span><div><h2>Identificar minhas mensagens</h2><p class="hint">Mesmo número para todos: cada mensagem sai com o seu nome, sem digitar nada.</p></div></div>
+        <div class="previa" aria-hidden="true"><b id="waPrevia">*Matheus:*</b><span>Técnico a caminho da CTO.</span></div>
+        <label class="interruptor"><input id="waAtivo" type="checkbox"><span class="trilho"></span>Ligado</label>
+        <label class="campo">Nome que aparece
+          <input id="waNome" type="text" maxlength="40" placeholder="em branco = nome do login">
+        </label>
+        <label class="campo">Onde
+          <select id="waEscopo">
+            <option value="todas">Todas as conversas</option>
+            <option value="grupos">Só em grupos</option>
+          </select>
+        </label>
+        <button id="waSalvar" type="button" class="primario largo">Salvar</button>
+        <div id="waStatus" class="hint"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-titulo"><span class="ic">💬</span><div><h2>Conversar sem salvar o contato</h2></div></div>
+        <div class="linha"><input id="waNumero" type="tel" placeholder="(11) 99999-9999" aria-label="Número com DDD"><button id="waAbrir" type="button">Abrir</button></div>
+        <div id="waNumeroStatus" class="hint"></div>
+      </div>
+
+      <div class="card dica">
+        <div class="card-titulo"><span class="ic">✨</span><div><h2>Ferramentas JH no WhatsApp</h2><p class="hint">No botão <b>JH</b>, no topo da lista de conversas: temas e modo escuro, privacidade, agendar mensagem e respostas rápidas.</p></div></div>
+        <p class="hint">Se a extensão JH Agendamentos também estiver com o WhatsApp ligado, deixe ligado em uma só.</p>
+      </div>
+    </section>
+
+    <!-- ================= AJUSTES ================= -->
+    <section class="painel" data-painel="ajustes" role="tabpanel" hidden>
+      <div class="card">
+        <div class="card-titulo"><span class="ic">⚙️</span><div><h2>Coleta automática</h2></div></div>
+        <label class="interruptor"><input id="ativo" type="checkbox"><span class="trilho"></span>Coleta automática ligada</label>
+        <label class="campo">Atualizar hoje
+          <select id="intervaloMin">
+            <option value="0">Desligado</option>
+            <option value="15">A cada 15 min</option>
+            <option value="30">A cada 30 min</option>
+            <option value="60">A cada 1 hora</option>
+            <option value="120">A cada 2 horas</option>
+          </select>
+        </label>
+        <label class="campo">Ler fechamentos (submotivo e tipo do cabo)
+          <select id="fechamentoMin">
+            <option value="0">Desligado</option>
+            <option value="10">A cada 10 min</option>
+            <option value="30">A cada 30 min</option>
+          </select>
+        </label>
+        <label class="campo">Ler clusters (C08 SP, C09 ABC, C11 Alto Tietê, C12 GRU)
+          <select id="clusterMin">
+            <option value="0">Desligado</option>
+            <option value="60">A cada 1 hora</option>
+            <option value="120">A cada 2 horas</option>
+          </select>
+        </label>
+        <label class="campo">Exportar o dia anterior todo dia às
+          <input id="horaDiaAnterior" type="time">
+          <span class="hint">Em branco = não exporta o dia anterior sozinho.</span>
+        </label>
+        <details>
+          <summary>Avançado</summary>
+          <label class="campo">ID da alocação da Rede (data-id)
+            <input id="alocacaoId" type="text" placeholder="em branco = a alocação selecionada no OFS">
+          </label>
+          <label class="campo">Token de máquina (opcional)
+            <input id="token" type="password" autocomplete="off" placeholder="só se não usar o login">
+          </label>
+        </details>
+        <button id="salvar" class="primario largo">Salvar</button>
+        <div id="configStatus" class="hint"></div>
+      </div>
+    </section>
+  </main>
 
   <script src="popup.js"></script>
 </body>

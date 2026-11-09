@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JH RedeFlow – Coletor OFS",
-  "version": "1.4.0",
-  "description": "Exporta as atividades do OFS e envia ao JH RedeFlow (Painel diário, Status OFS e fechamento dos chamados da Rede). No WhatsApp Web, identifica quem enviou cada mensagem.",
+  "version": "1.6.0",
+  "description": "Exporta as atividades do OFS e envia ao JH RedeFlow. No WhatsApp Web: identifica quem enviou cada mensagem, temas, privacidade, agendar mensagem e respostas rápidas.",
   "permissions": [
     "storage",
     "alarms",
@@ -38,7 +38,31 @@
         "https://web.whatsapp.com/*"
       ],
       "js": [
+        "whatsapp/wa-page.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "whatsapp/carregando.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "whatsapp/wa.js",
+        "whatsapp/temas.js",
         "whatsapp-identificador.js"
+      ],
+      "css": [
+        "whatsapp/wa.css"
       ],
       "run_at": "document_idle"
     }
