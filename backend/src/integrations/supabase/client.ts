@@ -522,6 +522,16 @@ export async function listSupabaseActivations(status?: ActivationStatus): Promis
   return activations;
 }
 
+// Um acionamento so (consulta publica do informativo). Mesmo formato de listSupabaseActivations.
+export async function getSupabaseActivation(id: string): Promise<Activation | undefined> {
+  const { data: row, error } = await getSupabaseAdmin().from('activations').select('id, source, original_message, received_at, status, decision_by, decision_at, created_call_id, rejection_reason').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) return undefined;
+  const extracted = (await latestProcessingByActivation([row.id])).get(row.id) || {};
+  const { _analysis: analysis, ...extractedData } = extracted;
+  return { id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, decisionBy: row.decision_by || undefined, decisionAt: row.decision_at || undefined, createdCallId: row.created_call_id || undefined, rejectionReason: row.rejection_reason || undefined, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
+}
+
 export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 'Recusado', actorId: string, rejectionReason?: string): Promise<{ activation?: Activation; call?: Call }> {
   const admin = getSupabaseAdmin();
   const { data: row, error } = await admin.from('activations').select('id, source, original_message, received_at, status, decision_by, decision_at, created_call_id, rejection_reason').eq('id', id).eq('status', 'Pendente').maybeSingle();

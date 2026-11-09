@@ -5009,3 +5009,31 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - As colunas ficaram 20% mais largas para acompanhar a fonte.
   - Os cinzas das linhas de baixo e do rodapé ficaram um pouco mais escuros.
   - Preview: imagem de teste com as 7 colunas da fila gerada sem erro.
+
+## Informativo de acionamento para o Casa Cliente + consulta só de leitura (2026-11-09)
+- **Origem**: porte do script da planilha (`verificarEEnviarInformativoOLT`). O setor Casa Cliente recebe no WhatsApp os eventos de rede da área dos clientes dele.
+- **Quando**: assim que chega um card de uma OLT da lista, decidido com o usuário. A lista tem as 33 OLTs da planilha (`OLT_NOTICE_OLTS` em `backend/src/olt-notice.ts`).
+- **Para onde**: grupo `120363422003961917@g.us`, o mesmo da planilha. Pode ser trocado pela variável `WUZAPI_INFORMATIVO_CHAT` no Render.
+- **Texto**:
+  - mesmo modelo da planilha: Tipo, BDESK, OfficeTrack, Evento, Afetação, OLT, todas as PLACA/PON (com os zeros) e até 15 endereços;
+  - título "CRÍTICO" a partir de 30 afetados;
+  - no final, o link "Acompanhar o chamado (só leitura)".
+- **Correção em relação à planilha**: a busca de PLACA/PON não pega mais datas (ex.: "07/11" de "07/11/2026").
+- **Uma vez por acionamento**: o envio fica registrado em `integration_events` (`olt_notice`) e aparece como "Informativo Casa Cliente" na tela Integração OFS. Os campos vazios da análise são completados com a leitura simples do card.
+- **O informativo não vira card novo**: o webhook ignora mensagens que começam com "INFORMATIVO DE ACIONAMENTO", inclusive as que a planilha ainda mandar.
+- **Link só de leitura** (`/consulta/<token>`):
+  - token assinado com o JWT_SECRET (escopo `public-call-view`) que abre só aquele acionamento, sem login;
+  - endpoint público `GET /api/public/consulta/:token`, com `Cache-Control: no-store` e `noindex`;
+  - **validade**: 7 dias depois do encerramento do chamado (ou da recusa do card), e no máximo 60 dias desde o recebimento;
+  - **conteúdo**, "andamento completo" como escolhido pelo usuário:
+    - enquanto ninguém aceita: dados do card e "Aguardando aceite";
+    - card recusado: aviso de que não foi aceito;
+    - depois do aceite: status, status OFS, técnico, abertura e fim, OLT, placa/PON, endereços, linha do tempo (recebido, aberto e cada troca de status) e as observações da equipe com autor e hora;
+  - a página atualiza sozinha a cada 1 minuto. Arquivo `frontend/src/pages/PublicCallPage.tsx`.
+- **Política de Privacidade**: inclui a nova finalidade (aviso ao setor Casa Cliente com link só de leitura).
+- **Validação**:
+  - testes unitários: lista de OLTs, PLACA/PON com zeros e sem datas, endereços, texto normal e crítico, token e expiração;
+  - teste HTTP: card → "aguardando" → aceite → "chamado" com linha do tempo; o eco do informativo é ignorado; token inválido ou de outro segredo dá 404;
+  - suíte 218/218;
+  - preview: página nos dois estados, contraste OK no claro e no escuro.
+- **Atenção na virada**: desligar o envio do informativo na planilha, senão o grupo recebe dois informativos por card.

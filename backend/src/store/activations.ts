@@ -1,5 +1,5 @@
 import { parseSaoPauloDateTime } from '../timezone.js';
-import { createSupabaseActivation, decideSupabaseActivation, isSupabaseConfigured, listSupabaseActivations } from "../integrations/supabase/client.js";
+import { createSupabaseActivation, decideSupabaseActivation, getSupabaseActivation, isSupabaseConfigured, listSupabaseActivations } from "../integrations/supabase/client.js";
 import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, User } from "../types.js";
 import { listCalls } from "./calls.js";
@@ -9,6 +9,11 @@ import { captureUnknownOltRequests } from "./settings.js";
 export async function listActivations(status?: ActivationStatus): Promise<Activation[]> {
   if (isSupabaseConfigured()) return await listSupabaseActivations(status);
   return [...activations.values()].filter((item) => !status || item.status === status).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+}
+
+export async function getActivation(id: string): Promise<Activation | undefined> {
+  if (isSupabaseConfigured()) return await getSupabaseActivation(id);
+  return activations.get(id);
 }
 
 export async function receiveActivation(input: { source: string; originalMessage: string; extractedData: Record<string, string>; analysis?: ActivationAnalysis }): Promise<Activation> {

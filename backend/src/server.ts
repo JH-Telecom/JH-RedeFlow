@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
@@ -27,11 +27,12 @@ import { registerMissingHistoricalTechnicians } from './imports/historical-techn
 import { addDays, normalizeSaoPauloLocal, toOperationalDate } from './timezone.js';
 import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
-import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
+import type { ActivationAnalysis, AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite } from './read-cache.js';
 import { runDailyReset } from './daily-reset-job.js';
 import { latestObservations } from './store/observations.js';
+import { buildOltNotice, createPublicViewToken, extractAllSlotPons, extractNoticeAddresses, isNoticeOlt, isOltNoticeMessage, OLT_NOTICE_DEFAULT_CHAT, publicViewExpired, readPublicViewToken } from './olt-notice.js';
 import { dueSoonCalls } from './due-soon.js';
 import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
 import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
@@ -1277,6 +1278,82 @@ async function runWhatsAppSlaAlerts() {
   }
 }
 
+// Informativo de acionamento para o Casa Cliente: card de uma OLT da lista -> resumo no grupo do Casa Cliente
+// (WUZAPI_INFORMATIVO_CHAT, padrao o grupo da planilha) com link so de leitura. Uma vez por acionamento
+// (integration_events, kind olt_notice). Sem WhatsApp configurado, nao faz nada.
+// A analise (Gemini ou regras) as vezes deixa campo vazio que a leitura simples do card achou.
+function withCardFallback(analysis: Partial<ActivationAnalysis>, extracted: Record<string, string> = {}): Partial<ActivationAnalysis> {
+  return {
+    ...analysis,
+    tipo_card: analysis.tipo_card || extracted.type || null,
+    bdesk: analysis.bdesk || analysis.ticket || extracted.bdesk || null,
+    office_track: analysis.office_track || analysis.os_ot || extracted.officeTrack || extracted.orderNumber || null,
+    tipo_falha: analysis.tipo_falha || analysis.motivo || extracted.reason || null,
+    olt: analysis.olt || extracted.olt || null,
+    placa_pon: analysis.placa_pon || extracted.slotPon || null,
+  };
+}
+
+async function sendOltNotice(activationId: string, analysis: Partial<ActivationAnalysis>, originalMessage: string) {
+  const config = whatsappConfig();
+  if (!config || !isNoticeOlt(analysis.olt)) return;
+  try {
+    const already = (await listIntegrationEvents(72, ['olt_notice'])).some((event) => event.ok && event.details.activationId === activationId);
+    if (already) return;
+    const chat = process.env.WUZAPI_INFORMATIVO_CHAT?.trim() || OLT_NOTICE_DEFAULT_CHAT;
+    const appUrl = (process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app').replace(/\/+$/, '');
+    const link = `${appUrl}/consulta/${createPublicViewToken(activationId, jwtSecret!)}`;
+    await sendWhatsAppText({ ...config, chat }, buildOltNotice(analysis, originalMessage, link));
+    await recordIntegrationEvent('olt_notice', true, `Informativo enviado: OLT ${analysis.olt}, BDESK ${analysis.bdesk || '-'}`, { activationId, olt: analysis.olt, chat });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordIntegrationEvent('olt_notice', false, `Falha ao enviar o informativo (OLT ${analysis.olt}): ${message}`, { activationId, olt: analysis.olt });
+    console.warn(`[Informativo] falha: ${message}`);
+  }
+}
+
+// Consulta publica (link do informativo): so leitura, so este acionamento/chamado, sem login.
+app.get('/api/public/consulta/:token', async (request, response) => {
+  response.setHeader('Cache-Control', 'no-store');
+  response.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  const activationId = readPublicViewToken(String(request.params.token), jwtSecret!);
+  if (!activationId) return response.status(404).json({ message: 'Link inválido. Confira se ele foi copiado inteiro.' });
+  try {
+    const activation = await getActivation(activationId);
+    if (!activation) return response.status(404).json({ message: 'Acionamento não encontrado.' });
+    const call = activation.createdCallId ? await getCall(activation.createdCallId) : undefined;
+    const closedStatuses = ['Finalizado', 'Cancelado', 'Baixar'];
+    const closedAt = call ? (closedStatuses.includes(call.status) ? call.executedAt || activation.decisionAt : null) : activation.status === 'Recusado' ? activation.decisionAt : null;
+    if (publicViewExpired({ receivedAt: activation.receivedAt, closedAt })) return response.status(410).json({ message: 'Este link expirou. Ele vale até 7 dias depois do encerramento do chamado.' });
+    const analysis = withCardFallback((activation.analysis || {}) as Partial<ActivationAnalysis>, activation.extractedData);
+    const card = {
+      tipo: analysis.tipo_card || null,
+      bdesk: analysis.bdesk || analysis.ticket || null,
+      officeTrack: analysis.office_track || analysis.os_ot || null,
+      evento: analysis.tipo_falha || analysis.motivo || null,
+      afetacao: analysis.afetados ?? null,
+      olt: analysis.olt || null,
+      placaPon: extractAllSlotPons(activation.originalMessage).join(', ') || analysis.placa_pon || null,
+      enderecos: extractNoticeAddresses(activation.originalMessage).split('\n').map((line) => line.replace(/^•\s*/, '')).filter(Boolean),
+      recebidoEm: activation.receivedAt,
+    };
+    if (!call) return response.json({ state: activation.status === 'Recusado' ? 'recusado' : 'aguardando', card, decidedAt: activation.decisionAt || null });
+    const [observations, logs] = await Promise.all([listObservations(call.id), listAuditLogs(call.id)]);
+    const timeline = [
+      { at: activation.receivedAt, text: 'Acionamento recebido' },
+      { at: activation.decisionAt || call.openedAt, text: 'Chamado aberto' },
+      ...logs.filter((log) => log.field === 'status' && log.newValue).map((log) => ({ at: log.createdAt, text: `Status: ${log.newValue}` })),
+    ].filter((item) => item.at).sort((a, b) => a.at.localeCompare(b.at));
+    return response.json({
+      state: 'chamado',
+      card,
+      call: { orderNumber: call.orderNumber, status: call.status, ofsStatus: call.ofsStatus || null, technicianName: call.technicianName || null, openedAt: call.openedAt, executedAt: closedStatuses.includes(call.status) ? call.executedAt || null : null, type: call.type, region: call.region, bairro: call.bairro, olt: call.olt, slotPon: call.slotPon, result: call.result || null },
+      observations: observations.filter((item) => item.text?.trim()).map((item) => ({ text: item.text.trim(), userName: item.userName, createdAt: item.createdAt })),
+      timeline,
+    });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível carregar o chamado.' }); }
+});
+
 // Resumo de ontem no WhatsApp as 7h (Sao Paulo), uma vez por dia. Vai para WUZAPI_REPORT_CHAT (ou, sem ela,
 // para o mesmo WUZAPI_ALERT_CHAT dos avisos). Registro em integration_events (kind daily_report).
 const spHour = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' });
@@ -1435,6 +1512,8 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   // Grupo autorizado: toda decisao vai para o log (sem precisar de WUZAPI_DEBUG), para dar para acompanhar no Render.
   const groupLog = (decision: string) => console.log(`[WuzAPI] grupo ${message.chatId || '-'}${message.isFromMe ? ' (enviada pelo numero conectado)' : ''}: ${decision}`);
   if (!message.message?.trim() && !message.quotedMessage?.trim()) { groupLog('ignorada, sem texto'); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' }); }
+  // Informativo de acionamento (mandado pelo proprio sistema ou pela planilha) nao e card novo.
+  if (isOltNoticeMessage(message.message)) { groupLog('ignorada, e informativo de acionamento'); return response.status(202).json({ status: 'ignored', reason: 'Informativo de acionamento.' }); }
   const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
   const fallbackAnalysis = analyzeOperationalMessage(analysisMessage);
   if (!fallbackAnalysis.eh_acionamento) { groupLog(`ignorada, sem sinais de acionamento: "${(analysisMessage.message || '').replace(/\s+/g, ' ').slice(0, 80)}"`); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' }); }
@@ -1445,6 +1524,7 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   try {
     const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
     groupLog(`acionamento registrado ${activation.id} (${analysis.tipo_card || 'sem tipo'}, BDESK ${analysis.bdesk || '-'})`);
+    void sendOltNotice(activation.id, withCardFallback(analysis, legacyData), operationalText);
     if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
     return response.status(202).json({ activationId: activation.id, status: activation.status });
   } catch (error) {

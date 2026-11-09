@@ -72,6 +72,7 @@ export function PrivacyPolicyPage() {
         <li>Abrir, distribuir, acompanhar e encerrar chamados de manutenção da rede.</li>
         <li>Calcular prazos, indicadores (IGP, SLA) e relatórios da operação.</li>
         <li>Avisar a equipe sobre prazos e escalonamentos (sino do sistema e grupos de trabalho no WhatsApp).</li>
+        <li>Avisar o setor Casa Cliente sobre eventos de rede na área dos clientes (informativo no WhatsApp, com um link só de leitura daquele chamado, que expira 7 dias depois do encerramento).</li>
         <li>Segurança e auditoria: controlar quem acessa o quê e registrar alterações.</li>
       </ul>
       <p>Os dados não são usados para publicidade, não são vendidos e não passam por decisões automatizadas que afetem direitos das pessoas. As sugestões de técnico e o risco de estouro de prazo são só apoio: quem decide é a equipe.</p>

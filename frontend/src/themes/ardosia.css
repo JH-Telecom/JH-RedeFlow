@@ -3763,6 +3763,81 @@
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .license-generated {
     color: #515e6c
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-page {
+    background: #f7f9fc;
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-brand small {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-readonly {
+    background: #eef4fb;
+    color: #38526c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-message {
+    color: #414e5c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-message h1 {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-status {
+    border-left: 5px solid #527293
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-status.is-waiting {
+    border-left-color: #b45309
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-status.is-done {
+    border-left-color: #167a57
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-status.is-muted {
+    border-left-color: #616d79
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-kicker {
+    color: #476482
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-status-line {
+    color: #414e5c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-status.is-waiting .pv-status-line {
+    color: #8a4b08
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-status.is-done .pv-status-line {
+    color: #167a57
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-facts dt, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-list dt {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-facts dd, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-list dd {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-card h2 {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-addresses li {
+    background: #f4f7fb;
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-timeline li {
+    border-bottom: 1px solid #e8edf4
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-timeline time {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-observations li {
+    border: 1px solid #e8edf4
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-observations p {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-observations small {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-empty {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pv-footnote {
+    color: #515e6c
+}
 /* light · contrast-fixes.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .role-row-button {
     background: transparent;
@@ -7554,6 +7629,81 @@
     color: #c1c5ca
 }
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .license-generated {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-page {
+    background: #121519;
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-brand small {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-readonly {
+    background: #10171e;
+    color: #a2b5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-message {
+    color: #c1c5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-message h1 {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-status {
+    border-left: 5px solid #527293
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-status.is-waiting {
+    border-left-color: #b45309
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-status.is-done {
+    border-left-color: #167a57
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-status.is-muted {
+    border-left-color: #616d79
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-kicker {
+    color: #a2b5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-status-line {
+    color: #c1c5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-status.is-waiting .pv-status-line {
+    color: #eca66e
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-status.is-done .pv-status-line {
+    color: #74cca5
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-facts dt, :where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-list dt {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-facts dd, :where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-list dd {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-card h2 {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-addresses li {
+    background: #101317;
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-timeline li {
+    border-bottom: 1px solid #34383d
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-timeline time {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-observations li {
+    border: 1px solid #34383d
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-observations p {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-observations small {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-empty {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pv-footnote {
     color: #b5b9be
 }
 /* dark · contrast-fixes.css */

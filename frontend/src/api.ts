@@ -52,6 +52,14 @@ export type SlaAnalysis = {
 export type IgpGoalPlan = { goal: number; met: boolean; streak: number | null; projected: null | { remainingOrders: number; required: number; requiredPercent: number | null; possible: boolean; slack: number | null } };
 export type IgpPlan = { month: string; currentMonth: boolean; elapsedDays: number; daysInMonth: number; orders: number; onTime: { target: IgpGoalPlan; minimum: IgpGoalPlan }; outlier: { target: IgpGoalPlan; minimum: IgpGoalPlan }; mttr: { target: IgpGoalPlan; minimum: IgpGoalPlan } };
 export type IgpMetrics = { month: string; area: IgpArea; access: IgpGroup; backbone: IgpGroup; total: IgpGroup; excludedOrders: number };
+export type PublicView = {
+  state: 'aguardando' | 'recusado' | 'chamado';
+  card: { tipo: string | null; bdesk: string | null; officeTrack: string | null; evento: string | null; afetacao: number | string | null; olt: string | null; placaPon: string | null; enderecos: string[]; recebidoEm: string };
+  decidedAt?: string | null;
+  call?: { orderNumber: string; status: string; ofsStatus: string | null; technicianName: string | null; openedAt: string; executedAt: string | null; type: string; region: string; bairro: string; olt: string; slotPon: string; result: string | null };
+  observations?: { text: string; userName: string; createdAt: string }[];
+  timeline?: { at: string; text: string }[];
+};
 export type Session = { token: string; user: User & { role: Role } };
 // Respostas de leitura (GET) ficam guardadas em memoria com o ETag do servidor. Na proxima leitura o navegador
 // pergunta "mudou algo?" (If-None-Match): se nao mudou, o servidor responde 304 sem corpo e reaproveitamos o mesmo
@@ -169,6 +177,8 @@ export type PersonCard = { id: string; name: string; email: string; roleName: st
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
+  // Consulta publica do informativo (link so de leitura, sem login).
+  publicView: (token: string) => request<PublicView>(`/api/public/consulta/${encodeURIComponent(token)}`),
   // LGPD: os dados pessoais da propria pessoa, para baixar em JSON (Meu perfil).
   myData: () => request<Record<string, unknown>>('/api/auth/meus-dados'),
   logout: () => request<void>('/api/auth/logout', { method: 'POST', keepalive: true }),

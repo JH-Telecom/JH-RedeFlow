@@ -7,6 +7,7 @@ import { Shell } from "./components/Shell";
 import { FirstLoginPasswordChange, Login } from "./pages/LoginPage";
 import { PrivacyPolicyPage, TermsOfUsePage } from "./pages/LegalPages";
 import { LicensesPage } from "./pages/LicensesPage";
+import { PublicCallPage } from "./pages/PublicCallPage";
 import { StorageNotice } from "./components/StorageNotice";
 
 export default function App() {
@@ -69,6 +70,8 @@ export default function App() {
   if (location.pathname === "/privacidade") return <><PrivacyPolicyPage /><StorageNotice /></>;
   if (location.pathname === "/termos") return <><TermsOfUsePage /><StorageNotice /></>;
   if (location.pathname === "/licencas") return <><LicensesPage /><StorageNotice /></>;
+  // Link do informativo (Casa Cliente): so leitura, sem login, so aquele chamado.
+  if (location.pathname.startsWith("/consulta/")) return <><PublicCallPage token={location.pathname.slice("/consulta/".length)} /><StorageNotice /></>;
   if (hydrating)
     return (
       <div className="app-loading">

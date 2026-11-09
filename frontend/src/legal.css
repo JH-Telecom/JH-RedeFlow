@@ -75,3 +75,40 @@ main.content:focus { outline: none; }
 .license-list summary { cursor: pointer; font-size: 12px; font-weight: 600; color: #0b56cf; }
 .license-list pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; margin: 8px 0 0; padding: 10px; border-radius: 6px; background: #f7f9fc; color: #3f4d63; font-size: 11px; line-height: 1.5; }
 .license-generated { font-size: 12px; color: #4f5d73; }
+
+/* Consulta publica do chamado (link do informativo, so leitura) */
+.pv-page { min-height: 100vh; background: #f7f9fc; color: #17233b; }
+.pv-header { max-width: 1040px; margin: 0 auto; padding: 20px 16px 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pv-brand { display: flex; align-items: center; gap: 10px; }
+.pv-brand img { width: 32px; height: 32px; border-radius: 8px; }
+.pv-brand strong { display: block; font-family: 'Manrope', sans-serif; font-size: 15px; }
+.pv-brand small { display: block; font-size: 12px; color: #4f5d73; }
+.pv-readonly { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: #edf4ff; color: #0845ae; font-size: 12px; font-weight: 700; }
+.pv-main { max-width: 1040px; margin: 0 auto; padding: 8px 16px 40px; display: grid; gap: 14px; }
+.pv-message { display: flex; align-items: center; gap: 12px; padding: 24px; color: #3f4d63; }
+.pv-message h1 { font-size: 18px; margin-bottom: 4px; color: #17233b; }
+.pv-status { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-left: 5px solid #1264e8; }
+.pv-status.is-waiting { border-left-color: #b45309; }
+.pv-status.is-done { border-left-color: #167a57; }
+.pv-status.is-muted { border-left-color: #5f6c80; }
+.pv-kicker { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #0b56cf; }
+.pv-status h1 { font-size: clamp(22px, 4vw, 28px); margin: 6px 0; letter-spacing: -.4px; }
+.pv-status-line { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: #3f4d63; }
+.pv-status.is-waiting .pv-status-line { color: #8a4b08; }
+.pv-status.is-done .pv-status-line { color: #167a57; }
+.pv-facts { display: flex; gap: 22px; flex-wrap: wrap; margin: 0; }
+.pv-facts dt, .pv-list dt { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #4f5d73; }
+.pv-facts dd, .pv-list dd { margin: 4px 0 0; font-size: 14px; font-weight: 600; color: #17233b; overflow-wrap: anywhere; }
+.pv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 14px; }
+.pv-card h2 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin-bottom: 12px; color: #17233b; }
+.pv-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 18px; margin: 0; }
+.pv-addresses, .pv-observations, .pv-timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pv-addresses li { padding: 8px 10px; border-radius: 8px; background: #f4f7fb; font-size: 13px; color: #17233b; overflow-wrap: anywhere; }
+.pv-timeline li { display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 13px; padding-bottom: 8px; border-bottom: 1px solid #e8edf4; }
+.pv-timeline time { color: #4f5d73; font-weight: 600; }
+.pv-observations li { padding: 10px 12px; border-radius: 8px; border: 1px solid #e8edf4; }
+.pv-observations p { margin: 0 0 4px; font-size: 14px; color: #17233b; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pv-observations small { font-size: 12px; color: #4f5d73; }
+.pv-empty { font-size: 13px; color: #4f5d73; }
+.pv-footnote { font-size: 12px; color: #4f5d73; text-align: center; }
+@media (max-width: 560px) { .pv-timeline li { grid-template-columns: 1fr; gap: 2px; } }

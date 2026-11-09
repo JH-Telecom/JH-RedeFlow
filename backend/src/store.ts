@@ -4,6 +4,6 @@ export { getSettings, updateSettings, type OltRegionMapping, type OltRegionReque
 export { listSupervisors, listTechnicians, addTechnician, updateTechnician, deleteTechnician, addSupervisor, updateSupervisor, deleteSupervisor, getSupervisorIdForUser } from './store/teams.js';
 export { type CallQuery, listCalls, type CallPageResult, listCallsPage, findExistingCallIdentifiers, insertWorkbookCalls, insertHistoricalCalls, type DriveCallSource, createDriveCall, recordDriveCallSnapshot, getCall, deleteCall, deleteAllCalls, updateCall, updateCallEndDate, finishCall, cancelCall, reopenCall } from './store/calls.js';
 export { listObservations, addObservation, getObservationAttachment, listAuditLogs, listAllAuditLogs, listAuditLogPage, type AuditLogRow, listObservationsInRange } from './store/observations.js';
-export { listActivations, receiveActivation, decideActivation } from './store/activations.js';
+export { listActivations, getActivation, receiveActivation, decideActivation } from './store/activations.js';
 export { listImports, saveImport, type D0BaseSummary, type D0SyncResult, getD0BaseSummary, replaceD0Base, applyOfsRowsToCalls, clearD0Base, getManualDailyBase, saveManualDailyBase, deleteManualDailyBase } from './store/imports.js';
 export { listNotifications, getDashboardMetrics } from './store/dashboard.js';

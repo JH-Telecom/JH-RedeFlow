@@ -1492,3 +1492,41 @@ test('the queue reads the latest observation of many calls in one request', asyn
   const tooMany = await fetch(`${baseUrl}/api/chamados/ultimas-observacoes?ids=${Array.from({ length: 101 }, (_, index) => `id-${index}`).join(',')}`, { headers });
   assert.equal(tooMany.status, 400);
 });
+
+test('read-only link from the Casa Cliente notice shows the card while pending and the call after acceptance', async () => {
+  const { createPublicViewToken } = await import('../src/olt-notice.js');
+  const webhook = (message: string, id: string) => fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'Message', event: { Info: { ID: id, Chat: '120363422003961917@g.us', Sender: '5511999999999@s.whatsapp.net', IsGroup: true }, Message: { conversation: message } } }),
+  });
+  const cardResponse = await webhook('⚠️VALIDAR COM NOC ACESSO⚠️\n\n • OLT: VIP-GZ1-SPO-OHW-02\n\n • SLOT/PON: 04/10\n\n • Tipo de Falha: Parcial\n\n • Afetados: 9\n\n • BDESK: 677984\n\n • Tarefa Office Track: 610126230530102\n\n • Endereços:\nCEP: 08.142-390\nRUA SANTA LUZIA DA BOA VISÃO, 91 JARDIM MIRIAM, SAO PAULO - SP', 'wuz-notice-card-01');
+  const { activationId } = await cardResponse.json() as { activationId: string };
+  assert.ok(activationId);
+
+  // O informativo que o sistema manda no grupo nao vira card novo.
+  const echo = await webhook('*ℹ️ INFORMATIVO DE ACIONAMENTO*\n\n*Tipo:* NOC ACESSO\n*BDESK:* 677984\n*OLT:* VIP-GZ1-SPO-OHW-02', 'wuz-notice-echo-01');
+  assert.equal((await echo.json() as { status?: string }).status, 'ignored');
+
+  const token = createPublicViewToken(activationId, 'test-jwt-secret');
+  const pending = await fetch(`${baseUrl}/api/public/consulta/${token}`);
+  assert.equal(pending.status, 200);
+  assert.equal(pending.headers.get('cache-control'), 'no-store');
+  const pendingBody = await pending.json() as { state: string; card: { bdesk: string; placaPon: string; enderecos: string[] }; call?: unknown };
+  assert.equal(pendingBody.state, 'aguardando');
+  assert.equal(pendingBody.card.bdesk, '677984');
+  assert.equal(pendingBody.call, undefined);
+
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const session = await loginResponse.json() as { token: string };
+  const accept = await fetch(`${baseUrl}/api/acionamentos/${activationId}/aceitar`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` } });
+  assert.equal(accept.status, 200);
+
+  const accepted = await (await fetch(`${baseUrl}/api/public/consulta/${token}`)).json() as { state: string; call: { orderNumber: string; status: string }; timeline: { text: string }[] };
+  assert.equal(accepted.state, 'chamado');
+  assert.ok(accepted.call.orderNumber);
+  assert.ok(accepted.timeline.some((item) => item.text === 'Chamado aberto'));
+
+  assert.equal((await fetch(`${baseUrl}/api/public/consulta/token-invalido`)).status, 404);
+  assert.equal((await fetch(`${baseUrl}/api/public/consulta/${createPublicViewToken(activationId, 'outro-segredo')}`)).status, 404);
+});

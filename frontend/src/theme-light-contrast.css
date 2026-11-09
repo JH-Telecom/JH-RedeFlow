@@ -2090,6 +2090,60 @@
 :where(:root:not([data-theme="dark"])) .license-generated {
     color: #4f5d73
 }
+:where(:root:not([data-theme="dark"])) .pv-page {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pv-brand small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .pv-readonly {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .pv-message {
+    color: #3f4d63
+}
+:where(:root:not([data-theme="dark"])) .pv-message h1 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pv-kicker {
+    color: #0b56cf
+}
+:where(:root:not([data-theme="dark"])) .pv-status-line {
+    color: #3f4d63
+}
+:where(:root:not([data-theme="dark"])) .pv-status.is-waiting .pv-status-line {
+    color: #8a4b08
+}
+:where(:root:not([data-theme="dark"])) .pv-status.is-done .pv-status-line {
+    color: #167a57
+}
+:where(:root:not([data-theme="dark"])) .pv-facts dt, :where(:root:not([data-theme="dark"])) .pv-list dt {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .pv-facts dd, :where(:root:not([data-theme="dark"])) .pv-list dd {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pv-card h2 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pv-addresses li {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pv-timeline time {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .pv-observations p {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .pv-observations small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .pv-empty {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .pv-footnote {
+    color: #4f5d73
+}
 
 /* contrast-fixes.css */
 :where(:root:not([data-theme="dark"])) .role-row-button {
