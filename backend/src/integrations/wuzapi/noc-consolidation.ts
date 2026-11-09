@@ -166,6 +166,28 @@ export function inferNeighborhood(address: string | null) {
   return fallback[fallback.length - 1] || null;
 }
 
+// Endereco em linhas, sem CEP:
+//   NOME: X || CONTRATO: 1 / Endereco Cobranca / RUA / UM / Numero / 130 / Bairro / JARDIM GUILHERMINO / Cidade / GUARULHOS
+// Rotulo sozinho na linha e o valor na linha de baixo. Devolve rua + numero, bairro e cidade.
+function parseLineLabeledAddress(raw: string) {
+  const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const labelAt = (pattern: RegExp) => lines.findIndex((line) => pattern.test(line));
+  const bairroAt = labelAt(/^bairro\s*:?$/i);
+  if (bairroAt < 0 || bairroAt + 1 >= lines.length) return null;
+  const numeroAt = labelAt(/^n[uú]mero\s*:?$/i);
+  const cidadeAt = labelAt(/^cidade\s*:?$/i);
+  const firstLabel = [numeroAt, bairroAt, cidadeAt].filter((index) => index >= 0).sort((a, b) => a - b)[0];
+  const street = lines.slice(0, firstLabel)
+    .filter((line) => !/^\s*NOME\s*:/i.test(line) && !/^endere[cç]o\b/i.test(line))
+    .join(' ').replace(/\s+/g, ' ').trim();
+  const numero = numeroAt >= 0 && numeroAt + 1 < lines.length ? lines[numeroAt + 1] : '';
+  const cidade = cidadeAt >= 0 && cidadeAt + 1 < lines.length ? lines[cidadeAt + 1] : '';
+  const bairro = lines[bairroAt + 1];
+  if (/^(?:n[uú]mero|cidade|bairro)\s*:?$/i.test(bairro)) return null;
+  const endereco = [street && numero ? `${street}, ${numero}` : street || numero, bairro, cidade].filter(Boolean).join(' - ');
+  return { endereco: endereco || null, bairro, cidade: cidade || null };
+}
+
 export function parseNocAddress(raw: string): NocAddressRecord {
   const header = raw.match(/(?:^|\n)\s*NOME\s*:\s*(.*?)\s*\|\s*CONTRATO\s*:\s*([^\n|]+)/i);
   const nome = header?.[1]?.trim() || valueBetween(raw, /(?:^|\n)\s*NOME\s*:\s*/i, /\n\s*CONTRATO\s*:/i);
@@ -173,10 +195,11 @@ export function parseNocAddress(raw: string): NocAddressRecord {
   const cep = raw.match(/\bCEP\s*:\s*((?:[0-9]{2}\.[0-9]{3}|[0-9]{5})[-.]?[0-9]{3})/i)?.[1] || null;
   const labeledAddress = valueBetween(raw, /(?:^|\n)\s*ENDERE[CÇ]O\s*:\s*/i, /\n\s*(?:COMP\.?\s*\/\s*REF|COMPLEMENTO|REFER[EÊ]NCIA)\s*:/i);
   const fallbackAddress = raw.replace(/^.*?\bCEP\s*:\s*(?:[0-9]{2}\.[0-9]{3}|[0-9]{5})[-.]?[0-9]{3}\s*/is, '').trim();
-  const endereco = cleanAddressText(labeledAddress || fallbackAddress);
+  const lineLabeled = !labeledAddress && !cep ? parseLineLabeledAddress(raw) : null;
+  const endereco = lineLabeled?.endereco ?? cleanAddressText(labeledAddress || fallbackAddress);
   const complemento = valueBetween(raw, /(?:^|\n)\s*(?:COMP\.?\s*\/\s*REF|COMPLEMENTO|REFER[EÊ]NCIA)\s*:\s*/i, /\n\s*[-=]{3,}|$/i);
-  const enderecoBase = normalizeAddressBase(endereco);
-  const bairro = inferNeighborhood(endereco);
+  const enderecoBase = lineLabeled ? normalizeAddressBase(endereco?.split(' - ')[0] ?? null) : normalizeAddressBase(endereco);
+  const bairro = lineLabeled ? cleanNeighborhoodCandidate(lineLabeled.bairro) : inferNeighborhood(endereco);
   return { raw, nome, contrato, cep, endereco, complemento, bairro, endereco_base: enderecoBase, endereco_normalizado: normalizeText(endereco), bairro_normalizado: normalizeText(bairro), cep_normalizado: normalizeCep(cep) };
 }
 

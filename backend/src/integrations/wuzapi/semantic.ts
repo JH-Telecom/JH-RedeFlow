@@ -34,6 +34,8 @@ function parseAddresses(text: string) {
   const customerRecords = section.split(/(?=^\s*(?:\d{4,}\s+\S|NOME\s*:))/gim).map((item) => item.trim()).filter(Boolean);
   const recordsWithCep = customerRecords.filter((item) => /\bCEP\s*:\s*(?:[0-9]{2}\.[0-9]{3}|[0-9]{5})[-.]?[0-9]{3}/i.test(item));
   if (recordsWithCep.length > 1) return recordsWithCep;
+  // Card sem CEP (endereco em linhas: "RUA / UM / Numero / 130 / Bairro / ..."): um registro por "NOME:".
+  if (!/\bCEP\s*:/i.test(section) && customerRecords.filter((item) => /^\s*NOME\s*:/i.test(item)).length > 1) return customerRecords;
   return section.split(/(?=\bCEP\s*:\s*)/i).map((item) => item.trim()).filter(Boolean);
 }
 

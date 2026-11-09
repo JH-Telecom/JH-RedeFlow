@@ -558,6 +558,13 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
       // Atrelada a outra ordem: fica escrito nas observacoes para quem abrir o chamado.
       notes: structured.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${structured.atrelada}` : 'Criado a partir de acionamento aceito.',
     };
+    // Tamanho maximo de cada coluna em calls: um card fora do padrao nao pode mais travar o aceite
+    // ("value too long for type character varying"). O texto completo continua na mensagem original.
+    const columnLimits: Partial<Record<keyof typeof callInput, number>> = { order_number: 100, bdesk: 100, office_track: 100, client: 180, type: 100, region: 100, city: 100, bairro: 160, olt: 120, atrelada_order: 100 };
+    for (const [column, max] of Object.entries(columnLimits) as [keyof typeof callInput, number][]) {
+      const current = callInput[column];
+      if (typeof current === 'string' && current.length > max) (callInput as Record<string, unknown>)[column] = current.slice(0, max).trim();
+    }
     const callColumns = 'id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, atrelada_order, technician_id, opened_at, event_at, assigned_at, executed_at, result, cancellation_reason, notes';
     // O mesmo card chega por mais de um grupo do WhatsApp: se a ordem ja tem chamado (nao cancelado), o aceite liga o
     // acionamento a esse chamado em vez de criar outro. Dois chamados ativos da mesma ordem travam o status do OFS.
