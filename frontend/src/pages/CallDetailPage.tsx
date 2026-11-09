@@ -19,7 +19,7 @@ function formatEventGap(eventAt: string, openedAt: string) {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}`;
 }
 
-const CLOSED_STATUSES: CallStatus[] = ["Finalizado", "Cancelado", "Baixar"];
+const CLOSED_STATUSES: CallStatus[] = ["Finalizado", "Cancelado", "Baixar", "GIGA+"];
 // Chave de lista do OFS (ex.: "13", "CTO_SEM_SINAL_EVENTO_PRODUTIVO") nao serve de Resultado.
 const looksLikeCode = (value?: string) => /^\d+$/.test(value?.trim() || "") || /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/.test(value?.trim() || "");
 // Resultado sugerido ao finalizar: o que ja houver (se for texto) ou "Motivo — Submotivo" do fechamento do OFS.
@@ -241,7 +241,7 @@ export function CallDetailBase() {
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
             {call.cluster && <DetailItem label="Cluster (OFS)" value={({ C08: "C.8 São Paulo", C09: "C.9 ABC", C11: "C.11 Alto Tietê", C12: "C.12 Guarulhos" } as Record<string, string>)[call.cluster] || call.cluster} />}
             {call.atrelada && <LinkedOrderItem order={call.atrelada} />}
-            {call.executedAt || ["Finalizado", "Cancelado", "Baixar"].includes(call.status)
+            {call.executedAt || ["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status)
               ? <EndDateItem key={call.id} call={call} onSaved={setCall} />
               : <DetailItem label="Data Fim" value="Não informada" />}
             {/* Fechamento lido do formulario "Fechamento" do OFS pelo Coletor OFS. */}
@@ -266,7 +266,7 @@ export function CallDetailBase() {
               value={status}
               onChange={(event) => setStatus(event.target.value as CallStatus)}
             >
-              {["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo", "Finalizado", "Baixar", "Cancelado"].map((item) => (
+              {["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo", "Finalizado", "Baixar", "GIGA+", "Cancelado"].map((item) => (
                 <option key={item}>{item}</option>
               ))}
             </select>
@@ -613,7 +613,7 @@ function EndDateItem({ call, onSaved }: { call: Call; onSaved: (call: Call) => v
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
   const dirty = Boolean(value) && value !== initial;
-  const fromOfs = Boolean(call.executedAt) && !["Finalizado", "Cancelado", "Baixar"].includes(call.status);
+  const fromOfs = Boolean(call.executedAt) && !["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status);
   async function save() {
     setSaving(true);
     setFeedback(null);

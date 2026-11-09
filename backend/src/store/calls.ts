@@ -13,7 +13,7 @@ export function matchesCallStatus(status: CallStatus, filter?: CallStatus | Call
 }
 
 export function callReferenceDate(call: Call) {
-  return toOperationalDate(['Finalizado', 'Cancelado', 'Baixar'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt);
+  return toOperationalDate(['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(call.status) ? call.executedAt || call.openedAt : call.openedAt);
 }
 
 export function isCallInDateRange(call: Call, query: CallQuery) {
@@ -336,7 +336,7 @@ export function normalizeTechnicianId(id?: string | null) {
 export function prepareCallUpdate(current: Call, input: Partial<EditableCallFields>): Partial<EditableCallFields> {
   const olt = input.olt ?? current.olt;
   const nextStatus = input.status ?? current.status;
-  const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
+  const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'] as const;
   const shouldSetCompletionDate = terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined;
   const reopening = terminalStatuses.includes(current.status as typeof terminalStatuses[number]) && !terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]);
 
@@ -402,7 +402,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
   if (isSupabaseConfigured()) {
     const current = await getCall(id);
     if (!current) return { missing: ['Chamado nao encontrado'] };
-    if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
+    if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
     const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
     if (missing.length) return { missing };
     const call = await finishSupabaseCall(id, input, actor);
@@ -410,7 +410,7 @@ export async function finishCall(id: string, input: { result: string; executedAt
   }
   const current = calls.get(id);
   if (!current) return { missing: ['Chamado nao encontrado'] };
-  if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
+  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status)) return { missing: ['Chamado ja encerrado'] };
   const missing = [!current.technicianId && 'Tecnico', !current.reason && 'Motivo', !input.result.trim() && 'Resultado', !input.executedAt && 'Data e hora de execucao', !input.notes.trim() && 'Observacao'].filter(Boolean) as string[];
   if (missing.length) return { missing };
   const updated = { ...current, ...input, status: 'Finalizado' as const };
@@ -430,7 +430,7 @@ export async function cancelCall(id: string, reason: string, actor: User): Promi
   if (isSupabaseConfigured()) return await cancelSupabaseCall(id, reason, actor);
   const current = calls.get(id);
   if (!current) return undefined;
-  if (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system') return undefined;
+  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status) && actor.roleId !== 'system') return undefined;
   const updated = { ...current, status: 'Cancelado' as const, cancellationReason: reason };
   calls.set(id, updated);
   const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado cancelado', field: 'cancellationReason', previousValue: '', newValue: reason, createdAt: new Date().toISOString() };
@@ -441,7 +441,7 @@ export async function cancelCall(id: string, reason: string, actor: User): Promi
 export async function reopenCall(id: string, actor: User): Promise<Call | undefined> {
   if (isSupabaseConfigured()) return await reopenSupabaseCall(id, actor);
   const current = calls.get(id);
-  if (!current || !['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
+  if (!current || !['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status)) return undefined;
   const updated = { ...current, status: 'Aberto' as const, result: undefined, executedAt: undefined, cancellationReason: undefined };
   calls.set(id, updated);
   const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Chamado reaberto', field: 'status', previousValue: current.status, newValue: 'Aberto', createdAt: new Date().toISOString() };

@@ -132,7 +132,7 @@ const attendanceStatusOptions: CallStatus[] = ["Atribuido", "Atrelado", "Desloca
 
 const SLA_LABELS = { "on-time": "No prazo", late: "Fora do prazo", outlier: "Outlier" } as const;
 type SlaState = keyof typeof SLA_LABELS;
-const CALL_STATUSES: CallStatus[] = ["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo", "Finalizado", "Cancelado", "Baixar"];
+const CALL_STATUSES: CallStatus[] = ["Aberto", "Atribuido", "Atrelado", "Deslocamento", "Em campo", "Finalizado", "Cancelado", "Baixar", "GIGA+"];
 
 function minutesBetween(from: string, to?: string | null) {
   const end = to ? new Date(to).getTime() : Date.now();
@@ -220,7 +220,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   // Risco de estourar o prazo (ativos ainda no prazo), estimado pelo historico de 90 dias.
   const [risks, setRisks] = useState<Record<string, CallRisk>>({});
   useEffect(() => {
-    const ids = calls.filter((call) => !["Finalizado", "Cancelado", "Baixar"].includes(call.status)).map((call) => call.id).slice(0, 300);
+    const ids = calls.filter((call) => !["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status)).map((call) => call.id).slice(0, 300);
     if (!ids.length) { setRisks({}); return; }
     let active = true;
     api.callRisks(ids).then((data) => { if (active) setRisks(data.risks); }).catch(() => undefined);
@@ -270,7 +270,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   async function copyTableAsImage() {
     setCopyState("idle");
     const slaTone = (state: SlaState): ReportTone => (state === "outlier" ? "red" : state === "late" ? "amber" : "green");
-    const statusTone = (value: CallStatus): ReportTone => (value === "Finalizado" ? "green" : value === "Cancelado" ? "red" : value === "Baixar" ? "gray" : value === "Aberto" ? "amber" : "blue");
+    const statusTone = (value: CallStatus): ReportTone => (value === "Finalizado" ? "green" : value === "Cancelado" ? "red" : value === "Baixar" ? "gray" : value === "GIGA+" ? "cyan" : value === "Aberto" ? "amber" : "blue");
     const columns: ReportColumn[] = [
       { label: "Ordem", width: 210 },
       ...(showTechnician ? [{ label: "Técnico", width: 220 }] : []),
@@ -328,7 +328,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   // Filas em andamento: por padrao quem esta ha mais tempo esperando vem primeiro (clique no cabecalho muda).
   const queueOrder: Pick<CallListQuery, "sort" | "direction"> = sortState ? { sort: sortState.sort, direction: sortState.direction } : {};
   const statusesFor = (choice: CallStatus | "Todos"): CallStatus | CallStatus[] | undefined =>
-    unassignedOnly ? inProgressCallStatuses : choice === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : choice;
+    unassignedOnly ? inProgressCallStatuses : choice === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar", "GIGA+"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : choice;
   const listFilters = (): CallListQuery => ({
     from: dateRange.from,
     to: dateRange.to,
@@ -389,7 +389,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   async function refreshCalls() {
     setLoading(true);
     try {
-      const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
+      const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar", "GIGA+"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
       const data = await api.calls(requestStatus, {
         from: dateRange.from,
         to: dateRange.to,
@@ -418,7 +418,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
 
   useEffect(() => {
     let active = true;
-    const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
+    const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar", "GIGA+"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
@@ -486,14 +486,14 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
 
   const closedView = closedOnly;
   const showTechnician = !unassignedOnly;
-  const currentCalls = calls.map((call) => (["Finalizado", "Cancelado", "Baixar"].includes(call.status) ? call : { ...call, executedAt: null }));
+  const currentCalls = calls.map((call) => (["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status) ? call : { ...call, executedAt: null }));
   const firstVisibleCall = totalCalls ? (callsPage - 1) * CALLS_PAGE_SIZE + 1 : 0;
   const lastVisibleCall = totalCalls ? Math.min(callsPage * CALLS_PAGE_SIZE, totalCalls) : 0;
   // Opcoes que nao somem ao filtrar: regioes oficiais + as que aparecem nos chamados + a selecionada.
   const regions = [...new Set([...operationalRegions, ...calls.map((call) => call.region), ...(regionFilter === "Todas" ? [] : [regionFilter])].filter(Boolean))].sort((left, right) => left.localeCompare(right, "pt-BR"));
   const neighborhoods = [...new Set([...calls.map((call) => call.bairro).filter((item): item is string => Boolean(item)), ...(neighborhoodFilter === "Todos" ? [] : [neighborhoodFilter])])].sort((left, right) => left.localeCompare(right, "pt-BR"));
   const olts = [...new Set([...availableOlts, ...(oltFilter === "Todas" ? [] : [oltFilter])])];
-  const statusChoices: (CallStatus | "Todos")[] = unassignedOnly ? [] : closedView ? ["Todos", "Finalizado", "Cancelado", "Baixar"] : assignedOnly ? ["Todos", ...attendanceStatusOptions] : ["Todos", ...CALL_STATUSES];
+  const statusChoices: (CallStatus | "Todos")[] = unassignedOnly ? [] : closedView ? ["Todos", "Finalizado", "Cancelado", "Baixar", "GIGA+"] : assignedOnly ? ["Todos", ...attendanceStatusOptions] : ["Todos", ...CALL_STATUSES];
   // Quantos chamados cada aba de status teria com os filtros atuais (uma consulta leve por aba: pageSize 1).
   useEffect(() => {
     if (!statusChoices.length) return;
@@ -528,7 +528,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const description = unassignedOnly ? "Chamados ainda sem técnico." : assignedOnly ? "Chamados com técnico, em andamento." : closedView ? "Chamados finalizados, cancelados ou a baixar." : "Chamados da equipe.";
   const rowSla = (call: Call) => getSlaState(minutesBetween(call.openedAt, closedView ? call.executedAt : undefined)) as SlaState;
   const statusSelect = (call: Call) => (
-    <select className={`cq-status is-${call.status.toLowerCase().replace(" ", "-")}`} value={call.status} onClick={(event) => event.stopPropagation()} onChange={async (event) => { event.stopPropagation(); await updateCallStatus(call, event.target.value as CallStatus); }} aria-label={`Status do chamado ${call.orderNumber}`}>
+    <select className={`cq-status is-${call.status.toLowerCase().replace("+", "-mais").replace(" ", "-")}`} value={call.status} onClick={(event) => event.stopPropagation()} onChange={async (event) => { event.stopPropagation(); await updateCallStatus(call, event.target.value as CallStatus); }} aria-label={`Status do chamado ${call.orderNumber}`}>
       {CALL_STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
     </select>
   );

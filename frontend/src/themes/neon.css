@@ -2768,6 +2768,11 @@
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .obs-popup-actions .primary-button {
     box-shadow: none
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .cq-status.is-giga-mais {
+    border-color: #9fdbe6;
+    background: #effbfd;
+    color: #0b5f6b
+}
 /* light · sla-analysis.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .sa-dates label, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .sa-area {
     color: var(--muted)
@@ -6670,6 +6675,11 @@
 }
 :where(:root[data-palette="neon"][data-theme="dark"]) .obs-popup-actions .primary-button {
     box-shadow: none
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .cq-status.is-giga-mais {
+    border-color: #004d58;
+    background: #081719;
+    color: #afc3c7
 }
 /* dark · sla-analysis.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .sa-dates label, :where(:root[data-palette="neon"][data-theme="dark"]) .sa-area {

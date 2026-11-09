@@ -1582,3 +1582,27 @@ test('the Chrome extension can be downloaded as a valid zip with the current man
   assert.ok(names.includes('jh-redeflow-extensao/whatsapp/wa.js'));
   assert.equal((JSON.parse(manifestText) as { version: string }).version, info.version);
 });
+
+test('GIGA+ status: call handled by the other office leaves the active queue and the overview, and can be reopened', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const metrics = async () => (await (await fetch(`${baseUrl}/api/dashboards/operacao`, { headers })).json() as { metrics: { activeTotal: number } }).metrics.activeTotal;
+  const list = await (await fetch(`${baseUrl}/api/chamados?pageSize=100`, { headers })).json() as { calls: { id: string; status: string }[] };
+  const target = list.calls.find((call) => call.status === 'Aberto');
+  assert.ok(target, 'precisa de um chamado Aberto na demonstracao');
+  const activeBefore = await metrics();
+
+  const marked = await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ status: 'GIGA+' }) });
+  assert.equal(marked.status, 200, 'GIGA+ nao exige tecnico');
+  assert.equal((await marked.json() as { call: { status: string } }).call.status, 'GIGA+');
+  assert.equal(await metrics(), activeBefore - 1, 'sai da fila ativa da Visao geral');
+
+  const closed = await (await fetch(`${baseUrl}/api/chamados?status=GIGA%2B&pageSize=100`, { headers })).json() as { calls: { id: string }[] };
+  assert.ok(closed.calls.some((call) => call.id === target.id), 'filtro por GIGA+ na lista');
+  // Encerrado: so troca de status (reabrir) e permitida.
+  assert.equal((await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ reason: 'x' }) })).status, 409);
+  const reopened = await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ status: 'Aberto' }) });
+  assert.equal(reopened.status, 200);
+  assert.equal(await metrics(), activeBefore);
+});

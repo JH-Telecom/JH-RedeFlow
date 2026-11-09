@@ -2805,6 +2805,11 @@
 :where(:root[data-theme="dark"]) .obs-popup-actions .primary-button {
     box-shadow: none
 }
+:where(:root[data-theme="dark"]) .cq-status.is-giga-mais {
+    border-color: #004d58;
+    background: #081719;
+    color: #afc3c7
+}
 
 /* sla-analysis.css */
 :where(:root[data-theme="dark"]) .sa-dates label, :where(:root[data-theme="dark"]) .sa-area {

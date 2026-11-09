@@ -65,7 +65,7 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   const region = value(row, 'Região', 'Regiao', 'Região Operacional', 'Regiao Operacional');
   const olt = value(row, 'OLT', 'OLT de atendimento');
   const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
-  const isClosed = call.status === 'Finalizado' || call.status === 'Cancelado' || call.status === 'Baixar';
+  const isClosed = call.status === 'Finalizado' || call.status === 'Cancelado' || call.status === 'Baixar' || call.status === 'GIGA+';
   const clientName = call.type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('field') ? value(row, 'Nome', 'Nome do Cliente', 'Cliente') : '';
   // OFS ja concluiu a atividade: traz a Data Fim mesmo que o status interno ainda esteja aberto (ex.: Atribuido).
   // Ao finalizar/baixar no sistema, essa data e mantida em vez de usar "agora".

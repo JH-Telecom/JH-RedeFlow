@@ -7,7 +7,7 @@ import { activations, calls } from "./demo-data.js";
 
 export async function countUnassignedOpenCalls(): Promise<number> {
   if (isSupabaseConfigured()) return await countSupabaseUnassignedOpenCalls();
-  return [...calls.values()].filter((call) => !call.technicianId && !['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)).length;
+  return [...calls.values()].filter((call) => !call.technicianId && !['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(call.status)).length;
 }
 
 export async function countPendingActivations(): Promise<number> {
@@ -30,7 +30,7 @@ export function countByMap(counts: Map<string, number>) {
   return [...counts.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
-const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'];
+const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'];
 const maxDailyBars = 31;
 
 function emptySla(): SlaBreakdown {
@@ -142,6 +142,8 @@ export async function getDashboardMetrics(query: CallQuery = {}): Promise<Dashbo
   const scopeCalls = isSupabaseConfigured()
     ? await listSupabaseCalls(undefined, { supervisorId: query.supervisorId }, { summary: true })
     : query.supervisorId ? await listCalls(undefined, { supervisorId: query.supervisorId }) : [...calls.values()];
-  const periodCalls = query.from || query.to ? scopeCalls.filter((call) => isCallInDateRange(call, query)) : scopeCalls;
-  return { ...summarizeDashboardMetrics(periodCalls, pendingActivations, today), ...summarizeOperationalTrends(scopeCalls, periodCalls, query, today) };
+  // GIGA+ e do outro escritorio: nao entra na Visao geral.
+  const ourCalls = scopeCalls.filter((call) => call.status !== 'GIGA+');
+  const periodCalls = query.from || query.to ? ourCalls.filter((call) => isCallInDateRange(call, query)) : ourCalls;
+  return { ...summarizeDashboardMetrics(periodCalls, pendingActivations, today), ...summarizeOperationalTrends(ourCalls, periodCalls, query, today) };
 }

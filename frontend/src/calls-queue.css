@@ -189,3 +189,6 @@
 .obs-popup-actions a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: #0b56cf; text-decoration: none; }
 .obs-popup-actions > div { display: flex; gap: 8px; }
 .obs-popup-actions .primary-button { min-height: 38px; box-shadow: none; }
+
+/* GIGA+: chamado do outro escritorio (fora dos indicadores da Rede SP) */
+.cq-status.is-giga-mais { border-color: #9fdbe6; background: #effbfd; color: #0b5f6b; }

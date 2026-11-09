@@ -84,7 +84,9 @@ export type Technician = {
   leadTechnicianName?: string;
 };
 
-export type CallStatus = 'Aberto' | 'Atribuido' | 'Atrelado' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado' | 'Baixar';
+// GIGA+: chamado tratado pelo outro escritorio (GIGA+). Chega nos mesmos grupos, mas nao e da Rede SP:
+// fica encerrado para a fila e fora dos indicadores (Visao geral, relatorios, prazo, IGP).
+export type CallStatus = 'Aberto' | 'Atribuido' | 'Atrelado' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado' | 'Baixar' | 'GIGA+';
 
 export type Call = {
   id: string;

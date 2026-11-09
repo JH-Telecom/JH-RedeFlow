@@ -359,7 +359,7 @@ app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), cach
   if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
   try {
     const scopedQuery = await getScopedCallQuery(request, true);
-    const calls = await listCalls(undefined, scopedQuery);
+    const calls = (await listCalls(undefined, scopedQuery)).filter((call) => call.status !== 'GIGA+');
     return response.json({ analysis: calculateSlaAnalysis(calls, parsed.data.from, parsed.data.to, parsed.data.area) });
   } catch (error) {
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular a analise de prazo.' });
@@ -370,9 +370,10 @@ app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), cach
 // de supervisor dos outros relatorios. A lista vem sem filtro de data (o periodo e aplicado pela Data Fim/abertura
 // em reports.ts, e o "periodo anterior" fica fora de from/to).
 const reportQuery = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC', 'OUTRAS']).default('ALL') });
+// Relatorios, mapa, carga e incidentes: so os chamados da Rede SP (GIGA+ e do outro escritorio).
 async function reportCalls(request: AuthRequest, statuses?: CallStatus[]) {
   const scope = await getScopedCallQuery(request, true);
-  return listCalls(statuses, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined });
+  return (await listCalls(statuses, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined })).filter((call) => call.status !== 'GIGA+');
 }
 function reportRoute(path: string, statuses: CallStatus[] | undefined, build: (calls: Awaited<ReturnType<typeof listCalls>>, from: string, to: string, area: z.infer<typeof reportQuery>['area']) => unknown) {
   app.get(path, auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
@@ -489,7 +490,7 @@ app.post('/api/operacao/incidentes/acao', auth, async (request: AuthRequest, res
     try {
       const existing = await getCall(callId, await getScopedCallQuery(request, true));
       if (!existing) { results.push({ callId, ok: false, message: 'Chamado nao encontrado.' }); continue; }
-      if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status)) { results.push({ callId, ok: false, message: 'Chamado encerrado.' }); continue; }
+      if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(existing.status)) { results.push({ callId, ok: false, message: 'Chamado encerrado.' }); continue; }
       if (action === 'assign') {
         await updateCall(callId, { technicianId, ...(existing.status === 'Aberto' ? { status: 'Atribuido' as const } : {}) }, request.authUser!);
       } else if (action === 'observe') {
@@ -759,7 +760,7 @@ app.delete('/api/supervisores/:id', auth, requirePermission('supervisors.edit'),
 });
 app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const rawStatus = request.query.status;
-  const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar'];
+  const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar', 'GIGA+'];
   const statuses = (Array.isArray(rawStatus) ? rawStatus.flatMap((value) => String(value).split(',')) : typeof rawStatus === 'string' ? rawStatus.split(',') : []).map((value) => value.trim()).filter(Boolean);
   if (statuses.some((status) => !validStatuses.includes(status as CallStatus))) return response.status(400).json({ message: 'Status de chamado invalido.' });
   const page = Math.max(1, Math.floor(Number(request.query.page ?? 1)));
@@ -837,7 +838,7 @@ app.put('/api/chamados/:id/data-fim', auth, requirePermission('calls.edit'), asy
 });
 app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
   const optionalText = (max: number, min = 0) => z.preprocess((value) => value == null ? undefined : String(value), z.string().trim().min(min).max(max).optional());
-  const parsed = z.object({ orderNumber: optionalText(100, 1), bdesk: optionalText(100), officeTrack: optionalText(100), client: optionalText(180), type: optionalText(100), reason: optionalText(5000), region: optionalText(100), city: optionalText(100), address: optionalText(5000), bairro: optionalText(160), olt: optionalText(120), slotPon: optionalText(10000), status: z.preprocess((value) => value == null ? undefined : String(value), z.enum(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar']).optional()), technicianId: z.preprocess((value) => value === undefined ? undefined : value === null || value === '' ? null : String(value), z.string().nullable().optional()), openedAt: z.string().datetime().optional(), executedAt: z.preprocess((value) => value == null ? undefined : String(value), z.string().datetime().optional()), result: optionalText(255), notes: optionalText(5000) }).safeParse(request.body);
+  const parsed = z.object({ orderNumber: optionalText(100, 1), bdesk: optionalText(100), officeTrack: optionalText(100), client: optionalText(180), type: optionalText(100), reason: optionalText(5000), region: optionalText(100), city: optionalText(100), address: optionalText(5000), bairro: optionalText(160), olt: optionalText(120), slotPon: optionalText(10000), status: z.preprocess((value) => value == null ? undefined : String(value), z.enum(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar', 'GIGA+']).optional()), technicianId: z.preprocess((value) => value === undefined ? undefined : value === null || value === '' ? null : String(value), z.string().nullable().optional()), openedAt: z.string().datetime().optional(), executedAt: z.preprocess((value) => value == null ? undefined : String(value), z.string().datetime().optional()), result: optionalText(255), notes: optionalText(5000) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: `Dados de chamado invalidos: ${parsed.error.issues.map((issue) => issue.path.join('.') || 'payload').join(', ')}.` });
   const technicians = await listTechnicians();
   if (parsed.data.technicianId && !technicians.some((technician) => technician.id === parsed.data.technicianId && technician.teamRole === 'Tecnico' && technician.active && technician.employmentStatus !== 'Demitido')) return response.status(422).json({ message: 'Somente tecnicos trabalhando e ativos podem receber chamados.' });
@@ -848,7 +849,7 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   const nextTechnician = parsed.data.technicianId !== undefined ? parsed.data.technicianId : existing.technicianId;
   const touchesAssignment = (parsed.data.status !== undefined && parsed.data.status !== existing.status) || parsed.data.technicianId !== undefined;
   // Encerrado (Finalizado/Cancelado/Baixar): so a troca de status e permitida; antes respondia 404 "nao encontrado".
-  if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status) && (parsed.data.status === undefined || parsed.data.status === existing.status)) return response.status(409).json({ message: 'Chamado encerrado: so o status pode ser alterado (por exemplo, Baixar para Finalizado ou reabrir).' });
+  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(existing.status) && (parsed.data.status === undefined || parsed.data.status === existing.status)) return response.status(409).json({ message: 'Chamado encerrado: so o status pode ser alterado (por exemplo, Baixar para Finalizado ou reabrir).' });
   if (touchesAssignment && ['Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'].includes(nextStatus) && !nextTechnician) return response.status(422).json({ message: `Atribua um tecnico antes de colocar o chamado como ${nextStatus}.` });
   const call = await updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
@@ -892,7 +893,7 @@ async function ownCall(request: AuthRequest, response: Response) {
   if (!technician) { response.status(403).json({ message: 'Seu usuario nao esta ligado a um tecnico.' }); return null; }
   const call = await getCall(String(request.params.id));
   if (!call || call.technicianId !== technician.id) { response.status(404).json({ message: 'Chamado nao encontrado entre os seus.' }); return null; }
-  if (['Finalizado', 'Cancelado', 'Baixar'].includes(call.status)) { response.status(409).json({ message: 'Chamado ja encerrado.' }); return null; }
+  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(call.status)) { response.status(409).json({ message: 'Chamado ja encerrado.' }); return null; }
   return { technician, call };
 }
 app.get('/api/campo/eu', auth, async (request: AuthRequest, response) => {
@@ -1012,7 +1013,7 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
   if (totalBytes > 10 * 1024 * 1024) return response.status(413).json({ message: 'O total de anexos por observacao nao pode ultrapassar 10 MB.' });
   const existing = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
   if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
-  if (['Finalizado', 'Cancelado', 'Baixar'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
+  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
   const observation = await addObservation(String(request.params.id), request.authUser!, parsed.data.text, decodedAttachments);
   // Mencoes (@Nome Completo): cada pessoa mencionada recebe um aviso no sino ate abrir.
   if (parsed.data.text.includes('@')) {
@@ -1360,7 +1361,7 @@ app.get('/api/public/consulta/:token', async (request, response) => {
     const activation = await getActivation(activationId);
     if (!activation) return response.status(404).json({ message: 'Acionamento não encontrado.' });
     const call = activation.createdCallId ? await getCall(activation.createdCallId) : undefined;
-    const closedStatuses = ['Finalizado', 'Cancelado', 'Baixar'];
+    const closedStatuses = ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'];
     const closedAt = call ? (closedStatuses.includes(call.status) ? call.executedAt || activation.decisionAt : null) : activation.status === 'Recusado' ? activation.decisionAt : null;
     if (publicViewExpired({ receivedAt: activation.receivedAt, closedAt })) return response.status(410).json({ message: 'Este link expirou. Ele vale até 7 dias depois do encerramento do chamado.' });
     const analysis = withCardFallback((activation.analysis || {}) as Partial<ActivationAnalysis>, activation.extractedData);

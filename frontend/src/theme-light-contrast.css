@@ -1588,6 +1588,9 @@
 :where(:root:not([data-theme="dark"])) .obs-popup-actions a {
     color: #0b56cf
 }
+:where(:root:not([data-theme="dark"])) .cq-status.is-giga-mais {
+    color: #0b5f6b
+}
 
 /* sla-analysis.css */
 :where(:root:not([data-theme="dark"])) .sa-dates label, :where(:root:not([data-theme="dark"])) .sa-area {

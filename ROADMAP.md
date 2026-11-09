@@ -5164,3 +5164,18 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - popup com login de Supervisor: campos travados e avisos visíveis;
   - contraste OK em `/configuracoes`, no claro e no escuro;
   - não foi testado com uma pasta real do computador nem com o recarregar da extensão de verdade.
+
+## Status "GIGA+" (2026-11-09)
+- **Motivo**: o escritório foi dividido e este trata só os chamados de SP. Todos os acionamentos continuam chegando nos grupos, e o status **GIGA+** marca os que são tratados pelo outro escritório (GIGA+).
+- **Comportamento**: funciona como encerrado.
+  - Sai das filas ativas, não exige técnico e não pode ser editado sem trocar o status. Pode ser reaberto trocando o status, por exemplo para Aberto.
+  - Aparece em "Finalizados e cancelados", com aba própria e cor ciano.
+  - Fica **fora dos indicadores** do escritório: Visão geral (fila ativa e período), relatórios, mapa da fila, carga dos técnicos, incidentes e análise de prazo. O IGP já só contava Finalizado.
+  - A limpeza das 06:00 não mexe (só Atribuído, Deslocamento e Em campo). Na importação D-0 conta como encerrado: não recebe técnico do OFS.
+- **Banco**: `calls.status` é texto, sem lista fixa, então não precisou de migração.
+- **Arquivos**: tipo `CallStatus` (backend e frontend), listas de encerrados, `validStatuses` e validação do PATCH, `reportCalls`, `/api/dashboards/prazo`, `getDashboardMetrics`, `imports/d0.ts`, fila e detalhe do chamado, página de consulta pública.
+- **Validação**:
+  - teste HTTP: Aberto → GIGA+ sem técnico, sai da fila ativa da Visão geral, aparece no filtro GIGA+, edição bloqueada (409), reaberto volta para a fila;
+  - suíte 221/221;
+  - preview: GIGA+ no seletor de status e aba "GIGA+" em Finalizados e cancelados;
+  - contraste OK no claro e no escuro.

@@ -322,7 +322,7 @@ export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filt
 
 export async function finishSupabaseCall(id: string, input: { result: string; executedAt: string; notes: string }, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls(undefined, { id }))[0];
-  if (!current || ['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
+  if (!current || ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status)) return undefined;
   const { data, error } = await getSupabaseAdmin().from('calls').update({ result: input.result, executed_at: input.executedAt, notes: input.notes, status: 'Finalizado', updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado,Baixar)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
@@ -336,7 +336,7 @@ export async function finishSupabaseCall(id: string, input: { result: string; ex
 
 export async function cancelSupabaseCall(id: string, reason: string, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls(undefined, { id }))[0];
-  if (!current || ['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
+  if (!current || ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status)) return undefined;
   const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Cancelado', cancellation_reason: reason, updated_at: new Date().toISOString() }).eq('id', id).not('status', 'in', '(Finalizado,Cancelado,Baixar)').select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
@@ -347,8 +347,8 @@ export async function cancelSupabaseCall(id: string, reason: string, actor: { id
 
 export async function reopenSupabaseCall(id: string, actor: { id: string; name: string }) {
   const current = (await listSupabaseCalls(undefined, { id }))[0];
-  if (!current || !['Finalizado', 'Cancelado', 'Baixar'].includes(current.status)) return undefined;
-  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Aberto', cancellation_reason: null, result: null, executed_at: null, updated_at: new Date().toISOString() }).eq('id', id).in('status', ['Finalizado', 'Cancelado', 'Baixar']).select('id').maybeSingle();
+  if (!current || !['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status)) return undefined;
+  const { data, error } = await getSupabaseAdmin().from('calls').update({ status: 'Aberto', cancellation_reason: null, result: null, executed_at: null, updated_at: new Date().toISOString() }).eq('id', id).in('status', ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+']).select('id').maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return undefined;
   const { error: logError } = await getSupabaseAdmin().from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Status alterado', field: 'status', previous_value: current.status, new_value: 'Aberto' });
@@ -360,9 +360,9 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
   const current = (await listSupabaseCalls(undefined, { id }))[0];
   // Chamado encerrado: so aceita troca de status (ex.: Baixar -> Finalizado, ou reabrir); o resto fica travado.
   const changesStatus = input.status !== undefined && input.status !== current.status;
-  if (!current || (['Finalizado', 'Cancelado', 'Baixar'].includes(current.status) && actor.roleId !== 'system' && !changesStatus)) return undefined;
+  if (!current || (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(current.status) && actor.roleId !== 'system' && !changesStatus)) return undefined;
   const nextStatus = input.status ?? current.status;
-  const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
+  const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'] as const;
   if (terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined) {
     input = { ...input, executedAt: current.executedAt ?? new Date().toISOString() };
   }

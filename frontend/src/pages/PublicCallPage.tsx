@@ -8,7 +8,7 @@ import { withMentions } from "../components/MentionTextarea";
 // Consulta do chamado pelo link do informativo (setor Casa Cliente): so leitura, so este chamado, sem login.
 // Atualiza sozinha a cada 1 minuto. O link expira 7 dias depois do encerramento.
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "–");
-const CLOSED = ["Finalizado", "Cancelado", "Baixar"];
+const CLOSED = ["Finalizado", "Cancelado", "Baixar", "GIGA+"];
 
 function statusTone(state: PublicView["state"], status?: string) {
   if (state === "recusado" || status === "Cancelado") return "is-muted";
