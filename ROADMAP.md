@@ -5179,3 +5179,12 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - suíte 221/221;
   - preview: GIGA+ no seletor de status e aba "GIGA+" em Finalizados e cancelados;
   - contraste OK no claro e no escuro.
+
+## Copiar o número do chamado na fila (2026-11-09)
+- Nas filas (Chamados abertos, Em atendimento, Finalizados e cancelados), clicar no **número do chamado** copia o número em vez de abrir o chamado.
+  - Aparece um "Copiado" verde do lado.
+  - O **BDESK** embaixo também copia.
+  - Clicar no resto da linha continua abrindo o chamado. Com o teclado, Enter ou espaço no número também copia.
+- Ao passar o mouse, o número ganha uma borda tracejada e o cursor de copiar.
+- Componente `frontend/src/components/CopyText.tsx`. Sem permissão de área de transferência, copia pelo jeito antigo do navegador.
+- **Preview**: o clique copiou "RF-240916", a página não saiu da fila e o "Copiado" apareceu. Contraste OK no claro e no escuro.

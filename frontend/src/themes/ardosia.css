@@ -2773,6 +2773,22 @@
     background: #effbfd;
     color: #0b5f6b
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .copy-text {
+    border: 1px dashed transparent;
+    background: none;
+    color: inherit
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .copy-text:hover {
+    border-color: #aeb9c5;
+    background: #f4f8ff
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .copy-text:focus-visible {
+    outline: 2px solid #527293
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .copy-text-tip {
+    background: #e3f6ec;
+    color: #137a4b
+}
 /* light · sla-analysis.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .sa-dates label, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .sa-area {
     color: var(--muted)
@@ -6680,6 +6696,22 @@
     border-color: #004d58;
     background: #081719;
     color: #afc3c7
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .copy-text {
+    border: 1px dashed transparent;
+    background: none;
+    color: inherit
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .copy-text:hover {
+    border-color: #444e58;
+    background: #111418
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .copy-text:focus-visible {
+    outline: 2px solid #527293
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .copy-text-tip {
+    background: #031c12;
+    color: #73ce9a
 }
 /* dark · sla-analysis.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .sa-dates label, :where(:root[data-palette="ardosia"][data-theme="dark"]) .sa-area {

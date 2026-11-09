@@ -1591,6 +1591,12 @@
 :where(:root:not([data-theme="dark"])) .cq-status.is-giga-mais {
     color: #0b5f6b
 }
+:where(:root:not([data-theme="dark"])) .copy-text {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .copy-text-tip {
+    color: #137a4b
+}
 
 /* sla-analysis.css */
 :where(:root:not([data-theme="dark"])) .sa-dates label, :where(:root:not([data-theme="dark"])) .sa-area {

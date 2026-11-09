@@ -2810,6 +2810,22 @@
     background: #081719;
     color: #afc3c7
 }
+:where(:root[data-theme="dark"]) .copy-text {
+    border: 1px dashed transparent;
+    background: none;
+    color: inherit
+}
+:where(:root[data-theme="dark"]) .copy-text:hover {
+    border-color: #364d73;
+    background: #10141a
+}
+:where(:root[data-theme="dark"]) .copy-text:focus-visible {
+    outline: 2px solid #1264e8
+}
+:where(:root[data-theme="dark"]) .copy-text-tip {
+    background: #031c12;
+    color: #73ce9a
+}
 
 /* sla-analysis.css */
 :where(:root[data-theme="dark"]) .sa-dates label, :where(:root[data-theme="dark"]) .sa-area {
