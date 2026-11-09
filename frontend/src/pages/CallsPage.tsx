@@ -193,7 +193,17 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [calls, setCalls] = useState<Call[]>([]);
   // Popup de observacao (fila Em atendimento): chamado aberto no popup e o texto das observacoes salvas por ele.
   const [observationCall, setObservationCall] = useState<Call | null>(null);
-  const [savedObservations, setSavedObservations] = useState<Record<string, string>>({});
+  // Ultima observacao (texto e autor) de cada chamado da pagina, numa chamada so; sem observacao, mostra as notas.
+  const [latestObservations, setLatestObservations] = useState<Record<string, { text: string; userName: string; createdAt: string }>>({});
+  const observationIdsKey = assignedOnly ? calls.map((call) => call.id).join(",") : "";
+  useEffect(() => {
+    if (!observationIdsKey) { setLatestObservations({}); return; }
+    let active = true;
+    api.latestObservations(observationIdsKey.split(","), { teamScope: teamScoped })
+      .then((data) => { if (active) setLatestObservations(data.observations); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [observationIdsKey, teamScoped]);
   const canAddObservation = (() => {
     try { return Boolean(JSON.parse(localStorage.getItem("jh-redeflow-session") || "null")?.user?.role?.permissions?.includes("calls.add_observation")); }
     catch { return false; }
@@ -272,14 +282,10 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     ];
     // Ultima observacao de cada chamado da pagina (texto, autor e hora); sem observacao, o campo de notas do chamado.
     const lastObservations = new Map<string, { text: string; who: string; at: string }>();
-    await Promise.all(currentCalls.map(async (call) => {
-      try {
-        const latest = (await api.observations(call.id, { teamScope: teamScoped })).observations
-          .filter((item) => item.text?.trim())
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-        if (latest) lastObservations.set(call.id, { text: latest.text.trim(), who: latest.userName, at: latest.createdAt });
-      } catch { /* sem permissao ou falha: cai nas notas do chamado */ }
-    }));
+    try {
+      const found = (await api.latestObservations(currentCalls.map((call) => call.id), { teamScope: teamScoped })).observations;
+      for (const [callId, item] of Object.entries(found)) lastObservations.set(callId, { text: item.text, who: item.userName, at: item.createdAt });
+    } catch { /* sem permissao ou falha: cai nas notas do chamado */ }
     const clip = (text: string, max = 180) => { const flat = text.replace(/\s+/g, " ").trim(); return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat; };
     const rows: ReportCell[][] = currentCalls.map((call) => {
       const minutes = minutesBetween(call.openedAt, closedView ? call.executedAt : undefined);
@@ -635,7 +641,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
                       <td data-label="Na fila"><QueueClock openedAt={call.openedAt} /><small className="table-subtext">desde {shortDateTime(call.openedAt)}</small></td>
                       {eventCell(call)}{placeCell(call, true)}
                       <td data-label="Última observação" className="cq-observation">{(() => {
-                        const shown = savedObservations[call.id] ?? call.notes;
+                        const latest = latestObservations[call.id];
+                        const shown = latest ? `${latest.userName}: ${latest.text}` : call.notes;
                         const content = <><TimerCell lastObservationAt={call.lastObservationAt} />{shown && <small className="table-subtext" title={shown}>{shown}</small>}</>;
                         return canAddObservation
                           ? <button type="button" className="cq-observation-button" title="Escrever nova observação" aria-label={`Nova observação no chamado ${call.orderNumber}`} onClick={(event) => { event.stopPropagation(); setObservationCall(call); }} onKeyDown={(event) => event.stopPropagation()}>{content}</button>
@@ -673,7 +680,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       </section>
       {observationCall && <ObservationPopup call={observationCall} teamScoped={teamScoped} onClose={() => setObservationCall(null)} onSaved={(observation) => {
         // A linha atualiza na hora: texto novo e o contador volta a zero (lastObservationAt = agora).
-        setSavedObservations((current) => ({ ...current, [observation.callId || observationCall.id]: observation.text }));
+        setLatestObservations((current) => ({ ...current, [observationCall.id]: { text: observation.text, userName: observation.userName, createdAt: observation.createdAt } }));
         setCalls((current) => current.map((item) => item.id === observationCall.id ? { ...item, lastObservationAt: observation.createdAt } : item));
         setObservationCall(null);
       }} />}

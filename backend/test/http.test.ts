@@ -1466,3 +1466,29 @@ test('the end date of a closed call can be corrected without reopening it', asyn
   const logs = await (await fetch(`${baseUrl}/api/chamados/${target.id}/logs`, { headers })).json() as { logs?: { field: string; action: string }[] };
   if (logs.logs) assert.ok(logs.logs.some((log) => log.field === 'executedAt' && log.action === 'Data de finalizacao alterado'));
 });
+
+test('the queue reads the latest observation of many calls in one request', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const list = await (await fetch(`${baseUrl}/api/chamados?pageSize=2`, { headers })).json() as { calls: { id: string }[] };
+  const [first, second] = list.calls;
+  assert.ok(first && second);
+
+  await fetch(`${baseUrl}/api/chamados/${first.id}/observacoes`, { method: 'POST', headers, body: JSON.stringify({ text: 'primeira anotacao', attachments: [] }) });
+  await new Promise((resolve) => setTimeout(resolve, 15));
+  await fetch(`${baseUrl}/api/chamados/${first.id}/observacoes`, { method: 'POST', headers, body: JSON.stringify({ text: 'matheus amassou', attachments: [] }) });
+
+  const response = await fetch(`${baseUrl}/api/chamados/ultimas-observacoes?ids=${first.id},${second.id}`, { headers });
+  assert.equal(response.status, 200);
+  const body = await response.json() as { observations: Record<string, { text: string; userName: string }> };
+  assert.equal(body.observations[first.id]?.text, 'matheus amassou');
+  assert.ok(body.observations[first.id]?.userName);
+
+  const tooMany = await fetch(`${baseUrl}/api/chamados/ultimas-observacoes?ids=${Array.from({ length: 101 }, (_, index) => `id-${index}`).join(',')}`, { headers });
+  assert.equal(tooMany.status, 400);
+});

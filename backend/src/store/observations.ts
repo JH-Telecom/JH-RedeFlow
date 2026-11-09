@@ -214,3 +214,26 @@ export async function lastTechnicianAssignmentTimes(callIds: string[]): Promise<
   for (const log of auditLogs.values()) if (wanted.has(log.callId) && log.field === 'technicianId' && log.newValue) keep(log.callId, log.createdAt);
   return latest;
 }
+
+// Ultima observacao (texto, autor e hora) de cada chamado, numa consulta so. Usado pela coluna "Ultima observacao"
+// da fila (ate 100 chamados por pagina) e pela imagem da fila.
+export type LatestObservation = { text: string; userName: string; createdAt: string };
+export async function latestObservations(callIds: string[]): Promise<Record<string, LatestObservation>> {
+  const result: Record<string, LatestObservation> = {};
+  if (!callIds.length) return result;
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getSupabaseAdmin().from('call_observations').select('call_id, text, created_at, profiles(name)').in('call_id', callIds).order('created_at', { ascending: false }).limit(2000);
+    if (error) throw new Error(error.message);
+    for (const row of (data || []) as any[]) {
+      if (result[row.call_id] || !String(row.text || '').trim()) continue;
+      result[row.call_id] = { text: String(row.text).trim(), userName: (Array.isArray(row.profiles) ? row.profiles[0]?.name : row.profiles?.name) || 'Usuario', createdAt: row.created_at };
+    }
+    return result;
+  }
+  const wanted = new Set(callIds);
+  for (const item of [...observations.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    if (!wanted.has(item.callId) || result[item.callId] || !item.text.trim()) continue;
+    result[item.callId] = { text: item.text.trim(), userName: item.userName, createdAt: item.createdAt };
+  }
+  return result;
+}

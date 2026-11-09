@@ -31,6 +31,7 @@ import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCo
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite } from './read-cache.js';
 import { runDailyReset } from './daily-reset-job.js';
+import { latestObservations } from './store/observations.js';
 import { dueSoonCalls } from './due-soon.js';
 import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
 import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
@@ -795,6 +796,20 @@ app.get('/api/chamados/vencendo', auth, requirePermission('calls.view'), async (
   } catch (error) {
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel listar os chamados vencendo.' });
   }
+});
+// Ultima observacao de cada chamado da pagina da fila (ate 100 ids), numa chamada so. Respeita o escopo do supervisor.
+app.get('/api/chamados/ultimas-observacoes', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  const ids = [...new Set(String(request.query.ids || '').split(',').map((id) => id.trim()).filter(Boolean))];
+  if (ids.length > 100) return response.status(400).json({ message: 'Envie no maximo 100 chamados por vez.' });
+  try {
+    const scope = await getScopedCallQuery(request, request.query.teamScope === 'true');
+    let allowed = ids;
+    if ('supervisorId' in scope && scope.supervisorId) {
+      const visible = new Set((await listCalls(undefined, scope)).map((call) => call.id));
+      allowed = ids.filter((id) => visible.has(id));
+    }
+    return response.json({ observations: await latestObservations(allowed) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar as observacoes.' }); }
 });
 app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (request, response) => {
   const call = await getCall(String(request.params.id), await getScopedCallQuery(request as AuthRequest, request.query.teamScope === 'true'));

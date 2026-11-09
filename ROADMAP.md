@@ -4969,3 +4969,9 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - testes da regra: 18:59 limpa, 19:00 e 23:00 ficam, noite de anteontem limpa, Atrelado, Aberto e Finalizado ignorados, troca no histórico vence a primeira atribuição;
   - teste da rotina: não roda antes das 06:00 nem depois das 10:59, roda uma vez por dia e devolve ou mantém as ordens certas.
   - Suíte 211/211.
+- Correção (2026-11-09): na fila, a coluna "Última observação" mostrava o campo de notas do chamado ("Criado a partir de acionamento aceito."), e não a última observação. Por isso, a observação salva pelo popup não aparecia depois de recarregar.
+  - Novo endpoint `GET /api/chamados/ultimas-observacoes?ids=...` (até 100 por vez). Devolve a última observação (texto, autor e hora) de cada chamado numa consulta só e respeita o escopo do supervisor.
+  - A coluna agora mostra "Autor: texto" da última observação. Sem nenhuma observação, continua mostrando as notas.
+  - "Copiar imagem" da fila passou a usar o mesmo endpoint: 1 chamada em vez de até 100.
+  - Teste HTTP: a última observação vence a anterior e mais de 100 ids são recusados.
+  - Preview: depois de salvar e recarregar, a linha mostra "Administrador JH: matheus amassou".

@@ -260,6 +260,8 @@ export const api = {
   deleteCall: (id: string) => requestCallMutation<{ deleted: boolean }>(`/api/chamados/${id}`, { method: 'DELETE' }),
   deleteAllCalls: () => requestCallMutation<{ deleted: number }>('/api/chamados', { method: 'DELETE' }),
   reopenCall: (id: string) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}/reabrir`, { method: 'POST' }),
+  // Ultima observacao (texto, autor e hora) de varios chamados de uma vez (ate 100), para a coluna da fila.
+  latestObservations: (ids: string[], filters?: { teamScope?: boolean }) => request<{ observations: Record<string, { text: string; userName: string; createdAt: string }> }>(`/api/chamados/ultimas-observacoes?ids=${encodeURIComponent(ids.join(','))}${filters?.teamScope ? '&teamScope=true' : ''}`),
   observations: (id: string, filters?: { teamScope?: boolean }) => request<{ observations: CallObservation[]; banners?: Record<string, string> }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`),
   addObservation: (id: string, text: string, attachments: CallObservationAttachmentUpload[] = [], filters?: { teamScope?: boolean }) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`, { method: 'POST', body: JSON.stringify({ text, attachments }) }),
   observationAttachment: (callId: string, observationId: string, attachmentId: string, filters?: { teamScope?: boolean }) => request<{ attachment: CallObservationAttachmentContent }>(`/api/chamados/${callId}/observacoes/${observationId}/anexos/${attachmentId}${filters?.teamScope ? '?teamScope=true' : ''}`),
