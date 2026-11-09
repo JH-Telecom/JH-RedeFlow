@@ -1252,9 +1252,11 @@
     m.querySelector("[data-x]").onclick = fecharMenu;
     chrome.storage.local.get("sessao").then(({ sessao }) => {
       const u = m.querySelector(".jh-m2-u"); if (!u) return;
-      const ok = sessao && sessao.nome && (sessao.expira || 0) > Date.now() - 864e5;
+      // RedeFlow guarda a validade em expiraEm (data ISO); a extensao do Agendamentos usava expira (ms).
+      const validade = sessao ? (sessao.expiraEm ? Date.parse(sessao.expiraEm) : sessao.expira || 0) : 0;
+      const ok = sessao && sessao.nome && validade > Date.now();
       u.querySelector(".av").textContent = ok ? iniciais(sessao.nome) : "!";
-      u.querySelector(".nm").innerHTML = ok ? `${esc(nomeBonito(nomeCurto(sessao.nome)))} · <i class="dot"></i> conectada ao JH` : `<i class="dot off"></i> sem login — entre pela extensão`;
+      u.querySelector(".nm").innerHTML = ok ? `${esc(nomeBonito(nomeCurto(sessao.nome)))} · <i class="dot"></i> conectado ao JH RedeFlow` : `<i class="dot off"></i> sem login — entre pelo popup da extensão`;
     });
     setTimeout(() => document.addEventListener("mousedown", foraMenu, true), 0);
   }

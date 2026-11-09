@@ -5109,3 +5109,8 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - Os temas da extensão JH Telecom 2.1.1 já tinham vindo inteiros na 1.6.0 (`whatsapp/temas.js` idêntico ao original), com a tela de carregamento nas cores do tema. Ficam em **JH → Temas** no WhatsApp Web.
   - Temas disponíveis: WhatsApp Claro e Escuro, JH Azul, Ardósia, Neon Escuro, Névoa Roxa, Aurora, Flor, e "Criar tema"/"Personalizar" com cores e imagem de fundo.
   - Novo atalho no popup: aba WhatsApp → **Escolher tema do WhatsApp**. Traz a aba do WhatsApp para a frente e abre a janela de temas; se o WhatsApp não estiver aberto, abre.
+- Extensão 1.6.2 (2026-11-09):
+  - **"Sem login" no WhatsApp**: o menu JH dizia "sem login — entre pela extensão" com o usuário logado.
+    - Causa: o código veio da extensão do Agendamentos, que guarda a validade da sessão em `expira` (milissegundos). O RedeFlow guarda em `expiraEm` (data ISO).
+    - Correção: o menu lê os dois formatos e mostra "conectado ao JH RedeFlow".
+  - **Popup**: tirada a rolagem interna (eram duas barras de rolagem) e o texto dos cartões Fechamentos e Clusters ficou limitado a 6 linhas. O detalhe completo continua na tela Integração OFS.
