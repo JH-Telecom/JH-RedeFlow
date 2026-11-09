@@ -4984,3 +4984,8 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - embaixo do nome do técnico vão os auxiliares dele; embaixo do auxiliar, o técnico com quem trabalha;
   - título conforme o filtro de tipo e subtítulo com disponíveis, em campo e data e hora.
 - Preview: a imagem "tecnicos-e-auxiliares-2026-11-09.png" foi gerada (3354×1704) sem erro.
+- Cards que acompanham os filtros (2026-11-09):
+  - Os quatro cards da tela Técnicos (Na equipe, Em campo, Disponíveis e Regiões) passaram a contar só quem está na lista com a busca e os filtros atuais.
+  - O texto do primeiro card muda conforme o filtro: "Técnicos na lista", "Auxiliares na lista" ou "Na lista com os filtros".
+  - Regiões não contam mais o valor em branco como região.
+  - Preview: com o filtro "Em campo", os cards mudaram de 5/2/2 para 2/2/0, iguais às 2 linhas da tabela.

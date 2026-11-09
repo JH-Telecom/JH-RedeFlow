@@ -70,6 +70,7 @@ export function TechniciansPage() {
   const regions = [...new Set(technicians.map((technician) => technician.region))];
   const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (roleFilter === "Todos" || technician.teamRole === roleFilter) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
   const pagedTechnicians = usePaged(visibleTechnicians, visibleTechnicians.length);
+  const filtersActive = Boolean(query.trim()) || roleFilter !== "Todos" || statusFilter !== "Todos" || regionFilter !== "Todas";
   // Imagem da equipe (para mandar a atualizacao no WhatsApp): todos os da lista com os filtros atuais, ate 100.
   const [copyState, setCopyState] = useState<"idle" | "working" | "copied" | "downloaded" | "error">("idle");
   async function copyTeamImage() {
@@ -97,7 +98,7 @@ export function TechniciansPage() {
         { text: technician.active ? "Ativo" : "Inativo", tone: technician.active ? "green" : "gray" },
       ];
     });
-    const filtered = Boolean(query.trim()) || roleFilter !== "Todos" || statusFilter !== "Todos" || regionFilter !== "Todas";
+    const filtered = filtersActive;
     const stamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
     const available = list.filter((item) => item.currentStatus === "Disponivel").length;
     const inField = list.filter((item) => item.currentStatus === "Em campo").length;
@@ -148,19 +149,20 @@ export function TechniciansPage() {
           </button>
         </div>
       </div>
+      {/* Os cards acompanham a busca e os filtros (tipo, situação e região). */}
       <div className="metric-grid team-metrics">
         <Metric
           label="Na equipe"
           value={String(
-            technicians.filter((technician) => technician.employmentStatus !== "Demitido").length,
+            visibleTechnicians.filter((technician) => technician.employmentStatus !== "Demitido").length,
           )}
-          note="Técnicos e auxiliares cadastrados"
+          note={roleFilter === "Tecnico" ? "Técnicos na lista" : roleFilter === "Auxiliar" ? "Auxiliares na lista" : filtersActive ? "Na lista com os filtros" : "Técnicos e auxiliares cadastrados"}
           positive
         />
         <Metric
           label="Em campo"
           value={String(
-            technicians.filter(
+            visibleTechnicians.filter(
               (technician) => technician.employmentStatus !== "Demitido" && technician.currentStatus === "Em campo",
             ).length,
           )}
@@ -169,7 +171,7 @@ export function TechniciansPage() {
         <Metric
           label="Disponiveis"
           value={String(
-            technicians.filter(
+            visibleTechnicians.filter(
               (technician) => technician.employmentStatus !== "Demitido" && technician.currentStatus === "Disponivel",
             ).length,
           )}
@@ -179,7 +181,7 @@ export function TechniciansPage() {
         <Metric
           label="Regioes"
           value={String(
-            new Set(technicians.map((technician) => technician.region)).size,
+            new Set(visibleTechnicians.map((technician) => technician.region.trim()).filter(Boolean)).size,
           )}
           note="Areas cobertas"
         />
