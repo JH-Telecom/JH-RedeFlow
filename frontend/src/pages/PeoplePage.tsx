@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Mail, Search, Trophy, X } from "lucide-react";
 import { api, type Highlight, type PersonCard, type UserStatus } from "../api";
 import { ProfileAvatar } from "../components/ProfileAvatar";
+import { Pager, usePaged } from "../components/Pager";
 
 // Pessoas: diretorio SO DE LEITURA, aberto a todos. Mostra quem faz parte do O&M e quem esta online,
 // e abre o perfil (foto, banner, nome, cargo e e-mail). Criar e editar contas continua so em Usuarios.
@@ -40,6 +41,7 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
 
   const onlineCount = people?.filter((person) => person.online).length ?? 0;
   const visible = useMemo(() => (people ?? []).filter((person) => (!onlyOnline || person.online) && `${person.name} ${person.email} ${person.roleName}`.toLowerCase().includes(query.trim().toLowerCase())), [people, onlyOnline, query]);
+  const pagedPeople = usePaged(visible, `${onlyOnline}|${query}`);
 
   return (
     <div className="pp-page">
@@ -78,7 +80,7 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
         : !visible.length ? <div className="panel empty-state">{onlyOnline ? "Ninguém online agora com esse filtro." : "Ninguém encontrado."}</div>
         : (
           <div className="pp-grid">
-            {visible.map((person) => (
+            {pagedPeople.pageItems.map((person) => (
               <button key={person.id} type="button" className="panel pp-card" onClick={() => setOpenId(person.id)}>
                 <span className="pp-avatar-wrap">
                   <ProfileAvatar name={person.name} photo={avatars[person.id] ?? null} className="pp-avatar" />
@@ -94,6 +96,7 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
             ))}
           </div>
         )}
+      <Pager {...pagedPeople} noun={["pessoa", "pessoas"]} />
 
       {openId && <PersonModal id={openId} card={people?.find((person) => person.id === openId)} photo={avatars[openId] ?? null} highlight={highlights.find((item) => item.userId === openId)} onClose={closeModal} />}
     </div>

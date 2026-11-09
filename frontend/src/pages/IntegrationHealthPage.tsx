@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, CircleHelp, MessageCircle, RefreshCw, XCircle } from "lucide-react";
 import { api, type IntegrationHealth, type HealthStatus, type StuckReason } from "../api";
 import { Panel } from "../components/charts";
+import { Pager, usePaged } from "../components/Pager";
 
 // Integracao OFS: semaforo da coleta (export, fechamentos, clusters, falhas), fila dos chamados concluidos no OFS
 // que nao finalizaram aqui (com o motivo) e o historico do que a extensao fez. Atualiza sozinho a cada minuto.
@@ -38,6 +39,7 @@ export function IntegrationHealthPage() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   }, [data]);
   const stuck = (data?.stuck ?? []).filter((call) => reason === "all" || call.reasons.includes(reason));
+  const pagedStuck = usePaged(stuck, stuck.length);
 
   return (
     <div className="dv-dashboard ih-page">
@@ -82,7 +84,7 @@ export function IntegrationHealthPage() {
               <table className="sa-table ih-table">
                 <thead><tr><th>Ordem</th><th>Técnico</th><th>Status aqui</th><th>Data Fim (OFS)</th><th>Esperando</th><th>O que falta</th></tr></thead>
                 <tbody>
-                  {stuck.map((call) => (
+                  {pagedStuck.pageItems.map((call) => (
                     <tr key={call.id}>
                       <td><Link to={`/chamados/${call.id}`} className="rp-order">{call.orderNumber}</Link>{call.region && <small>{call.region}</small>}</td>
                       <td>{call.technicianName || <span className="ih-missing">Sem técnico</span>}</td>
@@ -93,7 +95,7 @@ export function IntegrationHealthPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table><Pager {...pagedStuck} noun={["chamado", "chamados"]} />
             </div>
             <p className="ih-hint">Sem técnico: atribua no chamado. Ordem em mais de um chamado: cancele o repetido. Fechamento não lido ou em código: a extensão lê de novo no próximo ciclo; se continuar, confira a atividade no OFS. "Pronto" finaliza sozinho no próximo ciclo da extensão.</p>
           </>}

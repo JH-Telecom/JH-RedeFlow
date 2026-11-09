@@ -3,6 +3,7 @@ import { ChevronRight, Search, SlidersHorizontal, Users } from "lucide-react";
 import { api, type Role, type User } from "../api";
 import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal } from "../components/ui";
+import { Pager, usePaged } from "../components/Pager";
 
 // "ha 5 min", "ha 2 h", ou a data quando passou de um dia.
 function formatLastSeen(iso: string) {
@@ -63,6 +64,7 @@ export function UsersPage() {
     }
   }
   const visibleUsers = users.filter((user) => `${user.name} ${user.email}`.toLowerCase().includes(query.toLowerCase()) && (activeFilter === "all" || (activeFilter === "online" ? user.active && user.online : activeFilter === "offline" ? user.active && !user.online : !user.active)));
+  const pagedUsers = usePaged(visibleUsers, visibleUsers.length);
   return (
     <>
       <div className="page-heading">
@@ -102,7 +104,7 @@ export function UsersPage() {
               </tr>
             </thead>
             <tbody>
-              {visibleUsers.map((user) => (
+              {pagedUsers.pageItems.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <div className="user-cell">
@@ -150,7 +152,7 @@ export function UsersPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table><Pager {...pagedUsers} noun={["usuário", "usuários"]} />
           </div>
         )}
       </section>

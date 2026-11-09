@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
@@ -960,12 +960,19 @@ app.get('/api/chamados/:id/observacoes/:observationId/anexos/:attachmentId', aut
 // Historico de alteracoes de todos os chamados (quem mudou o que e quando), por periodo. Mesma permissao da aba
 // Auditoria do chamado. Ate 2000 registros por consulta (o aviso "truncated" pede um periodo menor).
 app.get('/api/auditoria', auth, requirePermission('calls.view_logs'), async (request, response) => {
-  const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).safeParse(request.query);
+  // 100 por pagina (pageSize maior so para o Excel, ate 2000), filtros de pessoa, campo e busca no banco.
+  const parsed = z.object({
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    page: z.coerce.number().int().min(1).max(100_000).default(1), pageSize: z.coerce.number().int().min(1).max(2000).default(100),
+    field: z.string().max(60).optional(), userId: z.string().max(100).optional(), q: z.string().max(100).optional(),
+  }).safeParse(request.query);
   if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
   try {
     const fromIso = new Date(`${parsed.data.from}T00:00:00-03:00`).toISOString();
     const toIso = new Date(`${parsed.data.to}T23:59:59.999-03:00`).toISOString();
-    return response.json(await listAllAuditLogs({ fromIso, toIso }));
+    const { page, pageSize, field, userId, q } = parsed.data;
+    const result = await listAuditLogPage({ fromIso, toIso }, { field: field || undefined, userId: userId || undefined, q: q || undefined }, page, pageSize);
+    return response.json({ ...result, page, pageSize, totalPages: Math.max(1, Math.ceil(result.total / pageSize)), truncated: false });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o historico.' }); }
 });
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), async (request, response) => response.json({ logs: await listAuditLogs(String(request.params.id)) }));

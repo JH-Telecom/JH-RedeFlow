@@ -4,6 +4,7 @@ import { ChevronRight, Pencil, Search, SlidersHorizontal, Users } from "lucide-r
 import { api, type Technician, type Supervisor } from "../api";
 import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal, DetailItem, Metric } from "../components/ui";
+import { Pager, usePaged } from "../components/Pager";
 
 export function TechniciansPage() {
   // Lista longa rola dentro do cartao (cabecalho fixo); lista curta continua compacta.
@@ -67,6 +68,7 @@ export function TechniciansPage() {
   }
   const regions = [...new Set(technicians.map((technician) => technician.region))];
   const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (employmentFilter === "Todos" || (technician.employmentStatus || "Trabalhando") === employmentFilter) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
+  const pagedTechnicians = usePaged(visibleTechnicians, visibleTechnicians.length);
   async function changeStatus(technician: Technician, currentStatus: Technician["currentStatus"]) {
     try { const result = await api.updateTechnician(technician.id, { currentStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar status."); }
   }
@@ -161,7 +163,7 @@ export function TechniciansPage() {
               </tr>
             </thead>
             <tbody>
-              {visibleTechnicians.map((technician) => (
+              {pagedTechnicians.pageItems.map((technician) => (
                 <tr key={technician.id} onClick={() => setSelectedTechnician(technician)}>
                   <td>
                     <div className="user-cell">
@@ -200,7 +202,7 @@ export function TechniciansPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table><Pager {...pagedTechnicians} noun={["técnico", "técnicos"]} />
           </div>
         )}
       </section>

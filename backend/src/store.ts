@@ -3,7 +3,7 @@ export { getRole, getRoleById, listRoles, listPermissions, listUsers, getUserByE
 export { getSettings, updateSettings, type OltRegionMapping, type OltRegionRequest, listCustomOperationalRegions, addCustomOperationalRegion, listOltRegionMappings, recordUnknownOltRequests, captureUnknownOltRequestsFromCalls, captureUnknownOltRequests, listOltRegionRequests, acceptOltRegionRequest, ignoreOltRegionRequest, saveOltRegionMappings } from './store/settings.js';
 export { listSupervisors, listTechnicians, addTechnician, updateTechnician, deleteTechnician, addSupervisor, updateSupervisor, deleteSupervisor, getSupervisorIdForUser } from './store/teams.js';
 export { type CallQuery, listCalls, type CallPageResult, listCallsPage, findExistingCallIdentifiers, insertWorkbookCalls, insertHistoricalCalls, type DriveCallSource, createDriveCall, recordDriveCallSnapshot, getCall, deleteCall, deleteAllCalls, updateCall, finishCall, cancelCall, reopenCall } from './store/calls.js';
-export { listObservations, addObservation, getObservationAttachment, listAuditLogs, listAllAuditLogs, type AuditLogRow, listObservationsInRange } from './store/observations.js';
+export { listObservations, addObservation, getObservationAttachment, listAuditLogs, listAllAuditLogs, listAuditLogPage, type AuditLogRow, listObservationsInRange } from './store/observations.js';
 export { listActivations, receiveActivation, decideActivation } from './store/activations.js';
 export { listImports, saveImport, type D0BaseSummary, type D0SyncResult, getD0BaseSummary, replaceD0Base, applyOfsRowsToCalls, clearD0Base, getManualDailyBase, saveManualDailyBase, deleteManualDailyBase } from './store/imports.js';
 export { listNotifications, getDashboardMetrics } from './store/dashboard.js';

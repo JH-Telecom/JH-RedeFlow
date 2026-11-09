@@ -165,7 +165,7 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),
   dueSoon: () => request<DueSoonResult>('/api/chamados/vencendo'),
-  auditHistory: (from: string, to: string) => request<{ logs: AuditLogRow[]; truncated: boolean }>(`/api/auditoria?from=${from}&to=${to}`),
+  auditHistory: (query: { from: string; to: string; page: number; pageSize: number; userId?: string; field?: string; q?: string }) => request<{ logs: AuditLogRow[]; total: number; page: number; pageSize: number; totalPages: number }>(`/api/auditoria?${new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined && value !== '').map(([key, value]) => [key, String(value)])).toString()}`),
   technicianSuggestions: (id: string) => request<{ suggestions: TechnicianSuggestion[] }>(`/api/chamados/${encodeURIComponent(id)}/sugestoes`),
   callRisks: (ids: string[]) => request<{ risks: Record<string, CallRisk>; samples: number }>('/api/chamados/risco', { method: 'POST', body: JSON.stringify({ ids }) }),
   massIncidents: () => request<{ incidents: MassIncident[] }>('/api/operacao/incidentes'),

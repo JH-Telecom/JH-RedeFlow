@@ -6,6 +6,7 @@ import { ProfileAvatar } from "../components/ProfileAvatar";
 import { operationalRegions } from "../lib/constants";
 import { FullExportPanel } from "../components/FullExportPanel";
 import { ChecklistSettings } from "../components/FieldAdmin";
+import { Pager, usePaged } from "../components/Pager";
 
 type ProfilePhotoControls = { photo: string | null; saving: boolean; error: string; onChange: (file: File) => Promise<void>; onRemove: () => Promise<void> };
 
@@ -164,6 +165,7 @@ function SystemSettings() {
     }
   }
   const filteredOltRegions = oltRegions.filter((mapping) => `${mapping.olt} ${mapping.region}`.toLowerCase().includes(searchOlt.toLowerCase()));
+  const pagedOlts = usePaged(filteredOltRegions, filteredOltRegions.length);
   const availableRegions = [...new Set([...operationalRegions, ...customRegions, ...oltRegions.map((mapping) => mapping.region)])].sort((left, right) => left.localeCompare(right));
   return (
     <>
@@ -201,7 +203,7 @@ function SystemSettings() {
           <button className="secondary-button compact" type="button" onClick={addOlt}><Plus size={15}/> Adicionar OLT</button>
         </div>
         <div className="settings-olt-add-region"><label>Nova região<input value={newRegion} onChange={(event) => setNewRegion(event.target.value)} placeholder="Ex.: JARDIM NOVO" maxLength={160}/></label><button className="secondary-button compact" type="button" onClick={() => void addRegion()} disabled={!newRegion.trim()}><Plus size={15}/> Adicionar região</button></div>
-        <div className="settings-olt-table-wrap"><table className="settings-olt-table"><thead><tr><th>OLT</th><th>Região</th><th>Origem</th><th>Ação</th></tr></thead><tbody>{filteredOltRegions.map((mapping) => <tr key={mapping.olt}><td><strong>{mapping.olt}</strong></td><td><select aria-label={`Região da OLT ${mapping.olt}`} value={mapping.region} onChange={(event) => setOltRegions((current) => current.map((item) => item.olt === mapping.olt ? { ...item, region: event.target.value } : item))}>{availableRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></td><td>{mapping.defaultRegion ? "Padrão" : "Personalizada"}</td><td>{!mapping.defaultRegion && <button className="icon-button settings-olt-remove" type="button" aria-label={`Remover OLT ${mapping.olt}`} title="Remover OLT personalizada" onClick={() => setOltRegions((current) => current.filter((item) => item.olt !== mapping.olt))}><Trash2 size={15}/></button>}</td></tr>)}</tbody></table>{mappingLoading && <div className="empty-state">Carregando mapeamentos...</div>}{!mappingLoading && !filteredOltRegions.length && <div className="empty-state">Nenhuma OLT encontrada.</div>}</div>
+        <div className="settings-olt-table-wrap"><table className="settings-olt-table"><thead><tr><th>OLT</th><th>Região</th><th>Origem</th><th>Ação</th></tr></thead><tbody>{pagedOlts.pageItems.map((mapping) => <tr key={mapping.olt}><td><strong>{mapping.olt}</strong></td><td><select aria-label={`Região da OLT ${mapping.olt}`} value={mapping.region} onChange={(event) => setOltRegions((current) => current.map((item) => item.olt === mapping.olt ? { ...item, region: event.target.value } : item))}>{availableRegions.map((region) => <option key={region} value={region}>{region}</option>)}</select></td><td>{mapping.defaultRegion ? "Padrão" : "Personalizada"}</td><td>{!mapping.defaultRegion && <button className="icon-button settings-olt-remove" type="button" aria-label={`Remover OLT ${mapping.olt}`} title="Remover OLT personalizada" onClick={() => setOltRegions((current) => current.filter((item) => item.olt !== mapping.olt))}><Trash2 size={15}/></button>}</td></tr>)}</tbody></table><Pager {...pagedOlts} noun={["OLT", "OLTs"]} />{mappingLoading && <div className="empty-state">Carregando mapeamentos...</div>}{!mappingLoading && !filteredOltRegions.length && <div className="empty-state">Nenhuma OLT encontrada.</div>}</div>
         {mappingMessage && <div className="save-message">{mappingMessage}</div>}{mappingError && <div className="form-error">{mappingError}</div>}
       </form>
       {canDeleteAllCalls && <form className="panel settings-danger-zone" onSubmit={(event) => void deleteAllCalls(event)} aria-labelledby="settings-danger-title">

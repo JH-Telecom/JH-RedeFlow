@@ -4726,3 +4726,47 @@ A imagem gerada por "Copiar imagem" na fila (ex.: Chamados em atendimento) preci
 
 ### Validação
 - Preview: imagem gerada em Em atendimento com a coluna "Observação" mostrando o texto e "Administrador JH · 06/11, 15:46". Typecheck do frontend ok.
+
+## Listas com no máximo 100 por página (2026-11-09)
+
+### Pedido
+O Histórico de alterações travava para carregar (2.000 registros de uma vez). Colocar um limite de 100 em toda aba que mostra dados em lista, sempre.
+
+### Implementado
+- Paginador único (`frontend/src/components/Pager.tsx`): `usePaged` (100 por página, volta à página 1 quando os filtros mudam) e `Pager`, com o mesmo visual da paginação das filas de chamados.
+- **Histórico de alterações**: agora busca no servidor só a página pedida, 100 por vez (`listAuditLogPage`, `GET /api/auditoria?page&pageSize&field&userId&q`).
+  - Os filtros de pessoa, campo e busca (ordem ou valor) passam a valer no banco, e não mais sobre os 2.000 carregados no navegador.
+  - O total vem do banco ("X registro(s)"), e a busca espera parar de digitar.
+  - O filtro de pessoa usa a lista de usuários, e o de campo lista os campos conhecidos.
+  - Técnico aparece pelo nome em vez do id, e "observations" aparece como "Observação".
+  - Exportar Excel continua levando até 2.000 registros, com os filtros atuais.
+- Paginação de 100 nas outras listas:
+  - Relatórios: finalizados fora do prazo, produtividade (técnicos e supervisores), motivos de fechamento, reincidência por técnico;
+  - Técnicos, Usuários, Pessoas, Acionamentos;
+  - Integração OFS (chamados parados), Carga dos técnicos, Repetidos (repetições e quartil), Painel diário (técnicos e ordens), Configurações (mapa de OLTs).
+  - As filas de chamados já eram de 100 por página.
+  - Ficaram sem paginador as listas de tamanho fixo ou já limitadas: comparação (6 linhas), mapa de calor (7×24), gargalos (20), histórico da integração (60) e amostras de importação (12).
+- Em Acionamentos, "Aceitar todos" continua valendo para todos os pendentes. O formulário de recusar os selecionados aparece no primeiro selecionado da página atual.
+- Regra registrada na memória do projeto, para as próximas telas também saírem com o limite.
+
+### Validação
+- Teste HTTP do histórico paginado: página de 1, filtro de campo, `pageSize` acima de 2.000 → 400. Suíte 202/202.
+- Preview: com 121 alterações, a página 1 mostrou 100 linhas e a página 2 mostrou 21 ("101–121 de 121 registros").
+- As 11 telas com lista abriram sem erro no console. Contraste sem problemas no claro e no escuro.
+
+## Aceite de acionamento travado por endereço "em linhas" (2026-11-09)
+
+### Problema
+- O acionamento 610032319500102 não era aceito. Erro: "value too long for type character varying(160)".
+- O card veio sem CEP, com o endereço em linhas: o rótulo numa linha ("Número", "Bairro", "Cidade") e o valor na de baixo.
+- O leitor juntava os 4 clientes num só registro. O bairro saía com 311 caracteres e estourava a coluna `calls.bairro` (limite de 160).
+
+### Correção
+- Card sem CEP: a lista de endereços é separada por cliente, um registro para cada "NOME:".
+- Novo leitor para o endereço em linhas. Monta "RUA UM, 130 - JARDIM GUILHERMINO - GUARULHOS" e pega o bairro direto do rótulo.
+- No aceite, cada texto é cortado no tamanho máximo da coluna. Assim, um card fora do padrão não trava mais o aceite. O texto completo continua na mensagem original.
+- Cards com CEP continuam lidos do mesmo jeito.
+
+### Validação
+- Teste `line-labeled-address.test.ts` com uma cópia anonimizada do card. Resultado: bairro "JARDIM GUILHERMINO" e endereço "RUA UM, 130".
+- Suíte 203/203 e typecheck do backend sem erros.

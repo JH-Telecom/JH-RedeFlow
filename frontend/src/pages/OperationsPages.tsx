@@ -4,6 +4,7 @@ import { ChevronDown, RefreshCw, UserCheck, UserX, Users } from "lucide-react";
 import { api, type MapArea, type MapCall, type QueueMap, type QueueState, type TechnicianLoad } from "../api";
 import { KpiTile, Panel, formatCount } from "../components/charts";
 import { IncidentsPanel } from "../components/IncidentsPanel";
+import { Pager, usePaged } from "../components/Pager";
 
 // Lote 3: Mapa da fila (por regiao e bairro) e Carga dos tecnicos. Os dois atualizam sozinhos a cada minuto.
 
@@ -127,6 +128,7 @@ export function TechnicianLoadPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [onlyFree, setOnlyFree] = useState(false);
   const rows = (data?.technicians ?? []).filter((row) => !onlyFree || row.free);
+  const pagedRows = usePaged(rows, rows.length);
   return (
     <div className="dv-dashboard op-page">
       <div className="page-heading dv-heading">
@@ -151,7 +153,7 @@ export function TechnicianLoadPage() {
               <table className="sa-table rp-table op-load">
                 <thead><tr><th>Técnico</th><th>Agora</th><th>Mais antigo</th><th>Situação</th><th>Finalizados hoje</th><th>Tempo médio hoje</th><th aria-label="Ver chamados" /></tr></thead>
                 <tbody>
-                  {rows.map((row) => (
+                  {pagedRows.pageItems.map((row) => (
                     <Fragment key={row.id}>
                       <tr>
                         <td><strong>{row.name}</strong><small>{[row.supervisorName, row.region].filter(Boolean).join(" · ")}</small></td>
@@ -166,7 +168,7 @@ export function TechnicianLoadPage() {
                     </Fragment>
                   ))}
                 </tbody>
-              </table>
+              </table><Pager {...pagedRows} noun={["técnico", "técnicos"]} />
             </div>
           )}
         </Panel>

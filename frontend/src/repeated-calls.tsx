@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { RefreshCcw } from "lucide-react";
 import { api, type Call } from "./api";
 import { toOperationalDate } from "./dates";
+import { Pager, usePaged } from "./components/Pager";
 
 type RepeatedOrder = {
   current: Call;
@@ -178,6 +179,8 @@ export function RepeatedCallsPage({ teamScoped = false }: { teamScoped?: boolean
   const totalServices = technicianSummaries.reduce((sum, row) => sum + row.services, 0);
   const totalRepetitions = technicianSummaries.reduce((sum, row) => sum + row.repetitions, 0);
 
+  const pagedRepeated = usePaged(repeated, `${from}|${to}|${repeated.length}`);
+  const pagedSummaries = usePaged(technicianSummaries, `${from}|${to}|${technicianSummaries.length}`);
   return (
     <section className="repeated-page">
       <div className="page-heading repeated-heading">
@@ -209,7 +212,7 @@ export function RepeatedCallsPage({ teamScoped = false }: { teamScoped?: boolean
           <table className="repeated-table">
             <thead><tr><th>Ordem repetida</th><th>Técnico atual</th><th>Data do evento</th><th>Chamado original</th><th>Primeiro técnico</th><th>Data original</th><th>Intervalo</th><th>Endereço</th><th>OLT</th><th>Placa/PON</th></tr></thead>
             <tbody>
-              {repeated.map((entry) => (
+              {pagedRepeated.pageItems.map((entry) => (
                 <tr key={`${entry.current.id}-${entry.previous.id}`}>
                   <td><Link to={`/chamados/${entry.current.id}`}>{entry.current.orderNumber || entry.current.id}</Link><small>Repetição {entry.repetitionNumber}</small></td>
                   <td>{entry.current.technicianName || "-"}</td>
@@ -225,7 +228,7 @@ export function RepeatedCallsPage({ teamScoped = false }: { teamScoped?: boolean
               ))}
               {!repeated.length && <tr><td colSpan={10} className="repeated-empty">Nenhuma ordem repetida encontrada neste período.</td></tr>}
             </tbody>
-          </table>
+          </table><Pager {...pagedRepeated} noun={["repetição", "repetições"]} />
         </div>
       )}
 
@@ -234,7 +237,7 @@ export function RepeatedCallsPage({ teamScoped = false }: { teamScoped?: boolean
           <table className="repeated-table quartile-table">
             <thead><tr><th>Técnico</th><th>Serv</th><th># Rep</th><th>% IRE</th><th>Quartil</th></tr></thead>
             <tbody>
-              {technicianSummaries.map((summary) => {
+              {pagedSummaries.pageItems.map((summary) => {
                 const percentage = summary.services > 0 ? summary.repetitions / summary.services : undefined;
                 const level = percentage === undefined ? "-" : quartile(percentage);
                 return <tr key={summary.key}><td>{summary.name}</td><td>{summary.services}</td><td>{summary.repetitions}</td><td>{percentage === undefined ? "-" : new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(percentage)}</td><td>{percentage === undefined ? "-" : <span className={`quartile-badge quartile-${level[0]}`}>{level}</span>}</td></tr>;
@@ -242,7 +245,7 @@ export function RepeatedCallsPage({ teamScoped = false }: { teamScoped?: boolean
               {!technicianSummaries.length && <tr><td colSpan={5} className="repeated-empty">Nenhum serviço com técnico encontrado neste período.</td></tr>}
               {technicianSummaries.length > 0 && <tr className="repeated-total"><td>Total</td><td>{totalServices}</td><td>{totalRepetitions}</td><td>{totalServices ? new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(totalRepetitions / totalServices) : "-"}</td><td>-</td></tr>}
             </tbody>
-          </table>
+          </table><Pager {...pagedSummaries} noun={["técnico", "técnicos"]} />
           <p className="repeated-footnote"># Rep é atribuído ao técnico do chamado original. Quartis: até 2%, até 2,5%, até 3% e acima de 3%.{unattributedRepetitions > 0 ? ` ${unattributedRepetitions} repetição(ões) sem técnico original não entram no quartil.` : ""}</p>
         </div>
       )}

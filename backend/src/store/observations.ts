@@ -77,6 +77,44 @@ export async function getObservationAttachment(callId: string, observationId: st
 // Historico de alteracoes de todos os chamados (tela Historico de alteracoes), mais recentes primeiro, com a ordem
 // de cada chamado. Periodo pela data da alteracao (dia de Sao Paulo, de 00:00 de "from" ate 23:59 de "to").
 export type AuditLogRow = CallAuditLog & { orderNumber: string };
+// Uma pagina do historico (tela Historico de alteracoes): 100 por vez, com os filtros aplicados no banco.
+export type AuditPageFilters = { field?: string; userId?: string; q?: string };
+export async function listAuditLogPage(range: { fromIso: string; toIso: string }, filters: AuditPageFilters, page: number, pageSize: number): Promise<{ logs: AuditLogRow[]; total: number }> {
+  const q = (filters.q || '').replace(/[^\p{L}\p{N} ._/-]/gu, '').trim().slice(0, 60);
+  const offset = (page - 1) * pageSize;
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    let query = admin.from('call_logs').select('id, call_id, user_id, action, field, previous_value, new_value, created_at, profiles(name)', { count: 'exact' }).gte('created_at', range.fromIso).lte('created_at', range.toIso);
+    if (filters.field) query = query.eq('field', filters.field);
+    if (filters.userId) query = query.eq('user_id', filters.userId);
+    if (q) {
+      const { data: matched } = await admin.from('calls').select('id').ilike('order_number', `%${q}%`).limit(200);
+      const ids = (matched || []).map((row) => row.id);
+      const parts = [`previous_value.ilike.*${q}*`, `new_value.ilike.*${q}*`];
+      if (ids.length) parts.push(`call_id.in.(${ids.join(',')})`);
+      query = query.or(parts.join(','));
+    }
+    const { data, error, count } = await query.order('created_at', { ascending: false }).order('id', { ascending: true }).range(offset, offset + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const rows = (data || []) as any[];
+    const callIds = [...new Set(rows.map((row) => row.call_id).filter(Boolean))];
+    const orders = new Map<string, string>();
+    if (callIds.length) {
+      const { data: callRows, error: callError } = await admin.from('calls').select('id, order_number').in('id', callIds);
+      if (callError) throw new Error(callError.message);
+      for (const row of callRows || []) orders.set(row.id, row.order_number);
+    }
+    return { total: count ?? rows.length, logs: rows.map((row) => ({ id: row.id, callId: row.call_id, orderNumber: orders.get(row.call_id) || '', userId: row.user_id || '', userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || 'Sistema' : row.profiles?.name || 'Sistema', action: row.action, field: row.field, previousValue: row.previous_value || '', newValue: row.new_value || '', createdAt: row.created_at })) };
+  }
+  const lower = q.toLowerCase();
+  const all = [...auditLogs.values()]
+    .filter((item) => item.createdAt >= range.fromIso && item.createdAt <= range.toIso)
+    .filter((item) => (!filters.field || item.field === filters.field) && (!filters.userId || item.userId === filters.userId))
+    .map((item) => ({ ...item, orderNumber: calls.get(item.callId)?.orderNumber || '' }))
+    .filter((item) => !lower || `${item.orderNumber} ${item.previousValue} ${item.newValue}`.toLowerCase().includes(lower))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return { total: all.length, logs: all.slice(offset, offset + pageSize) };
+}
 export async function listAllAuditLogs(range: { fromIso: string; toIso: string }, limit = 2000): Promise<{ logs: AuditLogRow[]; truncated: boolean }> {
   if (isSupabaseConfigured()) {
     const admin = getSupabaseAdmin();

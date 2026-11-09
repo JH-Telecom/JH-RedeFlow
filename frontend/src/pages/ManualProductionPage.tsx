@@ -3,6 +3,7 @@ import { Copy, Search, RefreshCcw } from "lucide-react";
 import { api, type Call } from "../api";
 import { shareReportImage, type ReportCell, type ReportColumn, type ReportSpec, type ReportTone } from "../lib/report-image";
 import { ManualDashboardArea, ManualProductionData, buildManualDashboardSegments, parseManualProductionData, sumProductionRows } from "../lib/manual-production";
+import { Pager, usePaged } from "../components/Pager";
 
 export function manualMetricCell(value: number, state: string) {
   return <td className={`manual-metric-cell manual-metric-${state} ${value === 0 ? "is-zero" : "is-active"}`}><span>{value.toLocaleString("pt-BR")}</span></td>;
@@ -192,6 +193,9 @@ export function ManualProductionDashboard() {
   const areaSegments = canSplitByArea && data?.records ? buildManualDashboardSegments(data.records, callsForArea) : null;
   const hasDetailedRecords = Boolean(data?.records?.length);
   const selectedData = hasDetailedRecords ? areaSegments?.[areaSegment] || null : data;
+  // Ate 100 por pagina (listas grandes travavam).
+  const pagedTechnicians = usePaged((selectedData?.technicians ?? []).filter((item) => item.name.toLowerCase().includes(technicianQuery.trim().toLowerCase())), `${technicianQuery}|${areaSegment}`);
+  const pagedOrders = usePaged(selectedData?.orders ?? [], areaSegment);
   const selectedAreaLabel = areaSegment === "guarulhos" ? "Guarulhos" : "SP";
   const segmentFileSuffix = areaSegment === "guarulhos" ? "guarulhos" : "sp";
 
@@ -327,7 +331,7 @@ export function ManualProductionDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleTechnicians.map((item) => (
+                    {pagedTechnicians.pageItems.map((item) => (
                       <tr key={`${item.name}-${item.total}`}>
                         <td>{item.name}</td>
                         {manualMetricCell(item.pending, "pending")}
@@ -350,7 +354,7 @@ export function ManualProductionDashboard() {
                       <td className="manual-total-cell">{technicianTotals.total.toLocaleString("pt-BR")}</td>
                     </tr>
                   </tbody>
-                </table>
+                </table><Pager {...pagedTechnicians} noun={["técnico", "técnicos"]} />
               </div>
             </section>
 
@@ -373,7 +377,7 @@ export function ManualProductionDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedData.orders.map((item, index) => (
+                    {pagedOrders.pageItems.map((item, index) => (
                       <tr key={`${item.order}-${index}`}>
                         <td>{item.order}</td>
                         <td>{item.technician}</td>
@@ -382,7 +386,7 @@ export function ManualProductionDashboard() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table><Pager {...pagedOrders} noun={["ordem", "ordens"]} />
               </div>
             </section>
           </div>

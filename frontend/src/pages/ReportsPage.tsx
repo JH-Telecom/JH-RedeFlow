@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowDownRight, ArrowUpRight, ClipboardList, Copy, FileS
 import { api, type RepeatRanking, type BottleneckReport, type HeatmapReport, type StageStats, type CompareReport, type DailySummary, type LateCallRow, type PeriodMetrics, type ProductivityReport, type ProductivityRow, type ReasonsReport, type SlaArea } from "../api";
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount, formatHours } from "../components/charts";
+import { Pager, usePaged } from "../components/Pager";
 
 // Relatorios. Mesma regra de prazo de todo o sistema: ate 6h no prazo, acima de 6h fora, acima de 9h outlier.
 // Finalizados contam pela Data Fim; abertos pela abertura.
@@ -132,6 +133,7 @@ function ExportButton({ onClick, disabled }: { onClick: () => Promise<void>; dis
 // ---------- Finalizados fora do prazo ----------
 function LateReport({ from, to, area }: { from: string; to: string; area: SlaArea }) {
   const { data, error } = useReport(() => api.lateFinishedReport(from, to, area).then((result) => result.calls), [from, to, area]);
+  const paged = usePaged(data ?? [], data);
   const summary = useMemo(() => {
     const list = data ?? [];
     const outliers = list.filter((row) => row.state === "outlier").length;
@@ -160,7 +162,7 @@ function LateReport({ from, to, area }: { from: string; to: string; area: SlaAre
           <table className="sa-table rp-table">
             <thead><tr><th>Ordem</th><th>Técnico</th><th>Abertura</th><th>Data Fim</th><th>Tempo</th><th>Evento</th><th>Local</th><th>Fechamento</th></tr></thead>
             <tbody>
-              {data.map((row) => (
+              {paged.pageItems.map((row) => (
                 <tr key={row.id}>
                   <td><Link to={`/chamados/${row.id}`} className="rp-order">{row.orderNumber}</Link>{row.bdesk && <small>BDESK {row.bdesk}</small>}</td>
                   <td><strong>{row.technicianName || "Sem técnico"}</strong>{row.supervisorName && <small>{row.supervisorName}</small>}</td>
@@ -174,6 +176,7 @@ function LateReport({ from, to, area }: { from: string; to: string; area: SlaAre
               ))}
             </tbody>
           </table>
+          <Pager {...paged} noun={["chamado", "chamados"]} />
         </div>
       )}
     </Panel>
@@ -182,13 +185,14 @@ function LateReport({ from, to, area }: { from: string; to: string; area: SlaAre
 
 // ---------- Produtividade ----------
 function ProductivityTable({ rows, first }: { rows: ProductivityRow[]; first: string }) {
+  const paged = usePaged(rows, rows);
   if (!rows.length) return <div className="dv-empty">Nenhum chamado finalizado no período.</div>;
   return (
     <div className="sa-table-wrap">
       <table className="sa-table rp-table">
         <thead><tr><th>{first}</th><th>Finalizados</th><th>No prazo</th><th>Fora (6h–9h)</th><th>Outliers</th><th>% no prazo</th><th>Tempo médio</th></tr></thead>
         <tbody>
-          {rows.map((row) => (
+          {paged.pageItems.map((row) => (
             <tr key={row.name}>
               <td><strong>{row.name}</strong>{row.detail && <small>{row.detail}</small>}</td>
               <td>{row.finished}</td>
@@ -201,6 +205,7 @@ function ProductivityTable({ rows, first }: { rows: ProductivityRow[]; first: st
           ))}
         </tbody>
       </table>
+      <Pager {...paged} noun={["linha", "linhas"]} />
     </div>
   );
 }
@@ -230,6 +235,7 @@ function ProductivityView({ from, to, area }: { from: string; to: string; area: 
 // ---------- Motivos de fechamento ----------
 function ReasonsView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
   const { data, error } = useReport<ReasonsReport>(() => api.reasonsReport(from, to, area), [from, to, area]);
+  const paged = usePaged(data?.reasons ?? [], data);
   if (!data) return <ReportState error={error} />;
   const top = data.reasons[0];
   const exportExcel = () => writeExcel(`Motivos de fechamento ${fileDate(from)} a ${fileDate(to)}.xlsx`, [
@@ -249,7 +255,7 @@ function ReasonsView({ from, to, area }: { from: string; to: string; area: SlaAr
           <table className="sa-table rp-table">
             <thead><tr><th>Motivo</th><th>Chamados</th><th>Participação</th><th>Tempo médio</th><th>Submotivos</th><th>Por área</th></tr></thead>
             <tbody>
-              {data.reasons.map((item) => (
+              {paged.pageItems.map((item) => (
                 <tr key={item.reason}>
                   <td><strong>{item.reason}</strong></td>
                   <td>{item.count}</td>
@@ -261,6 +267,7 @@ function ReasonsView({ from, to, area }: { from: string; to: string; area: SlaAr
               ))}
             </tbody>
           </table>
+          <Pager {...paged} noun={["motivo", "motivos"]} />
         </div>
       )}
     </Panel>
@@ -428,6 +435,7 @@ function HeatmapView({ from, to, area }: { from: string; to: string; area: SlaAr
 // ---------- Reincidencia por tecnico ----------
 function RepeatRankingView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
   const { data, error } = useReport<RepeatRanking>(() => api.repeatRanking(from, to, area), [from, to, area]);
+  const paged = usePaged(data?.technicians ?? [], data);
   const [open, setOpen] = useState<string | null>(null);
   if (!data) return <ReportState error={error} />;
   const ranked = data.technicians.filter((row) => row.eligible >= 5);
@@ -443,7 +451,7 @@ function RepeatRankingView({ from, to, area }: { from: string; to: string; area:
         <div className="sa-table-wrap">
           <table className="sa-table rp-table">
             <thead><tr><th>Técnico</th><th>Finalizados</th><th>Com ponto completo</th><th>Voltaram em 30 dias</th><th>%</th><th aria-label="Ver ordens" /></tr></thead>
-            <tbody>{data.technicians.map((row) => (
+            <tbody>{paged.pageItems.map((row) => (
               <Fragment key={row.name}>
                 <tr className={row.eligible < 5 ? "rp-muted-row" : ""}>
                   <td><strong>{row.name}</strong>{row.eligible < 5 && <small>menos de 5 reparos: fora do ranking</small>}</td>
@@ -455,6 +463,7 @@ function RepeatRankingView({ from, to, area }: { from: string; to: string; area:
               </Fragment>
             ))}</tbody>
           </table>
+          <Pager {...paged} noun={["técnico", "técnicos"]} />
         </div>
       )}
     </Panel>

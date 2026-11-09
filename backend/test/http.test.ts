@@ -1175,6 +1175,13 @@ test('change history lists who changed which call in the period', async () => {
   assert.equal(log.orderNumber, 'RF-240918');
   assert.equal(log.userName, 'Administrador JH');
   assert.equal(body.truncated, false);
+  // Paginado no servidor, com filtro de campo.
+  const paged = await (await fetch(`${baseUrl}/api/auditoria?from=${today}&to=${today}&page=1&pageSize=1&field=notes`, { headers: admin })).json() as { logs: { field: string }[]; total: number; totalPages: number; pageSize: number };
+  assert.equal(paged.logs.length, 1);
+  assert.equal(paged.pageSize, 1);
+  assert.ok(paged.logs.every((item) => item.field === 'notes'));
+  assert.equal(paged.totalPages, paged.total);
+  assert.equal((await fetch(`${baseUrl}/api/auditoria?from=${today}&to=${today}&pageSize=5000`, { headers: admin })).status, 400, 'no maximo 2000 (Excel)');
   assert.equal((await fetch(`${baseUrl}/api/auditoria?from=${today}&to=2000-01-01`, { headers: admin })).status, 400);
   assert.equal((await fetch(`${baseUrl}/api/auditoria?from=${today}&to=${today}`, { headers: { authorization: `Bearer ${await login('joao@jhtelecom.com')}` } })).status, 403);
 });
