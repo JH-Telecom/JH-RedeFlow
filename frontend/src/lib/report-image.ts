@@ -17,7 +17,8 @@ export type ReportSpec = {
   totalRow?: ReportCell[];
   empty?: string;
 };
-export type ImageReadyDetail = { blob: Blob; fileName: string; copied: boolean };
+// parts: todas as imagens geradas (lista com mais de 20 linhas vira varias imagens); blob/fileName = a primeira.
+export type ImageReadyDetail = { blob: Blob; fileName: string; copied: boolean; parts: { blob: Blob; fileName: string }[] };
 
 const TONES: Record<ReportTone, string> = {
   blue: "background:#e8f0ff;color:#1d4fd7",
@@ -26,7 +27,7 @@ const TONES: Record<ReportTone, string> = {
   green: "background:#e3f6ec;color:#137a4b",
   red: "background:#fde4e5;color:#b4232c",
   gray: "background:#eef1f5;color:#4b5a6e",
-  muted: "background:#f3f5f8;color:#a0abba",
+  muted: "background:#f3f5f8;color:#5f6c80",
 };
 const MAX_PIXELS = 80_000_000;
 const FONT = "'DM Sans','Segoe UI',Arial,sans-serif";
@@ -141,12 +142,38 @@ export function downloadImage(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-// Gera, copia, baixa e avisa o app. Retorna se a copia funcionou.
+// Imagens com no maximo 20 linhas: lista maior vira varias imagens ("parte 1 de 3"), para caber bem no WhatsApp.
+export const MAX_ROWS_PER_IMAGE = 20;
+
+export function splitReportSpec(spec: ReportSpec, maxRows = MAX_ROWS_PER_IMAGE): ReportSpec[] {
+  if (spec.rows.length <= maxRows) return [spec];
+  const total = Math.ceil(spec.rows.length / maxRows);
+  return Array.from({ length: total }, (_, index) => {
+    const from = index * maxRows;
+    const rows = spec.rows.slice(from, from + maxRows);
+    const part = `Parte ${index + 1} de ${total} · linhas ${from + 1}–${from + rows.length} de ${spec.rows.length}`;
+    return { ...spec, rows, subtitle: spec.subtitle ? `${part} · ${spec.subtitle}` : part, totalRow: index === total - 1 ? spec.totalRow : undefined };
+  });
+}
+
+function partFileName(fileName: string, index: number, total: number) {
+  if (total === 1) return fileName;
+  const dot = fileName.lastIndexOf(".");
+  return dot > 0 ? `${fileName.slice(0, dot)}-parte-${index + 1}${fileName.slice(dot)}` : `${fileName}-parte-${index + 1}`;
+}
+
+// Gera, baixa e avisa o app. Uma imagem so: tambem copia e retorna se a copia funcionou. Varias partes: baixa
+// todas (o aviso oferece copiar cada uma, na ordem, para colar no WhatsApp) e retorna false.
 export async function shareReportImage(spec: ReportSpec, fileName: string) {
-  const blob = await renderReportImage(spec);
-  const copied = await copyImage(blob);
-  downloadImage(blob, fileName);
-  window.dispatchEvent(new CustomEvent<ImageReadyDetail>("jh-redeflow:image-ready", { detail: { blob, fileName, copied } }));
+  const specs = splitReportSpec(spec);
+  const parts: { blob: Blob; fileName: string }[] = [];
+  for (const [index, partSpec] of specs.entries()) parts.push({ blob: await renderReportImage(partSpec), fileName: partFileName(fileName, index, specs.length) });
+  const copied = parts.length === 1 ? await copyImage(parts[0].blob) : false;
+  for (const [index, part] of parts.entries()) {
+    if (index) await new Promise((resolve) => setTimeout(resolve, 350));
+    downloadImage(part.blob, part.fileName);
+  }
+  window.dispatchEvent(new CustomEvent<ImageReadyDetail>("jh-redeflow:image-ready", { detail: { blob: parts[0].blob, fileName: parts[0].fileName, copied, parts } }));
   return copied;
 }
 

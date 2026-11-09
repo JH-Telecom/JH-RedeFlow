@@ -4989,3 +4989,18 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - O texto do primeiro card muda conforme o filtro: "Técnicos na lista", "Auxiliares na lista" ou "Na lista com os filtros".
   - Regiões não contam mais o valor em branco como região.
   - Preview: com o filtro "Em campo", os cards mudaram de 5/2/2 para 2/2/0, iguais às 2 linhas da tabela.
+
+## Imagens com no máximo 20 linhas (2026-11-09)
+- **Regra**: todo "Copiar imagem" (fila de chamados, Técnicos, Painel diário) gera imagens de até **20 linhas**. Lista maior vira várias imagens.
+  - Cada parte traz no subtítulo "Parte 1 de 3 · linhas 1–20 de 45".
+  - A linha de total, quando existe, vai só na última parte.
+  - Os arquivos saem como `nome-parte-1.png`, `nome-parte-2.png` e assim por diante.
+- **Uma imagem só**: continua igual (copia e baixa).
+- **Várias partes**:
+  - todas são baixadas;
+  - o aviso mostra "N imagens baixadas" e um botão "Copiar parte X" para cada uma, para colar no WhatsApp na ordem;
+  - "Compartilhar todas" no celular;
+  - o aviso fica 45 s na tela.
+- **Contraste**: o tom "muted" das etiquetas da imagem (ex.: "Técnico" na coluna Tipo) estava apagado demais. Passou de #a0abba para #5f6c80 sobre #f3f5f8.
+- **Arquivos**: `splitReportSpec` e `shareReportImage` em `frontend/src/lib/report-image.ts`; aviso em `ImageReadyToast.tsx`.
+- **Preview**: 45 linhas viraram 3 imagens (20 + 20 + 5), com o total só na última e o aviso com 3 botões de copiar.
