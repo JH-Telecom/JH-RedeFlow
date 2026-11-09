@@ -1872,6 +1872,21 @@
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .ext-update {
     color: #515e6c
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .ext-badge {
+    background: #f1f5fa;
+    color: #414e5c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .ext-badge.is-ok {
+    background: #e3f6ec;
+    color: #137a4b
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .ext-badge.is-old {
+    background: #fff3d6;
+    color: #8a4b08
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .ext-install summary {
+    color: #172533
+}
 /* light · settings-olt.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .settings-olt-heading p {
     color: var(--muted)
@@ -5749,6 +5764,21 @@
 }
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .ext-update {
     color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .ext-badge {
+    background: #13171b;
+    color: #c1c5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .ext-badge.is-ok {
+    background: #031c12;
+    color: #73ce9a
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .ext-badge.is-old {
+    background: #201400;
+    color: #eca66e
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .ext-install summary {
+    color: #e0e5ec
 }
 /* dark · settings-olt.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .settings-olt-heading p {

@@ -5137,3 +5137,30 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - `unzip -t` sem erros;
   - preview: o cartão mostra "Versão atual: 1.6.2" e o download veio com 95 KB;
   - contraste OK em `/configuracoes`, no claro e no escuro.
+
+## Extensão 1.7.0: ajustes só para Administrador + atualizar a extensão pelo sistema (2026-11-09)
+- **Ajustes travados**:
+  - Na extensão, o "Nome que aparece", o identificador do WhatsApp (ligado e onde) e a aba Ajustes (coleta automática) só podem ser mudados com login do cargo **Administrador**.
+  - Os outros cargos, e quem não fez login, veem tudo travado com o aviso "Só o cargo Administrador altera estes ajustes".
+  - Temas, conversar sem contato e as ações do OFS continuam livres.
+  - O popup mostra o cargo de quem está logado.
+- **Login da extensão** (`POST /api/integrations/ofs/login`):
+  - qualquer usuário ativo entra, porque os mesários precisam do login para o nome no WhatsApp;
+  - a resposta traz `user.role` e `canCollect`;
+  - enviar dados do OFS continua exigindo a permissão de Importações a cada envio (403 sem ela);
+  - quem não pode coletar não roda a coleta automática, e os botões do OFS mostram o motivo em vez de tentar.
+- **Atualizar a extensão pelo sistema** (Configurações → Extensão do Chrome):
+  - "Atualizar a extensão deste Chrome" usa o acesso a pastas do Chrome/Edge. Na primeira vez a pessoa escolhe a pasta `jh-redeflow-extensao` e permite editar; o sistema lembra a pasta (IndexedDB), e nas próximas só confirma.
+  - O sistema baixa o .zip da versão atual, descompacta no navegador (`DecompressionStream`) e grava os arquivos por cima dos antigos.
+  - Depois pede para a extensão se recarregar, pela nova ponte `sistema-ponte.js`, um content script nas páginas do sistema que responde à versão instalada e chama `chrome.runtime.reload()`.
+  - O cartão mostra a "Versão atual" e a versão "Neste Chrome" (em dia ou desatualizada).
+  - Também tem "Escolher outra pasta" e "Baixar .zip", com o passo a passo para computador novo.
+  - A partir da 1.7 a extensão se atualiza sozinha por esse botão. A instalação que já existe (1.6.x) precisa ser atualizada à mão uma última vez.
+- **Arquivos**: `frontend/src/lib/extension-updater.ts`, `frontend/src/components/ExtensionDownload.tsx`, `extensao-rede/sistema-ponte.js`.
+- **Validação**:
+  - teste HTTP do login: Supervisor entra, com `canCollect` falso e 403 no envio; Administrador entra com `canCollect` verdadeiro;
+  - suíte backend verde;
+  - preview: .zip baixado e descompactado no navegador, com os 16 arquivos gravados numa pasta do próprio navegador (o `manifest.json` gravado é o da 1.7.0);
+  - popup com login de Supervisor: campos travados e avisos visíveis;
+  - contraste OK em `/configuracoes`, no claro e no escuro;
+  - não foi testado com uma pasta real do computador nem com o recarregar da extensão de verdade.

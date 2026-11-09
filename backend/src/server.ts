@@ -1061,8 +1061,10 @@ function hasValidOfsToken(request: Request) {
   const expected = Buffer.from(ofsIngestToken);
   return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
-// Login da extensao com o usuario do sistema: gera uma sessao de 30 dias que so vale para enviar o export do OFS
-// (a coleta automatica roda de hora em hora, inclusive de madrugada). Exige a permissao de importar.
+// Login da extensao com o usuario do sistema: gera uma sessao de 30 dias que so vale para a extensao (nao abre o
+// sistema). Qualquer usuario ativo entra (os mesarios usam o identificador do WhatsApp); enviar dados do OFS continua
+// exigindo a permissao de importar, conferida a cada envio. A resposta diz o cargo (so Administrador muda os ajustes
+// da extensao) e se a pessoa pode coletar o OFS.
 const OFS_COLLECTOR_PERMISSION: PermissionCode = 'imports.create';
 async function loadActiveUser(userId: string): Promise<AuthUser | undefined> {
   if (isSupabaseConfigured()) {
@@ -1078,10 +1080,9 @@ app.post('/api/integrations/ofs/login', async (request, response) => {
   const result = await checkCredentials(request, parsed.data.email, parsed.data.password);
   if (!('user' in result)) return response.status(result.status).json({ message: result.message });
   if (result.user.mustChangePassword) return response.status(403).json({ message: 'Troque sua senha no sistema antes de entrar na extensao.' });
-  if (!result.user.role.permissions.includes(OFS_COLLECTOR_PERMISSION)) return response.status(403).json({ message: 'Seu perfil nao tem permissao para enviar dados do OFS (Importacoes).' });
   const token = jwt.sign({ sub: result.user.id, scope: OFS_COLLECTOR_SCOPE }, jwtSecret!, { expiresIn: '30d' });
   const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
-  return response.json({ token, expiresAt, user: { id: result.user.id, name: result.user.name, email: result.user.email } });
+  return response.json({ token, expiresAt, user: { id: result.user.id, name: result.user.name, email: result.user.email, role: result.user.role.name }, canCollect: result.user.role.permissions.includes(OFS_COLLECTOR_PERMISSION) });
 });
 // Quem esta enviando: o usuario logado na extensao (sessao do coletor) ou o token de maquina antigo.
 async function ofsCollectorIdentity(request: Request): Promise<{ label: string } | { status: number; message: string }> {

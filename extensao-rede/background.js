@@ -59,6 +59,13 @@ async function sessaoAtual() {
   return sessao;
 }
 
+// Logado com um perfil sem permissao de Importacoes (ex.: mesario): a extensao nao tenta coletar o OFS.
+async function semPermissaoDeColeta() {
+  const sessao = await sessaoAtual();
+  return Boolean(sessao && sessao.podeColetar === false);
+}
+const MSG_SEM_COLETA = "Seu perfil não coleta o OFS (precisa da permissão de Importações). O WhatsApp funciona normalmente.";
+
 // Cabecalho de autenticacao: usuario logado; sem login, o token de maquina antigo (Avancado), se houver.
 async function autenticacao() {
   const sessao = await sessaoAtual();
@@ -73,10 +80,12 @@ async function entrar(email, senha) {
     const r = await fetch(LOGIN_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password: senha }) });
     const body = await r.json().catch(() => ({}));
     if (!r.ok || !body?.token) return { ok: false, erro: body?.message || `HTTP ${r.status}` };
-    const sessao = { token: body.token, expiraEm: body.expiresAt, nome: body.user?.name || email, email: body.user?.email || email };
+    // cargo: so Administrador muda os ajustes da extensao. podeColetar: perfil com permissao de Importacoes.
+    const sessao = { token: body.token, expiraEm: body.expiresAt, nome: body.user?.name || email, email: body.user?.email || email, cargo: body.user?.role || "", podeColetar: body.canCollect !== false };
     await chrome.storage.local.set({ sessao });
     atualizarSelo();
-    return { ok: true, nome: sessao.nome, email: sessao.email, expiraEm: sessao.expiraEm };
+    await agendar();
+    return { ok: true, nome: sessao.nome, email: sessao.email, expiraEm: sessao.expiraEm, cargo: sessao.cargo, podeColetar: sessao.podeColetar };
   } catch (e) {
     return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` };
   }
@@ -577,7 +586,7 @@ async function agendar() {
 chrome.alarms.onAlarm.addListener(async (alarme) => {
   if (alarme.name === "rf-vigia") return conferirCapturaVencida();
   const cfg = await config();
-  if (!cfg.ativo) return;
+  if (!cfg.ativo || (await semPermissaoDeColeta())) return;
   if (alarme.name === ALARME_FECH) return coletarFechamentos(true);
   if (alarme.name === ALARME_CLUSTERS) return coletarClusters(true);
   if (alarme.name === ALARME_HOJE) await exportarDia(hojeSP(), true);
@@ -600,11 +609,11 @@ chrome.alarms.get(ALARME_HOJE).then((alarme) => { if (!alarme) agendar(); });
 // ---------- mensagens do popup ----------
 chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
   const tarefas = {
-    exportar: () => exportarDia(msg.data || hojeSP(), false),
+    exportar: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : exportarDia(msg.data || hojeSP(), false)),
     enviarArquivo: async () => registrar({ ...(await enviarCsv(msg.csv, msg.nome, msg.data)), data: msg.data, automatico: false }),
     entrar: () => entrar(String(msg.email || "").trim(), String(msg.senha || "")),
     sair: async () => { await chrome.storage.local.remove("sessao"); atualizarSelo(); return { ok: true }; },
-    sessao: async () => { const s = await sessaoAtual(); return s ? { nome: s.nome, email: s.email, expiraEm: s.expiraEm } : null; },
+    sessao: async () => { const s = await sessaoAtual(); return s ? { nome: s.nome, email: s.email, expiraEm: s.expiraEm, cargo: s.cargo || "", podeColetar: s.podeColetar !== false } : null; },
     testarConexao: async () => {
       const auth = await autenticacao();
       if (!auth) return { ok: false, erro: "Entre com seu usuário primeiro" };
@@ -618,8 +627,8 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       } catch (e) { return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` }; }
     },
     proximas: async () => ({ hoje: (await chrome.alarms.get(ALARME_HOJE))?.scheduledTime || null, ontem: (await chrome.alarms.get(ALARME_ONTEM))?.scheduledTime || null, fechamentos: (await chrome.alarms.get(ALARME_FECH))?.scheduledTime || null, clusters: (await chrome.alarms.get(ALARME_CLUSTERS))?.scheduledTime || null }),
-    fechamentos: () => coletarFechamentos(false),
-    clusters: () => coletarClusters(false),
+    fechamentos: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarFechamentos(false)),
+    clusters: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarClusters(false)),
   };
   const tarefa = tarefas[msg?.tipo];
   if (!tarefa) return false;
@@ -648,4 +657,9 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     return { ok: false, semSite: true };
   })().then(responder, () => responder({ ok: false }));
   return true;
+});
+
+// Pagina do sistema gravou a versao nova na pasta da extensao: recarrega para ler os arquivos novos.
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.tipo === "recarregarExtensao") setTimeout(() => chrome.runtime.reload(), 300);
 });

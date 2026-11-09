@@ -45,6 +45,7 @@
             <span class="avatar" id="avatar" aria-hidden="true">JH</span>
             <div class="conta-txt">
               <strong id="usuarioNome"></strong>
+              <span class="cargo" id="usuarioCargo"></span>
               <small><span id="usuarioEmail"></span> · até <span id="sessaoAte"></span></small>
             </div>
             <button id="sair" type="button" class="suave">Sair</button>
@@ -110,6 +111,7 @@
       <div class="card" id="cardWhatsapp">
         <div class="card-titulo"><span class="ic">🏷️</span><div><h2>Identificar minhas mensagens</h2><p class="hint">Mesmo número para todos: cada mensagem sai com o seu nome, sem digitar nada.</p></div></div>
         <div class="previa" aria-hidden="true"><b id="waPrevia">*Matheus:*</b><span>Técnico a caminho da CTO.</span></div>
+        <p class="bloqueio" data-bloqueio hidden>🔒 Só o cargo <b>Administrador</b> altera estes ajustes. Para mudar, entre com um login de Administrador.</p>
         <label class="interruptor"><input id="waAtivo" type="checkbox"><span class="trilho"></span>Ligado</label>
         <label class="campo">Nome que aparece
           <input id="waNome" type="text" maxlength="40" placeholder="em branco = nome do login">
@@ -146,6 +148,7 @@
     <section class="painel" data-painel="ajustes" role="tabpanel" hidden>
       <div class="card">
         <div class="card-titulo"><span class="ic">⚙️</span><div><h2>Coleta automática</h2></div></div>
+        <p class="bloqueio" data-bloqueio hidden>🔒 Só o cargo <b>Administrador</b> altera estes ajustes. Para mudar, entre com um login de Administrador.</p>
         <label class="interruptor"><input id="ativo" type="checkbox"><span class="trilho"></span>Coleta automática ligada</label>
         <label class="campo">Atualizar hoje
           <select id="intervaloMin">

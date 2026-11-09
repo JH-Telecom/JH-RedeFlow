@@ -1076,17 +1076,25 @@ test('OFS collector export updates the daily panel and the OFS status of matchin
 test('OFS collector extension logs in with the system user and its session only works for the export', async () => {
   const login = (email: string, password: string) => fetch(`${baseUrl}/api/integrations/ofs/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password }) });
   assert.equal((await login('admin@jhtelecom.com', 'senha-errada')).status, 401);
-  assert.equal((await login('joao@jhtelecom.com', 'RedeFlow@2026')).status, 403, 'supervisor sem permissao de importar');
+  // Sem permissao de importar tambem entra (mesario usa o identificador do WhatsApp), mas nao envia o OFS.
+  const supervisorLogin = await login('joao@jhtelecom.com', 'RedeFlow@2026');
+  assert.equal(supervisorLogin.status, 200);
+  const supervisorSession = await supervisorLogin.json() as { token: string; canCollect: boolean; user: { role: string } };
+  assert.equal(supervisorSession.canCollect, false);
+  assert.notEqual(supervisorSession.user.role, 'Administrador');
 
   const response = await login('admin@jhtelecom.com', 'RedeFlow@2026');
   assert.equal(response.status, 200);
-  const session = await response.json() as { token: string; expiresAt: string; user: { name: string } };
+  const session = await response.json() as { token: string; expiresAt: string; canCollect: boolean; user: { name: string; role: string } };
   assert.equal(session.user.name, 'Administrador JH');
+  assert.equal(session.user.role, 'Administrador');
+  assert.equal(session.canCollect, true);
   assert.ok(Date.parse(session.expiresAt) - Date.now() > 29 * 86_400_000);
 
   const exportWith = (authorization?: string) => fetch(`${baseUrl}/api/integrations/ofs/export`, { method: 'POST', headers: { 'content-type': 'application/json', ...(authorization ? { authorization } : {}) }, body: '{}' });
   assert.equal((await exportWith(`Bearer ${session.token}`)).status, 400, 'sessao aceita: falha so por faltar o CSV');
   assert.equal((await exportWith('Bearer token-invalido')).status, 401);
+  assert.equal((await exportWith(`Bearer ${supervisorSession.token}`)).status, 403, 'quem nao importa nao envia o OFS');
   assert.equal((await exportWith()).status, 401);
   // A sessao de 30 dias da extensao nao abre o resto do sistema.
   assert.equal((await fetch(`${baseUrl}/api/auth/me`, { headers: { authorization: `Bearer ${session.token}` } })).status, 401);

@@ -1891,6 +1891,21 @@
 :where(:root[data-theme="dark"]) .ext-update {
     color: #b5b9c1
 }
+:where(:root[data-theme="dark"]) .ext-badge {
+    background: #13161d;
+    color: #c0c5cd
+}
+:where(:root[data-theme="dark"]) .ext-badge.is-ok {
+    background: #031c12;
+    color: #73ce9a
+}
+:where(:root[data-theme="dark"]) .ext-badge.is-old {
+    background: #201400;
+    color: #eca66e
+}
+:where(:root[data-theme="dark"]) .ext-install summary {
+    color: #dfe5ef
+}
 
 /* settings-olt.css */
 :where(:root[data-theme="dark"]) .settings-olt-heading p {

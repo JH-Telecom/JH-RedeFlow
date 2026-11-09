@@ -117,3 +117,8 @@ summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--mudo)
 
 /* Mensagem das acoes (exportar, enviar CSV) logo abaixo das abas, visivel em qualquer aba */
 .aviso-global { margin: 0; padding: 8px 16px; background: var(--cartao); border-bottom: 1px solid var(--linha); font-weight: 600; }
+
+/* Ajustes travados para quem nao e Administrador */
+.bloqueio { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: var(--aviso-fundo); color: var(--aviso); font-size: 12px; font-weight: 600; }
+.travado input, .travado select, .travado .interruptor { opacity: .7; cursor: not-allowed; }
+.cargo { display: inline-block; margin: 1px 0 2px; padding: 1px 8px; border-radius: 999px; background: var(--fundo); color: var(--tinta-2); font-size: 11px; font-weight: 700; }

@@ -65,10 +65,12 @@ async function mostrarStatus() {
 }
 
 function mostrarConta(sessao) {
+  aplicarBloqueio(sessao);
   $("formLogin").hidden = Boolean(sessao);
   $("logado").hidden = !sessao;
   if (!sessao) return;
   $("usuarioNome").textContent = sessao.nome;
+  $("usuarioCargo").textContent = sessao.cargo || "Entre de novo para ver o cargo";
   $("usuarioEmail").textContent = sessao.email;
   $("sessaoAte").textContent = sessao.expiraEm ? new Date(sessao.expiraEm).toLocaleDateString("pt-BR") : "—";
 }
@@ -262,3 +264,17 @@ $("waTemas").onclick = async () => {
     status.className = "hint erro";
   }
 };
+
+// Ajustes da extensao (coleta automatica e identificador do WhatsApp) so mudam com login de Administrador.
+// Sem login ou com outro cargo: tudo aparece, mas travado, com o aviso.
+function aplicarBloqueio(sessao) {
+  const admin = sessao?.cargo === "Administrador";
+  const areas = [document.querySelector('[data-painel="ajustes"] .card'), $("cardWhatsapp")];
+  for (const area of areas) {
+    if (!area) continue;
+    area.classList.toggle("travado", !admin);
+    area.querySelectorAll("input, select, button").forEach((campo) => { campo.disabled = !admin; });
+    const aviso = area.querySelector("[data-bloqueio]");
+    if (aviso) aviso.hidden = admin;
+  }
+}
