@@ -165,3 +165,27 @@
 
 /* Status "Atrelado": roxo, igual ao selo "Atrelada" */
 .cq-status.is-atrelado { border-color: #d8b4fe; background: #faf5ff; color: #6b21a8; }
+
+/* Ultima observacao clicavel (fila Em atendimento): abre o popup de nova observacao. */
+.cq-observation-button { display: block; width: 100%; padding: 6px 8px; margin: -6px -8px; border: 1px solid transparent; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.cq-observation-button:hover { border-color: #c5d5ed; background: #f4f8ff; }
+.cq-observation-button:focus-visible { outline: 2px solid #1264e8; outline-offset: 1px; }
+
+/* Popup de observacao */
+.obs-popup { display: grid; gap: 10px; min-width: min(480px, 80vw); }
+.obs-popup-meta { margin: -6px 0 2px; font-size: 13px; color: #4f5d73; }
+.obs-popup-latest { padding: 12px 14px; border-radius: 8px; background: #f4f7fb; border: 1px solid #e8edf4; }
+.obs-popup-latest-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #4f5d73; }
+.obs-popup-latest-head span { display: inline-flex; align-items: center; gap: 4px; }
+.obs-popup-latest-head strong { color: #167a57; font-weight: 600; }
+.obs-popup-latest p { margin: 6px 0 0; font-size: 14px; color: #17233b; white-space: pre-wrap; overflow-wrap: anywhere; }
+.obs-popup-muted { font-size: 13px; color: #4f5d73; }
+.obs-popup-label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: #3f4d63; }
+.obs-popup-label textarea { width: 100%; resize: vertical; }
+.obs-popup-hints { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: #5f6c80; margin-top: -4px; }
+.obs-popup-hints span { display: inline-flex; align-items: center; gap: 4px; }
+.obs-popup-history { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: #4f5d73; }
+.obs-popup-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid #e8edf4; }
+.obs-popup-actions a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: #0b56cf; text-decoration: none; }
+.obs-popup-actions > div { display: flex; gap: 8px; }
+.obs-popup-actions .primary-button { min-height: 38px; box-shadow: none; }

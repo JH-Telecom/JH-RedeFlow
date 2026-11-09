@@ -4930,3 +4930,19 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - comandos, estrutura de pastas e combinados do projeto (roadmap, 100 por página, contraste, preview antes do push);
   - licença.
 - Os fatos foram conferidos no código: scripts, variáveis lidas pela API, `render.yaml`, `vercel.json`, versão da extensão e temas.
+
+## Nova observação direto da fila (2026-11-09)
+- **Onde**: em "Chamados em atendimento", clicar na coluna "Última observação" abre um popup sem sair da fila. Clicar no resto da linha continua abrindo o chamado.
+- **O popup mostra**:
+  - o chamado (ordem, técnico, tipo e bairro);
+  - a última observação, com horário e autor (sem observação, mostra as notas do chamado);
+  - o campo "Nova observação", com @ para mencionar, contador de 5.000 caracteres e Ctrl+Enter para salvar;
+  - os botões Cancelar e Salvar e o link "Abrir chamado completo". Esc fecha.
+- **Ao salvar**, é registrada uma observação nova pelo mesmo endpoint do detalhe do chamado. A anterior continua no histórico. A linha atualiza na hora: o texto aparece e o contador volta a zero.
+- **Permissão**: a célula só é clicável para quem tem `calls.add_observation`. Observação vazia é recusada com mensagem.
+- **Arquivos**: `frontend/src/components/ObservationPopup.tsx` e o estilo em `calls-queue.css`. O tema escuro foi gerado.
+- **Preview**:
+  - abrir, salvar vazio (recusado) e salvar texto (linha atualizada) funcionaram;
+  - ao reabrir, a nova aparece como última;
+  - Esc fecha, e o clique fora da célula abre o chamado;
+  - contraste do popup OK no claro e no escuro.

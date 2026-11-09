@@ -2684,6 +2684,55 @@
     background: #faf5ff;
     color: #6b21a8
 }
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .cq-observation-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .cq-observation-button:hover {
+    border-color: #ebc9d5;
+    background: #f4f8ff
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .cq-observation-button:focus-visible {
+    outline: 2px solid #c12175
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-meta {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-latest {
+    background: #f4f7fb;
+    border: 1px solid #e8edf4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-latest-head {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-latest-head strong {
+    color: #167a57
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-latest p {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-muted {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-label {
+    color: #60424e
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-hints {
+    color: #7e626c
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-history {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-actions {
+    border-top: 1px solid #e8edf4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-actions a {
+    color: #ab1666
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .obs-popup-actions .primary-button {
+    box-shadow: none
+}
 /* light · sla-analysis.css */
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .sa-dates label, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .sa-area {
     color: var(--muted)
@@ -6427,6 +6476,55 @@
     border-color: #503c64;
     background: #16111b;
     color: #cd9cff
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .cq-observation-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .cq-observation-button:hover {
+    border-color: #593443;
+    background: #191114
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .cq-observation-button:focus-visible {
+    outline: 2px solid #c12175
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-meta {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-latest {
+    background: #181013;
+    border: 1px solid #3f3438
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-latest-head {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-latest-head strong {
+    color: #74cca5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-latest p {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-muted {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-label {
+    color: #cdc1c5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-hints {
+    color: #b6acaf
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-history {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-actions {
+    border-top: 1px solid #3f3438
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-actions a {
+    color: #ed93b6
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .obs-popup-actions .primary-button {
+    box-shadow: none
 }
 /* dark · sla-analysis.css */
 :where(:root[data-palette="flor"][data-theme="dark"]) .sa-dates label, :where(:root[data-palette="flor"][data-theme="dark"]) .sa-area {

@@ -1528,6 +1528,36 @@
 :where(:root:not([data-theme="dark"])) .cq-status.is-atrelado {
     color: #6b21a8
 }
+:where(:root:not([data-theme="dark"])) .cq-observation-button {
+    color: inherit
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-meta {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-latest-head {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-latest-head strong {
+    color: #167a57
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-latest p {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-muted {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-label {
+    color: #3f4d63
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-hints {
+    color: #5f6c80
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-history {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .obs-popup-actions a {
+    color: #0b56cf
+}
 
 /* sla-analysis.css */
 :where(:root:not([data-theme="dark"])) .sa-dates label, :where(:root:not([data-theme="dark"])) .sa-area {

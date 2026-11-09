@@ -2684,6 +2684,55 @@
     background: #faf5ff;
     color: #6b21a8
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-observation-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-observation-button:hover {
+    border-color: #d3cff5;
+    background: #f4f8ff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-observation-button:focus-visible {
+    outline: 2px solid #734bdf
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-meta {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-latest {
+    background: #f4f7fb;
+    border: 1px solid #e8edf4
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-latest-head {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-latest-head strong {
+    color: #167a57
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-latest p {
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-muted {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-label {
+    color: #4c476a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-hints {
+    color: #6a6786
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-history {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-actions {
+    border-top: 1px solid #e8edf4
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-actions a {
+    color: #653fc7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .obs-popup-actions .primary-button {
+    box-shadow: none
+}
 /* light · sla-analysis.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sa-dates label, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sa-area {
     color: var(--muted)
@@ -6427,6 +6476,55 @@
     border-color: #503c64;
     background: #16111b;
     color: #cd9cff
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-observation-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-observation-button:hover {
+    border-color: #413a65;
+    background: #14121c
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-observation-button:focus-visible {
+    outline: 2px solid #734bdf
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-meta {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-latest {
+    background: #13111b;
+    border: 1px solid #373641
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-latest-head {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-latest-head strong {
+    color: #74cca5
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-latest p {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-muted {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-label {
+    color: #c4c3d0
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-hints {
+    color: #aeadb8
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-history {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-actions {
+    border-top: 1px solid #373641
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-actions a {
+    color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .obs-popup-actions .primary-button {
+    box-shadow: none
 }
 /* dark · sla-analysis.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .sa-dates label, :where(:root[data-palette="aurora"][data-theme="dark"]) .sa-area {

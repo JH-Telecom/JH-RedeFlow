@@ -7,6 +7,7 @@ import { CALLS_PAGE_SIZE, operationalRegions } from "../lib/constants";
 import { shareReportImage, slugFileName, type ReportCell, type ReportColumn, type ReportTone } from "../lib/report-image";
 import { useFitToViewport } from "../hooks/useFitToViewport";
 import { RiskBadge } from "../components/AssistWidgets";
+import { ObservationPopup } from "../components/ObservationPopup";
 import type { CallRisk } from "../api";
 
 export function RangeCallTable({ calls }: { calls: Call[] }) {
@@ -190,6 +191,13 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [actionError, setActionError] = useState("");
   const [countsVersion, setCountsVersion] = useState(0);
   const [calls, setCalls] = useState<Call[]>([]);
+  // Popup de observacao (fila Em atendimento): chamado aberto no popup e o texto das observacoes salvas por ele.
+  const [observationCall, setObservationCall] = useState<Call | null>(null);
+  const [savedObservations, setSavedObservations] = useState<Record<string, string>>({});
+  const canAddObservation = (() => {
+    try { return Boolean(JSON.parse(localStorage.getItem("jh-redeflow-session") || "null")?.user?.role?.permissions?.includes("calls.add_observation")); }
+    catch { return false; }
+  })();
   // Reincidentes da pagina (mesmo endereco + OLT + slot/PON em ate 30 dias), checados no servidor.
   const [repeatFlags, setRepeatFlags] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -626,7 +634,13 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
                       {orderCell(call)}{technicianCell(call)}
                       <td data-label="Na fila"><QueueClock openedAt={call.openedAt} /><small className="table-subtext">desde {shortDateTime(call.openedAt)}</small></td>
                       {eventCell(call)}{placeCell(call, true)}
-                      <td data-label="Última observação" className="cq-observation"><TimerCell lastObservationAt={call.lastObservationAt} />{call.notes && <small className="table-subtext" title={call.notes}>{call.notes}</small>}</td>
+                      <td data-label="Última observação" className="cq-observation">{(() => {
+                        const shown = savedObservations[call.id] ?? call.notes;
+                        const content = <><TimerCell lastObservationAt={call.lastObservationAt} />{shown && <small className="table-subtext" title={shown}>{shown}</small>}</>;
+                        return canAddObservation
+                          ? <button type="button" className="cq-observation-button" title="Escrever nova observação" aria-label={`Nova observação no chamado ${call.orderNumber}`} onClick={(event) => { event.stopPropagation(); setObservationCall(call); }} onKeyDown={(event) => event.stopPropagation()}>{content}</button>
+                          : content;
+                      })()}</td>
                       <td data-label="Status">{statusSelect(call)}<small className="table-subtext">OFS: {call.ofsStatus || "-"}</small></td>
                     </> : <>
                       {orderCell(call)}{showTechnician && technicianCell(call)}
@@ -657,6 +671,12 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           </div>
         </div>}
       </section>
+      {observationCall && <ObservationPopup call={observationCall} teamScoped={teamScoped} onClose={() => setObservationCall(null)} onSaved={(observation) => {
+        // A linha atualiza na hora: texto novo e o contador volta a zero (lastObservationAt = agora).
+        setSavedObservations((current) => ({ ...current, [observation.callId || observationCall.id]: observation.text }));
+        setCalls((current) => current.map((item) => item.id === observationCall.id ? { ...item, lastObservationAt: observation.createdAt } : item));
+        setObservationCall(null);
+      }} />}
     </>
   );
 }

@@ -2721,6 +2721,55 @@
     background: #16111b;
     color: #cd9cff
 }
+:where(:root[data-theme="dark"]) .cq-observation-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-theme="dark"]) .cq-observation-button:hover {
+    border-color: #30425d;
+    background: #10141a
+}
+:where(:root[data-theme="dark"]) .cq-observation-button:focus-visible {
+    outline: 2px solid #1264e8
+}
+:where(:root[data-theme="dark"]) .obs-popup-meta {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .obs-popup-latest {
+    background: #0f1319;
+    border: 1px solid #33383f
+}
+:where(:root[data-theme="dark"]) .obs-popup-latest-head {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .obs-popup-latest-head strong {
+    color: #74cca5
+}
+:where(:root[data-theme="dark"]) .obs-popup-latest p {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .obs-popup-muted {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .obs-popup-label {
+    color: #c0c5cd
+}
+:where(:root[data-theme="dark"]) .obs-popup-hints {
+    color: #abafb6
+}
+:where(:root[data-theme="dark"]) .obs-popup-history {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .obs-popup-actions {
+    border-top: 1px solid #33383f
+}
+:where(:root[data-theme="dark"]) .obs-popup-actions a {
+    color: #7bb6ff
+}
+:where(:root[data-theme="dark"]) .obs-popup-actions .primary-button {
+    box-shadow: none
+}
 
 /* sla-analysis.css */
 :where(:root[data-theme="dark"]) .sa-dates label, :where(:root[data-theme="dark"]) .sa-area {

@@ -2684,6 +2684,55 @@
     background: #faf5ff;
     color: #6b21a8
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .cq-observation-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .cq-observation-button:hover {
+    border-color: #c7d6e5;
+    background: #f4f8ff
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .cq-observation-button:focus-visible {
+    outline: 2px solid #527293
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-meta {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-latest {
+    background: #f4f7fb;
+    border: 1px solid #e8edf4
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-latest-head {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-latest-head strong {
+    color: #167a57
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-latest p {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-muted {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-label {
+    color: #414e5c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-hints {
+    color: #616d79
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-history {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-actions {
+    border-top: 1px solid #e8edf4
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-actions a {
+    color: #476482
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .obs-popup-actions .primary-button {
+    box-shadow: none
+}
 /* light · sla-analysis.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .sa-dates label, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .sa-area {
     color: var(--muted)
@@ -6427,6 +6476,55 @@
     border-color: #503c64;
     background: #16111b;
     color: #cd9cff
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .cq-observation-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .cq-observation-button:hover {
+    border-color: #334354;
+    background: #111418
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .cq-observation-button:focus-visible {
+    outline: 2px solid #527293
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-meta {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-latest {
+    background: #101317;
+    border: 1px solid #34383d
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-latest-head {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-latest-head strong {
+    color: #74cca5
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-latest p {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-muted {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-label {
+    color: #c1c5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-hints {
+    color: #abafb4
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-history {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-actions {
+    border-top: 1px solid #34383d
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-actions a {
+    color: #a2b5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .obs-popup-actions .primary-button {
+    box-shadow: none
 }
 /* dark · sla-analysis.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .sa-dates label, :where(:root[data-palette="ardosia"][data-theme="dark"]) .sa-area {
