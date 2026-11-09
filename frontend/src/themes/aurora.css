@@ -3675,6 +3675,9 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .legal-links.copyright-notice a {
     color: #653fc7
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .page-copyright {
+    border-top: 1px solid #e8edf4
+}
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .license-list li {
     border: 1px solid #e8edf4;
     background: #ffffff
@@ -7406,6 +7409,9 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .legal-links.copyright-notice a {
     color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .page-copyright {
+    border-top: 1px solid #373641
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .license-list li {
     border: 1px solid #373641;

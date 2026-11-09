@@ -325,7 +325,6 @@ export function Shell({
               <LogOut size={16} />
             </button>
           </div>
-          <CopyrightNotice className="sidebar-copyright" />
         </div>
       </aside>
       {mobileOpen && (
@@ -405,6 +404,8 @@ export function Shell({
           </Routes>
           )}
           </div>
+          {/* Direitos autorais discretos no fim de cada pagina (inclusive Meu perfil). */}
+          <CopyrightNotice className="page-copyright" />
         </main>
       </div>
     </div>

@@ -3717,6 +3717,9 @@
 :where(:root[data-theme="dark"]) .legal-links.copyright-notice a {
     color: #7bb6ff
 }
+:where(:root[data-theme="dark"]) .page-copyright {
+    border-top: 1px solid #33383f
+}
 :where(:root[data-theme="dark"]) .license-list li {
     border: 1px solid #33383f;
     background: #181c22

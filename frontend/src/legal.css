@@ -57,9 +57,11 @@ main.content:focus { outline: none; }
 .login-legal.copyright-notice { justify-items: center; text-align: center; margin-top: 8px; }
 .legal-links.copyright-notice { margin-top: 30px; padding-top: 16px; border-top: 1px solid #e8edf4; }
 .legal-links.copyright-notice a { color: #0b56cf; }
-.sidebar-copyright { padding: 12px 4px 0; font-size: 10px; line-height: 1.4; }
-.sidebar-copyright nav { gap: 2px 10px; }
-.sidebar.collapsed .sidebar-copyright { display: none; }
+/* Rodape de cada pagina: uma linha so, centralizada e discreta. */
+.page-copyright { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e8edf4; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 16px; font-size: 11px; text-align: center; }
+.page-copyright nav { gap: 2px 12px; }
+.page-copyright a { font-weight: 500; text-decoration: none; }
+.page-copyright a:hover { text-decoration: underline; }
 
 /* Licencas de terceiros */
 .license-list { list-style: none; padding: 0 !important; display: grid; gap: 8px; }

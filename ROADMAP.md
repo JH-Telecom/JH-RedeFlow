@@ -4861,3 +4861,4 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - `index.html` com as meta tags `author` e `copyright`.
 - **Política de Privacidade**: o Google Fonts entrou na lista de fornecedores. Ele recebe o IP de quem abre o sistema para entregar as fontes, sem cookies.
 - **Validação**: typecheck e build sem erros. Contraste OK em `/licencas`, `/termos` e `/perfil`, no claro e no escuro. O aviso no menu cabe sem rolagem.
+- Ajuste (2026-11-09): o aviso © saiu do menu lateral, que ficava poluído. Agora é uma linha discreta e centralizada no fim de cada página do sistema (inclusive Meu perfil), com os links Privacidade, Termos e Licenças. No login e nas páginas legais continua como antes. Contraste OK em `/perfil`, `/` e `/relatorios`, no claro e no escuro.
