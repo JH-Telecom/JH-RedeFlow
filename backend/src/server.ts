@@ -30,6 +30,7 @@ import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, 
 import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite } from './read-cache.js';
+import { runDailyReset } from './daily-reset-job.js';
 import { dueSoonCalls } from './due-soon.js';
 import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
 import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
@@ -1664,7 +1665,7 @@ async function startServer() {
   // e coleta parada. Nao rodam dentro dos testes automatizados.
   if (!process.env.NODE_TEST_CONTEXT) {
     if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => { void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); }, 5 * 60_000).unref();
+    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); }, 5 * 60_000).unref();
   }
 }
 void startServer();

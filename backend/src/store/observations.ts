@@ -193,3 +193,24 @@ export async function callsWithManualEndDate(callIds: string[]): Promise<Set<str
   }
   return locked;
 }
+
+// Horario da ultima vez que cada chamado recebeu um tecnico (log "Tecnico alterado" com tecnico novo).
+// Usado pela limpeza diaria para saber se a alocacao foi a partir das 19h do dia anterior.
+export async function lastTechnicianAssignmentTimes(callIds: string[]): Promise<Map<string, string>> {
+  const latest = new Map<string, string>();
+  if (!callIds.length) return latest;
+  const keep = (callId: string, at: string) => { const current = latest.get(callId); if (!current || at > current) latest.set(callId, at); };
+  if (isSupabaseConfigured()) {
+    const admin = getSupabaseAdmin();
+    for (let offset = 0; offset < callIds.length; offset += 200) {
+      const chunk = callIds.slice(offset, offset + 200);
+      const { data, error } = await admin.from('call_logs').select('call_id, created_at').eq('field', 'technicianId').neq('new_value', '').in('call_id', chunk);
+      if (error) throw new Error(error.message);
+      for (const row of data || []) keep(String((row as { call_id: string }).call_id), String((row as { created_at: string }).created_at));
+    }
+    return latest;
+  }
+  const wanted = new Set(callIds);
+  for (const log of auditLogs.values()) if (wanted.has(log.callId) && log.field === 'technicianId' && log.newValue) keep(log.callId, log.createdAt);
+  return latest;
+}

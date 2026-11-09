@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 // O que cada tela mostra e as regras dela. A chave e o caminho do menu (ou "detalhe" para o chamado).
 export const PAGE_HELP: Record<string, string[]> = {
   "/": ["Fila em tempo real e indicadores do período escolhido.", "\"Agora\" ignora o período: mostra o que está ativo neste momento.", "Prazo JH: até 6h da abertura no prazo, de 6h a 9h fora do prazo, acima de 9h outlier."],
-  "/chamados/abertos": ["Chamados ainda sem técnico, do que espera há mais tempo para o mais novo.", "Clique no título de uma coluna para mudar a ordem.", "A barra \"Na fila\" enche até 6h; vermelha passou do prazo.", "Exportar Excel leva todos os chamados com os filtros atuais."],
+  "/chamados/abertos": ["Chamados ainda sem técnico, do que espera há mais tempo para o mais novo.", "Todo dia às 06:00 as ordens com o técnico de ontem voltam para cá. As alocadas a partir das 19h (turno da noite) continuam com o técnico.", "Clique no título de uma coluna para mudar a ordem.", "A barra \"Na fila\" enche até 6h; vermelha passou do prazo.", "Exportar Excel leva todos os chamados com os filtros atuais."],
   "/chamados/atendimento": ["Chamados com técnico (Atribuído, Deslocamento ou Em campo).", "As abas mostram quantos chamados há em cada status com os filtros atuais.", "\"Última observação\" mostra há quanto tempo ninguém registra andamento."],
   "/chamados/finalizados": ["Chamados finalizados, cancelados ou a baixar, filtrados pela data de encerramento.", "\"Tempo total\" vai da abertura até a Data Fim e define se ficou no prazo (até 6h)."],
   "/repetidos": ["Endereços, OLTs e PONs com chamados repetidos, para achar a causa que volta."],

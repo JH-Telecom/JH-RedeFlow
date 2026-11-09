@@ -4946,3 +4946,26 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - ao reabrir, a nova aparece como última;
   - Esc fecha, e o clique fora da célula abre o chamado;
   - contraste do popup OK no claro e no escuro.
+
+## Limpeza diária dos técnicos nas ordens (2026-11-09)
+- **Pedido**: de manhã a equipe redistribui as ordens. As ordens com o técnico de ontem devem voltar para Chamados abertos, menos as alocadas a partir das 19h (técnico da noite, que segue no dia seguinte).
+- **Regra** (decidida com o usuário):
+  - Roda todo dia às **06:00** (São Paulo), uma vez por dia.
+  - Entram as ordens **Atribuído, Deslocamento e Em campo** com técnico. Atrelado fica como está. Finalizado, Cancelado e Baixar nunca são mexidos.
+  - A ordem volta para **Aberto, sem técnico**, se o técnico atual foi alocado **antes das 19:00 do dia anterior**. Alocadas das 19:00 de ontem em diante continuam com o técnico.
+  - **Horário da alocação**: vale a última troca de técnico registrada no histórico. Sem registro, vale a primeira atribuição e, por último, a abertura. Assim, uma ordem trocada para o técnico da noite às 20h fica com ele.
+- **Segurança**:
+  - Se o servidor estava parado às 06:00, a limpeza roda na primeira verificação até as 10:59. Depois disso fica para o dia seguinte, para não tirar técnico de ordem em andamento no meio do dia (por exemplo, logo após um deploy).
+  - Subindo em 09/11 depois das 10:59, a **primeira execução é em 10/11 às 06:00**.
+- **Registro**:
+  - Cada ordem limpa fica no histórico como alteração do sistema ("Limpeza diaria").
+  - Cada execução fica em `integration_events` (`daily_reset`), com as ordens devolvidas e as mantidas. Aparece como "Limpeza diária" na tela Integração OFS.
+  - A ajuda de Chamados abertos explica a regra.
+- **Arquivos**:
+  - `backend/src/daily-reset.ts`: regra pura;
+  - `backend/src/daily-reset-job.ts`: rotina, que roda junto com as verificações de 5 em 5 min;
+  - `lastTechnicianAssignmentTimes` em `store/observations.ts`.
+- **Validação**:
+  - testes da regra: 18:59 limpa, 19:00 e 23:00 ficam, noite de anteontem limpa, Atrelado, Aberto e Finalizado ignorados, troca no histórico vence a primeira atribuição;
+  - teste da rotina: não roda antes das 06:00 nem depois das 10:59, roda uma vez por dia e devolve ou mantém as ordens certas.
+  - Suíte 211/211.
