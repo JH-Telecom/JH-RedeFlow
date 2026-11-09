@@ -1969,6 +1969,62 @@
     color: var(--ink)
 }
 
+/* legal.css */
+:where(:root:not([data-theme="dark"])) .skip-link {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .legal-page {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .legal-brand {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .legal-article {
+    color: #3f4d63
+}
+:where(:root:not([data-theme="dark"])) .legal-article h1 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .legal-article h2 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .legal-article h3 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .legal-article strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .legal-article a {
+    color: #0b56cf
+}
+:where(:root:not([data-theme="dark"])) .legal-intro {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .login-legal a {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .login-forgot {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .storage-notice {
+    color: #3f4d63
+}
+:where(:root:not([data-theme="dark"])) .storage-notice > svg {
+    color: #0056d9
+}
+:where(:root:not([data-theme="dark"])) .storage-notice strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .storage-notice a {
+    color: #0b56cf
+}
+:where(:root:not([data-theme="dark"])) .pf-data-actions a {
+    color: #0b56cf
+}
+:where(:root:not([data-theme="dark"])) .pf-data-feedback {
+    color: #4f5d73
+}
+
 /* contrast-fixes.css */
 :where(:root:not([data-theme="dark"])) .role-row-button {
     color: inherit

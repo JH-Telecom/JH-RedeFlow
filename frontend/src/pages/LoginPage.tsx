@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Activity, ChevronRight, LockKeyhole } from "lucide-react";
 import faviconUrl from "../../image/favicon.ico";
+import { Link } from "react-router-dom";
 import { api, type Role, type User } from "../api";
 
 export function Login({
@@ -12,6 +13,7 @@ export function Login({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
@@ -63,12 +65,12 @@ export function Login({
             <h2>Entrar</h2>
             <p>Use sua conta corporativa para acessar o sistema.</p>
           </div>
-          <form onSubmit={submit} autoComplete="off">
+          <form onSubmit={submit}>
             <label>
               E-mail
               <input
                 type="email"
-                autoComplete="on"
+                autoComplete="username"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="user@jhtelecom.com"
@@ -79,22 +81,28 @@ export function Login({
               Senha
               <input
                 type="password"
-                autoComplete="new-password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Digite sua senha"
                 required
               />
             </label>
-            {error && <div className="form-error">{error}</div>}
+            {error && <div className="form-error" role="alert">{error}</div>}
             <button className="primary-button" disabled={loading}>
               {loading ? "Entrando..." : "Entrar no sistema"}
               <ChevronRight size={18} />
             </button>
           </form>
-          <button className="text-button" type="button">
+          {/* Nao existe recuperacao automatica por e-mail: o botao diz o caminho real em vez de prometer um envio. */}
+          <button className="text-button" type="button" aria-expanded={forgotOpen} aria-controls="login-forgot" onClick={() => setForgotOpen((open) => !open)}>
             Esqueci minha senha
           </button>
+          {forgotOpen && <p id="login-forgot" className="login-forgot" role="status">Peça a um administrador do sistema para redefinir a sua senha. No próximo acesso você escolhe uma senha nova.</p>}
+          <nav className="login-legal" aria-label="Documentos">
+            <Link to="/privacidade">Política de Privacidade</Link>
+            <Link to="/termos">Termos de Uso</Link>
+          </nav>
         </div>
       </section>
     </main>

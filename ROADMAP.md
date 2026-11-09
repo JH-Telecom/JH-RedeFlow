@@ -4770,3 +4770,72 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 ### Validação
 - Teste `line-labeled-address.test.ts` com uma cópia anonimizada do card. Resultado: bairro "JARDIM GUILHERMINO" e endereço "RUA UM, 130".
 - Suíte 203/203 e typecheck do backend sem erros.
+
+## Painéis sem recarregar à toa + checklist legal e de acessibilidade (2026-11-09)
+
+### Cache dos painéis (só atualiza quando os dados mudam)
+- **Servidor**
+  - Visão geral, Análise de prazo, IGP, relatórios, Mapa, Carga e Incidentes guardam o resultado já calculado por pessoa e por filtro.
+  - O resultado vale até qualquer gravação dar certo (chamado, acionamento, importação, webhook do WhatsApp, envio da extensão) ou por no máximo 20 s. As rotinas de fundo gravam direto no banco, por isso o limite de tempo.
+  - Arquivo `backend/src/read-cache.ts`. O cabeçalho `X-Read-Cache` mostra se a resposta saiu do cache ("hit") ou foi calculada ("miss").
+- **Transferência**
+  - Toda leitura da API tem ETag.
+  - O navegador pergunta "mudou algo?" e, se não mudou, o servidor responde 304 sem corpo.
+  - O `Cache-Control: no-cache` que o navegador acrescenta sozinho nessas perguntas é ignorado, para o ETag valer.
+- **Navegador**
+  - Ao voltar para uma tela, os números aparecem na hora com o último resultado e são conferidos em segundo plano. Com 304, a tela nem redesenha.
+  - A conferência roda a cada 1 min só com a aba visível, quando a aba volta a ficar visível e quando um chamado é alterado.
+  - Arquivo `frontend/src/lib/data-cache.ts`.
+  - Fica só na memória da aba (dados de clientes não ficam gravados no aparelho) e é apagado ao sair.
+
+### Checklist da imagem: o que foi feito em cada item
+1. **Política de privacidade**: página `/privacidade`, abre com ou sem login. Explica dados tratados, finalidades, bases legais, fornecedores, transferência internacional, retenção, segurança e direitos.
+2. **Termos de serviço**: página `/termos` (uso autorizado, conta pessoal, sigilo, conteúdo enviado, registro de atividades, limites das informações).
+3. **Aviso de cookies**: aviso único no rodapé. O sistema só usa armazenamento essencial (sessão, tema, filtros), que não depende de consentimento, e o aviso diz isso.
+4. **Política de reembolso**: não se aplica. O sistema é interno e não vende nada.
+5. **Formulários na LGPD**:
+   - links para a Política e os Termos no login e em Meu perfil;
+   - campos de login com `autocomplete` correto;
+   - erro de login anunciado ao leitor de tela.
+6. **Só dados necessários**:
+   - revisado; o sistema guarda o necessário para atender os chamados;
+   - foto, banner, apelido e status são opcionais e removíveis;
+   - "Meus dados" traz das alterações só data, ordem e campo.
+7. **Scripts de tracking**: nenhum (sem analytics, pixels ou cookies de terceiros). Registrado na política.
+8. **Acessibilidade**:
+   - link "Pular para o conteúdo";
+   - região principal (`main`) marcada;
+   - foco visível para teclado em todo o sistema.
+9. **Alt nas imagens**: todas as `<img>` já tinham `alt`. A logo das páginas legais usa alt vazio, porque o nome vem escrito ao lado.
+10. **Contraste**: auditoria sem problemas em `/privacidade`, `/termos` e `/perfil`, no claro e no escuro.
+11. **Navegação por teclado**:
+    - pular para o conteúdo;
+    - contorno de foco;
+    - "Esqueci minha senha" com `aria-expanded`.
+    - Os atalhos da fila já existiam.
+12. **Sem avaliações falsas**: não há.
+13. **Sem promessas falsas**: "Esqueci minha senha" não fazia nada. Agora diz o caminho real (pedir a um administrador). Os Termos deixam claro que indicadores podem atrasar com importações.
+14. **Copyright das imagens**:
+    - a única imagem do sistema é a logo da própria JH;
+    - os ícones são da biblioteca Lucide (licença ISC, uso livre);
+    - os Termos proíbem enviar imagens sem direito de uso.
+15. **Dados da empresa**: bloco "Quem é o responsável" nas páginas legais, com os campos em `frontend/src/lib/company.ts`. **Faltam razão social, CNPJ, endereço, nome do encarregado (DPO) e e-mail de contato.** Os campos vazios não aparecem.
+16. **Conformidade LGPD**: "Baixar meus dados" em Meu perfil (art. 18, acesso). Novo endpoint `GET /api/auth/meus-dados`, só com os dados da própria pessoa.
+17. **Riscos jurídicos**: listados na resposta ao usuário (dados de clientes em grupos de WhatsApp, prazo de retenção, contratos com os fornecedores, revisão jurídica dos textos).
+
+### Validação
+- Testes HTTP:
+  - cache hit/miss;
+  - 304 com ETag;
+  - gravação invalida o cache, gravação recusada não invalida;
+  - "Meus dados": 401 sem login e só os próprios dados, sem senha.
+- Suíte 205/205.
+- Typecheck e build do frontend sem erros.
+- Preview:
+  - ao voltar para Visão geral e IGP, a API respondeu 304 e os números apareceram na hora;
+  - download de "Meus dados" funcionou;
+  - nenhum erro no console.
+- Dados do responsável preenchidos (2026-11-09):
+  - responsável e encarregado: Matheus Terra Farias;
+  - contato sobre dados pessoais: planilhasjh@gmail.com.
+  - O sistema é de pessoa física. O CPF não é exigido pela LGPD e ficou de fora de propósito, porque a página é pública.

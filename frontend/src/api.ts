@@ -53,9 +53,26 @@ export type IgpGoalPlan = { goal: number; met: boolean; streak: number | null; p
 export type IgpPlan = { month: string; currentMonth: boolean; elapsedDays: number; daysInMonth: number; orders: number; onTime: { target: IgpGoalPlan; minimum: IgpGoalPlan }; outlier: { target: IgpGoalPlan; minimum: IgpGoalPlan }; mttr: { target: IgpGoalPlan; minimum: IgpGoalPlan } };
 export type IgpMetrics = { month: string; area: IgpArea; access: IgpGroup; backbone: IgpGroup; total: IgpGroup; excludedOrders: number };
 export type Session = { token: string; user: User & { role: Role } };
+// Respostas de leitura (GET) ficam guardadas em memoria com o ETag do servidor. Na proxima leitura o navegador
+// pergunta "mudou algo?" (If-None-Match): se nao mudou, o servidor responde 304 sem corpo e reaproveitamos o mesmo
+// objeto, entao a tela nem redesenha. So em memoria: dados de clientes nao ficam gravados no aparelho, e tudo
+// some ao sair (clearResponseCache) ou fechar a aba.
+const RESPONSE_CACHE_LIMIT = 80;
+const responseCache = new Map<string, { etag: string; payload: unknown }>();
+export function clearResponseCache() {
+  responseCache.clear();
+}
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers } });
+  const isRead = !init.method || init.method.toUpperCase() === 'GET';
+  const cacheKey = `${token ? token.slice(-16) : 'anon'}|${path}`;
+  const cached = isRead ? responseCache.get(cacheKey) : undefined;
+  const response = await fetch(`${API_URL}${path}`, { ...init, ...(isRead ? { cache: 'no-store' as RequestCache } : {}), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(cached ? { 'If-None-Match': cached.etag } : {}), ...init.headers } });
+  if (response.status === 304 && cached) {
+    responseCache.delete(cacheKey);
+    responseCache.set(cacheKey, cached);
+    return cached.payload as T;
+  }
 
   const rawText = await response.text();
   let payload: any = {};
@@ -79,6 +96,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const error = new Error(payload.message || fallbackMessage) as Error & { missing?: string[] };
     error.missing = payload.missing;
     throw error;
+  }
+  const etag = isRead ? response.headers.get('ETag') : null;
+  if (etag) {
+    responseCache.delete(cacheKey);
+    responseCache.set(cacheKey, { etag, payload });
+    while (responseCache.size > RESPONSE_CACHE_LIMIT) responseCache.delete(responseCache.keys().next().value as string);
   }
   return payload;
 }
@@ -146,6 +169,8 @@ export type PersonCard = { id: string; name: string; email: string; roleName: st
 export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
+  // LGPD: os dados pessoais da propria pessoa, para baixar em JSON (Meu perfil).
+  myData: () => request<Record<string, unknown>>('/api/auth/meus-dados'),
   logout: () => request<void>('/api/auth/logout', { method: 'POST', keepalive: true }),
   profileAvatar: () => request<{ avatarDataUrl: string | null }>('/api/auth/avatar'),
   saveProfileAvatar: (avatarDataUrl: string) => request<{ avatarDataUrl: string }>('/api/auth/avatar', { method: 'PUT', body: JSON.stringify({ avatarDataUrl }) }),

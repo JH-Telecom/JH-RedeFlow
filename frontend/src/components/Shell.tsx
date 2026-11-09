@@ -251,6 +251,8 @@ export function Shell({
   if (location.pathname.startsWith("/relatorio-mensal/")) return canAccess("dashboard.view") ? <Routes><Route path="/relatorio-mensal/:month" element={<MonthlyReportPage />} /></Routes> : <AccessDenied />;
   return (
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
+      {/* Teclado/leitor de tela: primeiro Tab da pagina pula o menu e vai direto ao conteudo. */}
+      <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
       <UpdateNotice />
       <ImageReadyToast />
       {paletteOpen && (
@@ -358,7 +360,7 @@ export function Shell({
         </header>
         {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
         {canAccess("calls.view") && <DueSoonBanner />}
-        <div className="content">
+        <main id="conteudo" className="content" tabIndex={-1}>
           {/* Troca de pagina com fade suave (page-transition.css) em vez do corte seco */}
           <div className="page-transition" key={location.pathname}>
           {currentTabHidden ? (currentItem?.to === "/" && firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDenied />) : (
@@ -401,7 +403,7 @@ export function Shell({
           </Routes>
           )}
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

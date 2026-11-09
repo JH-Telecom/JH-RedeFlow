@@ -3584,6 +3584,85 @@
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .tv-highlight em {
     color: #e8dfeb
 }
+/* light · legal.css */
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .skip-link {
+    background: #732489;
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .skip-link:focus {
+    outline: 3px solid #ffffff;
+    box-shadow: 0 0 0 5px #732489
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) main.content:focus {
+    outline: none
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-main:focus {
+    outline: none
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) :where(a, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) button, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) input, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) select, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) textarea, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) summary, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) [tabindex]):focus-visible {
+    outline: 2px solid #9d3ab9
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-page {
+    background: #f7f9fc;
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-brand {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-article {
+    color: #57455d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-article h1 {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-article h2 {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-article h3 {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-article strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-article a {
+    color: #8b2fa4
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-intro {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .legal-company {
+    border: 1px solid #e8edf4;
+    background: #f7f9fc
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .login-legal a {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .login-forgot {
+    background: #f9f0fc;
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .storage-notice {
+    box-shadow: 0 14px 40px #2e1b342e;
+    color: #57455d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .storage-notice > svg {
+    color: #902bab
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .storage-notice strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .storage-notice a {
+    color: #8b2fa4
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .storage-notice .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .pf-data-actions a {
+    color: #8b2fa4
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .pf-data-feedback {
+    color: #67556c
+}
 /* light · contrast-fixes.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .role-row-button {
     background: transparent;
@@ -7197,6 +7276,85 @@
 }
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .tv-highlight em {
     color: #e8dfeb
+}
+/* dark · legal.css */
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .skip-link {
+    background: #732489;
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .skip-link:focus {
+    outline: 3px solid #342d36;
+    box-shadow: 0 0 0 5px #994ab080
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) main.content:focus {
+    outline: none
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-main:focus {
+    outline: none
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) :where(a, :where(:root[data-palette="nevoa"][data-theme="dark"]) button, :where(:root[data-palette="nevoa"][data-theme="dark"]) input, :where(:root[data-palette="nevoa"][data-theme="dark"]) select, :where(:root[data-palette="nevoa"][data-theme="dark"]) textarea, :where(:root[data-palette="nevoa"][data-theme="dark"]) summary, :where(:root[data-palette="nevoa"][data-theme="dark"]) [tabindex]):focus-visible {
+    outline: 2px solid #9d3ab9
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-page {
+    background: #181319;
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-brand {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-article {
+    color: #c8c2cb
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-article h1 {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-article h2 {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-article h3 {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-article strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-article a {
+    color: #d29be3
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-intro {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .legal-company {
+    border: 1px solid #3b353d;
+    background: #181319
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .login-legal a {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .login-forgot {
+    background: #1c121f;
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .storage-notice {
+    box-shadow: 0 14px 40px #00000065;
+    color: #c8c2cb
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .storage-notice > svg {
+    color: #d29be3
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .storage-notice strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .storage-notice a {
+    color: #d29be3
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .storage-notice .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .pf-data-actions a {
+    color: #d29be3
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .pf-data-feedback {
+    color: #bdb6bf
 }
 /* dark · contrast-fixes.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .role-row-button {

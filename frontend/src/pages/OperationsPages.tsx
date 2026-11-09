@@ -5,6 +5,7 @@ import { api, type MapArea, type MapCall, type QueueMap, type QueueState, type T
 import { KpiTile, Panel, formatCount } from "../components/charts";
 import { IncidentsPanel } from "../components/IncidentsPanel";
 import { Pager, usePaged } from "../components/Pager";
+import { useCachedData } from "../lib/data-cache";
 
 // Lote 3: Mapa da fila (por regiao e bairro) e Carga dos tecnicos. Os dois atualizam sozinhos a cada minuto.
 
@@ -13,19 +14,10 @@ const STATES: QueueState[] = ["outlier", "late", "soon", "ok"];
 const elapsed = (minutes: number) => (minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}` : `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`);
 const hoursText = (hours: number | null) => { if (hours === null) return "–"; const minutes = Math.round(hours * 60); return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}`; };
 
-function useAutoLoad<T>(load: () => Promise<T>) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const run = useCallback(async () => {
-    setLoading(true);
-    try { setData(await load()); setError(""); }
-    catch (err) { setError(err instanceof Error ? err.message : "Não foi possível carregar."); }
-    finally { setLoading(false); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => { void run(); const interval = window.setInterval(() => void run(), 60_000); return () => window.clearInterval(interval); }, [run]);
-  return { data, error, loading, reload: run };
+// Guardado em memoria: ao voltar para a aba aparece na hora; reconfere a cada 1 min e quando um chamado muda.
+function useAutoLoad<T>(key: string, load: () => Promise<T>) {
+  const { data, error, loading, reload } = useCachedData<T>(key, load, { refreshMs: 60_000, refreshOnCallsChanged: true });
+  return { data: data ?? null, error, loading, reload: () => void reload() };
 }
 
 function RefreshButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
@@ -64,7 +56,7 @@ function CallList({ calls }: { calls: MapCall[] }) {
 
 // ---------- Mapa da fila ----------
 export function QueueMapPage() {
-  const { data, error, loading, reload } = useAutoLoad<QueueMap>(() => api.queueMap());
+  const { data, error, loading, reload } = useAutoLoad<QueueMap>("operacao:mapa", () => api.queueMap());
   const [open, setOpen] = useState<string | null>(null);
   const [incidentKey, setIncidentKey] = useState(0);
   return (
@@ -124,7 +116,7 @@ export function QueueMapPage() {
 
 // ---------- Carga dos tecnicos ----------
 export function TechnicianLoadPage() {
-  const { data, error, loading, reload } = useAutoLoad<TechnicianLoad>(() => api.technicianLoad());
+  const { data, error, loading, reload } = useAutoLoad<TechnicianLoad>("operacao:carga", () => api.technicianLoad());
   const [open, setOpen] = useState<string | null>(null);
   const [onlyFree, setOnlyFree] = useState(false);
   const rows = (data?.technicians ?? []).filter((row) => !onlyFree || row.free);

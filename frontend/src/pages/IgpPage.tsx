@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Timer, XCircle } fr
 import { api, type IgpArea, type IgpGoalPlan, type IgpMetrics, type IgpPlan } from "../api";
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount } from "../components/charts";
+import { useCachedData } from "../lib/data-cache";
 
 export function formatIgpPercent(value: number | null) {
   return value === null ? "-" : `${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
@@ -167,25 +168,14 @@ function GoalPlanCard({ kind, title, current, plan }: { kind: PlanKind; title: s
 export function IGPPage() {
   const [month, setMonth] = useState(() => toOperationalDate().slice(0, 7));
   const [area, setArea] = useState<IgpArea>('ALL');
-  const [metrics, setMetrics] = useState<IgpMetrics | null>(null);
-  const [plan, setPlan] = useState<IgpPlan | null>(null);
-  const [trend, setTrend] = useState<{ month: string; metrics: IgpMetrics | null }[]>([]);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    setMetrics(null);
-    setPlan(null);
-    setError("");
-    api.igp(month, area)
-      .then((data) => { if (active) { setMetrics(data.igp); setPlan(data.plan ?? null); } })
-      .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Não foi possível calcular o IGP."); });
-    const months = Array.from({ length: trendMonths }, (_, index) => shiftMonth(month, index - (trendMonths - 1)));
-    setTrend(months.map((item) => ({ month: item, metrics: null })));
-    Promise.all(months.map((item) => api.igp(item, area).then((data) => data.igp).catch(() => null)))
-      .then((results) => { if (active) setTrend(months.map((item, index) => ({ month: item, metrics: results[index] }))); });
-    return () => { active = false; };
-  }, [month, area]);
+  // Mes + regiao guardados em memoria: trocar de aba e voltar mostra o IGP na hora, conferido com o servidor.
+  const igpQuery = useCachedData<{ igp: IgpMetrics; plan: IgpPlan | null }>(`igp:${month}:${area}`, () => api.igp(month, area).then((data) => ({ igp: data.igp, plan: data.plan ?? null })));
+  const trendMonthList = Array.from({ length: trendMonths }, (_, index) => shiftMonth(month, index - (trendMonths - 1)));
+  const trendQuery = useCachedData<{ month: string; metrics: IgpMetrics | null }[]>(`igp-tendencia:${month}:${area}`, () => Promise.all(trendMonthList.map((item) => api.igp(item, area).then((data) => data.igp).catch(() => null))).then((results) => trendMonthList.map((item, index) => ({ month: item, metrics: results[index] }))));
+  const metrics = igpQuery.data?.igp ?? null;
+  const plan = igpQuery.data?.plan ?? null;
+  const trend = trendQuery.data ?? trendMonthList.map((item) => ({ month: item, metrics: null }));
+  const error = igpQuery.data ? "" : igpQuery.error;
 
   const metricRows = metrics ? Object.values(igpGoals).map((goal, index) => ({ ...goal, key: (Object.keys(igpGoals) as (keyof typeof igpGoals)[])[index] })) : [];
   const areaLabel = area === 'ALL' ? 'SP + ABC + Alto Tietê + GRU' : area === 'ALTO_TIETE' ? 'Alto Tietê' : area;

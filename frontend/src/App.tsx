@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import faviconUrl from "../image/favicon.ico";
-import { api, type Role, type User } from "./api";
+import { api, clearResponseCache, type Role, type User } from "./api";
+import { clearDataCache } from "./lib/data-cache";
 import { Shell } from "./components/Shell";
 import { FirstLoginPasswordChange, Login } from "./pages/LoginPage";
+import { PrivacyPolicyPage, TermsOfUsePage } from "./pages/LegalPages";
+import { StorageNotice } from "./components/StorageNotice";
 
 export default function App() {
+  const location = useLocation();
   const [session, setSession] = useState<{
     token: string;
     user: User & { role: Role };
@@ -54,9 +59,14 @@ export default function App() {
     void api.logout().catch(() => undefined);
     localStorage.removeItem("jh-redeflow-token");
     localStorage.removeItem("jh-redeflow-session");
+    clearResponseCache();
+    clearDataCache();
     setSession(null);
   }
 
+  // Privacidade e Termos abrem com ou sem login.
+  if (location.pathname === "/privacidade") return <><PrivacyPolicyPage /><StorageNotice /></>;
+  if (location.pathname === "/termos") return <><TermsOfUsePage /><StorageNotice /></>;
   if (hydrating)
     return (
       <div className="app-loading">
@@ -64,7 +74,7 @@ export default function App() {
         <span>Carregando O&amp;M...</span>
       </div>
     );
-  if (!session) return <Login onLogin={login} />;
+  if (!session) return <><Login onLogin={login} /><StorageNotice /></>;
   if (session.user.mustChangePassword) return <FirstLoginPasswordChange
     onComplete={(user) => {
       const refreshedSession = { ...session, user };
@@ -73,5 +83,5 @@ export default function App() {
     }}
     onLogout={logout}
   />;
-  return <Shell user={session.user} onLogout={logout} />;
+  return <><Shell user={session.user} onLogout={logout} /><StorageNotice /></>;
 }

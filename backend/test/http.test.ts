@@ -1366,3 +1366,67 @@ test('calls list filters by IGP area (SP, GRU, Alto Tiete)', async () => {
   assert.ok(byArea.SP + byArea.GRU + byArea.ALTO_TIETE <= all.total);
   assert.equal((await fetch(`${baseUrl}/api/chamados?area=XYZ`, { headers })).status, 400);
 });
+
+test('dashboards reuse the computed result until data changes and answer 304 when nothing changed', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}`, origin: 'http://127.0.0.1:5173' };
+  const url = `${baseUrl}/api/dashboards/operacao`;
+
+  const first = await fetch(url, { headers });
+  assert.equal(first.status, 200);
+  assert.equal(first.headers.get('x-read-cache'), 'miss');
+  assert.equal(first.headers.get('cache-control'), 'private, no-cache');
+  assert.match(first.headers.get('access-control-expose-headers') || '', /ETag/i);
+  const etag = first.headers.get('etag');
+  assert.ok(etag);
+  const body = await first.json();
+
+  const second = await fetch(url, { headers });
+  assert.equal(second.headers.get('x-read-cache'), 'hit');
+  assert.deepEqual(await second.json(), body);
+
+  const notModified = await fetch(url, { headers: { ...headers, 'if-none-match': etag! } });
+  assert.equal(notModified.status, 304);
+
+  // Qualquer gravacao que deu certo invalida o cache dos paineis.
+  const save = await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: 'Cache', palette: 'padrao' }) });
+  assert.equal(save.status, 200);
+  const afterWrite = await fetch(url, { headers });
+  assert.equal(afterWrite.headers.get('x-read-cache'), 'miss');
+
+  // Gravacao recusada (400) nao invalida.
+  const again = await fetch(url, { headers });
+  assert.equal(again.headers.get('x-read-cache'), 'hit');
+  await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: 'x', palette: 'arco-iris' }) });
+  const afterRejected = await fetch(url, { headers });
+  assert.equal(afterRejected.headers.get('x-read-cache'), 'hit');
+});
+
+test('a signed-in user downloads only their own personal data (LGPD access request)', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string; user: { id: string; email: string } };
+  const headers = { authorization: `Bearer ${session.token}` };
+
+  const unauthenticated = await fetch(`${baseUrl}/api/auth/meus-dados`);
+  assert.equal(unauthenticated.status, 401);
+
+  const response = await fetch(`${baseUrl}/api/auth/meus-dados`, { headers });
+  assert.equal(response.status, 200);
+  const data = await response.json() as { generatedAt: string; account: Record<string, unknown>; preferences: unknown; changesLastYear: { total: number; items: unknown[] } };
+  assert.equal(data.account.id, session.user.id);
+  assert.equal(data.account.email, 'admin@jhtelecom.com');
+  assert.ok(data.generatedAt);
+  assert.ok(data.preferences);
+  assert.ok(Array.isArray(data.changesLastYear.items));
+  const raw = JSON.stringify(data);
+  assert.doesNotMatch(raw, /password|hash/i);
+});

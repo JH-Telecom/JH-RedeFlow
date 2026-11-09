@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AlertTriangle, ClipboardList, Inbox, MoonStar } from "lucide-react";
 import { api, type SlaAnalysis, type SlaArea, type SlaCounters, type SlaRankItem } from "../api";
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount, formatHours, formatPercent } from "../components/charts";
+import { useCachedData } from "../lib/data-cache";
 
 // Analise de prazo (regra 6h/9h) dos chamados finalizados. "Perder prazo" = mais de 6h entre abertura e Data Fim.
 
@@ -163,18 +164,13 @@ export function SlaAnalysisPage() {
   const [preset, setPreset] = useState<Preset>(linkedRange ? "custom" : "month");
   const [range, setRange] = useState(() => linkedRange ?? presetRange("month", today));
   const [area, setArea] = useState<SlaArea>("ALL");
-  const [analysis, setAnalysis] = useState<SlaAnalysis | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!range.from || !range.to || range.from > range.to) return;
-    let active = true;
-    setError("");
-    api.slaAnalysis(range.from, range.to, area)
-      .then((data) => { if (active) setAnalysis(data.analysis); })
-      .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Não foi possível calcular a análise de prazo."); });
-    return () => { active = false; };
-  }, [range.from, range.to, area]);
+  // Periodo invalido (de > ate) mantem o ultimo periodo valido na tela.
+  const lastValidRange = useRef(range);
+  if (range.from && range.to && range.from <= range.to) lastValidRange.current = range;
+  const queryRange = lastValidRange.current;
+  const slaQuery = useCachedData<SlaAnalysis>(`analise-prazo:${queryRange.from}:${queryRange.to}:${area}`, () => api.slaAnalysis(queryRange.from, queryRange.to, area).then((data) => data.analysis));
+  const analysis = slaQuery.data ?? null;
+  const error = slaQuery.error;
 
   function choosePreset(next: Preset) {
     setPreset(next);

@@ -5,6 +5,7 @@ import { api, type RepeatRanking, type BottleneckReport, type HeatmapReport, typ
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount, formatHours } from "../components/charts";
 import { Pager, usePaged } from "../components/Pager";
+import { useCachedData } from "../lib/data-cache";
 
 // Relatorios. Mesma regra de prazo de todo o sistema: ate 6h no prazo, acima de 6h fora, acima de 9h outlier.
 // Finalizados contam pela Data Fim; abertos pela abertura.
@@ -107,18 +108,10 @@ export function ReportsPage() {
 }
 
 // Carrega um relatorio e cuida de carregando/erro.
-function useReport<T>(load: () => Promise<T>, deps: unknown[]) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    let active = true;
-    setData(null);
-    setError("");
-    load().then((result) => { if (active) setData(result); }).catch((err) => { if (active) setError(err instanceof Error ? err.message : "Não foi possível gerar o relatório."); });
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return { data, error };
+// Relatorio guardado por nome + filtros: ao voltar para a aba aparece na hora e e conferido com o servidor.
+function useReport<T>(name: string, load: () => Promise<T>, deps: unknown[]) {
+  const { data, error } = useCachedData<T>(`relatorio:${name}:${JSON.stringify(deps)}`, load);
+  return { data: data ?? null, error: data === undefined ? error : "" };
 }
 
 function ReportState({ error }: { error: string }) {
@@ -132,7 +125,7 @@ function ExportButton({ onClick, disabled }: { onClick: () => Promise<void>; dis
 
 // ---------- Finalizados fora do prazo ----------
 function LateReport({ from, to, area }: { from: string; to: string; area: SlaArea }) {
-  const { data, error } = useReport(() => api.lateFinishedReport(from, to, area).then((result) => result.calls), [from, to, area]);
+  const { data, error } = useReport("lateFinishedReport", () => api.lateFinishedReport(from, to, area).then((result) => result.calls), [from, to, area]);
   const paged = usePaged(data ?? [], data);
   const summary = useMemo(() => {
     const list = data ?? [];
@@ -212,7 +205,7 @@ function ProductivityTable({ rows, first }: { rows: ProductivityRow[]; first: st
 const productivitySheet = (rows: ProductivityRow[], first: string) => rows.map((row) => ({ [first]: row.name, ...(row.detail !== undefined ? { Supervisor: row.detail || "" } : {}), Finalizados: row.finished, "No prazo": row.onTime, "Fora (6h-9h)": row.late, Outliers: row.outliers, "% no prazo": row.onTimePercent, "Tempo médio (h)": row.avgHours }));
 
 function ProductivityView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
-  const { data, error } = useReport<ProductivityReport>(() => api.productivityReport(from, to, area), [from, to, area]);
+  const { data, error } = useReport<ProductivityReport>("productivityReport", () => api.productivityReport(from, to, area), [from, to, area]);
   if (!data) return <ReportState error={error} />;
   const withTech = data.technicians.filter((row) => row.name !== "Sem técnico");
   const best = [...withTech].filter((row) => row.finished >= 3).sort((a, b) => (b.onTimePercent ?? 0) - (a.onTimePercent ?? 0))[0];
@@ -234,7 +227,7 @@ function ProductivityView({ from, to, area }: { from: string; to: string; area: 
 
 // ---------- Motivos de fechamento ----------
 function ReasonsView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
-  const { data, error } = useReport<ReasonsReport>(() => api.reasonsReport(from, to, area), [from, to, area]);
+  const { data, error } = useReport<ReasonsReport>("reasonsReport", () => api.reasonsReport(from, to, area), [from, to, area]);
   const paged = usePaged(data?.reasons ?? [], data);
   if (!data) return <ReportState error={error} />;
   const top = data.reasons[0];
@@ -306,7 +299,7 @@ function Delta({ current, previous, better, isPercent }: { current: number | nul
 }
 
 function CompareView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
-  const { data, error } = useReport<CompareReport>(() => api.compareReport(from, to, area), [from, to, area]);
+  const { data, error } = useReport<CompareReport>("compareReport", () => api.compareReport(from, to, area), [from, to, area]);
   if (!data) return <ReportState error={error} />;
   const label = (period: PeriodMetrics) => `${brDate(period.from)} a ${brDate(period.to)}`;
   return (
@@ -333,7 +326,7 @@ function CompareView({ from, to, area }: { from: string; to: string; area: SlaAr
 
 // ---------- Resumo do dia ----------
 function DailyReport({ date }: { date: string }) {
-  const { data, error } = useReport(() => api.dailySummary(date), [date]);
+  const { data, error } = useReport("dailySummary", () => api.dailySummary(date), [date]);
   const [copied, setCopied] = useState(false);
   if (!data) return <ReportState error={error} />;
   const summary: DailySummary = data.summary;
@@ -376,7 +369,7 @@ function StageTable({ rows, first }: { rows: StageStats[]; first: string }) {
 const stageSheet = (rows: StageStats[], first: string) => rows.map((row) => ({ [first]: row.name, Chamados: row.calls, "Espera mediana (min)": row.waitMedian === null ? null : Math.round(row.waitMedian), "Espera p90 (min)": row.waitP90 === null ? null : Math.round(row.waitP90), "Atendimento mediana (min)": row.execMedian === null ? null : Math.round(row.execMedian), "Atendimento p90 (min)": row.execP90 === null ? null : Math.round(row.execP90), "% esperando": row.waitShare, "Fora do prazo": row.late, "Fora por espera": row.lateByWait }));
 
 function BottleneckView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
-  const { data, error } = useReport<BottleneckReport>(() => api.bottleneckReport(from, to, area), [from, to, area]);
+  const { data, error } = useReport<BottleneckReport>("bottleneckReport", () => api.bottleneckReport(from, to, area), [from, to, area]);
   if (!data) return <ReportState error={error} />;
   const total = data.total;
   return <>
@@ -406,7 +399,7 @@ const HEAT_METRICS: { value: HeatMetric; label: string; note: string }[] = [
 ];
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 function HeatmapView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
-  const { data, error } = useReport<HeatmapReport>(() => api.heatmapReport(from, to, area), [from, to, area]);
+  const { data, error } = useReport<HeatmapReport>("heatmapReport", () => api.heatmapReport(from, to, area), [from, to, area]);
   const [metric, setMetric] = useState<HeatMetric>("incoming");
   if (!data) return <ReportState error={error} />;
   const grid = data[metric];
@@ -434,7 +427,7 @@ function HeatmapView({ from, to, area }: { from: string; to: string; area: SlaAr
 
 // ---------- Reincidencia por tecnico ----------
 function RepeatRankingView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
-  const { data, error } = useReport<RepeatRanking>(() => api.repeatRanking(from, to, area), [from, to, area]);
+  const { data, error } = useReport<RepeatRanking>("repeatRanking", () => api.repeatRanking(from, to, area), [from, to, area]);
   const paged = usePaged(data?.technicians ?? [], data);
   const [open, setOpen] = useState<string | null>(null);
   if (!data) return <ReportState error={error} />;

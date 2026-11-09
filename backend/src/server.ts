@@ -29,6 +29,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
+import { cacheReadModel, invalidateOnWrite } from './read-cache.js';
 import { dueSoonCalls } from './due-soon.js';
 import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
 import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
@@ -68,7 +69,18 @@ app.use((_request, response, next) => {
   response.setHeader('Referrer-Policy', 'no-referrer');
   next();
 });
-app.use(cors({ origin: corsOrigins, credentials: true }));
+// ETag exposto: o navegador pergunta "mudou algo?" (If-None-Match) e recebe 304 sem corpo quando nada mudou.
+app.use(cors({ origin: corsOrigins, credentials: true, exposedHeaders: ['ETag'] }));
+app.use((request, response, next) => {
+  if (request.method === 'GET' && request.path.startsWith('/api/')) {
+    response.setHeader('Cache-Control', 'private, no-cache');
+    // Com If-None-Match o fetch do navegador acrescenta "Cache-Control: no-cache" sozinho, e isso faria o Express
+    // ignorar o ETag. Quem perguntou "mudou algo?" quer exatamente a revalidacao: o ETag decide.
+    if (request.headers['if-none-match']) { delete request.headers['cache-control']; delete request.headers.pragma; }
+  }
+  next();
+});
+app.use(invalidateOnWrite);
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
@@ -275,6 +287,35 @@ app.put('/api/auth/status', auth, async (request: AuthRequest, response) => {
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o status.' }); }
 });
 
+// LGPD (art. 18): a propria pessoa baixa os dados pessoais que o sistema guarda sobre ela. So os proprios dados;
+// as alteracoes que ela fez em chamados vao do ultimo ano (ate 2.000), sem dados de clientes alem do numero da ordem.
+app.get('/api/auth/meus-dados', auth, async (request: AuthRequest, response) => {
+  const user = request.authUser!;
+  try {
+    const toIso = new Date().toISOString();
+    const fromIso = new Date(Date.now() - 365 * 86_400_000).toISOString();
+    const [preferences, statuses, avatar, banners, technicianId, audit] = await Promise.all([
+      getUserPreferences(user.id),
+      getUserStatuses([user.id]),
+      getUserAvatar(user.id),
+      getUserBanners([user.id]),
+      technicianIdForUser(user.id),
+      listAuditLogPage({ fromIso, toIso }, { userId: user.id }, 1, 2000),
+    ]);
+    return response.json({
+      generatedAt: toIso,
+      account: { id: user.id, name: user.name, email: user.email, role: user.role?.name ?? null, permissions: user.role?.permissions ?? [], active: user.active },
+      preferences,
+      status: activeStatus(statuses[user.id]) ?? null,
+      profilePhoto: avatar ?? null,
+      banner: banners[user.id] ?? null,
+      linkedTechnicianId: technicianId ?? null,
+      presence: presenceOf(user.id),
+      changesLastYear: { total: audit.total, items: audit.logs.map((log) => ({ at: log.createdAt, orderNumber: log.orderNumber, field: log.field })) },
+    });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel reunir os seus dados.' }); }
+});
+
 // Banner do perfil (1 imagem larga JPEG/PNG/WebP, ja reduzida no navegador).
 app.get('/api/auth/banner', auth, async (request: AuthRequest, response) => {
   try { return response.json({ bannerDataUrl: (await getUserBanners([request.authUser!.id]))[request.authUser!.id] ?? null }); }
@@ -303,12 +344,12 @@ app.post('/api/auth/change-password', auth, async (request: AuthRequest, respons
   if (!result.user) return response.status(404).json({ message: 'Usuario nao encontrado.' });
   return response.json({ user: result.user });
 });
-app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+app.get('/api/dashboards/operacao', auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
   try { return response.json({ metrics: await getDashboardMetrics(await getScopedCallQuery(request)) }); }
   catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o dashboard.' }); }
 });
 // Analise de prazo: tecnicos/bairros que mais perdem, horario de abertura, entrantes e estudo noturno (18h-06h).
-app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
   const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC', 'OUTRAS']).default('ALL') }).safeParse(request.query);
   if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
   try {
@@ -329,7 +370,7 @@ async function reportCalls(request: AuthRequest, statuses?: CallStatus[]) {
   return listCalls(statuses, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined });
 }
 function reportRoute(path: string, statuses: CallStatus[] | undefined, build: (calls: Awaited<ReturnType<typeof listCalls>>, from: string, to: string, area: z.infer<typeof reportQuery>['area']) => unknown) {
-  app.get(path, auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  app.get(path, auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
     const parsed = reportQuery.safeParse(request.query);
     if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
     try { return response.json(build(await reportCalls(request, statuses), parsed.data.from, parsed.data.to, parsed.data.area)); }
@@ -358,7 +399,7 @@ app.get('/api/exportacao', auth, requirePermission('settings.manage'), async (re
     return response.json({ calls: scoped.map(({ lastObservationAt: _last, ...call }) => call), observations: observations.rows, logs: logs.logs, truncated: observations.truncated || logs.truncated });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel exportar.' }); }
 });
-app.get('/api/relatorios/resumo-dia', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+app.get('/api/relatorios/resumo-dia', auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
   const date = typeof request.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(request.query.date) ? request.query.date : addDays(toOperationalDate(), -1);
   try {
     const summary = dailySummary(await reportCalls(request), date);
@@ -369,11 +410,11 @@ app.get('/api/relatorios/resumo-dia', auth, requirePermission('dashboard.view'),
 
 // Lote 3 (operacao): mapa da fila por regiao/bairro, carga dos tecnicos e reincidencia. Escopo do supervisor.
 const ACTIVE_STATUSES: CallStatus[] = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'];
-app.get('/api/operacao/mapa', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+app.get('/api/operacao/mapa', auth, requirePermission('calls.view'), cacheReadModel, async (request: AuthRequest, response) => {
   try { return response.json(queueMap(await reportCalls(request, ACTIVE_STATUSES))); }
   catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar o mapa.' }); }
 });
-app.get('/api/operacao/carga', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+app.get('/api/operacao/carga', auth, requirePermission('calls.view'), cacheReadModel, async (request: AuthRequest, response) => {
   try {
     const scope = await getScopedCallQuery(request, true);
     const supervisorId = 'supervisorId' in scope ? scope.supervisorId : undefined;
@@ -414,7 +455,7 @@ app.post('/api/chamados/risco', auth, requirePermission('calls.view'), async (re
     return response.json({ risks, samples: model.samples });
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular o risco.' }); }
 });
-app.get('/api/operacao/incidentes', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+app.get('/api/operacao/incidentes', auth, requirePermission('calls.view'), cacheReadModel, async (request: AuthRequest, response) => {
   try { return response.json({ incidents: massIncidents(await reportCalls(request, ACTIVE_STATUSES)) }); }
   catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar os incidentes.' }); }
 });
@@ -475,7 +516,7 @@ app.get('/api/chamados/:id/reincidencia', auth, requirePermission('calls.view'),
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o historico.' }); }
 });
 
-app.get('/api/relatorios/fora-do-prazo', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+app.get('/api/relatorios/fora-do-prazo', auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
   const parsed = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), area: z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC', 'OUTRAS']).default('ALL') }).safeParse(request.query);
   if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
   try {
@@ -485,7 +526,7 @@ app.get('/api/relatorios/fora-do-prazo', auth, requirePermission('dashboard.view
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel gerar o relatorio.' });
   }
 });
-app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
   const parsed = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).safeParse(request.query.month);
   if (!parsed.success) return response.status(400).json({ message: 'Informe um mes valido no formato AAAA-MM.' });
   const parsedArea = z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC']).safeParse(request.query.area ?? 'ALL');

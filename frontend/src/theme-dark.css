@@ -3626,6 +3626,86 @@
     color: #dbe3ee
 }
 
+/* legal.css */
+:where(:root[data-theme="dark"]) .skip-link {
+    background: #0845ae;
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .skip-link:focus {
+    outline: 3px solid #2c3038;
+    box-shadow: 0 0 0 5px #306bd780
+}
+:where(:root[data-theme="dark"]) main.content:focus {
+    outline: none
+}
+:where(:root[data-theme="dark"]) .legal-main:focus {
+    outline: none
+}
+:where(:root[data-theme="dark"]) :where(a, :where(:root[data-theme="dark"]) button, :where(:root[data-theme="dark"]) input, :where(:root[data-theme="dark"]) select, :where(:root[data-theme="dark"]) textarea, :where(:root[data-theme="dark"]) summary, :where(:root[data-theme="dark"]) [tabindex]):focus-visible {
+    outline: 2px solid #1264e8
+}
+:where(:root[data-theme="dark"]) .legal-page {
+    background: #12151b;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .legal-brand {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .legal-article {
+    color: #c0c5cd
+}
+:where(:root[data-theme="dark"]) .legal-article h1 {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .legal-article h2 {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .legal-article h3 {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .legal-article strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .legal-article a {
+    color: #7bb6ff
+}
+:where(:root[data-theme="dark"]) .legal-intro {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .legal-company {
+    border: 1px solid #33383f;
+    background: #12151b
+}
+:where(:root[data-theme="dark"]) .login-legal a {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .login-forgot {
+    background: #0f1722;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .storage-notice {
+    box-shadow: 0 14px 40px #00000065;
+    color: #c0c5cd
+}
+:where(:root[data-theme="dark"]) .storage-notice > svg {
+    color: #7ab6ff
+}
+:where(:root[data-theme="dark"]) .storage-notice strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .storage-notice a {
+    color: #7bb6ff
+}
+:where(:root[data-theme="dark"]) .storage-notice .primary-button {
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .pf-data-actions a {
+    color: #7bb6ff
+}
+:where(:root[data-theme="dark"]) .pf-data-feedback {
+    color: #b5b9c1
+}
+
 /* contrast-fixes.css */
 :where(:root[data-theme="dark"]) .role-row-button {
     background: transparent;

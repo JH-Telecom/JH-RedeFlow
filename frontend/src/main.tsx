@@ -36,6 +36,7 @@ import './sla-analysis.css';
 import './update-notice.css';
 import './due-soon.css';
 import './tv-mode.css';
+import './legal.css';
 import './contrast-fixes.css';
 import './theme-dark.css';
 import './theme-dark-manual.css';

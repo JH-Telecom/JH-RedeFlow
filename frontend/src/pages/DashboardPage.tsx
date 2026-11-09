@@ -7,6 +7,7 @@ import { toOperationalDate } from "../dates";
 import { ActivityRow, DateRangeFilter, Metric } from "../components/ui";
 import { DailyBars, KpiTile, Panel, RankBars, SlaStack, formatCount, formatHours, formatPercent, percentOf } from "../components/charts";
 import { RangeCallTable } from "./CallsPage";
+import { useCachedData } from "../lib/data-cache";
 
 type PeriodPreset = "today" | "7d" | "30d" | "month" | "all" | "custom";
 const periodPresets: { key: PeriodPreset; label: string }[] = [
@@ -96,27 +97,17 @@ function OldestCallsList({ calls, now }: { calls: DashboardActiveCall[]; now: nu
 }
 
 export function OperationalDashboard({ preset, onPresetChange, dateRange, onDateRangeChange }: { user: User; preset: PeriodPreset; onPresetChange: (value: PeriodPreset) => void; dateRange: { from: string; to: string }; onDateRangeChange: (value: { from: string; to: string }) => void }) {
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [callsInRange, setCallsInRange] = useState<Call[]>([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [updatedAt, setUpdatedAt] = useState<number>(Date.now());
-
-  const load = useCallback(() => {
-    setLoading(true);
-    return Promise.all([
-      api.dashboard(dateRange).then((data) => { setMetrics(data.metrics); setError(""); setUpdatedAt(Date.now()); }),
-      api.calls(undefined, { from: dateRange.from, to: dateRange.to }).then((data) => setCallsInRange(data.calls)).catch(() => setCallsInRange([])),
-    ])
-      .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar os indicadores."))
-      .finally(() => setLoading(false));
-  }, [dateRange.from, dateRange.to]);
-
-  useEffect(() => {
-    void load();
-    const interval = window.setInterval(() => void load(), refreshIntervalMs);
-    return () => window.clearInterval(interval);
-  }, [load]);
+  // Indicadores e chamados do periodo ficam guardados: ao voltar para a Visao geral aparecem na hora e sao
+  // conferidos com o servidor (304 = nada mudou, a tela nem redesenha). Reconfere a cada 1 min com a aba visivel.
+  const rangeKey = `${dateRange.from}|${dateRange.to}`;
+  const metricsQuery = useCachedData<DashboardMetrics>(`visao-geral:indicadores:${rangeKey}`, () => api.dashboard(dateRange).then((data) => data.metrics), { refreshMs: refreshIntervalMs, refreshOnCallsChanged: true });
+  const callsQuery = useCachedData<Call[]>(`visao-geral:chamados:${rangeKey}`, () => api.calls(undefined, { from: dateRange.from, to: dateRange.to }).then((data) => data.calls).catch(() => []), { refreshMs: refreshIntervalMs, refreshOnCallsChanged: true });
+  const metrics = metricsQuery.data ?? null;
+  const callsInRange = callsQuery.data ?? [];
+  const error = metricsQuery.error;
+  const loading = metricsQuery.loading || callsQuery.loading;
+  const updatedAt = metricsQuery.updatedAt ?? Date.now();
+  const load = () => Promise.all([metricsQuery.reload(), callsQuery.reload()]);
 
   const periodLabel = !dateRange.from && !dateRange.to
     ? "Todo o histórico"

@@ -1,0 +1,50 @@
+/* Privacidade, Termos, aviso de armazenamento, "Meus dados" e acessibilidade (pular para o conteudo, foco). */
+
+/* Pular para o conteudo: invisivel ate receber foco pelo teclado. */
+.skip-link { position: fixed; top: 10px; left: 10px; z-index: 1000; padding: 10px 14px; border-radius: 8px; background: #0845ae; color: #ffffff; font-size: 13px; font-weight: 700; text-decoration: none; transform: translateY(-160%); transition: transform .15s; }
+.skip-link:focus { transform: translateY(0); outline: 3px solid #ffffff; outline-offset: 2px; box-shadow: 0 0 0 5px #0845ae; }
+main.content:focus { outline: none; }
+.legal-main:focus { outline: none; }
+
+/* Foco visivel para quem navega por teclado (Tab). O mouse nao mostra o contorno. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid #1264e8; outline-offset: 2px; }
+
+/* Paginas legais */
+.legal-page { min-height: 100vh; background: #f7f9fc; color: #17233b; }
+.legal-header { max-width: 860px; margin: 0 auto; padding: 22px 16px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.legal-header .secondary-button { text-decoration: none; }
+.legal-brand { display: flex; align-items: center; gap: 10px; color: #17233b; text-decoration: none; font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 15px; }
+.legal-brand img { width: 30px; height: 30px; border-radius: 8px; }
+.legal-main { max-width: 860px; margin: 0 auto; padding: 8px 16px 48px; }
+.legal-article { padding: 34px clamp(18px, 4vw, 44px); line-height: 1.7; font-size: 14px; color: #3f4d63; }
+.legal-article h1 { font-size: clamp(26px, 4vw, 34px); color: #17233b; margin: 10px 0 10px; letter-spacing: -.5px; }
+.legal-article h2 { font-size: 18px; color: #17233b; margin: 30px 0 8px; }
+.legal-article h3 { font-size: 14px; color: #17233b; margin: 18px 0 4px; }
+.legal-article p { margin: 0 0 10px; }
+.legal-article ul { margin: 0 0 10px; padding-left: 20px; }
+.legal-article li { margin: 4px 0; }
+.legal-article strong { color: #17233b; }
+.legal-article a { color: #0b56cf; font-weight: 600; }
+.legal-intro { font-size: 15px; color: #4f5d73; }
+.legal-company { font-style: normal; display: grid; gap: 4px; padding: 14px 16px; border: 1px solid #e8edf4; border-radius: 9px; background: #f7f9fc; }
+.legal-links, .login-legal { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 26px; font-size: 13px; }
+.login-legal { justify-content: center; margin-top: 4px; font-size: 12px; }
+.login-legal a { color: #4f5d73; font-weight: 600; }
+.login-forgot { margin: -8px 0 14px; padding: 10px 12px; border-radius: 8px; background: #edf4ff; color: #17233b; font-size: 12px; line-height: 1.5; text-align: center; }
+
+/* Aviso de armazenamento */
+.storage-notice { position: fixed; z-index: 900; left: 16px; right: 16px; bottom: 16px; max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 14px 16px; box-shadow: 0 14px 40px #17233b2e; font-size: 13px; line-height: 1.5; color: #3f4d63; }
+.storage-notice > svg { flex-shrink: 0; color: #1264e8; }
+.storage-notice p { flex: 1; }
+.storage-notice strong { color: #17233b; }
+.storage-notice a { color: #0b56cf; font-weight: 600; }
+.storage-notice .primary-button { flex-shrink: 0; min-height: 38px; box-shadow: none; }
+@media (max-width: 560px) {
+  .storage-notice { flex-wrap: wrap; }
+  .storage-notice .primary-button { width: 100%; }
+}
+
+/* Meu perfil: privacidade e meus dados */
+.pf-data-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; }
+.pf-data-actions a { color: #0b56cf; font-weight: 600; }
+.pf-data-feedback { font-size: 12px; color: #4f5d73; }

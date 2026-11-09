@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, Image as ImageIcon, Moon, Palette, Sun, Trash2, UserRound } from "lucide-react";
+import { Camera, Check, Download, Image as ImageIcon, Moon, Palette, ShieldCheck, Sun, Trash2, UserRound } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api, type ProfilePreferences, type Role, type User, type UserStatus } from "../api";
 import { StatusEditor } from "../components/StatusEditor";
 import { ProfileAvatar } from "../components/ProfileAvatar";
@@ -158,7 +159,49 @@ export function ProfilePage({ user, profile, preferences, onSavePreferences, the
           })}
         </div>
       </section>
+
+      <MyDataCard />
       </div>
     </div>
+  );
+}
+
+// LGPD (art. 18): a pessoa baixa tudo o que o sistema guarda sobre ela e encontra a politica e os termos.
+function MyDataCard() {
+  const [busy, setBusy] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  async function download() {
+    setBusy(true);
+    setFeedbackText("");
+    try {
+      const data = await api.myData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setFeedbackText("Arquivo gerado. Ele tem dados pessoais: guarde em local seguro.");
+    } catch (err) {
+      setFeedbackText(err instanceof Error ? err.message : "Não foi possível reunir os seus dados.");
+    } finally { setBusy(false); }
+  }
+  return (
+    <section className="panel pf-card" aria-labelledby="pf-data-title">
+      <div className="pf-card-heading">
+        <span className="pf-card-icon"><ShieldCheck size={18} aria-hidden="true" /></span>
+        <div>
+          <h2 id="pf-data-title">Privacidade e meus dados</h2>
+          <p>Baixe uma cópia do que o sistema guarda sobre você: conta, preferências, foto, status e as alterações que você fez em chamados no último ano. Foto, banner, apelido e status são opcionais e podem ser removidos aqui mesmo.</p>
+        </div>
+      </div>
+      <div className="pf-data-actions">
+        <button className="secondary-button compact" type="button" onClick={() => void download()} disabled={busy}><Download size={15} aria-hidden="true" /> {busy ? "Reunindo..." : "Baixar meus dados"}</button>
+        <Link to="/privacidade">Política de Privacidade</Link>
+        <Link to="/termos">Termos de Uso</Link>
+      </div>
+      {feedbackText && <p className="pf-data-feedback" role="status">{feedbackText}</p>}
+    </section>
   );
 }
