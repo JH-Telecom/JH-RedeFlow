@@ -800,6 +800,22 @@ app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (reque
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
   return response.json({ call });
 });
+// Corrigir so a Data Fim, inclusive com o chamado encerrado (Finalizado/Baixar/Cancelado), sem reabrir. Fica no
+// historico como "Data de finalizacao alterado" e, a partir dai, a sincronizacao do OFS nao sobrescreve essa data.
+app.put('/api/chamados/:id/data-fim', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ executedAt: z.string().min(10).max(40) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe a data e hora de fim.' });
+  const executedAt = normalizeSaoPauloLocal(parsed.data.executedAt);
+  const executedMs = Date.parse(executedAt);
+  if (!Number.isFinite(executedMs)) return response.status(400).json({ message: 'Data e hora de fim invalidas.' });
+  const existing = await getCall(String(request.params.id));
+  if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  if (executedMs < Date.parse(existing.openedAt)) return response.status(422).json({ message: 'A Data Fim nao pode ser antes da abertura do chamado.' });
+  if (executedMs > Date.now() + 5 * 60_000) return response.status(422).json({ message: 'A Data Fim nao pode estar no futuro.' });
+  const call = await updateCall(existing.id, { executedAt }, request.authUser!);
+  if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  return response.json({ call });
+});
 app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
   const optionalText = (max: number, min = 0) => z.preprocess((value) => value == null ? undefined : String(value), z.string().trim().min(min).max(max).optional());
   const parsed = z.object({ orderNumber: optionalText(100, 1), bdesk: optionalText(100), officeTrack: optionalText(100), client: optionalText(180), type: optionalText(100), reason: optionalText(5000), region: optionalText(100), city: optionalText(100), address: optionalText(5000), bairro: optionalText(160), olt: optionalText(120), slotPon: optionalText(10000), status: z.preprocess((value) => value == null ? undefined : String(value), z.enum(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar']).optional()), technicianId: z.preprocess((value) => value === undefined ? undefined : value === null || value === '' ? null : String(value), z.string().nullable().optional()), openedAt: z.string().datetime().optional(), executedAt: z.preprocess((value) => value == null ? undefined : String(value), z.string().datetime().optional()), result: optionalText(255), notes: optionalText(5000) }).safeParse(request.body);

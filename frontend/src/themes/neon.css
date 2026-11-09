@@ -849,6 +849,15 @@
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .call-confirmation small {
     color: #387761
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .end-date-actions .primary-button, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .end-date-actions .secondary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .end-date-feedback {
+    color: #167a57
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .end-date-feedback.is-error {
+    color: #b3261e
+}
 /* light · imports.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .import-stats {
     color: #646780
@@ -4573,6 +4582,15 @@
 }
 :where(:root[data-palette="neon"][data-theme="dark"]) .call-confirmation small {
     color: #95a79f
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .end-date-actions .primary-button, :where(:root[data-palette="neon"][data-theme="dark"]) .end-date-actions .secondary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .end-date-feedback {
+    color: #74cca5
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .end-date-feedback.is-error {
+    color: #ff8b7b
 }
 /* dark · imports.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .import-stats {

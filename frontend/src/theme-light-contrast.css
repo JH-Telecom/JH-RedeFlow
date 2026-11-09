@@ -503,6 +503,12 @@
 :where(:root:not([data-theme="dark"])) .call-confirmation small {
     color: #387761
 }
+:where(:root:not([data-theme="dark"])) .end-date-feedback {
+    color: #167a57
+}
+:where(:root:not([data-theme="dark"])) .end-date-feedback.is-error {
+    color: #b3261e
+}
 
 /* imports.css */
 :where(:root:not([data-theme="dark"])) .import-stats {

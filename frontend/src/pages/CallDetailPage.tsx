@@ -241,10 +241,9 @@ export function CallDetailBase() {
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
             {call.cluster && <DetailItem label="Cluster (OFS)" value={({ C08: "C.8 São Paulo", C09: "C.9 ABC", C11: "C.11 Alto Tietê", C12: "C.12 Guarulhos" } as Record<string, string>)[call.cluster] || call.cluster} />}
             {call.atrelada && <LinkedOrderItem order={call.atrelada} />}
-            <DetailItem label="Data Fim" value={call.executedAt
-              // Chamado ainda aberto aqui, mas concluido no OFS: mostra a Data Fim que veio do OFS.
-              ? `${new Date(call.executedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}${["Finalizado", "Cancelado", "Baixar"].includes(call.status) ? "" : " (OFS)"}`
-              : "Não informada"} />
+            {call.executedAt || ["Finalizado", "Cancelado", "Baixar"].includes(call.status)
+              ? <EndDateItem key={call.id} call={call} onSaved={setCall} />
+              : <DetailItem label="Data Fim" value="Não informada" />}
             {/* Fechamento lido do formulario "Fechamento" do OFS pelo Coletor OFS. */}
             {(call.closingReason || call.closingSubreason || call.cableType) && <>
               <DetailItem label="Motivo de fechamento (OFS)" value={call.closingReason || "Não informado"} />
@@ -603,5 +602,40 @@ function RepeatBanner({ callId }: { callId: string }) {
         </ul>
       )}
     </section>
+  );
+}
+
+// Data Fim editavel, inclusive com o chamado encerrado (nao precisa reabrir). Salva sozinha, separada do
+// "Salvar alteracoes"; depois de corrigida aqui, a sincronizacao do OFS nao sobrescreve mais.
+function EndDateItem({ call, onSaved }: { call: Call; onSaved: (call: Call) => void }) {
+  const initial = call.executedAt ? toLocalDateTimeInput(call.executedAt) : "";
+  const [value, setValue] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
+  const dirty = Boolean(value) && value !== initial;
+  const fromOfs = Boolean(call.executedAt) && !["Finalizado", "Cancelado", "Baixar"].includes(call.status);
+  async function save() {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const data = await api.updateCallEndDate(call.id, value);
+      setFeedback({ text: "Data Fim corrigida. O OFS não vai mais sobrescrever.", error: false });
+      onSaved(data.call);
+    } catch (err) {
+      setFeedback({ text: err instanceof Error ? err.message : "Não foi possível salvar a Data Fim.", error: true });
+    } finally { setSaving(false); }
+  }
+  return (
+    <div className="detail-item editable-detail-item end-date-item">
+      <label htmlFor="call-end-date"><span>Data Fim{fromOfs ? " (OFS)" : ""}</span></label>
+      <input id="call-end-date" type="datetime-local" value={value} max={toLocalDateTimeInput(new Date().toISOString())} onChange={(event) => { setValue(event.target.value); setFeedback(null); }} />
+      {dirty && (
+        <div className="end-date-actions">
+          <button className="primary-button compact" type="button" onClick={() => void save()} disabled={saving}>{saving ? "Salvando..." : "Salvar Data Fim"}</button>
+          <button className="secondary-button compact" type="button" onClick={() => { setValue(initial); setFeedback(null); }} disabled={saving}>Desfazer</button>
+        </div>
+      )}
+      {feedback && <small className={feedback.error ? "end-date-feedback is-error" : "end-date-feedback"} role={feedback.error ? "alert" : "status"}>{feedback.text}</small>}
+    </div>
   );
 }

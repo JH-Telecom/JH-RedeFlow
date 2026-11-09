@@ -4862,3 +4862,33 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Política de Privacidade**: o Google Fonts entrou na lista de fornecedores. Ele recebe o IP de quem abre o sistema para entregar as fontes, sem cookies.
 - **Validação**: typecheck e build sem erros. Contraste OK em `/licencas`, `/termos` e `/perfil`, no claro e no escuro. O aviso no menu cabe sem rolagem.
 - Ajuste (2026-11-09): o aviso © saiu do menu lateral, que ficava poluído. Agora é uma linha discreta e centralizada no fim de cada página do sistema (inclusive Meu perfil), com os links Privacidade, Termos e Licenças. No login e nas páginas legais continua como antes. Contraste OK em `/perfil`, `/` e `/relatorios`, no claro e no escuro.
+
+## Corrigir a Data Fim do chamado (2026-11-09)
+
+### Problema
+- A Data Fim só podia ser lida na tela do chamado.
+- Com o chamado encerrado (Finalizado, Baixar ou Cancelado), o sistema só deixa trocar o status. Para corrigir a data, era preciso reabrir o chamado.
+- A sincronização do OFS reescrevia a Data Fim a cada coleta. Uma correção manual seria desfeita.
+
+### Correção
+- **Tela do chamado**
+  - O campo Data Fim virou editável, inclusive com o chamado encerrado.
+  - Ao mudar a data, aparecem "Salvar Data Fim" e "Desfazer". Essa data é salva sozinha, separada do "Salvar alterações", e o chamado não é reaberto.
+- **Novo endpoint `PUT /api/chamados/:id/data-fim`**
+  - Exige a permissão de editar chamados.
+  - Recebe o horário de São Paulo.
+  - Recusa data antes da abertura ou no futuro.
+  - Fica no histórico como "Data de finalização alterado".
+- **Sincronização do OFS**
+  - Se uma pessoa corrigiu a Data Fim pela tela, o OFS não sobrescreve mais essa data. Os outros campos do OFS continuam atualizando normalmente.
+  - Finalizar pelo sistema não trava a data: o OFS continua ajustando, como antes.
+  - Funciona pelo histórico de alterações, sem mudar tabelas.
+
+### Validação
+- Teste unitário: com a Data Fim corrigida à mão, o OFS mantém a correção. Sem correção, o OFS segue atualizando.
+- Teste HTTP:
+  - chamado em Baixar corrigido sem reabrir;
+  - o PATCH normal continua recusando (409);
+  - data antes da abertura e data no futuro são recusadas (422).
+- Suíte 207/207.
+- Preview: correção salva com confirmação, data antes da abertura recusada com mensagem, contraste OK no tema claro e no escuro.

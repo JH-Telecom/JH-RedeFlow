@@ -861,6 +861,15 @@
 :where(:root[data-theme="dark"]) .call-confirmation small {
     color: #95a79f
 }
+:where(:root[data-theme="dark"]) .end-date-actions .primary-button, :where(:root[data-theme="dark"]) .end-date-actions .secondary-button {
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .end-date-feedback {
+    color: #74cca5
+}
+:where(:root[data-theme="dark"]) .end-date-feedback.is-error {
+    color: #ff8b7b
+}
 
 /* imports.css */
 :where(:root[data-theme="dark"]) .import-stats {

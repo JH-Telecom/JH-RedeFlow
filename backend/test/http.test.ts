@@ -1430,3 +1430,39 @@ test('a signed-in user downloads only their own personal data (LGPD access reque
   const raw = JSON.stringify(data);
   assert.doesNotMatch(raw, /password|hash/i);
 });
+
+test('the end date of a closed call can be corrected without reopening it', async () => {
+  const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }),
+  });
+  const session = await loginResponse.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  const list = await (await fetch(`${baseUrl}/api/chamados?pageSize=1`, { headers })).json() as { calls: { id: string; openedAt: string }[] };
+  const target = list.calls[0];
+  assert.ok(target);
+
+  const close = await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ status: 'Baixar' }) });
+  assert.equal(close.status, 200);
+  // O PATCH normal continua recusando editar chamado encerrado.
+  const blocked = await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ executedAt: new Date().toISOString() }) });
+  assert.equal(blocked.status, 409);
+
+  const opened = new Date(target.openedAt);
+  const local = (date: Date) => new Date(date.getTime() - 3 * 3_600_000).toISOString().slice(0, 16); // horario de Sao Paulo
+  const wanted = new Date(opened.getTime() + 2 * 3_600_000);
+  const fixed = await fetch(`${baseUrl}/api/chamados/${target.id}/data-fim`, { method: 'PUT', headers, body: JSON.stringify({ executedAt: local(wanted) }) });
+  assert.equal(fixed.status, 200);
+  const body = await fixed.json() as { call: { status: string; executedAt: string } };
+  assert.equal(body.call.status, 'Baixar');
+  assert.equal(Date.parse(body.call.executedAt), Math.floor(wanted.getTime() / 60_000) * 60_000);
+
+  const beforeOpening = await fetch(`${baseUrl}/api/chamados/${target.id}/data-fim`, { method: 'PUT', headers, body: JSON.stringify({ executedAt: local(new Date(opened.getTime() - 3_600_000)) }) });
+  assert.equal(beforeOpening.status, 422);
+  const future = await fetch(`${baseUrl}/api/chamados/${target.id}/data-fim`, { method: 'PUT', headers, body: JSON.stringify({ executedAt: local(new Date(Date.now() + 86_400_000)) }) });
+  assert.equal(future.status, 422);
+
+  const logs = await (await fetch(`${baseUrl}/api/chamados/${target.id}/logs`, { headers })).json() as { logs?: { field: string; action: string }[] };
+  if (logs.logs) assert.ok(logs.logs.some((log) => log.field === 'executedAt' && log.action === 'Data de finalizacao alterado'));
+});

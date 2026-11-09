@@ -6,6 +6,7 @@ import type { Call, ImportRecord, ManualDailyBase, ManualProductionData, User } 
 import { listCalls, updateCall } from "./calls.js";
 import { d0BaseRows, imports, manualDailyBases } from "./demo-data.js";
 import { captureUnknownOltRequests } from "./settings.js";
+import { callsWithManualEndDate } from './observations.js';
 
 export async function listImports(): Promise<ImportRecord[]> {
   return [...imports.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -71,6 +72,9 @@ export async function applyOfsRowsToCalls(rows: D0Row[], actorName: string): Pro
     if (match) Object.assign(match.fields, fields);
     else matches.push({ callId, fields });
   }
+  // Data Fim corrigida a mao na tela do chamado: o OFS nao sobrescreve.
+  const manualEndDates = await callsWithManualEndDate(matches.filter((match) => 'executedAt' in match.fields).map((match) => match.callId));
+  for (const match of matches) if (manualEndDates.has(match.callId)) delete (match.fields as { executedAt?: unknown }).executedAt;
   const callsById = new Map(currentCalls.map((call) => [call.id, call]));
   const actor: User = { id: 'system-d0-import', name: actorName, email: 'system-d0@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date().toISOString() };
   let updatedCalls = 0;
