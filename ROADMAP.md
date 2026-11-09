@@ -5050,3 +5050,26 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - O botão "Enviar informativo de teste" manda só no grupo de teste `120363422003961917@g.us` (pode ser trocado por `WUZAPI_INFORMATIVO_TEST_CHAT`).
   - Os informativos de verdade continuam indo para o grupo do Casa Cliente.
   - Esse grupo também recebe cards, mas o teste não vira acionamento: o webhook ignora mensagens de informativo.
+
+## Extensão 1.4.0: correção dos Clusters + identificador no WhatsApp Web (2026-11-09)
+- **Erro dos Clusters**:
+  - Sintoma: "Não achei o seletor de data do OFS (a aba fixada não está no Console de Alocação)" nos 4 baldes.
+  - Causa: a leitura de fechamentos usa a mesma aba fixada e deixa a aba aberta numa atividade. O link "Console de Alocação" era procurado pelo texto exato e a barra de data não aparecia a tempo.
+  - Correção 1: antes de cada coleta de clusters, a aba fixada volta para a tela inicial do OFS (que abre o Console) e espera o OFS responder.
+  - Correção 2: o link do Console é procurado sem acento e por "contém".
+  - Correção 3: a espera pela barra de data ficou maior, e o erro agora diz em que tela a aba estava.
+- **Extensão JH Agendamentos 2.1.1 (analisada, não instalada)**: o módulo de WhatsApp dela (painel do cliente, mensagens agendadas, respostas rápidas) é ligado ao JH Agendamentos.
+  - Da extensão vieram a técnica de escrever na caixa do WhatsApp Web ("colar" para manter as quebras de linha e depois clicar em Enviar) e a função "Conversar sem salvar o contato".
+- **Identificador** (`extensao-rede/whatsapp-identificador.js`, content script em `web.whatsapp.com`):
+  - os mesários usam o mesmo número; no Chrome de cada um, a mensagem enviada (Enter ou botão Enviar) ganha `*Nome Sobrenome:*` + quebra de linha no começo;
+  - o nome vem do login da extensão ou do campo "Nome que aparece";
+  - pode valer em todas as conversas ou só em grupos;
+  - cola só o identificador, sem mexer no resto (menções e formatação ficam);
+  - não identifica cards de acionamento, informativos nem mensagens que já começam com o nome;
+  - nada é enviado sozinho, só quando a pessoa envia.
+- **Popup**: novo bloco "WhatsApp Web" (ligar/desligar, nome, onde, conversar sem salvar o contato).
+- **Manifest**: versão 1.4.0 e permissão `https://web.whatsapp.com/*`. Ao atualizar, o Chrome pede a nova permissão.
+- **Validação**:
+  - sintaxe dos arquivos conferida;
+  - teste do identificador numa página que imita a caixa do WhatsApp Web: mensagem comum saiu com o nome (Enter e botão), mensagem já identificada e card não foram alterados;
+  - não testado no WhatsApp Web real nem no OFS real (depende das contas do usuário).

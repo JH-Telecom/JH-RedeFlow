@@ -27,6 +27,27 @@ Extensão do Chrome da Rede, separada da extensão do JH Agendamentos. Ela expor
   Só lê: nada é alterado no OFS. São até 12 atividades por ciclo, e a mesma ordem só é tentada de novo depois de 1 h.
   A exportação nunca usa essa aba fixada.
 
+## WhatsApp Web: identificador de quem enviou (v1.4)
+
+Os mesários usam o mesmo número de WhatsApp. Com a extensão no Chrome de cada um, toda mensagem enviada no WhatsApp
+Web sai com o nome de quem mandou no começo, sem ninguém precisar digitar:
+
+```
+*Matheus Terra:*
+Técnico a caminho da CTO.
+```
+
+- **Nome**: o do login no popup (nome e sobrenome) ou um nome escrito em **WhatsApp Web → Nome que aparece**. Quem não tem a
+  permissão de Importações (não consegue entrar) escreve o nome ali.
+- **Onde**: todas as conversas (padrão) ou só em grupos.
+- **Como funciona**: ao apertar Enter ou o botão Enviar, a extensão cola só o identificador no começo da caixa de texto. O resto
+  da mensagem, as menções (@) e a formatação continuam iguais. Depois a mensagem é enviada.
+- **Mensagens que não recebem o nome**: cards de acionamento e informativos (o RedeFlow lê esses textos) e mensagens que já
+  começam com o identificador.
+- **Conversar sem salvar o contato**: no popup, digite o número com DDD e clique em **Abrir**. A ideia veio da extensão
+  JH Agendamentos 2.1.1.
+- Depois de atualizar a extensão, recarregue a aba do WhatsApp Web.
+
 ## Instalação
 
 1. Publicar o pacote (`extensao-rede`, compactado com `manifest.json` na raiz) na Chrome Web Store, ou, para teste,

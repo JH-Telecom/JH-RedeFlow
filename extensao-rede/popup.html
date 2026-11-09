@@ -106,6 +106,28 @@
     <div id="configStatus" class="hint"></div>
   </section>
 
+  <section class="card" id="cardWhatsapp">
+    <h2>WhatsApp Web</h2>
+    <p class="hint">Quem usa o mesmo número: cada mensagem enviada por este Chrome sai com o seu nome no começo (ex.: <b>*Matheus Terra:*</b>). Não precisa digitar nada.</p>
+    <label class="interruptor"><input id="waAtivo" type="checkbox"> Identificar minhas mensagens</label>
+    <label>Nome que aparece
+      <input id="waNome" type="text" maxlength="40" placeholder="em branco = nome do login">
+    </label>
+    <label>Onde
+      <select id="waEscopo">
+        <option value="todas">Todas as conversas</option>
+        <option value="grupos">Só em grupos</option>
+      </select>
+    </label>
+    <button id="waSalvar" type="button">Salvar</button>
+    <div id="waStatus" class="hint"></div>
+    <hr>
+    <label>Conversar sem salvar o contato
+      <div class="linha"><input id="waNumero" type="tel" placeholder="(11) 99999-9999"><button id="waAbrir" type="button">Abrir</button></div>
+    </label>
+    <div id="waNumeroStatus" class="hint"></div>
+  </section>
+
   <section class="card">
     <h2>Envio manual</h2>
     <p class="hint">Se o automático falhar: exporte no OFS (Ações → Exportar), escolha o dia do arquivo e selecione o CSV.</p>

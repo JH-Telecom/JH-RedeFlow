@@ -192,3 +192,32 @@ chrome.storage.onChanged.addListener((mudancas, area) => {
   if (area === "local" && mudancas.sessao) carregarConta();
 });
 carregar();
+
+// ---------- WhatsApp Web: identificador do mesario e conversa sem contato ----------
+async function carregarWhatsapp() {
+  const { waIdentificador, sessao } = await chrome.storage.local.get(["waIdentificador", "sessao"]);
+  const cfg = { ativo: true, nome: "", escopo: "todas", ...(waIdentificador || {}) };
+  $("waAtivo").checked = cfg.ativo !== false;
+  $("waNome").value = cfg.nome || "";
+  $("waNome").placeholder = sessao?.nome ? `em branco = ${sessao.nome.split(/\s+/).slice(0, 2).join(" ")}` : "em branco = nome do login";
+  $("waEscopo").value = cfg.escopo === "grupos" ? "grupos" : "todas";
+}
+$("waSalvar").onclick = async () => {
+  const cfg = { ativo: $("waAtivo").checked, nome: $("waNome").value.trim().slice(0, 40), escopo: $("waEscopo").value };
+  await chrome.storage.local.set({ waIdentificador: cfg });
+  const { sessao } = await chrome.storage.local.get("sessao");
+  const nome = cfg.nome || (sessao?.nome || "").split(/\s+/).slice(0, 2).join(" ");
+  $("waStatus").textContent = !cfg.ativo ? "Identificador desligado." : nome ? `✓ Suas mensagens vão sair como *${nome}:*. Recarregue o WhatsApp Web se ele já estava aberto.` : "Entre com seu usuário ou escreva um nome.";
+  $("waStatus").className = `hint ${cfg.ativo && nome ? "ok" : ""}`;
+};
+$("waAbrir").onclick = async () => {
+  let numero = $("waNumero").value.replace(/\D/g, "");
+  if (numero.length === 10 || numero.length === 11) numero = `55${numero}`;
+  if (numero.length < 12) { $("waNumeroStatus").textContent = "Digite o número com DDD."; $("waNumeroStatus").className = "hint erro"; return; }
+  const url = `https://web.whatsapp.com/send?phone=${numero}`;
+  const [aba] = await chrome.tabs.query({ url: "https://web.whatsapp.com/*" });
+  if (aba) { await chrome.tabs.update(aba.id, { url, active: true }); await chrome.windows.update(aba.windowId, { focused: true }); }
+  else await chrome.tabs.create({ url });
+  $("waNumeroStatus").textContent = "";
+};
+carregarWhatsapp();

@@ -151,6 +151,8 @@ function acaoNaPagina({ alvo, alocacaoId, exportar, abrirConsole }) {
   const MESES = { janeiro: 0, fevereiro: 1, marco: 2, abril: 3, maio: 4, junho: 5, julho: 6, agosto: 7, setembro: 8, outubro: 9, novembro: 10, dezembro: 11 };
   const semAcento = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   // "Sábado, Outubro 10º, 2026" → 2026-10-10
+  const ehConsole = (el) => semAcento((el.textContent || "").replace(/\s+/g, " ").trim()).includes("console de alocacao");
+  const linkConsole = () => Array.from(document.querySelectorAll('a, button, [role="link"], [role="menuitem"], [role="treeitem"], li')).find(ehConsole);
   const lerData = (texto) => {
     const m = String(texto || "").match(/,\s*([A-Za-zÀ-ÿ]+)\s+(\d{1,2})[ºª]?\s*,\s*(\d{4})/);
     const mes = m ? MESES[semAcento(m[1])] : undefined;
@@ -163,10 +165,11 @@ function acaoNaPagina({ alvo, alocacaoId, exportar, abrirConsole }) {
     const esperarBotao = async (ms) => { for (let i = 0; i < ms / 500 && !document.querySelector(seletor); i += 1) await esperar(500); return document.querySelector(seletor); };
     let botao = await esperarBotao(20_000);
     if (!botao) {
-      const link = Array.from(document.querySelectorAll('a, button, [role="link"], [role="menuitem"]')).find((el) => (el.textContent || "").trim() === "Console de Alocação");
-      if (link) { link.click(); botao = await esperarBotao(20_000); }
+      const link = linkConsole();
+      if (link) { link.click(); botao = await esperarBotao(25_000); }
     }
-    if (!botao) return { erro: "Não achei o seletor de data do OFS (a aba fixada não está no Console de Alocação)" };
+    // Diz em que tela a aba estava, para dar para entender o erro no painel Integração OFS.
+    if (!botao) return { erro: `Não achei o seletor de data do OFS (tela atual: "${(document.title || "sem título").slice(0, 60)}")` };
     const texto = () => (botao.getAttribute("title") || botao.textContent || "").trim();
     let atual = lerData(texto());
     if (!atual) return { erro: `Não consegui ler a data exibida no OFS ("${texto()}")` };
@@ -190,7 +193,7 @@ function acaoNaPagina({ alvo, alocacaoId, exportar, abrirConsole }) {
   async function fluxo() {
     // Aba fixada (clusters/fechamentos) pode estar numa atividade: volta para o Console de Alocacao.
     if (abrirConsole && !document.querySelector(".edt-item")) {
-      const link = Array.from(document.querySelectorAll('a, button, [role="link"], [role="menuitem"]')).find((el) => (el.textContent || "").trim() === "Console de Alocação");
+      const link = linkConsole();
       if (!link) return { ok: false, erro: "Não achei o Console de Alocação na aba fixada do OFS" };
       link.click();
       for (let i = 0; i < 40 && !document.querySelector(".edt-item"); i += 1) await esperar(500);
@@ -385,6 +388,14 @@ async function esperarOfs(tabId, ms) {
   return estado;
 }
 
+// A leitura de fechamentos deixa a aba fixada aberta numa atividade. Para exportar os clusters ela precisa estar no
+// Console de Alocacao: recarrega a tela inicial do OFS (que abre o Console) e espera o OFS responder.
+async function abaFixadaNoInicio(tabId) {
+  try { await chrome.tabs.update(tabId, { url: OFS_ORIGEM, autoDiscardable: false }); } catch (_) { return false; }
+  await new Promise((r) => setTimeout(r, 3000));
+  return ofsPronto(tabId);
+}
+
 // Aba fixada pronta? O Chrome "dorme" abas fixadas em segundo plano (Economia de memoria) e o OFS para de responder:
 // impede o descarte, acorda a aba se estiver dormindo e, se nao responder, recarrega uma vez antes de desistir.
 let motivoAbaFixada = "";
@@ -516,6 +527,8 @@ async function coletarClusters(automatico) {
   await chrome.storage.local.set({ fechRodando: Date.now() + 10 * 60_000 });
   const resultados = [];
   try {
+    const aba = await abaDeFechamento();
+    if (!(await abaFixadaNoInicio(aba.id))) return registrarClusters({ ok: false, erro: motivoAbaFixada });
     for (const cluster of CLUSTERS) {
       if (!(await esperarCapturaLivre(120_000))) { resultados.push({ balde: cluster.nome, ok: false, erro: "Outra exportação não terminou" }); continue; }
       await chrome.storage.local.remove("ultimoClusterEnvio");
