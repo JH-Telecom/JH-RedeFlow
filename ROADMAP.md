@@ -5105,3 +5105,7 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - tema escuro automático, que segue o tema do sistema.
 - Todos os campos e botões anteriores continuam, com os mesmos IDs, e o popup.js funciona igual.
 - **Prévia no navegador** com dados de exemplo, no claro e no escuro: abas, conta logada, resumo da coleta e aba WhatsApp conferidos. A versão aparecia "vv1.6.0" e foi corrigida.
+- Extensão 1.6.1, temas do WhatsApp (2026-11-09):
+  - Os temas da extensão JH Telecom 2.1.1 já tinham vindo inteiros na 1.6.0 (`whatsapp/temas.js` idêntico ao original), com a tela de carregamento nas cores do tema. Ficam em **JH → Temas** no WhatsApp Web.
+  - Temas disponíveis: WhatsApp Claro e Escuro, JH Azul, Ardósia, Neon Escuro, Névoa Roxa, Aurora, Flor, e "Criar tema"/"Personalizar" com cores e imagem de fundo.
+  - Novo atalho no popup: aba WhatsApp → **Escolher tema do WhatsApp**. Traz a aba do WhatsApp para a frente e abre a janela de temas; se o WhatsApp não estiver aberto, abre.

@@ -105,4 +105,11 @@
     if (!botao || !(evento.target === botao || botao.contains(evento.target))) return;
     identificarEEnviar(evento);
   }, true);
+  // Popup -> "Escolher tema do WhatsApp": abre a janela de temas (temas.js roda neste mesmo mundo da extensao).
+  chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
+    if (msg?.tipo !== "waAbrirTemas") return;
+    const temas = window.jhTemas;
+    if (temas?.abrir) { temas.abrir(); responder({ ok: true, atual: temas.atual() }); }
+    else responder({ ok: false });
+  });
 })();

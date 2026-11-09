@@ -245,3 +245,20 @@ async function atualizarPrevia() {
 }
 $("waNome").addEventListener("input", atualizarPrevia);
 atualizarPrevia();
+
+// Abre a janela de temas dentro do WhatsApp Web (abre o WhatsApp se ainda nao estiver aberto).
+$("waTemas").onclick = async () => {
+  const status = $("waTemasStatus");
+  const [aba] = await chrome.tabs.query({ url: "https://web.whatsapp.com/*" });
+  if (!aba) { await chrome.tabs.create({ url: "https://web.whatsapp.com/" }); status.textContent = "Abri o WhatsApp Web. Quando carregar, clique de novo para escolher o tema."; status.className = "hint"; return; }
+  await chrome.tabs.update(aba.id, { active: true });
+  await chrome.windows.update(aba.windowId, { focused: true });
+  try {
+    const resposta = await chrome.tabs.sendMessage(aba.id, { tipo: "waAbrirTemas" });
+    status.textContent = resposta?.ok ? `Janela de temas aberta no WhatsApp (tema atual: ${resposta.atual}).` : "O WhatsApp ainda está carregando. Tente de novo em instantes.";
+    status.className = `hint ${resposta?.ok ? "ok" : ""}`;
+  } catch (_) {
+    status.textContent = "Recarregue a aba do WhatsApp Web (a extensão foi atualizada) e tente de novo.";
+    status.className = "hint erro";
+  }
+};
