@@ -1,6 +1,7 @@
 import { TechnicianUserLink } from "../components/FieldAdmin";
 import { useEffect, useState } from "react";
-import { ChevronRight, Pencil, Search, SlidersHorizontal, Users } from "lucide-react";
+import { ChevronRight, Copy, Pencil, Search, SlidersHorizontal, Users } from "lucide-react";
+import { shareReportImage, slugFileName, type ReportCell, type ReportColumn, type ReportTone } from "../lib/report-image";
 import { api, type Technician, type Supervisor } from "../api";
 import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal, DetailItem, Metric } from "../components/ui";
@@ -69,6 +70,54 @@ export function TechniciansPage() {
   const regions = [...new Set(technicians.map((technician) => technician.region))];
   const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (roleFilter === "Todos" || technician.teamRole === roleFilter) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
   const pagedTechnicians = usePaged(visibleTechnicians, visibleTechnicians.length);
+  // Imagem da equipe (para mandar a atualizacao no WhatsApp): todos os da lista com os filtros atuais, ate 100.
+  const [copyState, setCopyState] = useState<"idle" | "working" | "copied" | "downloaded" | "error">("idle");
+  async function copyTeamImage() {
+    setCopyState("working");
+    const situationTone = (value: Technician["currentStatus"]): ReportTone => (value === "Disponivel" ? "green" : value === "Em campo" ? "blue" : "red");
+    const list = visibleTechnicians.slice(0, 100);
+    const helpersOf = (id: string) => technicians.filter((item) => item.teamRole === "Auxiliar" && item.leadTechnicianId === id).map((item) => item.name);
+    const columns: ReportColumn[] = [
+      { label: "Técnico", width: 330 },
+      { label: "Tipo", width: 120 },
+      { label: "Supervisor", width: 190 },
+      { label: "Turno", width: 150 },
+      { label: "Situação", width: 160 },
+      { label: "Status", width: 120 },
+    ];
+    const rows: ReportCell[][] = list.map((technician) => {
+      const helpers = technician.teamRole === "Tecnico" ? helpersOf(technician.id) : [];
+      const lead = technician.teamRole === "Auxiliar" ? technician.leadTechnicianName : undefined;
+      return [
+        { text: technician.name, strong: true, sub: helpers.length ? `Auxiliar: ${helpers.join(", ")}` : lead ? `Com ${lead}` : undefined },
+        { text: technician.teamRole === "Auxiliar" ? "Auxiliar" : "Técnico", tone: "muted" },
+        { text: technician.supervisorName || "Sem supervisor" },
+        { text: technician.shift || "A definir" },
+        { text: technician.currentStatus, tone: situationTone(technician.currentStatus) },
+        { text: technician.active ? "Ativo" : "Inativo", tone: technician.active ? "green" : "gray" },
+      ];
+    });
+    const filtered = Boolean(query.trim()) || roleFilter !== "Todos" || statusFilter !== "Todos" || regionFilter !== "Todas";
+    const stamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
+    const available = list.filter((item) => item.currentStatus === "Disponivel").length;
+    const inField = list.filter((item) => item.currentStatus === "Em campo").length;
+    const title = roleFilter === "Auxiliar" ? "Auxiliares" : roleFilter === "Tecnico" ? "Técnicos" : "Técnicos e auxiliares";
+    try {
+      const copied = await shareReportImage({
+        kicker: "JH Telecom · Rede",
+        title,
+        subtitle: `${available} disponíveis · ${inField} em campo${filtered ? " · com os filtros atuais" : ""} · ${stamp}`,
+        badge: `${list.length} ${list.length === 1 ? "pessoa" : "pessoas"}`,
+        columns,
+        rows,
+        empty: "Ninguém na lista com os filtros atuais.",
+      }, `${slugFileName(title)}-${new Date().toISOString().slice(0, 10)}.png`);
+      setCopyState(copied ? "copied" : "downloaded");
+    } catch {
+      setCopyState("error");
+    }
+    window.setTimeout(() => setCopyState("idle"), 2200);
+  }
   async function changeStatus(technician: Technician, currentStatus: Technician["currentStatus"]) {
     try { const result = await api.updateTechnician(technician.id, { currentStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar status."); }
   }
@@ -90,9 +139,14 @@ export function TechniciansPage() {
           <h1>Tecnicos</h1>
           <p>Consulte disponibilidade, escala e supervisor de cada tecnico.</p>
         </div>
-        <button className="primary-button compact" onClick={() => setShowForm(true)}>
-          <Users size={16} /> Novo tecnico
-        </button>
+        <div className="cq-heading-actions">
+          <button className="secondary-button compact" type="button" onClick={() => void copyTeamImage()} disabled={copyState === "working"} title="Copia a lista (com os filtros atuais) como imagem, para mandar no WhatsApp">
+            <Copy size={15} aria-hidden="true" /> {copyState === "working" ? "Gerando..." : copyState === "copied" ? "Imagem copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao gerar" : "Copiar imagem"}
+          </button>
+          <button className="primary-button compact" onClick={() => setShowForm(true)}>
+            <Users size={16} /> Novo tecnico
+          </button>
+        </div>
       </div>
       <div className="metric-grid team-metrics">
         <Metric

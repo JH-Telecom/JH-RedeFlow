@@ -4975,3 +4975,12 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - "Copiar imagem" da fila passou a usar o mesmo endpoint: 1 chamada em vez de até 100.
   - Teste HTTP: a última observação vence a anterior e mais de 100 ids são recusados.
   - Preview: depois de salvar e recarregar, a linha mostra "Administrador JH: matheus amassou".
+
+## Técnicos: "Copiar imagem" (2026-11-09)
+- Novo botão "Copiar imagem" na tela Técnicos, ao lado de "Novo técnico". Gera a lista como imagem, no mesmo modelo da fila, para mandar a atualização da equipe no WhatsApp. Copia para a área de transferência ou, sem permissão, baixa o PNG.
+- **Conteúdo da imagem**:
+  - todos os nomes da lista com os filtros atuais (busca, tipo, situação e região), até 100;
+  - colunas Técnico, Tipo, Supervisor, Turno, Situação (Disponível em verde, Em campo em azul, Indisponível em vermelho) e Status;
+  - embaixo do nome do técnico vão os auxiliares dele; embaixo do auxiliar, o técnico com quem trabalha;
+  - título conforme o filtro de tipo e subtítulo com disponíveis, em campo e data e hora.
+- Preview: a imagem "tecnicos-e-auxiliares-2026-11-09.png" foi gerada (3354×1704) sem erro.
