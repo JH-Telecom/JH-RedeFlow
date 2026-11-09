@@ -3,7 +3,10 @@ import type { ActivationAnalysis } from './types.js';
 
 // Informativo de acionamento para o setor Casa Cliente (porte do script da planilha). Quando chega um card de uma
 // OLT desta lista, o sistema manda um resumo no grupo do Casa Cliente com um link so de leitura para acompanhar.
-export const OLT_NOTICE_DEFAULT_CHAT = '120363422003961917@g.us';
+// Grupo do Casa Cliente (pedido do usuario em 09/11/2026). WUZAPI_INFORMATIVO_CHAT no Render, se existir, tem prioridade.
+export const OLT_NOTICE_DEFAULT_CHAT = '120363216252480324@g.us';
+// Grupo de TESTE: o botao "Enviar informativo de teste" (Integracao OFS) manda so aqui. WUZAPI_INFORMATIVO_TEST_CHAT tem prioridade.
+export const OLT_NOTICE_TEST_CHAT = '120363422003961917@g.us';
 export const OLT_NOTICE_OLTS = [
   'VIP-CT1-SPO-OHW-01', 'VIP-CT1-SPO-OHW-03', 'VIP-CT2-SPO-OHW-01', 'VIP-CT2-SPO-OHW-02', 'VIP-CT3-SPO-OHW-01',
   'VIP-GZ1-SPO-BNG-01', 'VIP-GZ1-SPO-OHW-01', 'VIP-GZ1-SPO-OHW-02', 'VIP-GZ1-SPO-OHW-03',
@@ -56,7 +59,10 @@ export function extractNoticeAddresses(text: string) {
     .join('\n');
 }
 
-export function buildOltNotice(analysis: Partial<ActivationAnalysis>, originalMessage: string, link: string) {
+// link vazio = mensagem com botao (o link vai no botao "Acompanhar chamado", nao no texto).
+export const OLT_NOTICE_BUTTON_TITLE = 'Acompanhar chamado';
+export const OLT_NOTICE_FOOTER = 'Somente leitura · o link vale até 7 dias depois do encerramento';
+export function buildOltNotice(analysis: Partial<ActivationAnalysis>, originalMessage: string, link = '') {
   const slotPons = extractAllSlotPons(originalMessage);
   const slotPonText = slotPons.length ? slotPons.join(', ') : analysis.placa_pon || (analysis.slot_pon || []).join(', ') || '-';
   const affected = Number(String(analysis.afetados ?? '').replace(/\D/g, ''));
@@ -74,9 +80,7 @@ export function buildOltNotice(analysis: Partial<ActivationAnalysis>, originalMe
     '',
     '*Endereços:*',
     extractNoticeAddresses(originalMessage) || '-',
-    '',
-    '🔎 *Acompanhar o chamado (só leitura):*',
-    link,
+    ...(link ? ['', '🔎 *Acompanhar o chamado (só leitura):*', link] : []),
   ].join('\n');
 }
 

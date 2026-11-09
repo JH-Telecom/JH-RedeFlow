@@ -55,3 +55,44 @@ test('read-only link: token opens only its activation and the link expires 7 day
   assert.equal(publicViewExpired({ receivedAt: '2026-11-10T12:00:00.000Z', closedAt: '2026-11-12T12:00:00.000Z' }, now), true);
   assert.equal(publicViewExpired({ receivedAt: '2026-09-01T12:00:00.000Z', closedAt: null }, now), true);
 });
+
+test('notice delivery: button first (cta_url with the link), plain text with the link when the button is refused', async () => {
+  const { createServer } = await import('node:http');
+  const { deliverOltNotice } = await import('../src/olt-notice-delivery.js');
+  const received: { path: string; body: Record<string, unknown> }[] = [];
+  let refuseButtons = false;
+  const server = createServer((request, response) => {
+    let raw = '';
+    request.on('data', (chunk) => { raw += chunk; });
+    request.on('end', () => {
+      received.push({ path: request.url || '', body: JSON.parse(raw || '{}') });
+      const refuse = refuseButtons && request.url === '/chat/send/buttons';
+      response.writeHead(refuse ? 500 : 200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify(refuse ? { success: false, error: 'nope' } : { success: true, data: { Id: 'x' } }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as { port: number }).port;
+  const config = { url: `http://127.0.0.1:${port}`, token: 't', chat: 'grupo@g.us' };
+  const analysis = { tipo_card: 'NOC ACESSO', olt: 'VIP-GZ1-SPO-OHW-02', afetados: 9 };
+  try {
+    assert.equal(await deliverOltNotice(config, analysis, card, 'https://app/consulta/abc', {}), 'botao');
+    const sent = received.at(-1)!;
+    assert.equal(sent.path, '/chat/send/buttons');
+    assert.equal(sent.body.Phone, 'grupo@g.us');
+    assert.doesNotMatch(String(sent.body.Body), /consulta\/abc/);
+    assert.deepEqual(sent.body.Buttons, [{ type: 'cta_url', title: 'Acompanhar chamado', id: 'acompanhar_chamado', url: 'https://app/consulta/abc' }]);
+
+    refuseButtons = true;
+    assert.equal(await deliverOltNotice(config, analysis, card, 'https://app/consulta/abc', {}), 'texto');
+    assert.equal(received.at(-1)!.path, '/chat/send/text');
+    assert.match(String(received.at(-1)!.body.Body), /consulta\/abc$/);
+
+    refuseButtons = false;
+    const before = received.length;
+    assert.equal(await deliverOltNotice(config, analysis, card, 'https://app/consulta/abc', { WUZAPI_INFORMATIVO_BUTTONS: 'false' }), 'texto');
+    assert.equal(received.length, before + 1, 'com o botao desligado nem tenta o botao');
+  } finally {
+    server.close();
+  }
+});

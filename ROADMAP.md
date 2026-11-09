@@ -5037,3 +5037,16 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - suíte 218/218;
   - preview: página nos dois estados, contraste OK no claro e no escuro.
 - **Atenção na virada**: desligar o envio do informativo na planilha, senão o grupo recebe dois informativos por card.
+- Informativo com botão (2026-11-09):
+  - O informativo do Casa Cliente agora vai com o botão **"Acompanhar chamado"**, que abre o link só de leitura. Usa o tipo `cta_url` do endpoint `POST /chat/send/buttons` da WuzAPI (conferido na especificação da própria WuzAPI do usuário).
+  - O link sai do texto e vai para o botão. O rodapé diz "Somente leitura · o link vale até 7 dias depois do encerramento".
+  - Se a WuzAPI recusar o botão (erro HTTP ou `success: false`), o sistema manda o texto com o link no final, como antes. O registro em Integração OFS diz se foi "com botão" ou "com link no texto".
+  - `WUZAPI_INFORMATIVO_BUTTONS=false` no Render volta a mandar sempre com o link no texto.
+  - Botão de teste na tela Integração OFS, só para administrador: "Enviar informativo de teste". Pede confirmação e manda um informativo marcado como TESTE no grupo do Casa Cliente.
+  - **Risco**: o WhatsApp pode não mostrar botões enviados por número comum (WhatsApp Web). Confira com o envio de teste. Se o botão não aparecer, use `WUZAPI_INFORMATIVO_BUTTONS=false`.
+  - Teste com uma WuzAPI de mentira: botão com o link certo e corpo sem o link; botão recusado cai para o texto; chave desligada nem tenta o botão. Suíte backend verde.
+- Grupo do informativo (2026-11-09): o destino padrão passou a ser `120363216252480324@g.us`, grupo do Casa Cliente indicado pelo usuário. A variável `WUZAPI_INFORMATIVO_CHAT` no Render, se existir, continua com prioridade.
+- Grupo de teste (2026-11-09):
+  - O botão "Enviar informativo de teste" manda só no grupo de teste `120363422003961917@g.us` (pode ser trocado por `WUZAPI_INFORMATIVO_TEST_CHAT`).
+  - Os informativos de verdade continuam indo para o grupo do Casa Cliente.
+  - Esse grupo também recebe cards, mas o teste não vira acionamento: o webhook ignora mensagens de informativo.

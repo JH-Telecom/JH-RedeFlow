@@ -32,12 +32,13 @@ import { clearPresence, presenceOf, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite } from './read-cache.js';
 import { runDailyReset } from './daily-reset-job.js';
 import { latestObservations } from './store/observations.js';
-import { buildOltNotice, createPublicViewToken, extractAllSlotPons, extractNoticeAddresses, isNoticeOlt, isOltNoticeMessage, OLT_NOTICE_DEFAULT_CHAT, publicViewExpired, readPublicViewToken } from './olt-notice.js';
+import { createPublicViewToken, extractAllSlotPons, extractNoticeAddresses, isNoticeOlt, isOltNoticeMessage, OLT_NOTICE_DEFAULT_CHAT, OLT_NOTICE_TEST_CHAT, publicViewExpired, readPublicViewToken } from './olt-notice.js';
 import { dueSoonCalls } from './due-soon.js';
 import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
 import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
 import { sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
+import { deliverOltNotice } from './olt-notice-delivery.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -1303,14 +1304,33 @@ async function sendOltNotice(activationId: string, analysis: Partial<ActivationA
     const chat = process.env.WUZAPI_INFORMATIVO_CHAT?.trim() || OLT_NOTICE_DEFAULT_CHAT;
     const appUrl = (process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app').replace(/\/+$/, '');
     const link = `${appUrl}/consulta/${createPublicViewToken(activationId, jwtSecret!)}`;
-    await sendWhatsAppText({ ...config, chat }, buildOltNotice(analysis, originalMessage, link));
-    await recordIntegrationEvent('olt_notice', true, `Informativo enviado: OLT ${analysis.olt}, BDESK ${analysis.bdesk || '-'}`, { activationId, olt: analysis.olt, chat });
+    const mode = await deliverOltNotice({ ...config, chat }, analysis, originalMessage, link);
+    await recordIntegrationEvent('olt_notice', true, `Informativo enviado ${mode === 'botao' ? 'com botão' : 'com link no texto'}: OLT ${analysis.olt}, BDESK ${analysis.bdesk || '-'}`, { activationId, olt: analysis.olt, chat, mode });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await recordIntegrationEvent('olt_notice', false, `Falha ao enviar o informativo (OLT ${analysis.olt}): ${message}`, { activationId, olt: analysis.olt });
     console.warn(`[Informativo] falha: ${message}`);
   }
 }
+
+app.post('/api/integracoes/informativo/teste', auth, requirePermission('settings.manage'), async (_request: AuthRequest, response) => {
+  const config = whatsappConfig();
+  if (!config) return response.status(409).json({ message: 'WhatsApp não configurado no servidor (WUZAPI_API_URL, WUZAPI_USER_TOKEN e WUZAPI_ALERT_CHAT).' });
+  const chat = process.env.WUZAPI_INFORMATIVO_TEST_CHAT?.trim() || OLT_NOTICE_TEST_CHAT;
+  try {
+    const latest = (await listActivations())[0];
+    const appUrl = (process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app').replace(/\/+$/, '');
+    const link = latest ? `${appUrl}/consulta/${createPublicViewToken(latest.id, jwtSecret!)}` : appUrl;
+    const sample: Partial<ActivationAnalysis> = { tipo_card: 'TESTE (pode ignorar)', bdesk: '000000', office_track: '000000000000000', tipo_falha: 'Teste do botão', afetados: 1, olt: 'VIP-ITA-SPO-OHW-04' };
+    const mode = await deliverOltNotice({ ...config, chat }, sample, 'Endereços:\nRUA DE TESTE, 1 SAO PAULO - SP\nSLOT/PON: 01/01', link);
+    await recordIntegrationEvent('olt_notice', true, `Informativo de TESTE enviado ${mode === 'botao' ? 'com botão' : 'com link no texto'}`, { test: true, chat, mode });
+    return response.json({ mode, chat });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordIntegrationEvent('olt_notice', false, `Falha no informativo de TESTE: ${message}`, { test: true });
+    return response.status(502).json({ message: `Não foi possível enviar: ${message}` });
+  }
+});
 
 // Consulta publica (link do informativo): so leitura, so este acionamento/chamado, sem login.
 app.get('/api/public/consulta/:token', async (request, response) => {

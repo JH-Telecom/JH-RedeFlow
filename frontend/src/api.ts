@@ -178,6 +178,7 @@ export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
   // Consulta publica do informativo (link so de leitura, sem login).
+  sendNoticeTest: () => request<{ mode: 'botao' | 'texto'; chat: string }>('/api/integracoes/informativo/teste', { method: 'POST' }),
   publicView: (token: string) => request<PublicView>(`/api/public/consulta/${encodeURIComponent(token)}`),
   // LGPD: os dados pessoais da propria pessoa, para baixar em JSON (Meu perfil).
   myData: () => request<Record<string, unknown>>('/api/auth/meus-dados'),

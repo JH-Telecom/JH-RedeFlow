@@ -23,3 +23,19 @@ export async function sendWhatsAppText(config: WhatsAppConfig, body: string): Pr
   });
   if (!response.ok) throw new Error(`WuzAPI respondeu ${response.status}: ${(await response.text().catch(() => '')).slice(0, 200)}`);
 }
+
+// Mensagem com botao (POST /chat/send/buttons). Tipo "cta_url" abre um link. Botao e recurso de WhatsApp
+// Business: se a WuzAPI recusar, quem chama cai para o texto com o link.
+export type WhatsAppButton = { type: 'cta_url' | 'reply' | 'cta_call' | 'copy'; title: string; id?: string; url?: string };
+export async function sendWhatsAppButtons(config: WhatsAppConfig, message: { body: string; title?: string; footer?: string; buttons: WhatsAppButton[] }): Promise<void> {
+  const response = await fetch(`${config.url}/chat/send/buttons`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Token: config.token },
+    body: JSON.stringify({ Phone: config.chat, Body: message.body, ...(message.title ? { Title: message.title } : {}), ...(message.footer ? { Footer: message.footer } : {}), Buttons: message.buttons }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const text = await response.text().catch(() => '');
+  if (!response.ok) throw new Error(`WuzAPI respondeu ${response.status}: ${text.slice(0, 200)}`);
+  try { if ((JSON.parse(text) as { success?: boolean }).success === false) throw new Error(`WuzAPI recusou o botao: ${text.slice(0, 200)}`); }
+  catch (error) { if (error instanceof Error && error.message.startsWith('WuzAPI recusou')) throw error; }
+}

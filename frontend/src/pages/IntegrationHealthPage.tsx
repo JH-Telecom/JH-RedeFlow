@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, CircleHelp, MessageCircle, RefreshCw, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleHelp, MessageCircle, RefreshCw, Send, XCircle } from "lucide-react";
 import { api, type IntegrationHealth, type HealthStatus, type StuckReason } from "../api";
 import { Panel } from "../components/charts";
 import { Pager, usePaged } from "../components/Pager";
@@ -40,6 +40,23 @@ export function IntegrationHealthPage() {
   }, [data]);
   const stuck = (data?.stuck ?? []).filter((call) => reason === "all" || call.reasons.includes(reason));
   const pagedStuck = usePaged(stuck, stuck.length);
+  // Informativo do Casa Cliente: envio de teste (so administrador) para conferir o botao "Acompanhar chamado".
+  const canManage = (() => {
+    try { return Boolean(JSON.parse(localStorage.getItem("jh-redeflow-session") || "null")?.user?.role?.permissions?.includes("settings.manage")); }
+    catch { return false; }
+  })();
+  const [testState, setTestState] = useState<{ busy: boolean; text: string; error: boolean }>({ busy: false, text: "", error: false });
+  async function sendNoticeTest() {
+    if (!window.confirm("Mandar um informativo de TESTE no grupo de teste para conferir o botão?")) return;
+    setTestState({ busy: true, text: "", error: false });
+    try {
+      const result = await api.sendNoticeTest();
+      setTestState({ busy: false, error: false, text: result.mode === "botao" ? "Teste enviado com o botão para o grupo de teste. Confira se o botão \"Acompanhar chamado\" apareceu." : "A WuzAPI recusou o botão, então o teste foi com o link no texto." });
+      void load();
+    } catch (err) {
+      setTestState({ busy: false, error: true, text: err instanceof Error ? err.message : "Não foi possível enviar o teste." });
+    }
+  }
 
   return (
     <div className="dv-dashboard ih-page">
@@ -49,8 +66,12 @@ export function IntegrationHealthPage() {
           <h1>Integração OFS</h1>
           <p>Se a coleta do OFS está funcionando e quais chamados concluídos no OFS ainda não finalizaram aqui, com o motivo.</p>
         </div>
-        <button className="secondary-button compact" type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={15} className={loading ? "ih-spin" : ""} /> {loading ? "Atualizando..." : "Atualizar"}</button>
+        <div className="cq-heading-actions">
+          {canManage && <button className="secondary-button compact" type="button" onClick={() => void sendNoticeTest()} disabled={testState.busy}><Send size={15} aria-hidden="true" /> {testState.busy ? "Enviando..." : "Enviar informativo de teste"}</button>}
+          <button className="secondary-button compact" type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={15} className={loading ? "ih-spin" : ""} /> {loading ? "Atualizando..." : "Atualizar"}</button>
+        </div>
       </div>
+      {testState.text && <div className={testState.error ? "form-error" : "save-message"} role={testState.error ? "alert" : "status"}>{testState.text}</div>}
 
       {error && <div className="form-error" role="alert">{error}</div>}
       {!data ? (!error && <div className="dv-empty" role="status">Carregando...</div>) : <>
