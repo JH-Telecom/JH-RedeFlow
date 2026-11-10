@@ -1,0 +1,32 @@
+/* Aviso de acionamento novo: canto inferior direito, com Aceitar/Recusar (ActivationToast) */
+.act-toast { position: fixed; right: 20px; bottom: 20px; z-index: 45; width: min(400px, calc(100vw - 32px)); display: grid; gap: 12px; padding: 14px 15px; border: 1px solid #b9d4ff; border-radius: 12px; background: #fff; color: #17233b; box-shadow: 0 16px 44px #17233b33; animation: act-toast-in .22s ease-out; }
+.act-toast-head { display: flex; align-items: flex-start; gap: 11px; }
+.act-toast-icon { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: #eaf2ff; color: #0845ae; }
+.act-toast-text { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.act-toast-text strong { font-size: 13px; }
+.act-toast-text strong em { font-style: normal; font-weight: 600; color: #4f5d73; }
+.act-toast-text small { font-size: 12px; line-height: 1.45; color: #4f5d73; overflow-wrap: anywhere; }
+.act-toast-close { flex: none; padding: 4px; border-radius: 6px; background: transparent; color: #4f5d73; }
+.act-toast-close:hover { background: #f1f5fa; color: #17233b; }
+.act-toast-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+.act-toast-actions .primary-button, .act-toast-actions .secondary-button { min-height: 34px; padding: 0 14px; font-size: 13px; font-weight: 700; box-shadow: none; }
+.act-toast-link { margin-right: auto; display: inline-flex; align-items: center; gap: 5px; padding: 4px 2px; background: none; color: #0845ae; font-size: 12px; font-weight: 700; }
+.act-toast-link:hover { text-decoration: underline; }
+.act-toast-danger { min-height: 34px; padding: 0 12px; border-radius: 7px; background: #b42318; color: #fff; font-size: 12px; font-weight: 700; }
+.act-toast-danger:disabled { opacity: .55; cursor: not-allowed; }
+.act-toast-reject { display: grid; gap: 10px; }
+.act-toast-reject label { gap: 6px; font-size: 12px; }
+.act-toast-reject input { padding: 9px 11px; font-size: 13px; }
+.act-toast-feedback { margin: 0; padding: 8px 10px; border-radius: 8px; background: #e3f6ec; color: #137a4b; font-size: 12px; font-weight: 600; }
+.act-toast-feedback.is-error { background: #fde8e8; color: #a3262a; }
+@keyframes act-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .act-toast { animation: none; } }
+@media (max-width: 560px) { .act-toast { right: 16px; left: 16px; bottom: 16px; width: auto; } }
+
+:where(:root[data-theme="dark"]) .act-toast { background: #171b22; border-color: #2b4a78; color: #dfe5ef; box-shadow: 0 16px 44px #0009; }
+:where(:root[data-theme="dark"]) .act-toast-icon { background: #0f1722; color: #7cb6ff; }
+:where(:root[data-theme="dark"]) .act-toast-text small, :where(:root[data-theme="dark"]) .act-toast-text strong em, :where(:root[data-theme="dark"]) .act-toast-close { color: #b5b9c1; }
+:where(:root[data-theme="dark"]) .act-toast-close:hover { background: #232a35; color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .act-toast-link { color: #7cb6ff; }
+:where(:root[data-theme="dark"]) .act-toast-feedback { background: #031c12; color: #73ce9a; }
+:where(:root[data-theme="dark"]) .act-toast-feedback.is-error { background: #2c0e0f; color: #ff8a84; }

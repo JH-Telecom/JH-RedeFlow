@@ -9,9 +9,10 @@ import { DueSoonBanner } from "./DueSoonBanner";
 import { CommandPalette } from "./CommandPalette";
 import { HelpTip, PAGE_HELP } from "./HelpTip";
 import { ImageReadyToast } from "./ImageReadyToast";
+import { ACTIVATIONS_CHANGED, ActivationToast } from "./ActivationToast";
 import { TvModePage } from "../pages/TvModePage";
 import faviconUrl from "../../image/favicon.ico";
-import { api, type Role, type User, type AppNotification, type ProfilePreferences, type UserStatus } from "../api";
+import { api, type Activation, type Role, type User, type AppNotification, type ProfilePreferences, type UserStatus } from "../api";
 import { RepeatedCallsPage } from "../repeated-calls";
 import { AccessDenied } from "./ui";
 import { ActivationsPage } from "../pages/ActivationsPage";
@@ -117,8 +118,8 @@ export function Shell({
   }, []);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activationCount, setActivationCount] = useState(0);
-  const [activationToast, setActivationToast] = useState<AppNotification | null>(null);
-  const [activationToastClosing, setActivationToastClosing] = useState(false);
+  // Acionamentos novos esperando decisao no aviso do canto inferior direito (fila, o primeiro aparece).
+  const [activationQueue, setActivationQueue] = useState<Activation[]>([]);
   const [bellRinging, setBellRinging] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -151,20 +152,20 @@ export function Shell({
               const pendingIds = new Set(pending.map((activation) => activation.id));
               setActivationCount(pending.length);
               if (knownActivationIds.current) {
-                const newActivation = pending.find((activation) => !knownActivationIds.current?.has(activation.id));
-                if (newActivation) {
-                  setActivationToastClosing(false);
+                const fresh = pending.filter((activation) => !knownActivationIds.current?.has(activation.id));
+                if (fresh.length) {
                   setBellRinging(true);
                   window.setTimeout(() => setBellRinging(false), 900);
-                  setActivationToast({ id: newActivation.id, type: "info", title: "Novo acionamento recebido", detail: newActivation.extractedData.orderNumber ? `Ordem ${newActivation.extractedData.orderNumber} aguardando análise.` : "Existe um acionamento aguardando análise.", href: "/acionamentos" });
-                  window.setTimeout(() => setActivationToastClosing(true), 7000);
-                  window.setTimeout(() => { setActivationToast(null); setActivationToastClosing(false); }, 8000);
                 }
+                // Tira da fila o que ja foi decidido (aqui ou em outra tela/computador) e junta os novos.
+                setActivationQueue((queue) => [...queue.filter((item) => pendingIds.has(item.id)), ...fresh.filter((item) => !queue.some((queued) => queued.id === item.id))]);
               }
               knownActivationIds.current = pendingIds;
             }
           } catch { setNotifications([]); } finally { setNotificationsLoading(false); }
   }
+  // Aceitou/recusou pelo aviso ou pela tela de Acionamentos: atualiza o sino e a fila do aviso na hora.
+  useEffect(() => { const refresh = () => void loadNotifications(); window.addEventListener(ACTIVATIONS_CHANGED, refresh); return () => window.removeEventListener(ACTIVATIONS_CHANGED, refresh); }, []);
   // Sino: a cada 1 min e so com a aba visivel (antes 15 s em toda aba aberta, gastando trafego do banco).
   useEffect(() => { void loadNotifications(); const interval = window.setInterval(() => { if (document.visibilityState === "visible") void loadNotifications(); }, 60_000); const onVisible = () => { if (document.visibilityState === "visible") void loadNotifications(); }; document.addEventListener("visibilitychange", onVisible); return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); }; }, [location.pathname]);
   useEffect(() => {
@@ -360,7 +361,13 @@ export function Shell({
             <ProfileLink name={displayName} photo={profilePhoto} className="topbar-avatar" />
           </div>
         </header>
-        {activationToast && <button className={`activation-toast${activationToastClosing ? " closing" : ""}`} type="button" onClick={() => { setActivationToast(null); setActivationToastClosing(false); navigate(activationToast.href); }}><Bell size={18} /><span><strong>{activationToast.title}</strong><small>{activationToast.detail}</small></span><X size={16} /></button>}
+        <ActivationToast
+          queue={activationQueue}
+          canDecide={user.role.permissions.includes("activations.decide")}
+          onClose={() => setActivationQueue([])}
+          onDecided={(id) => { setActivationQueue((queue) => queue.filter((item) => item.id !== id)); setActivationCount((count) => Math.max(0, count - 1)); }}
+          onOpen={() => { setActivationQueue([]); navigate("/acionamentos"); }}
+        />
         {canAccess("calls.view") && <DueSoonBanner />}
         <main id="conteudo" className="content" tabIndex={-1}>
           {/* Troca de pagina com fade suave (page-transition.css) em vez do corte seco */}

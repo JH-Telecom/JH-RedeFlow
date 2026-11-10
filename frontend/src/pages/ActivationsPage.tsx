@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Activity, ClipboardList } from "lucide-react";
 import { api, type Activation } from "../api";
 import { Pager, usePaged } from "../components/Pager";
+import { ACTIVATIONS_CHANGED } from "../components/ActivationToast";
 
 export function ActivationsPage() {
   const [activations, setActivations] = useState<Activation[]>([]);
@@ -28,6 +29,8 @@ export function ActivationsPage() {
     }
   }
   useEffect(() => { load(); }, []);
+  // Decisao feita pelo aviso do canto da tela: recarrega a lista.
+  useEffect(() => { const reload = () => void load(); window.addEventListener(ACTIVATIONS_CHANGED, reload); return () => window.removeEventListener(ACTIVATIONS_CHANGED, reload); }, []);
   function toggleSelection(id: string) {
     setSelectedIds((current) => current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]);
   }
@@ -39,6 +42,7 @@ export function ActivationsPage() {
     setProcessing(true);
     try {
       await Promise.all(ids.map((id) => api.acceptActivation(id)));
+      window.dispatchEvent(new Event(ACTIVATIONS_CHANGED));
       setSelectedIds([]);
       setMessage(ids.length === 1 ? "Tudo certo: o acionamento foi aceito e o chamado já está na fila operacional." : `Tudo certo: ${ids.length} acionamentos foram aceitos e os chamados já estão na fila operacional.`);
       window.setTimeout(() => setMessage(""), 3200);
@@ -51,6 +55,7 @@ export function ActivationsPage() {
     setProcessing(true);
     try {
       await Promise.all(ids.map((id) => api.rejectActivation(id, rejectionReason)));
+      window.dispatchEvent(new Event(ACTIVATIONS_CHANGED));
       setSelectedIds([]); setReason(""); setRejecting(null);
       setMessage(ids.length === 1 ? "Acionamento recusado com sucesso." : `${ids.length} acionamentos recusados com sucesso.`);
       window.setTimeout(() => setMessage(""), 3200);

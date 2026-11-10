@@ -5263,3 +5263,40 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - o campo "Nome que aparece" mostra o nome guardado como sugestão quando não há login.
 - **Arquivos**: `extensao-rede/background.js`, `whatsapp-identificador.js`, `popup.js` e `manifest.json` (1.7.1).
 - **Validação**: sintaxe dos 3 arquivos; simulação do identificador nos três casos (login caiu com nome guardado, login antigo sem nome guardado, nome digitado no ajuste).
+
+## Aviso de acionamento no canto inferior direito, com Aceitar e Recusar (2026-11-10)
+- O aviso "Novo acionamento recebido" saiu do topo, no meio da tela, e foi para o **canto inferior direito** (`frontend/src/components/ActivationToast.tsx`, `activation-toast.css`).
+- **O que mostra**: ordem (ou BDESK), tipo, OLT e motivo do card.
+- **Botões**:
+  - **Aceitar** cria o chamado na hora;
+  - **Recusar** abre o campo do motivo (mínimo 3 letras, como na tela de Acionamentos) e depois **Confirmar recusa**;
+  - **Ver** abre a tela de Acionamentos;
+  - **X** só esconde, e o acionamento continua pendente.
+  - Aceitar e Recusar só aparecem para quem tem a permissão `activations.decide`; os outros veem só o aviso e o "Ver".
+- **Comportamento**:
+  - não some sozinho enquanto há acionamento esperando decisão (antes sumia em 8 s);
+  - vários chegando juntos formam uma fila ("1 de 3"), e depois de decidir aparece o próximo;
+  - ao decidir, mostra a confirmação por 1,2 s;
+  - o sino, o contador do menu e a tela de Acionamentos atualizam na hora;
+  - o que foi decidido em outra tela ou computador sai da fila na próxima atualização do sino.
+- **Celular**: o aviso ocupa a largura da tela, com 16 px de margem.
+- **Validação** (preview com dados de demonstração):
+  - aceitar criou o chamado (Chamados abertos foi de 4 para 5);
+  - recusar com motivo mostrou "Acionamento recusado" e tirou o aviso;
+  - contraste OK no claro e no escuro;
+  - typecheck do frontend.
+
+## Correção do atrelado (2026-11-10)
+- **Caso**: o FIELD 12687665 (VIP-SZN-SPO-OHW-01, SLOT 3 PON 11) saiu no bot da planilha como "ATRELADO AO CHAMADO 12687558", mas no sistema não apareceu atrelado.
+- **Causas**:
+  - o sistema só aceitava como atrelado um chamado com **status do OFS = pendente**. Esse campo quase nunca está preenchido (no banco antigo, só 2 chamados em aberto tinham). A planilha usa o STATUS do próprio chamado;
+  - a data/hora do card ("10/11/2026 09:00") era lida no fuso do servidor (UTC no Render). O evento ficava 3 h antes do real, e chamados abertos nessas 3 h eram descartados como "mais novos".
+- **Regra nova** (`findAtreladaCallOrder`, igual à da planilha `verificarAtreladoDiretoAcionamentosCampo`):
+  - o chamado precisa estar **pendente**: com status do OFS, só OFS Pendente; sem status do OFS, chamado Aberto, Atribuído ou Atrelado (Deslocamento, Em campo e encerrados ficam de fora);
+  - mesma OLT, mesmo par placa/PON, ordem diferente;
+  - **data do evento do chamado** (`event_at`, como a coluna DATA EVENTO) antes do evento do card; sem ela, a data de abertura;
+  - vence o mais antigo;
+  - horário do card lido como **São Paulo**.
+- **Tráfego**: os candidatos agora vêm da cópia dos chamados em memória (antes era uma consulta extra ao banco a cada acionamento).
+- Vale para os acionamentos que chegarem daqui para frente; os que já estão na lista não são recalculados.
+- **Testes**: `test/atrelada.test.ts` (caso real, chamado sem status do OFS, chamados iniciados ou encerrados fora, fuso de São Paulo, data do evento e o mais antigo); suíte 228/228.

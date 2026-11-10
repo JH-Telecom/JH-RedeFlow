@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
-import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
+import { ATRELADA_OPEN_STATUSES, findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
 import { addDays, operationalDayStartIso, parseSaoPauloDateTime } from '../../timezone.js';
 import { analyzeOperationalMessage } from '../wuzapi/semantic.js';
 import { meteredFetch, scaled } from '../../db-usage.js';
@@ -560,12 +560,11 @@ async function latestProcessingByActivation(ids: string[]) {
   return latest;
 }
 
-// Apenas o que findAtreladaCallOrder usa: chamados com OFS Pendente na mesma OLT.
+// Candidatos ao atrelado: chamados em aberto (findAtreladaCallOrder decide o "pendente" e a OLT/PON).
+// Vem da copia dos chamados em memoria, sem nova consulta ao banco.
 async function listAtreladaCandidates(olt: string | null | undefined): Promise<Call[]> {
   if (!olt) return [];
-  const { data, error } = await getSupabaseAdmin().from('calls').select('order_number, office_track, olt, slot_pon, opened_at, ofs_status').ilike('ofs_status', '%pendente%').not('olt', 'is', null).limit(2000);
-  if (error) throw new Error(error.message);
-  return (data || []).map((row) => ({ orderNumber: row.order_number || '', officeTrack: row.office_track || '', olt: row.olt || '', slotPon: row.slot_pon || '', openedAt: row.opened_at, ofsStatus: row.ofs_status || '' }) as Call);
+  return listSupabaseCalls([...ATRELADA_OPEN_STATUSES]);
 }
 
 const ACTIVATION_DEDUPE_DAYS = 14;

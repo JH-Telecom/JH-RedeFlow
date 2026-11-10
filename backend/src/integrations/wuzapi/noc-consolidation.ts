@@ -1,4 +1,5 @@
 import type { ActivationAnalysis, Call, NocAddressRecord } from '../../types.js';
+import { parseSaoPauloDateTime } from '../../timezone.js';
 
 const defaultOltRegionMap: Record<string, string> = Object.freeze({
   'VIP-CT1-SPO-OHW-01': 'CIDADE TIRADENTES 1',
@@ -264,13 +265,29 @@ function platePonPairs(values: string[]) {
 function parseAtreladaDate(value: string | null | undefined) {
   const text = String(value || '').trim();
   if (!text) return undefined;
-  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  // Data do card e horario de Sao Paulo. Antes era lida no fuso do servidor (UTC no Render): o evento ficava 3 h
+  // antes do real e chamados abertos nessas 3 h eram descartados como "mais novos".
+  const withTime = parseSaoPauloDateTime(text);
+  if (withTime) return Date.parse(withTime);
+  const br = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (br) {
-    const date = new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]), Number(br[4] || 0), Number(br[5] || 0), Number(br[6] || 0));
-    return Number.isNaN(date.getTime()) ? undefined : date.getTime();
+    const dayOnly = parseSaoPauloDateTime(`${br[1]}/${br[2]}/${br[3]} 00:00`);
+    return dayOnly ? Date.parse(dayOnly) : undefined;
   }
   const timestamp = new Date(text).getTime();
   return Number.isNaN(timestamp) ? undefined : timestamp;
+}
+
+// "Pendente" da planilha (ACIONAMENTOS EM CAMPO): o chamado ainda nao foi atendido.
+// - Com status do OFS: so OFS Pendente (como antes).
+// - Sem status do OFS (a maioria: o coletor so preenche o que esta nos baldes): chamado aberto e ainda nao
+//   iniciado no sistema (Aberto, Atribuido ou Atrelado). Antes esses ficavam de fora e o atrelado nao aparecia.
+export const ATRELADA_OPEN_STATUSES = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'] as const;
+function isAtreladaPending(call: Call) {
+  if (!(ATRELADA_OPEN_STATUSES as readonly string[]).includes(call.status)) return false;
+  const ofs = normalizeText(call.ofsStatus);
+  if (ofs) return ofs === 'PENDENTE';
+  return call.status === 'Aberto' || call.status === 'Atribuido' || call.status === 'Atrelado';
 }
 
 export function findAtreladaCallOrder(current: ActivationAnalysis, existingCalls: Call[], now = Date.now()) {
@@ -281,15 +298,16 @@ export function findAtreladaCallOrder(current: ActivationAnalysis, existingCalls
   const currentOrder = compact(current.office_track || current.os_ot || '');
   const eventTime = parseAtreladaDate(current.data_hora_evento) ?? now;
   const candidates = existingCalls.filter((call) => {
-    if (normalizeText(call.ofsStatus) !== 'PENDENTE') return false;
+    if (!isAtreladaPending(call)) return false;
     if (normalizeOltCode(call.olt) !== currentOlt) return false;
     const existingOrder = compact(call.officeTrack || call.orderNumber);
     if (!existingOrder || (currentOrder && existingOrder === currentOrder)) return false;
-    const openedAt = new Date(call.openedAt).getTime();
+    // Como a planilha (DATA EVENTO): data do evento do chamado; sem ela, a abertura.
+    const openedAt = new Date(call.eventAt || call.openedAt).getTime();
     if (!Number.isFinite(openedAt) || openedAt >= eventTime) return false;
     const existingPairs = platePonPairs([call.slotPon]);
     return currentPairs.some((currentPair) => existingPairs.some((existingPair) => currentPair.plate === existingPair.plate && currentPair.pon === existingPair.pon));
-  }).sort((left, right) => new Date(left.openedAt).getTime() - new Date(right.openedAt).getTime());
+  }).sort((left, right) => new Date(left.eventAt || left.openedAt).getTime() - new Date(right.eventAt || right.openedAt).getTime());
 
   return candidates[0]?.orderNumber || candidates[0]?.officeTrack || undefined;
 }

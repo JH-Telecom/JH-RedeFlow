@@ -1,6 +1,6 @@
 import { parseSaoPauloDateTime } from '../timezone.js';
 import { createSupabaseActivation, decideSupabaseActivation, getSupabaseActivation, isSupabaseConfigured, listSupabaseActivations } from "../integrations/supabase/client.js";
-import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
+import { ATRELADA_OPEN_STATUSES, findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, User } from "../types.js";
 import { listCalls } from "./calls.js";
 import { activations, calls } from "./demo-data.js";
@@ -36,7 +36,7 @@ export async function receiveActivation(input: { source: string; originalMessage
   const incomingKeys = [input.originalMessage, input.extractedData.bdesk, input.extractedData.officeTrack, input.extractedData.orderNumber].map(comparable).filter(Boolean);
   const existing = [...activations.values()].find((activation) => activation.status !== 'Recusado' && [activation.originalMessage, activation.extractedData.bdesk, activation.extractedData.officeTrack, activation.extractedData.orderNumber].map(comparable).some((key) => incomingKeys.includes(key)));
   if (existing) return existing;
-  const relatedOrder = input.analysis ? findAtreladaCallOrder(input.analysis, await listCalls()) : undefined;
+  const relatedOrder = input.analysis ? findAtreladaCallOrder(input.analysis, await listCalls([...ATRELADA_OPEN_STATUSES])) : undefined;
   const enrichedAnalysis = input.analysis ? { ...input.analysis, atrelada: relatedOrder || null, atreladas: identifyAtreladas(input.analysis, [...activations.values()].map((activation) => ({ id: activation.id, analysis: activation.analysis }))) } : input.analysis;
   const activation: Activation = { id: `activation-${crypto.randomUUID()}`, source: input.source, originalMessage: input.originalMessage, receivedAt: new Date().toISOString(), status: 'Pendente', extractedData: input.extractedData, analysis: enrichedAnalysis }; activations.set(activation.id, activation); return activation;
 }
