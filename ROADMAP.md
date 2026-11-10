@@ -5300,3 +5300,9 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Tráfego**: os candidatos agora vêm da cópia dos chamados em memória (antes era uma consulta extra ao banco a cada acionamento).
 - Vale para os acionamentos que chegarem daqui para frente; os que já estão na lista não são recalculados.
 - **Testes**: `test/atrelada.test.ts` (caso real, chamado sem status do OFS, chamados iniciados ou encerrados fora, fuso de São Paulo, data do evento e o mais antigo); suíte 228/228.
+
+## Selo de risco embaixo da ordem (2026-11-10)
+- Nas filas (Chamados abertos, Em atendimento, Finalizados e cancelados), os selos da coluna Ordem ficam numa **linha própria embaixo do número** (e do BDESK, quando tem): "Risco alto/médio", "Atrelada" e "Reincidente".
+  - Antes, sem BDESK, o risco ficava ao lado do número.
+- Os selos ficam num `div.cq-order-badges` (`CallsPage.tsx`, `calls-queue.css`); sem selo, a linha não aparece.
+- **Preview**: com um selo de risco colocado na primeira linha, ele ficou embaixo da ordem e do BDESK; typecheck do frontend.

@@ -204,3 +204,8 @@
 .cq-status-tabs .cq-tab-apart { margin-left: 10px; position: relative; color: #0b5f6b; }
 .cq-status-tabs .cq-tab-apart::before { content: ""; position: absolute; left: -7px; top: 6px; bottom: 6px; width: 1px; background: #cfd9e8; }
 .cq-status-tabs .cq-tab-apart.is-selected { background: #effbfd; color: #0b5f6b; }
+/* Selos da ordem (Risco, Atrelada, Reincidente) sempre numa linha propria, embaixo da ordem e do BDESK. */
+.cq-order-badges { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.cq-order-badges:empty { display: none; }
+.cq-order-badges .call-badge { margin: 0; }
+.cq-table .cq-order-badges .call-badge.atrelado { margin-top: 0; }
