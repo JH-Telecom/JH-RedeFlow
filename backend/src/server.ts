@@ -43,6 +43,8 @@ import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsa
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
 import { sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
 import { deliverOltNotice } from './olt-notice-delivery.js';
+import { scaled, usageReport } from './db-usage.js';
+import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -153,7 +155,7 @@ const profileCache = new Map<string, { user: Awaited<ReturnType<typeof getSupaba
 onDataChange(() => profileCache.clear());
 async function cachedProfile(id: string) {
   const hit = profileCache.get(id);
-  if (hit && Date.now() - hit.at < 60_000) return hit.user;
+  if (hit && Date.now() - hit.at < scaled(60_000)) return hit.user;
   const user = await getSupabaseProfile(id);
   profileCache.set(id, { user, at: Date.now() });
   return user;
@@ -686,6 +688,11 @@ app.patch('/api/roles/:id', auth, requirePermission('roles.manage'), async (requ
   return response.json({ role });
 });
 app.get('/api/configuracoes', auth, requirePermission('settings.manage'), (_request, response) => response.json({ settings: getSettings() }));
+// Trafego estimado do Supabase (ultimos 30 dias, por dia e por tabela) e o modo de economia atual.
+app.get('/api/configuracoes/banco', auth, requirePermission('settings.manage'), async (_request, response) => {
+  await loadDbUsage();
+  response.json({ supabase: isSupabaseConfigured(), ...usageReport() });
+});
 app.patch('/api/configuracoes', auth, requirePermission('settings.manage'), async (request, response) => {
   const parsed = z.object({ autoRefresh: z.boolean().optional(), refreshIntervalSeconds: z.number().int().min(10).max(3600).optional(), slaAlertHours: z.number().min(1).max(72).optional(), defaultRegion: z.string().min(1).optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Configuracoes invalidas.' });
@@ -1260,7 +1267,7 @@ app.get('/api/integracoes/saude', auth, requirePermission('imports.view'), async
       checks: healthChecks(events, stuck),
       stuck,
       reasonLabels: STUCK_REASON_LABEL,
-      events: events.filter((event) => ['export', 'cluster', 'closing', 'extension', 'integration_alert', 'daily_report'].includes(event.kind)).slice(0, 60),
+      events: events.filter((event) => ['export', 'cluster', 'closing', 'extension', 'integration_alert', 'daily_report', 'db_alert'].includes(event.kind)).slice(0, 60),
       d0: d0 ? { fileName: d0.fileName, rowCount: d0.rowCount, uploadedAt: d0.uploadedAt, uploadedBy: d0.uploadedBy } : null,
       whatsapp: { configured: Boolean(whatsapp), chat: whatsapp ? maskChat(whatsapp.chat) : null, alerts: events.filter((event) => event.kind === 'sla_alert').slice(0, 10) },
     });
@@ -1814,6 +1821,10 @@ async function startServer() {
   if (!process.env.NODE_TEST_CONTEXT) {
     if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
     setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); }, 5 * 60_000).unref();
+    // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
+    void loadDbUsage();
+    setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();
+    process.once('SIGTERM', () => { void flushDbUsage().finally(() => process.exit(0)); });
   }
 }
 void startServer();

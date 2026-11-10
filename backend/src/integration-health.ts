@@ -49,7 +49,7 @@ export function stuckOfsCalls(calls: Call[], now = Date.now()): StuckCall[] {
     .sort((left, right) => (right.waitingMinutes ?? -1) - (left.waitingMinutes ?? -1));
 }
 
-export type IntegrationEventKind = 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report' | 'integration_alert' | 'escalation' | 'daily_reset' | 'olt_notice';
+export type IntegrationEventKind = 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report' | 'integration_alert' | 'escalation' | 'daily_reset' | 'olt_notice' | 'db_usage' | 'db_alert';
 export type IntegrationEvent = { id: string; kind: IntegrationEventKind; ok: boolean; summary: string; details: Record<string, unknown>; createdAt: string };
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type HealthCheck = { key: string; label: string; status: HealthStatus; lastAt: string | null; detail: string };

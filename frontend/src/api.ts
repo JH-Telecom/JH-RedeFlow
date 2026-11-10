@@ -72,6 +72,13 @@ const responseCache = new Map<string, { etag: string; payload: unknown }>();
 export function clearResponseCache() {
   responseCache.clear();
 }
+// Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
+export type DbUsageReport = {
+  supabase: boolean; limitBytes: number; last30DaysBytes: number; percent: number; projected30DaysBytes: number;
+  mode: 'normal' | 'economia' | 'economia_forte'; trackedDays: number; today: { bytes: number; requests: number };
+  daily: { day: string; bytes: number; requests: number }[]; topTargets: { name: string; bytes: number; requests: number }[];
+};
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
   const isRead = !init.method || init.method.toUpperCase() === 'GET';
@@ -307,6 +314,7 @@ export const api = {
   createRole: (data: { name: string; description: string; permissions: string[]; hiddenTabs?: string[] }) => request<{ role: Role }>('/api/roles', { method: 'POST', body: JSON.stringify(data) }),
   updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[]; hiddenTabs?: string[] }) => request<{ role: Role }>(`/api/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
+  dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
   updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) }),
   customOperationalRegions: () => request<{ regions: string[] }>('/api/configuracoes/regioes'),
   addCustomOperationalRegion: (region: string) => request<{ region: string }>('/api/configuracoes/regioes', { method: 'POST', body: JSON.stringify({ region }) }),

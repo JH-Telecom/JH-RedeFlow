@@ -3,6 +3,7 @@ import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus
 import { findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
 import { addDays, operationalDayStartIso, parseSaoPauloDateTime } from '../../timezone.js';
 import { analyzeOperationalMessage } from '../wuzapi/semantic.js';
+import { meteredFetch, scaled } from '../../db-usage.js';
 
 // Cards pendentes lidos antes de o leitor reconhecer um rotulo (ex.: "Tarefa OFS") ficam sem O.S. gravada:
 // relemos a mensagem original e completamos so o que faltou, sem sobrescrever o que ja foi extraido.
@@ -36,7 +37,7 @@ export function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) throw new Error('Supabase nao configurado no backend.');
-  adminClient = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  adminClient = createClient(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false }, global: { fetch: meteredFetch } });
   return adminClient;
 }
 
@@ -45,7 +46,7 @@ export function getSupabaseAuthClient() {
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!url || !anonKey) throw new Error('SUPABASE_ANON_KEY nao configurada no backend.');
-  authClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  authClient = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false }, global: { fetch: meteredFetch } });
   return authClient;
 }
 
@@ -322,8 +323,9 @@ async function fetchSnapshotRows(updatedSince?: string): Promise<SnapshotEntry[]
 
 async function ensureSnapshot() {
   const now = Date.now();
-  const needsFull = !snapshot || now - snapshot.fullAt > SNAPSHOT_FULL_MS;
-  const needsDelta = !needsFull && (snapshotDirty || now - snapshot!.deltaAt > SNAPSHOT_DELTA_MS);
+  // Em modo economia (perto do limite de trafego) a copia vale mais tempo: 3x ou 10x.
+  const needsFull = !snapshot || now - snapshot.fullAt > scaled(SNAPSHOT_FULL_MS);
+  const needsDelta = !needsFull && (snapshotDirty || now - snapshot!.deltaAt > scaled(SNAPSHOT_DELTA_MS));
   if (!needsFull && !needsDelta) return;
   if (snapshotLoading) return snapshotLoading;
   snapshotLoading = (async () => {

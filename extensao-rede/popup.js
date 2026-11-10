@@ -197,18 +197,19 @@ carregar();
 
 // ---------- WhatsApp Web: identificador do mesario e conversa sem contato ----------
 async function carregarWhatsapp() {
-  const { waIdentificador, sessao } = await chrome.storage.local.get(["waIdentificador", "sessao"]);
+  const { waIdentificador, sessao, nomeFixo } = await chrome.storage.local.get(["waIdentificador", "sessao", "nomeFixo"]);
   const cfg = { ativo: true, nome: "", escopo: "todas", ...(waIdentificador || {}) };
   $("waAtivo").checked = cfg.ativo !== false;
   $("waNome").value = cfg.nome || "";
-  $("waNome").placeholder = sessao?.nome ? `em branco = ${sessao.nome.split(/\s+/)[0]}` : "em branco = nome do login";
+  const automatico = sessao?.nome ? sessao.nome.split(/\s+/)[0] : nomeFixo;
+  $("waNome").placeholder = automatico ? `em branco = ${automatico}` : "em branco = nome do login";
   $("waEscopo").value = cfg.escopo === "grupos" ? "grupos" : "todas";
 }
 $("waSalvar").onclick = async () => {
   const cfg = { ativo: $("waAtivo").checked, nome: $("waNome").value.trim().slice(0, 40), escopo: $("waEscopo").value };
   await chrome.storage.local.set({ waIdentificador: cfg });
-  const { sessao } = await chrome.storage.local.get("sessao");
-  const nome = cfg.nome || (sessao?.nome || "").split(/\s+/)[0];
+  const { sessao, nomeFixo } = await chrome.storage.local.get(["sessao", "nomeFixo"]);
+  const nome = cfg.nome || (sessao?.nome || "").split(/\s+/)[0] || nomeFixo;
   $("waStatus").textContent = !cfg.ativo ? "Identificador desligado." : nome ? `✓ Suas mensagens vão sair como *${nome}:*. Recarregue o WhatsApp Web se ele já estava aberto.` : "Entre com seu usuário ou escreva um nome.";
   $("waStatus").className = `hint ${cfg.ativo && nome ? "ok" : ""}`;
 };

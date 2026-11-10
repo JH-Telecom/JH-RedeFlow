@@ -14,7 +14,7 @@ const STATUS: Record<HealthStatus, { label: string; icon: typeof CheckCircle2 }>
   critical: { label: "Parado", icon: XCircle },
   unknown: { label: "Sem dados", icon: CircleHelp },
 };
-const KIND_LABEL: Record<string, string> = { export: "Export", closing: "Fechamentos", cluster: "Clusters", extension: "Extensão", sla_alert: "Aviso de prazo", daily_report: "Resumo diário", integration_alert: "Coleta parada", escalation: "Escalonamento", daily_reset: "Limpeza diária", olt_notice: "Informativo Casa Cliente" };
+const KIND_LABEL: Record<string, string> = { export: "Export", closing: "Fechamentos", cluster: "Clusters", extension: "Extensão", sla_alert: "Aviso de prazo", db_alert: "Tráfego do banco", daily_report: "Resumo diário", integration_alert: "Coleta parada", escalation: "Escalonamento", daily_reset: "Limpeza diária", olt_notice: "Informativo Casa Cliente" };
 const spDateTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–");
 const waiting = (minutes: number | null) => (minutes === null ? "–" : minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}` : `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`);
 

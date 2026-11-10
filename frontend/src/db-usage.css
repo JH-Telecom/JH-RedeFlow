@@ -1,0 +1,46 @@
+/* Configuracoes -> Trafego do banco (DbUsageCard) */
+.dbu-card { display: grid; gap: 12px; margin-bottom: 18px; }
+.dbu-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dbu-kicker { display: block; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #4f5d73; }
+.dbu-total { display: block; font: 700 26px 'Manrope', sans-serif; color: #17233b; margin-top: 4px; }
+.dbu-total small { font: 600 13px 'DM Sans', sans-serif; color: #4f5d73; }
+.dbu-mode { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.dbu-mode.is-ok { background: #e3f6ec; color: #137a4b; }
+.dbu-mode.is-warn { background: #fff3d6; color: #8a4b08; }
+.dbu-mode.is-danger { background: #fde8e8; color: #a3262a; }
+.dbu-meter { position: relative; height: 10px; border-radius: 999px; background: #e8edf4; overflow: visible; }
+.dbu-meter > span { display: block; height: 100%; border-radius: 999px; background: #1caa76; }
+.dbu-meter > span.is-warn { background: #e6953d; }
+.dbu-meter > span.is-danger { background: #d64545; }
+.dbu-meter > i { position: absolute; top: -3px; width: 2px; height: 16px; background: #6f7d93; border-radius: 1px; }
+.dbu-note { margin: 0; font-size: 12px; line-height: 1.55; color: #4f5d73; }
+.dbu-chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.dbu-chart-head h3, .dbu-sub { margin: 0; font-size: 13px; color: #17233b; }
+.dbu-tip { font-size: 12px; color: #4f5d73; }
+.dbu-chart { position: relative; height: 120px; display: grid; grid-template-columns: repeat(30, 1fr); gap: 2px; align-items: end; border-bottom: 1px solid #d5dde8; }
+.dbu-bar { height: 100%; display: flex; align-items: flex-end; padding: 0; background: transparent; border-radius: 0; }
+.dbu-bar > span { display: block; width: 100%; background: #1264e8; border-radius: 4px 4px 0 0; }
+.dbu-bar.is-hover > span, .dbu-bar:focus-visible > span { background: #0845ae; }
+.dbu-bar:focus-visible { outline: 2px solid #1264e8; outline-offset: 1px; }
+.dbu-limit-line { position: absolute; left: 0; right: 0; border-top: 1px dashed #8a4b08; pointer-events: none; }
+.dbu-axis { display: flex; justify-content: space-between; font-size: 11px; color: #4f5d73; margin-top: -6px; }
+.dbu-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dbu-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #4f5d73; padding: 6px 8px; border-bottom: 1px solid #e8edf4; }
+.dbu-table td { padding: 7px 8px; border-bottom: 1px solid #f0f3f7; color: #17233b; }
+.dbu-table td:not(:first-child), .dbu-table th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+
+:where(:root[data-theme="dark"]) .dbu-kicker, :where(:root[data-theme="dark"]) .dbu-total small, :where(:root[data-theme="dark"]) .dbu-note,
+:where(:root[data-theme="dark"]) .dbu-tip, :where(:root[data-theme="dark"]) .dbu-axis, :where(:root[data-theme="dark"]) .dbu-table th { color: #b5b9c1; }
+:where(:root[data-theme="dark"]) .dbu-total, :where(:root[data-theme="dark"]) .dbu-chart-head h3, :where(:root[data-theme="dark"]) .dbu-sub,
+:where(:root[data-theme="dark"]) .dbu-table td { color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .dbu-mode.is-ok { background: #031c12; color: #73ce9a; }
+:where(:root[data-theme="dark"]) .dbu-mode.is-warn { background: #2a1d05; color: #f2b45c; }
+:where(:root[data-theme="dark"]) .dbu-mode.is-danger { background: #2c0e0f; color: #ff8a84; }
+:where(:root[data-theme="dark"]) .dbu-meter { background: #232a35; }
+:where(:root[data-theme="dark"]) .dbu-meter > i { background: #9aa4b3; }
+:where(:root[data-theme="dark"]) .dbu-chart { border-bottom-color: #2c3440; }
+:where(:root[data-theme="dark"]) .dbu-bar > span { background: #4d94ff; }
+:where(:root[data-theme="dark"]) .dbu-bar.is-hover > span, :where(:root[data-theme="dark"]) .dbu-bar:focus-visible > span { background: #9cc8ff; }
+:where(:root[data-theme="dark"]) .dbu-limit-line { border-top-color: #f2b45c; }
+:where(:root[data-theme="dark"]) .dbu-table th { border-bottom-color: #2c3440; }
+:where(:root[data-theme="dark"]) .dbu-table td { border-bottom-color: #20262f; }

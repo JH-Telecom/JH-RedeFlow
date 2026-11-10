@@ -5216,3 +5216,50 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - typecheck do backend e do frontend;
   - suíte 221/221;
   - preview: digitar "silva" na busca de "Em atendimento" gerou uma única rodada de consultas, com a palavra inteira.
+
+## Migração para um novo projeto Supabase (2026-11-10)
+- **Motivo**: o projeto antigo (`sxpoxgwxcloumpttcowt`, conta antiga) ficou restrito pelo limite de tráfego do plano gratuito, que só seria liberado com upgrade ou no novo ciclo (02/12). O limite conta por organização, então o projeto novo foi criado em **outra conta**.
+- **Como foi feito**:
+  - script temporário com o pacote `pg`, por conexão direta aos dois bancos; o antigo foi só lido;
+  - estrutura gerada a partir do banco em produção (não dos arquivos de migration, que tinham diferenças): 25 tabelas, 7 funções, 54 índices, 55 restrições, 7 políticas de RLS e as permissões de `anon`, `authenticated` e `service_role`;
+  - dados de todas as tabelas de `public` e os logins (`auth.users` e `auth.identities`), mantendo as senhas; sessões antigas não foram copiadas, então todos entram de novo uma vez;
+  - sequência de `d0_base_records` ajustada no mesmo ponto.
+- **Conferência**: contagem igual em todas as tabelas (ex.: 5.115 chamados, 5.030 históricos, 703 acionamentos, 15 logins) e mesma quantidade de funções, índices, restrições e políticas.
+- **Troca**: o usuário atualizou no Render `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`. Novo deploy no ar às 11:43; os acionamentos do WhatsApp já gravam no banco novo e o login responde normalmente.
+- **Limpeza**: o arquivo de senhas e os scripts temporários foram apagados. O projeto antigo ficou intacto, como cópia de segurança.
+- **Atenção**: o novo projeto também é gratuito (5 GB de tráfego/mês). As economias de tráfego do commit `95e8cbe` já estão ativas nele.
+
+## Controle do tráfego do banco novo (2026-11-10)
+- **Medição** (`backend/src/db-usage.ts`):
+  - toda resposta do Supabase passa por um `fetch` medido, ligado nos dois clientes (admin e login);
+  - soma bytes e consultas por dia e por destino (tabela, função `rpc` ou login);
+  - usa o tamanho sem compressão, então é uma estimativa para mais.
+- **Salvamento** (`db-usage-job.ts`):
+  - a cada 5 min grava uma linha por dia em `integration_events` (kind `db_usage`), com o histórico dos últimos 35 dias dentro;
+  - ao desligar (deploy novo, SIGTERM), grava o que faltava;
+  - sem migração: usa a tabela que já existia.
+- **Modo economia automático** (pelo total dos últimos 30 dias, limite em `SUPABASE_EGRESS_LIMIT_GB`, padrão 5):
+  - a partir de 60%, "economia": cópia dos chamados, cache das telas, perfil do login e lista de acionamentos valem **3x** mais tempo;
+  - a partir de 85%, "economia forte": valem **10x** mais tempo;
+  - gravações pela API continuam atualizando na hora; só o que rotinas automáticas gravam demora mais para aparecer.
+- **Aviso**: ao entrar ou sair do modo economia, registra em Integração (tipo "Tráfego do banco") e manda mensagem no grupo dos avisos do WhatsApp.
+- **Painel em Configurações → "Tráfego do banco (Supabase)"** (só quem tem `settings.manage`; endpoint `GET /api/configuracoes/banco`):
+  - total dos 30 dias contra o limite, com marcas de 60% e 85%, e o modo atual;
+  - gasto de hoje e projeção para 30 dias;
+  - gráfico por dia com a linha do limite diário (limite ÷ 30) e o valor de cada dia ao passar o mouse;
+  - tabela do que mais consome.
+- **Validação**:
+  - 3 testes novos (`test/db-usage.test.ts`); suíte 224/224 (o teste HTTP que estourou o tempo passou ao rodar de novo);
+  - preview com dados simulados no navegador: painel no claro e no escuro, dica ao passar o mouse, contraste OK nos dois temas.
+
+## Extensão 1.7.1: nome do identificador fica guardado (2026-11-10)
+- **Problema**: quando o banco antigo caiu, o servidor recusou o login da extensão, a extensão apagou a sessão e o identificador do WhatsApp parou de colocar o nome, porque ele só lia o nome da sessão.
+- **Correção**:
+  - no login, o primeiro nome também é guardado à parte (`nomeFixo` no storage local);
+  - se o login cair (banco fora, sessão vencida, erro 401/403), as mensagens continuam saindo com o nome;
+  - só o botão **Sair** apaga o nome; um login de outra pessoa troca pelo dela;
+  - quem já estava logado de antes da 1.7.1 tem o nome guardado sozinho na primeira vez que o WhatsApp Web abre com o login ainda válido;
+  - ordem do nome: o digitado em "Nome que aparece", depois o do login atual, depois o guardado;
+  - o campo "Nome que aparece" mostra o nome guardado como sugestão quando não há login.
+- **Arquivos**: `extensao-rede/background.js`, `whatsapp-identificador.js`, `popup.js` e `manifest.json` (1.7.1).
+- **Validação**: sintaxe dos 3 arquivos; simulação do identificador nos três casos (login caiu com nome guardado, login antigo sem nome guardado, nome digitado no ajuste).

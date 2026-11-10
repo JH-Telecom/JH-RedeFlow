@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { scaled } from './db-usage.js';
 
 // Cache dos paineis e relatorios (so leitura). Cada resposta fica guardada por pessoa + endereco completo
 // (periodo, area...) e vale enquanto nenhum dado mudar: qualquer gravacao bem-sucedida na API (POST/PUT/PATCH/DELETE,
@@ -44,7 +45,7 @@ export function cacheReadModel(request: Request & { authUser?: { id: string } },
   const key = `${request.authUser.id}|${request.originalUrl}`;
   const now = Date.now();
   const hit = entries.get(key);
-  if (hit && hit.version === dataVersion && now - hit.at < READ_CACHE_TTL_MS) {
+  if (hit && hit.version === dataVersion && now - hit.at < scaled(READ_CACHE_TTL_MS)) {
     response.setHeader('X-Read-Cache', 'hit');
     return response.status(hit.status).json(hit.body);
   }

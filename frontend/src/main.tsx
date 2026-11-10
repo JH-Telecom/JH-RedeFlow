@@ -22,6 +22,7 @@ import './manual-dashboard.css';
 import './sidebar.css';
 import './profile-photo.css';
 import './admin.css';
+import './db-usage.css';
 import './settings-olt.css';
 import './observation-attachments.css';
 import './calls-layout.css';

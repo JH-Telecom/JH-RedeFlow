@@ -13,17 +13,21 @@
 
   let cfg = { ativo: true, nome: "", escopo: "todas" };
   let nomeSessao = "";
+  let nomeFixo = ""; // primeiro nome do ultimo login: continua valendo se o login cair
   const carregar = async () => {
-    const { waIdentificador, sessao } = await chrome.storage.local.get(["waIdentificador", "sessao"]);
+    const { waIdentificador, sessao, nomeFixo: fixo } = await chrome.storage.local.get(["waIdentificador", "sessao", "nomeFixo"]);
     cfg = { ...cfg, ...(waIdentificador || {}) };
     nomeSessao = sessao?.nome || "";
+    nomeFixo = fixo || "";
+    // Logado de antes da 1.7.1 (sem nome guardado): guarda agora, enquanto o login ainda vale.
+    if (!nomeFixo && sessao?.nome) { const p = String(sessao.nome).trim().split(/\s+/)[0] || ""; if (p) { nomeFixo = p[0].toUpperCase() + p.slice(1).toLowerCase(); void chrome.storage.local.set({ nomeFixo }); } }
   };
   void carregar();
-  chrome.storage.onChanged.addListener((mudancas, area) => { if (area === "local" && (mudancas.waIdentificador || mudancas.sessao)) void carregar(); });
+  chrome.storage.onChanged.addListener((mudancas, area) => { if (area === "local" && (mudancas.waIdentificador || mudancas.sessao || mudancas.nomeFixo)) void carregar(); });
 
   // So o primeiro nome do cadastro no sistema: "Matheus Terra Farias" -> "Matheus".
   const primeiroNome = (nome) => { const p = String(nome || "").trim().split(/\s+/)[0] || ""; return p ? p[0].toUpperCase() + p.slice(1).toLowerCase() : ""; };
-  const nomeAtual = () => (cfg.nome || "").trim() || primeiroNome(nomeSessao);
+  const nomeAtual = () => (cfg.nome || "").trim() || primeiroNome(nomeSessao) || nomeFixo;
   const prefixo = () => `*${nomeAtual()}:*`;
 
   const caixa = () => document.querySelector('#main footer div[contenteditable="true"]');

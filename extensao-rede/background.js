@@ -82,7 +82,11 @@ async function entrar(email, senha) {
     if (!r.ok || !body?.token) return { ok: false, erro: body?.message || `HTTP ${r.status}` };
     // cargo: so Administrador muda os ajustes da extensao. podeColetar: perfil com permissao de Importacoes.
     const sessao = { token: body.token, expiraEm: body.expiresAt, nome: body.user?.name || email, email: body.user?.email || email, cargo: body.user?.role || "", podeColetar: body.canCollect !== false };
-    await chrome.storage.local.set({ sessao });
+    // Primeiro nome guardado a parte: se o login cair (banco fora, sessao vencida), o identificador do WhatsApp
+    // continua saindo com o nome. So o botao Sair ou o login de outra pessoa trocam.
+    const primeiro = String(sessao.nome || "").trim().split(/\s+/)[0] || "";
+    const nomeFixo = primeiro ? primeiro[0].toUpperCase() + primeiro.slice(1).toLowerCase() : "";
+    await chrome.storage.local.set({ sessao, ...(nomeFixo ? { nomeFixo } : {}) });
     atualizarSelo();
     await agendar();
     return { ok: true, nome: sessao.nome, email: sessao.email, expiraEm: sessao.expiraEm, cargo: sessao.cargo, podeColetar: sessao.podeColetar };
@@ -612,7 +616,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     exportar: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : exportarDia(msg.data || hojeSP(), false)),
     enviarArquivo: async () => registrar({ ...(await enviarCsv(msg.csv, msg.nome, msg.data)), data: msg.data, automatico: false }),
     entrar: () => entrar(String(msg.email || "").trim(), String(msg.senha || "")),
-    sair: async () => { await chrome.storage.local.remove("sessao"); atualizarSelo(); return { ok: true }; },
+    sair: async () => { await chrome.storage.local.remove(["sessao", "nomeFixo"]); atualizarSelo(); return { ok: true }; },
     sessao: async () => { const s = await sessaoAtual(); return s ? { nome: s.nome, email: s.email, expiraEm: s.expiraEm, cargo: s.cargo || "", podeColetar: s.podeColetar !== false } : null; },
     testarConexao: async () => {
       const auth = await autenticacao();
