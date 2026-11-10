@@ -293,10 +293,11 @@ export async function deleteSupabaseTechnician(id: string) {
 // ---------- Copia dos chamados em memoria (economia de trafego do Supabase) ----------
 // Antes, cada tela, atualizacao automatica e rotina de fundo baixava a tabela INTEIRA de chamados (5 mil linhas,
 // ~14 MB), dezenas de milhares de vezes por mes, e o plano gratuito estourou o limite de trafego (egress).
-// Agora o servidor guarda os chamados na memoria: carga completa a cada 30 min (pega exclusoes) e, no meio,
+// Agora o servidor guarda os chamados na memoria: carga completa a cada 6 h (pega exclusoes feitas fora da API; as feitas pela API ja recarregam na hora) e, no meio,
 // so busca o que mudou (updated_at), quando algo foi gravado ou no maximo 1x por minuto. Filtros em memoria.
 type SnapshotEntry = { call: Call; supervisorId?: string; updatedAt: string };
-const SNAPSHOT_FULL_MS = 30 * 60_000;
+// Era 30 min: cada carga baixa ~14 MB (5 mil chamados) e o medidor mostrou 169 MB so de chamados em 10/11.
+const SNAPSHOT_FULL_MS = 6 * 60 * 60_000;
 const SNAPSHOT_DELTA_MS = 60_000;
 let snapshot: { entries: Map<string, SnapshotEntry>; fullAt: number; deltaAt: number; lastUpdatedAt: string } | null = null;
 let snapshotDirty = false;

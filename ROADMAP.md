@@ -5394,3 +5394,13 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - suíte 238/238;
   - teste das rotas no servidor de demonstração: sem login 401, publicação descartando a cor maliciosa, tema com `url(javascript:)` recusado (400), lista sem imagem, download com imagem e contador, remoção.
   - A janela de temas dentro do WhatsApp Web não foi testada aqui (só a sintaxe).
+
+## Cópia dos chamados: carga completa a cada 6 h (2026-11-10)
+- **Achado**: com o conector apontando para o Supabase novo, o medidor de tráfego mostrou **207,6 MB em 10/11**, sendo **169 MB da tabela `calls`** (2.537 consultas, ~68 KB cada). O ritmo do plano gratuito é ~170 MB/dia (5 GB ÷ 30).
+  - A causa foi a carga completa da cópia em memória a cada 30 min (~14 MB cada; 5.134 chamados de ~1,2 KB, 63% disso no campo de observações), mais uma carga a cada deploy.
+  - Nesse ritmo daria ~670 MB/dia.
+- **Mudança**: carga completa a cada **6 h** (era 30 min).
+  - No meio, a cópia continua buscando só o que mudou (`updated_at`), quando algo é gravado ou no máximo 1x por minuto.
+  - Exclusões pela API já forçavam a recarga na hora.
+- **Conferido**: todas as gravações em `calls` atualizam `updated_at`. A atualização pelo `updateSupabaseCall` monta as mudanças já com `updated_at`; a importação histórica só insere (o banco preenche `updated_at`). Então nada fica velho na cópia por mais de 1 minuto.
+- **Também conferido no banco novo**: tabela `wa_shared_themes` criada certa (colunas, `has_image` calculada, RLS ligado); a extensão já achou 5 SNs no AutoISP.
