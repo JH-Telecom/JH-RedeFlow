@@ -4,6 +4,7 @@ import { ChevronRight, Download, FileText, Paperclip, X } from "lucide-react";
 import { api, CLOSED_CALL_STATUSES, isCallClosed, type Call, type CallAuditLog, type CallObservation, type CallStatus, type RepeatHistory, type Technician } from "../api";
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
+import { CopyText } from "../components/CopyText";
 import { MentionTextarea, withMentions } from "../components/MentionTextarea";
 import { TechnicianSuggestions } from "../components/AssistWidgets";
 import { CallTimeline } from "../components/CallTimeline";
@@ -234,6 +235,7 @@ export function CallDetailBase() {
             <EditableDetailItem label="Endereço" value={address} onChange={setAddress} />
             <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
+            <SerialNumberItem callId={call.id} />
             <label className="detail-item editable-detail-item"><span>Abertura</span><input type="datetime-local" value={openedAt} onChange={(event) => setOpenedAt(event.target.value)} required /></label>
             {call.eventAt && <DetailItem label="Data/Hora do evento" value={new Date(call.eventAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} />}
             {call.eventAt && <DetailItem label="Gap evento → acionamento" value={formatEventGap(call.eventAt, call.openedAt)} />}
@@ -636,6 +638,25 @@ function EndDateItem({ call, onSaved }: { call: Call; onSaved: (call: Call) => v
         </div>
       )}
       {feedback && <small className={feedback.error ? "end-date-feedback is-error" : "end-date-feedback"} role={feedback.error ? "alert" : "status"}>{feedback.text}</small>}
+    </div>
+  );
+}
+
+// SN da ONU (os testes da Rede sao feitos pelo SN). FIELD: vem no card. Outros: a extensao procura um contrato do
+// card no AutoISP (aba aberta e logada) e o SN aparece aqui. Clicar copia.
+function SerialNumberItem({ callId }: { callId: string }) {
+  const [data, setData] = useState<{ serialNumber: string | null; source: "card" | "autoisp" | null; contract?: string | null; contracts: string[] } | null>(null);
+  useEffect(() => {
+    let active = true;
+    api.callSerial(callId).then((result) => { if (active) setData(result); }).catch(() => { if (active) setData(null); });
+    return () => { active = false; };
+  }, [callId]);
+  const hint = !data ? "Carregando..." : data.serialNumber ? (data.source === "autoisp" ? `AutoISP${data.contract ? ` · contrato ${data.contract}` : ""}` : "Do card") : data.contracts.length ? `Aguardando a extensão no AutoISP (contrato ${data.contracts[0]})` : "Sem SN nem contrato no card";
+  return (
+    <div className="detail-item serial-detail-item">
+      <span>SN da ONU</span>
+      {data?.serialNumber ? <CopyText value={data.serialNumber} label={`o SN ${data.serialNumber}`} className="serial-value" /> : <strong className="serial-empty">–</strong>}
+      <small>{hint}</small>
     </div>
   );
 }

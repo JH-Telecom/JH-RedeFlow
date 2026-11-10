@@ -209,3 +209,9 @@
 .cq-order-badges:empty { display: none; }
 .cq-order-badges .call-badge { margin: 0; }
 .cq-table .cq-order-badges .call-badge.atrelado { margin-top: 0; }
+/* SN da ONU no detalhe do chamado (clicar copia). */
+.serial-detail-item .serial-value { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 14px; font-weight: 700; color: #17233b; letter-spacing: .02em; }
+.serial-detail-item .serial-empty { color: #4f5d73; }
+.serial-detail-item small { display: block; margin-top: 3px; font-size: 11px; color: #4f5d73; }
+:where(:root[data-theme="dark"]) .serial-detail-item .serial-value { color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .serial-detail-item .serial-empty, :where(:root[data-theme="dark"]) .serial-detail-item small { color: #b5b9c1; }

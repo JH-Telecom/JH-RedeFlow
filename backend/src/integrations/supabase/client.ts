@@ -561,6 +561,26 @@ async function latestProcessingByActivation(ids: string[]) {
   return latest;
 }
 
+// SN dos chamados: o acionamento que criou o chamado guarda o que foi lido do card (FIELD traz o S/N) e o SN que a
+// extensao achou no AutoISP. Busca so os acionamentos dos chamados pedidos (pouco trafego).
+export async function supabaseActivationDataForCalls(callIds: string[]) {
+  const result = new Map<string, { activationId: string; extracted: Record<string, unknown> }>();
+  for (let index = 0; index < callIds.length; index += 150) {
+    const chunk = callIds.slice(index, index + 150);
+    const { data, error } = await getSupabaseAdmin().from('activations').select('id, created_call_id, decision_at').in('created_call_id', chunk).order('decision_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    const rows = (data || []).filter((row) => row.created_call_id && !result.has(row.created_call_id));
+    const latest = await latestProcessingByActivation(rows.map((row) => row.id));
+    for (const row of rows) if (!result.has(row.created_call_id)) result.set(row.created_call_id, { activationId: row.id, extracted: latest.get(row.id) || {} });
+  }
+  return result;
+}
+// Nova versao dos dados do acionamento (activation_processing so recebe linhas novas; vale a mais recente).
+export async function appendSupabaseActivationData(activationId: string, extracted: Record<string, unknown>, processor: string) {
+  const { error } = await getSupabaseAdmin().from('activation_processing').insert({ activation_id: activationId, extracted_data: extracted, processor });
+  if (error) throw new Error(error.message);
+}
+
 // Candidatos ao atrelado: chamados em aberto (findAtreladaCallOrder decide o "pendente" e a OLT/PON).
 // Vem da copia dos chamados em memoria, sem nova consulta ao banco.
 async function listAtreladaCandidates(olt: string | null | undefined): Promise<Call[]> {

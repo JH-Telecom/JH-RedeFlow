@@ -5349,3 +5349,30 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - teste HTTP do GIGA+ atualizado (editável, aceita observação, fora da Visão geral, aparece só em aberto);
   - suíte 231/231.
 - **Preview**: chamado marcado como GIGA+ aceitou observação (201), contou 1 na aba GIGA+ de Em atendimento e 0 em Finalizados.
+
+## SN da ONU em todos os chamados (AutoISP) e extensão 1.8.0 (2026-11-10)
+- **Motivo**: os testes da Rede são feitos pelo SN da ONU.
+  - Card FIELD: já traz "S/N".
+  - Card NOC e outros: trazem contratos ("Contrato(s) Exemplo(s)" e o contrato de cada endereço afetado).
+- **Onde fica o SN** (sem migração): no acionamento que criou o chamado.
+  - O SN do card FIELD já era lido.
+  - O achado no AutoISP vira uma linha nova em `activation_processing` (`autoispSerial`, `autoispContract`, `autoispOlt`).
+- **Chamado**: novo campo **"SN da ONU"** no detalhe (`CallDetailPage`), que copia ao clicar e mostra a origem: "Do card", "AutoISP · contrato X" ou "Aguardando a extensão no AutoISP".
+- **Backend**:
+  - `backend/src/serial-number.ts`: normaliza o SN (16 hex ou 4 letras + 8 hex), tira os contratos do card ("5687878.3" → "5687878", até 8) e escolhe a linha do AutoISP da mesma OLT do chamado;
+  - `backend/src/store/serials.ts`;
+  - rotas:
+    - `GET /api/chamados/:id/sn`;
+    - `GET /api/integrations/autoisp/pendentes`: chamados em aberto, inclusive GIGA+, sem SN e com contrato, até 25;
+    - `POST /api/integrations/autoisp/sn`: mesma identificação do Coletor OFS (perfil com Importações).
+- **Extensão 1.8.0** (`background.js`, permissão `https://auto.alloha.com/*`):
+  - a cada ciclo dos fechamentos, pede os chamados sem SN;
+  - procura até 3 contratos de cada um em `auto.alloha.com/client_search/search?contract_id=...`, **dentro da aba do AutoISP já aberta e logada** (usa o login de quem está no computador);
+  - manda ao sistema só SN, OLT e contrato, sem nome nem endereço do assinante;
+  - sem aba do AutoISP aberta, não faz nada;
+  - também dá para rodar pela mensagem `buscarSn`.
+- **Validação**:
+  - formato da resposta do AutoISP conferido numa busca real por contrato (lista com `serial_number`, `olt_hostname`, `contract_id`; funciona com e sem o filtro "Ativo");
+  - `test/serial-number.test.ts` (formatos do SN, card FIELD x AutoISP, contratos do card NOC, linha da mesma OLT);
+  - suíte 235/235;
+  - preview: aceitar o acionamento, mandar o SN como a extensão manda e abrir o chamado mostrou "SN da ONU 48575443ABCD1234 · AutoISP · contrato 5687878".

@@ -1,3 +1,4 @@
+import { getCallSerial, pendingSerialLookups, saveAutoIspSerial } from './store/serials.js';
 import { isCallClosed } from './call-status.js';
 import 'dotenv/config';
 import cors from 'cors';
@@ -1009,6 +1010,13 @@ app.post('/api/chamados/:id/reabrir', auth, requirePermission('calls.reopen'), a
   if (!call) return response.status(409).json({ message: 'Somente chamados finalizados, cancelados ou marcados para baixar podem ser reabertos.' });
   return response.json({ call });
 });
+// SN do chamado (do card FIELD ou achado no AutoISP pela extensao).
+app.get('/api/chamados/:id/sn', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  const call = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
+  if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  try { return response.json(await getCallSerial(call.id)); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel ler o SN.' }); }
+});
 app.get('/api/chamados/:id/observacoes', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const call = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
@@ -1211,6 +1219,28 @@ async function finishCallsReadyFromOfs(label: string) {
   if (finished.length) console.log(`[Coletor OFS] ${actor.name}: ${finished.length} chamados finalizados pelo fechamento do OFS (${finished.join(', ')})`);
   return finished;
 }
+// SN dos chamados pelo AutoISP: a extensao pede os chamados em aberto sem SN (com os contratos do card), procura
+// cada contrato no AutoISP (aba aberta e logada) e devolve so SN, OLT e contrato de cada assinante achado.
+app.get('/api/integrations/autoisp/pendentes', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  try { return response.json({ itens: await pendingSerialLookups() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel listar os chamados sem SN.' }); }
+});
+app.post('/api/integrations/autoisp/sn', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  const parsed = z.object({
+    callId: z.string().trim().min(1).max(80),
+    contract: z.string().trim().min(1).max(20),
+    rows: z.array(z.object({ serial: z.string().trim().max(40).nullish(), olt: z.string().trim().max(120).nullish(), contract: z.union([z.string().max(20), z.number()]).nullish() })).max(30),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Dados do AutoISP invalidos.' });
+  try {
+    const result = await saveAutoIspSerial(parsed.data.callId, parsed.data.contract, parsed.data.rows);
+    return result.ok ? response.json(result) : response.status(422).json(result);
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o SN.' }); }
+});
 app.get('/api/integrations/ofs/fechamentos/pendentes', async (request, response) => {
   const identity = await ofsCollectorIdentity(request);
   if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });

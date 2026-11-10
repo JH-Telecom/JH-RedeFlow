@@ -8,6 +8,8 @@ const API_BASE = "https://jh-redeflow-api.onrender.com";
 const API_URL = `${API_BASE}/api/integrations/ofs/export`;
 const LOGIN_URL = `${API_BASE}/api/integrations/ofs/login`;
 const FECH_PENDENTES_URL = `${API_BASE}/api/integrations/ofs/fechamentos/pendentes`;
+const SN_PENDENTES_URL = `${API_BASE}/api/integrations/autoisp/pendentes`;
+const SN_SALVAR_URL = `${API_BASE}/api/integrations/autoisp/sn`;
 const FECH_URL = `${API_BASE}/api/integrations/ofs/fechamentos`;
 const RELATO_URL = `${API_BASE}/api/integrations/ofs/relato`;
 
@@ -601,11 +603,53 @@ async function agendar() {
   atualizarSelo();
 }
 
+// ---------- SN da ONU pelo AutoISP ----------
+// Chamados em aberto sem SN (o FIELD ja traz no card): pega um contrato do card, procura no AutoISP e manda o SN.
+// Usa a aba do AutoISP que ja esta aberta e logada (a busca roda dentro dela, com o login de quem usa).
+// Sem aba do AutoISP aberta, nao faz nada. Manda so SN, OLT e contrato (nada de nome ou endereco do assinante).
+async function buscarSnAutoIsp() {
+  const auth = await autenticacao();
+  if (!auth) return { ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" };
+  const [aba] = await chrome.tabs.query({ url: "https://auto.alloha.com/*" });
+  if (!aba) return { ok: false, erro: "Abra o AutoISP (auto.alloha.com) logado neste Chrome" };
+  const r = await fetch(SN_PENDENTES_URL, { headers: auth.headers });
+  const corpo = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, erro: corpo?.message || `HTTP ${r.status}` };
+  const itens = Array.isArray(corpo.itens) ? corpo.itens : [];
+  let achados = 0;
+  let semSn = 0;
+  for (const item of itens) {
+    let salvo = false;
+    for (const contrato of (item.contracts || []).slice(0, 3)) {
+      const [{ result } = {}] = await chrome.scripting.executeScript({
+        target: { tabId: aba.id },
+        args: [contrato],
+        func: async (c) => {
+          try {
+            const resposta = await fetch(`/client_search/search?contract_id=${encodeURIComponent(c)}`, { headers: { accept: "application/json" }, credentials: "include" });
+            if (!resposta.ok) return { erro: `AutoISP HTTP ${resposta.status}` };
+            const lista = await resposta.json();
+            return { linhas: (Array.isArray(lista) ? lista : []).slice(0, 30).map((x) => ({ serial: x.serial_number || x.short_serial_number || null, olt: x.olt_hostname || null, contract: x.contract_id ?? null })) };
+          } catch (e) { return { erro: String(e?.message || e) }; }
+        },
+      }).catch((e) => [{ result: { erro: String(e?.message || e) } }]);
+      if (!result || result.erro) continue;
+      if (!result.linhas.some((linha) => linha.serial)) continue;
+      const envio = await fetch(SN_SALVAR_URL, { method: "POST", headers: { "Content-Type": "application/json", ...auth.headers }, body: JSON.stringify({ callId: item.callId, contract: String(contrato), rows: result.linhas }) });
+      if (envio.ok) { achados += 1; salvo = true; break; }
+    }
+    if (!salvo) semSn += 1;
+  }
+  const registro = { quando: Date.now(), ok: true, pendentes: itens.length, achados, semSn };
+  await chrome.storage.local.set({ ultimoSn: registro });
+  return registro;
+}
+
 chrome.alarms.onAlarm.addListener(async (alarme) => {
   if (alarme.name === "rf-vigia") return conferirCapturaVencida();
   const cfg = await config();
   if (!cfg.ativo || (await semPermissaoDeColeta())) return;
-  if (alarme.name === ALARME_FECH) return coletarFechamentos(true);
+  if (alarme.name === ALARME_FECH) { await coletarFechamentos(true); return buscarSnAutoIsp().catch(() => undefined); }
   if (alarme.name === ALARME_CLUSTERS) return coletarClusters(true);
   if (alarme.name === ALARME_HOJE) await exportarDia(hojeSP(), true);
   if (alarme.name === ALARME_ONTEM) {
@@ -647,6 +691,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     proximas: async () => ({ hoje: (await chrome.alarms.get(ALARME_HOJE))?.scheduledTime || null, ontem: (await chrome.alarms.get(ALARME_ONTEM))?.scheduledTime || null, fechamentos: (await chrome.alarms.get(ALARME_FECH))?.scheduledTime || null, clusters: (await chrome.alarms.get(ALARME_CLUSTERS))?.scheduledTime || null }),
     fechamentos: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarFechamentos(false)),
     clusters: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarClusters(false)),
+    buscarSn: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : buscarSnAutoIsp()),
   };
   const tarefa = tarefas[msg?.tipo];
   if (!tarefa) return false;
