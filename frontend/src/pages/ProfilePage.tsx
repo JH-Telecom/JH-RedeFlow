@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, Download, Image as ImageIcon, Moon, Palette, ShieldCheck, Sun, Trash2, UserRound } from "lucide-react";
+import { Camera, Check, Download, Image as ImageIcon, Moon, Palette, ShieldCheck, Sparkles, Sun, Trash2, UserRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, type ProfilePreferences, type Role, type User, type UserStatus } from "../api";
 import { StatusEditor } from "../components/StatusEditor";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { resizeBannerImage } from "../lib/banner-image";
 import { PALETTES, type PaletteId, type Theme } from "../theme";
+import { RELEASES } from "../releases";
+import { markReleasesSeen, ReleaseItemCard, visibleReleases } from "../components/WhatsNew";
 
 type ProfilePhotoControls = { photo: string | null; saving: boolean; error: string; onChange: (file: File) => Promise<void>; onRemove: () => Promise<void> };
 
@@ -160,9 +162,39 @@ export function ProfilePage({ user, profile, preferences, onSavePreferences, the
         </div>
       </section>
 
+      <NewsCard user={user} />
+
       <MyDataCard />
       </div>
     </div>
+  );
+}
+
+// Novidades: tudo o que ja saiu, da versao mais recente para a mais antiga. Abrir aqui conta como visto.
+function NewsCard({ user }: { user: User & { role: Role } }) {
+  const [showAll, setShowAll] = useState(false);
+  const releases = visibleReleases(RELEASES, (permission) => !permission || user.role.permissions.includes(permission));
+  const shown = showAll ? releases : releases.slice(0, 1);
+  useEffect(() => {
+    markReleasesSeen(user.id);
+    if (window.location.hash === "#novidades") document.getElementById("novidades")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [user.id]);
+  return (
+    <section id="novidades" className="panel pf-card" aria-labelledby="pf-news-title">
+      <div className="pf-card-heading">
+        <span className="pf-card-icon"><Sparkles size={18} aria-hidden="true" /></span>
+        <div><h2 id="pf-news-title">Novidades</h2><p>O que mudou no sistema, da versão mais recente para a mais antiga.</p></div>
+      </div>
+      <div className="pf-news-list">
+        {shown.map((release) => (
+          <div key={release.id}>
+            <h3 className="wn-date">Versão de {release.label}</h3>
+            <ul className="wn-list">{release.items.map((item) => <ReleaseItemCard key={item.title} item={item} />)}</ul>
+          </div>
+        ))}
+        {releases.length > 1 && <button type="button" className="secondary-button compact pf-news-more" onClick={() => setShowAll((value) => !value)}>{showAll ? "Mostrar só a última versão" : `Ver versões anteriores (${releases.length - 1})`}</button>}
+      </div>
+    </section>
   );
 }
 

@@ -36,6 +36,7 @@ import './page-transition.css';
 import './calls-queue.css';
 import './sla-analysis.css';
 import './update-notice.css';
+import './whats-new.css';
 import './due-soon.css';
 import './tv-mode.css';
 import './legal.css';

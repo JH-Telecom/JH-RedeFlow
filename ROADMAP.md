@@ -5414,3 +5414,22 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - Sem cargo nenhum, sai só o nome, como antes.
 - A prévia do popup mostra o formato novo enquanto digita.
 - **Validação**: sintaxe dos 3 arquivos e simulação nos casos logado, login caído, login antigo sem cargo guardado, cargo digitado e sem cargo.
+
+## "O que há de novo" (novidades do sistema) (2026-11-10)
+- **Modal "O que há de novo"** ao entrar no sistema:
+  - aparece uma vez por versão para cada login (guardado no navegador);
+  - cabeçalho com a data da versão e quantas novidades há;
+  - cada novidade tem ícone, título, selo (Novo / Melhoria / Correção) e uma explicação curta;
+  - fecha com Entendi, X, Esc ou clique fora.
+  - Se a pessoa ficou várias versões sem entrar, mostra todas as que perdeu, separadas por data. No primeiro acesso, só a mais recente.
+- **Meu perfil › Novidades**: seção nova com a última versão e o botão "Ver versões anteriores". O link do rodapé do modal leva direto para ela.
+- **Conteúdo** em `frontend/src/releases.ts`:
+  - versões de 10/11, 09/11 e 06/11, escritas para a equipe;
+  - novidade de área restrita (ex.: uso do banco, só Administrador) aparece só para quem tem a permissão.
+  - **Para anunciar algo novo**: acrescentar uma versão no topo da lista com id novo (data).
+- **Validação**:
+  - typecheck;
+  - preview em claro, escuro e celular (375 px);
+  - contraste de todas as cores do modal ≥ 4,5:1 nos dois temas;
+  - fechar marca como visto e não reabre ao recarregar;
+  - o link abre Meu perfil já na seção.

@@ -10,6 +10,7 @@ import { CommandPalette } from "./CommandPalette";
 import { HelpTip, PAGE_HELP } from "./HelpTip";
 import { ImageReadyToast } from "./ImageReadyToast";
 import { ACTIVATIONS_CHANGED, ActivationToast } from "./ActivationToast";
+import { markReleasesSeen, unseenReleases, WhatsNewModal } from "./WhatsNew";
 import { TvModePage } from "../pages/TvModePage";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Activation, type Role, type User, type AppNotification, type ProfilePreferences, type UserStatus } from "../api";
@@ -222,6 +223,9 @@ export function Shell({
     }
   }
   const canAccess = (permission: string) => !permission || user.role.permissions.includes(permission);
+  // O que ha de novo: uma vez por versao para cada login (fecha marca como visto).
+  const [whatsNew, setWhatsNew] = useState(() => unseenReleases(user.id, canAccess));
+  const closeWhatsNew = () => { markReleasesSeen(user.id); setWhatsNew([]); };
   const guard = (permission: string, element: React.ReactNode) => (canAccess(permission) ? element : <AccessDenied />);
   // Abas ocultas pelo cargo (Cargos e permissoes): saem do menu, da busca e a rota fica bloqueada.
   const hiddenTabs = user.role.hiddenTabs ?? [];
@@ -258,6 +262,7 @@ export function Shell({
       <a className="skip-link" href="#conteudo">Pular para o conteúdo</a>
       <UpdateNotice />
       <ImageReadyToast />
+      {whatsNew.length > 0 && location.pathname !== "/perfil" && <WhatsNewModal releases={whatsNew} onClose={closeWhatsNew} />}
       {paletteOpen && (
         <CommandPalette
           links={visibleItems.map((item) => ({ label: item.label, to: item.to, section: item.section, icon: item.icon }))}
