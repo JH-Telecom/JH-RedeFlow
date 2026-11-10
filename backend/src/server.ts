@@ -1815,7 +1815,7 @@ async function startServer() {
   try { await listOltRegionMappings(); }
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }
   await captureUnknownOltRequestsFromCalls();
-  app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
+  const server = app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
   // Rotinas a cada 5 min: escalonamento (sino sempre) e, com WhatsApp configurado, aviso de prazo, resumo das 7h
   // e coleta parada. Nao rodam dentro dos testes automatizados.
   if (!process.env.NODE_TEST_CONTEXT) {
@@ -1824,7 +1824,16 @@ async function startServer() {
     // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
     void loadDbUsage();
     setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();
-    process.once('SIGTERM', () => { void flushDbUsage().finally(() => process.exit(0)); });
+    // Deploy no Render: a instancia antiga recebe SIGTERM. Antes saia na hora e cortava o que estava chegando
+    // (ex.: export do OFS das 09:10 de 10/11 voltou HTTP 502). Agora para de aceitar conexoes novas, termina as
+    // que estao em andamento (ate 25 s, o Render espera 30 s), grava a medicao do trafego e so entao sai.
+    process.once('SIGTERM', () => {
+      console.log('[Desligando] SIGTERM: terminando os pedidos em andamento.');
+      const exit = () => { void flushDbUsage().finally(() => process.exit(0)); };
+      server.close(exit);
+      server.closeIdleConnections?.();
+      setTimeout(exit, 25_000).unref();
+    });
   }
 }
 void startServer();

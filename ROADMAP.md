@@ -5306,3 +5306,14 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - Antes, sem BDESK, o risco ficava ao lado do número.
 - Os selos ficam num `div.cq-order-badges` (`CallsPage.tsx`, `calls-queue.css`); sem selo, a linha não aparece.
 - **Preview**: com um selo de risco colocado na primeira linha, ele ficou embaixo da ordem e do BDESK; typecheck do frontend.
+
+## Export do OFS com HTTP 502 durante deploy (2026-11-10)
+- **Caso**: export das 09:10 (12:10 UTC) de 10/11 voltou "HTTP 502". Foi o momento exato em que o Render trocava de versão (deploy do commit `68031e7`; a instância nova subiu às 12:10:13). Os envios seguintes (fechamentos às 12:11, clusters às 12:13) passaram normalmente.
+- **Servidor** (`server.ts`): ao receber SIGTERM (deploy), para de aceitar conexões novas, **termina os pedidos em andamento** (até 25 s; o Render espera 30 s), grava a medição de tráfego e só então sai. Antes saía na hora.
+- **Extensão 1.7.2** (`background.js`):
+  - o envio do export tenta de novo **2 vezes** (10 s e 25 s depois), só quando o erro é passageiro: 502, 503, 504 ou sem conexão;
+  - erros reais (login, dados inválidos) não repetem;
+  - antes, a próxima tentativa era só no horário seguinte (1 h depois).
+- **Validação**:
+  - suíte 228/228;
+  - simulação do envio: 502 e depois 200 → ok na 2ª tentativa; sem conexão 3x → falha depois de 3 tentativas; 400 → falha na 1ª, sem repetir.

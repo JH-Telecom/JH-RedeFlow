@@ -137,7 +137,21 @@ async function registrar(resultado) {
 }
 
 // ---------- envio ao RedeFlow ----------
+// Servidor trocando de versao (deploy) ou fora por instantes: 502/503/504 ou sem conexao. Tenta de novo
+// 2 vezes (10 s e 25 s depois) antes de dar como falha; antes ficava para o proximo horario (1 h depois).
+const ESPERAS_REENVIO_MS = [10_000, 25_000];
+const falhaPassageira = (resultado) => !resultado.ok && (resultado.status === 502 || resultado.status === 503 || resultado.status === 504 || resultado.semConexao);
 async function enviarCsv(csv, nome, data) {
+  let resultado = await enviarCsvUmaVez(csv, nome, data);
+  for (const espera of ESPERAS_REENVIO_MS) {
+    if (!falhaPassageira(resultado)) break;
+    await new Promise((resolve) => setTimeout(resolve, espera));
+    resultado = await enviarCsvUmaVez(csv, nome, data);
+  }
+  const { status, semConexao, ...semDetalhes } = resultado;
+  return semDetalhes;
+}
+async function enviarCsvUmaVez(csv, nome, data) {
   const auth = await autenticacao();
   if (!auth) return { ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" };
   try {
@@ -149,10 +163,10 @@ async function enviarCsv(csv, nome, data) {
     const body = await r.json().catch(() => ({}));
     // Sessao vencida, usuario desativado ou sem permissao: sai para o popup pedir login de novo.
     if (auth.sessao && (r.status === 401 || r.status === 403)) await chrome.storage.local.remove("sessao");
-    if (!r.ok) return { ok: false, erro: body?.message || `HTTP ${r.status}` };
+    if (!r.ok) return { ok: false, status: r.status, erro: body?.message || `HTTP ${r.status}` };
     return { ok: true, atividades: body?.painel?.records ?? null, cruzados: body?.d0?.matchedCalls ?? null, atualizados: body?.d0?.updatedCalls ?? null, aviso: body?.d0Error || null };
   } catch (e) {
-    return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` };
+    return { ok: false, semConexao: true, erro: `Sem conexão com o RedeFlow (${e?.message || e})` };
   }
 }
 
