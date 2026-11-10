@@ -5404,3 +5404,13 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - Exclusões pela API já forçavam a recarga na hora.
 - **Conferido**: todas as gravações em `calls` atualizam `updated_at`. A atualização pelo `updateSupabaseCall` monta as mudanças já com `updated_at`; a importação histórica só insere (o banco preenche `updated_at`). Então nada fica velho na cópia por mais de 1 minuto.
 - **Também conferido no banco novo**: tabela `wa_shared_themes` criada certa (colunas, `has_image` calculada, RLS ligado); a extensão já achou 5 SNs no AutoISP.
+
+## Identificador do WhatsApp com cargo e nome (extensão 1.9.1) (2026-11-10)
+- As mensagens saem como **`*Cargo - Nome:*`** (ex.: `*Mesário - Matheus:*`); antes era só `*Matheus:*`.
+- **Cargo**:
+  - o do login no sistema (o cargo cadastrado);
+  - no popup há o campo novo **"Cargo que aparece"** (em branco = cargo do login), como já existia para o nome;
+  - fica guardado como o nome (`cargoFixo`): se o login cair, continua saindo; o botão Sair apaga; quem estava logado de antes ganha o cargo guardado sozinho.
+  - Sem cargo nenhum, sai só o nome, como antes.
+- A prévia do popup mostra o formato novo enquanto digita.
+- **Validação**: sintaxe dos 3 arquivos e simulação nos casos logado, login caído, login antigo sem cargo guardado, cargo digitado e sem cargo.

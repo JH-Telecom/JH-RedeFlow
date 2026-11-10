@@ -88,7 +88,9 @@ async function entrar(email, senha) {
     // continua saindo com o nome. So o botao Sair ou o login de outra pessoa trocam.
     const primeiro = String(sessao.nome || "").trim().split(/\s+/)[0] || "";
     const nomeFixo = primeiro ? primeiro[0].toUpperCase() + primeiro.slice(1).toLowerCase() : "";
-    await chrome.storage.local.set({ sessao, ...(nomeFixo ? { nomeFixo } : {}) });
+    // Cargo do login (ex.: Mesario) tambem fica guardado: o identificador sai como *Cargo - Nome:*.
+    const cargoFixo = String(sessao.cargo || "").trim();
+    await chrome.storage.local.set({ sessao, ...(nomeFixo ? { nomeFixo } : {}), ...(cargoFixo ? { cargoFixo } : {}) });
     atualizarSelo();
     await agendar();
     return { ok: true, nome: sessao.nome, email: sessao.email, expiraEm: sessao.expiraEm, cargo: sessao.cargo, podeColetar: sessao.podeColetar };
@@ -674,7 +676,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     exportar: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : exportarDia(msg.data || hojeSP(), false)),
     enviarArquivo: async () => registrar({ ...(await enviarCsv(msg.csv, msg.nome, msg.data)), data: msg.data, automatico: false }),
     entrar: () => entrar(String(msg.email || "").trim(), String(msg.senha || "")),
-    sair: async () => { await chrome.storage.local.remove(["sessao", "nomeFixo"]); atualizarSelo(); return { ok: true }; },
+    sair: async () => { await chrome.storage.local.remove(["sessao", "nomeFixo", "cargoFixo"]); atualizarSelo(); return { ok: true }; },
     sessao: async () => { const s = await sessaoAtual(); return s ? { nome: s.nome, email: s.email, expiraEm: s.expiraEm, cargo: s.cargo || "", podeColetar: s.podeColetar !== false } : null; },
     testarConexao: async () => {
       const auth = await autenticacao();

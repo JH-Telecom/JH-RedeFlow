@@ -14,21 +14,28 @@
   let cfg = { ativo: true, nome: "", escopo: "todas" };
   let nomeSessao = "";
   let nomeFixo = ""; // primeiro nome do ultimo login: continua valendo se o login cair
+  let cargoSessao = "";
+  let cargoFixo = ""; // cargo do ultimo login (ex.: Mesario), guardado do mesmo jeito
   const carregar = async () => {
-    const { waIdentificador, sessao, nomeFixo: fixo } = await chrome.storage.local.get(["waIdentificador", "sessao", "nomeFixo"]);
+    const { waIdentificador, sessao, nomeFixo: fixo, cargoFixo: cargoGuardado } = await chrome.storage.local.get(["waIdentificador", "sessao", "nomeFixo", "cargoFixo"]);
     cfg = { ...cfg, ...(waIdentificador || {}) };
     nomeSessao = sessao?.nome || "";
     nomeFixo = fixo || "";
+    cargoSessao = String(sessao?.cargo || "").trim();
+    cargoFixo = cargoGuardado || "";
+    if (!cargoFixo && cargoSessao) { cargoFixo = cargoSessao; void chrome.storage.local.set({ cargoFixo }); }
     // Logado de antes da 1.7.1 (sem nome guardado): guarda agora, enquanto o login ainda vale.
     if (!nomeFixo && sessao?.nome) { const p = String(sessao.nome).trim().split(/\s+/)[0] || ""; if (p) { nomeFixo = p[0].toUpperCase() + p.slice(1).toLowerCase(); void chrome.storage.local.set({ nomeFixo }); } }
   };
   void carregar();
-  chrome.storage.onChanged.addListener((mudancas, area) => { if (area === "local" && (mudancas.waIdentificador || mudancas.sessao || mudancas.nomeFixo)) void carregar(); });
+  chrome.storage.onChanged.addListener((mudancas, area) => { if (area === "local" && (mudancas.waIdentificador || mudancas.sessao || mudancas.nomeFixo || mudancas.cargoFixo)) void carregar(); });
 
   // So o primeiro nome do cadastro no sistema: "Matheus Terra Farias" -> "Matheus".
   const primeiroNome = (nome) => { const p = String(nome || "").trim().split(/\s+/)[0] || ""; return p ? p[0].toUpperCase() + p.slice(1).toLowerCase() : ""; };
   const nomeAtual = () => (cfg.nome || "").trim() || primeiroNome(nomeSessao) || nomeFixo;
-  const prefixo = () => `*${nomeAtual()}:*`;
+  // *Cargo - Nome:* (ex.: *Mesario - Matheus:*). Cargo: o digitado no popup, senao o do login (ou o guardado).
+  const cargoAtual = () => (cfg.cargo || "").trim() || cargoSessao || cargoFixo;
+  const prefixo = () => (cargoAtual() ? `*${cargoAtual()} - ${nomeAtual()}:*` : `*${nomeAtual()}:*`);
 
   const caixa = () => document.querySelector('#main footer div[contenteditable="true"]');
   const botaoEnviar = () => {

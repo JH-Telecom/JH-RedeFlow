@@ -110,11 +110,14 @@
     <section class="painel" data-painel="whats" role="tabpanel" hidden>
       <div class="card" id="cardWhatsapp">
         <div class="card-titulo"><span class="ic">🏷️</span><div><h2>Identificar minhas mensagens</h2><p class="hint">Mesmo número para todos: cada mensagem sai com o seu nome, sem digitar nada.</p></div></div>
-        <div class="previa" aria-hidden="true"><b id="waPrevia">*Matheus:*</b><span>Técnico a caminho da CTO.</span></div>
+        <div class="previa" aria-hidden="true"><b id="waPrevia">*Mesário - Matheus:*</b><span>Técnico a caminho da CTO.</span></div>
         <p class="bloqueio" data-bloqueio hidden>🔒 Só o cargo <b>Administrador</b> altera estes ajustes. Para mudar, entre com um login de Administrador.</p>
         <label class="interruptor"><input id="waAtivo" type="checkbox"><span class="trilho"></span>Ligado</label>
         <label class="campo">Nome que aparece
           <input id="waNome" type="text" maxlength="40" placeholder="em branco = nome do login">
+        </label>
+        <label class="campo">Cargo que aparece
+          <input id="waCargo" type="text" maxlength="30" placeholder="em branco = cargo do login">
         </label>
         <label class="campo">Onde
           <select id="waEscopo">

@@ -197,8 +197,11 @@ carregar();
 
 // ---------- WhatsApp Web: identificador do mesario e conversa sem contato ----------
 async function carregarWhatsapp() {
-  const { waIdentificador, sessao, nomeFixo } = await chrome.storage.local.get(["waIdentificador", "sessao", "nomeFixo"]);
-  const cfg = { ativo: true, nome: "", escopo: "todas", ...(waIdentificador || {}) };
+  const { waIdentificador, sessao, nomeFixo, cargoFixo } = await chrome.storage.local.get(["waIdentificador", "sessao", "nomeFixo", "cargoFixo"]);
+  const cfg = { ativo: true, nome: "", cargo: "", escopo: "todas", ...(waIdentificador || {}) };
+  $("waCargo").value = cfg.cargo || "";
+  const cargoLogin = sessao?.cargo || cargoFixo;
+  $("waCargo").placeholder = cargoLogin ? `em branco = ${cargoLogin}` : "em branco = cargo do login";
   $("waAtivo").checked = cfg.ativo !== false;
   $("waNome").value = cfg.nome || "";
   const automatico = sessao?.nome ? sessao.nome.split(/\s+/)[0] : nomeFixo;
@@ -206,11 +209,12 @@ async function carregarWhatsapp() {
   $("waEscopo").value = cfg.escopo === "grupos" ? "grupos" : "todas";
 }
 $("waSalvar").onclick = async () => {
-  const cfg = { ativo: $("waAtivo").checked, nome: $("waNome").value.trim().slice(0, 40), escopo: $("waEscopo").value };
+  const cfg = { ativo: $("waAtivo").checked, nome: $("waNome").value.trim().slice(0, 40), cargo: $("waCargo").value.trim().slice(0, 30), escopo: $("waEscopo").value };
   await chrome.storage.local.set({ waIdentificador: cfg });
-  const { sessao, nomeFixo } = await chrome.storage.local.get(["sessao", "nomeFixo"]);
+  const { sessao, nomeFixo, cargoFixo } = await chrome.storage.local.get(["sessao", "nomeFixo", "cargoFixo"]);
   const nome = cfg.nome || (sessao?.nome || "").split(/\s+/)[0] || nomeFixo;
-  $("waStatus").textContent = !cfg.ativo ? "Identificador desligado." : nome ? `✓ Suas mensagens vão sair como *${nome}:*. Recarregue o WhatsApp Web se ele já estava aberto.` : "Entre com seu usuário ou escreva um nome.";
+  const cargo = cfg.cargo || sessao?.cargo || cargoFixo || "";
+  $("waStatus").textContent = !cfg.ativo ? "Identificador desligado." : nome ? `✓ Suas mensagens vão sair como *${cargo ? `${cargo} - ` : ""}${nome}:*. Recarregue o WhatsApp Web se ele já estava aberto.` : "Entre com seu usuário ou escreva um nome.";
   $("waStatus").className = `hint ${cfg.ativo && nome ? "ok" : ""}`;
 };
 $("waAbrir").onclick = async () => {
@@ -242,11 +246,13 @@ new MutationObserver(() => {
 
 // Previa "*Nome:*" enquanto digita o nome.
 async function atualizarPrevia() {
-  const { sessao } = await chrome.storage.local.get("sessao");
-  const nome = $("waNome").value.trim() || (sessao?.nome || "").split(/\s+/)[0] || "Seu nome";
-  $("waPrevia").textContent = `*${nome}:*`;
+  const { sessao, nomeFixo, cargoFixo } = await chrome.storage.local.get(["sessao", "nomeFixo", "cargoFixo"]);
+  const nome = $("waNome").value.trim() || (sessao?.nome || "").split(/\s+/)[0] || nomeFixo || "Seu nome";
+  const cargo = $("waCargo").value.trim() || sessao?.cargo || cargoFixo || "";
+  $("waPrevia").textContent = cargo ? `*${cargo} - ${nome}:*` : `*${nome}:*`;
 }
 $("waNome").addEventListener("input", atualizarPrevia);
+$("waCargo").addEventListener("input", atualizarPrevia);
 atualizarPrevia();
 
 // Abre a janela de temas dentro do WhatsApp Web (abre o WhatsApp se ainda nao estiver aberto).
