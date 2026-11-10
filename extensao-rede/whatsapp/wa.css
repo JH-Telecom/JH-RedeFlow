@@ -256,6 +256,8 @@ body.dark #jh-menu,body.dark #jh-modal,body.dark #jh-faixa,body.dark #jh-faixa-p
 .jht-tx em{font-style:normal;font:700 9.5px Inter,sans-serif;letter-spacing:.04em;color:#fff;background:var(--jv1);border-radius:5px;padding:2px 6px;margin-left:4px;vertical-align:2px}
 .jht-bts{display:flex;gap:6px;padding:8px 12px 12px}.jht-bts .jh-bt2{padding:6px 12px;font-size:12.5px}.jht-bts .jh-bt2.pri{flex:1}
 .jht-vz{grid-column:1/-1;text-align:center;color:var(--jmu);padding:60px 0;line-height:2}
+/* temas da equipe: aviso de publicar/baixar */
+.jht-msg{margin:0 16px 14px;padding:9px 12px;border-radius:10px;background:var(--jsel);color:var(--jtx);font-size:12.5px;line-height:1.45}
 /* miniatura */
 .jht-mini{height:118px;display:flex;padding:8px;gap:0;box-sizing:border-box}
 .jht-l{width:36%;border-right:1px solid;border-radius:8px 0 0 8px;padding:8px 6px;display:flex;flex-direction:column}

@@ -5376,3 +5376,21 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - `test/serial-number.test.ts` (formatos do SN, card FIELD x AutoISP, contratos do card NOC, linha da mesma OLT);
   - suíte 235/235;
   - preview: aceitar o acionamento, mandar o SN como a extensão manda e abrir o chamado mostrou "SN da ONU 48575443ABCD1234 · AutoISP · contrato 5687878".
+
+## Temas do WhatsApp da equipe: publicar e baixar (extensão 1.9.0) (2026-11-10)
+- **Pedido**: um mesário criou vários temas e quer publicar para os outros baixarem.
+- **Na extensão** (janela Temas do WhatsApp, `whatsapp/temas.js`):
+  - em "Meus temas", cada tema ganhou o botão **Publicar**;
+  - nova aba **"Da equipe"** com a galeria: nome, autor, quantos baixaram e se tem imagem de fundo;
+  - **Baixar e aplicar** guarda o tema em "Meus temas" e já aplica;
+  - **✕** tira o tema da galeria; aparece só para quem publicou ou para um Administrador.
+- **Quem pode**: qualquer pessoa logada na extensão publica e baixa, sem aprovação (escolha do usuário).
+- **Segurança**: as cores de outra pessoa entram no CSS e no HTML do WhatsApp de quem baixa. Por isso só passam cores de verdade (#hex, rgb/rgba/hsl, gradientes e sombras), sem aspas, `url()`, `;`, `<>` ou chaves. Imagem só como data URL JPEG/PNG/WEBP. A filtragem é feita no servidor (`backend/src/wa-themes.ts`) e de novo na extensão.
+- **Tráfego**: a lista vem sem imagem (coluna `has_image` calculada pelo banco); a imagem só vem ao baixar.
+- **Banco**: tabela nova `wa_shared_themes` (`supabase/migrations/202611100001_wa_shared_themes.sql`), com RLS ligado e sem políticas (só o backend acessa). **Precisa rodar o SQL no SQL Editor do projeto novo.** Sem a tabela, a galeria mostra o aviso "falta rodar o SQL" e o resto do sistema segue normal.
+- **Rotas** (login da extensão): `GET/POST /api/integrations/whatsapp/temas`, `GET/DELETE /api/integrations/whatsapp/temas/:id`.
+- **Validação**:
+  - `test/wa-themes.test.ts` (cores e gradientes dos temas reais passam; tentativas de injeção são barradas);
+  - suíte 238/238;
+  - teste das rotas no servidor de demonstração: sem login 401, publicação descartando a cor maliciosa, tema com `url(javascript:)` recusado (400), lista sem imagem, download com imagem e contador, remoção.
+  - A janela de temas dentro do WhatsApp Web não foi testada aqui (só a sintaxe).

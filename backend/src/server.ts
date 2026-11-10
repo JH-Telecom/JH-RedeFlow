@@ -1,3 +1,5 @@
+import { getSharedTheme, listSharedThemes, publishSharedTheme, removeSharedTheme } from './store/wa-themes.js';
+import { sanitizeThemeColors } from './wa-themes.js';
 import { getCallSerial, pendingSerialLookups, saveAutoIspSerial } from './store/serials.js';
 import { isCallClosed } from './call-status.js';
 import 'dotenv/config';
@@ -1219,6 +1221,48 @@ async function finishCallsReadyFromOfs(label: string) {
   if (finished.length) console.log(`[Coletor OFS] ${actor.name}: ${finished.length} chamados finalizados pelo fechamento do OFS (${finished.join(', ')})`);
   return finished;
 }
+// Temas do WhatsApp da equipe (extensao): qualquer pessoa logada na extensao publica e baixa; quem publicou ou um
+// Administrador remove. A lista vai sem imagem; a imagem so vem ao baixar.
+async function extensionUser(request: Request) {
+  const bearer = request.headers.authorization?.replace(/^Bearer\s+/i, '').trim();
+  if (!bearer) return undefined;
+  try {
+    const payload = jwt.verify(bearer, jwtSecret!) as { sub?: string };
+    return payload.sub ? await loadActiveUser(payload.sub) : undefined;
+  } catch { return undefined; }
+}
+app.get('/api/integrations/whatsapp/temas', async (request, response) => {
+  const user = await extensionUser(request);
+  if (!user) return response.status(401).json({ message: 'Entre na extensao com seu usuario do JH RedeFlow.' });
+  try {
+    const isAdmin = user.role.name === 'Administrador';
+    return response.json({ temas: (await listSharedThemes()).map((theme) => ({ ...theme, canRemove: isAdmin || theme.authorId === user.id })) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os temas.' }); }
+});
+app.get('/api/integrations/whatsapp/temas/:id', async (request, response) => {
+  const user = await extensionUser(request);
+  if (!user) return response.status(401).json({ message: 'Entre na extensao com seu usuario do JH RedeFlow.' });
+  const theme = await getSharedTheme(String(request.params.id));
+  return theme ? response.json({ tema: theme }) : response.status(404).json({ message: 'Tema nao encontrado.' });
+});
+app.post('/api/integrations/whatsapp/temas', async (request, response) => {
+  const user = await extensionUser(request);
+  if (!user) return response.status(401).json({ message: 'Entre na extensao com seu usuario do JH RedeFlow.' });
+  const name = typeof request.body?.nome === 'string' ? request.body.nome.trim().slice(0, 60) : '';
+  const sanitized = sanitizeThemeColors(request.body?.c);
+  if (!name || !sanitized) return response.status(400).json({ message: 'Tema invalido: precisa de nome e das cores principais.' });
+  try { return response.status(201).json({ tema: await publishSharedTheme({ name, colors: sanitized.colors, image: sanitized.image, author: { id: user.id, name: user.name } }) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel publicar o tema.' }); }
+});
+app.delete('/api/integrations/whatsapp/temas/:id', async (request, response) => {
+  const user = await extensionUser(request);
+  if (!user) return response.status(401).json({ message: 'Entre na extensao com seu usuario do JH RedeFlow.' });
+  const result = await removeSharedTheme(String(request.params.id), { id: user.id, isAdmin: user.role.name === 'Administrador' });
+  if (result === 'missing') return response.status(404).json({ message: 'Tema nao encontrado.' });
+  if (result === 'forbidden') return response.status(403).json({ message: 'So quem publicou ou um Administrador remove o tema.' });
+  return response.json({ ok: true });
+});
+
 // SN dos chamados pelo AutoISP: a extensao pede os chamados em aberto sem SN (com os contratos do card), procura
 // cada contrato no AutoISP (aba aberta e logada) e devolve so SN, OLT e contrato de cada assinante achado.
 app.get('/api/integrations/autoisp/pendentes', async (request, response) => {

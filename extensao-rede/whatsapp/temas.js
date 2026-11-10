@@ -195,8 +195,23 @@ html[data-jh-tema] body :is(#jh-bt,#jh-menu,#jh-modal,#jh-faixa,#jh-faixa-pop){-
     .observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
   // ---------- janela Temas ----------
-  const CATS = [["todos", "Todos"], ["escuro", "Escuros"], ["claro", "Claros"], ["artistico", "Artísticos"], ["meus", "Meus temas"]];
+  const CATS = [["todos", "Todos"], ["escuro", "Escuros"], ["claro", "Claros"], ["artistico", "Artísticos"], ["meus", "Meus temas"], ["equipe", "Da equipe"]];
   let CAT = "todos";
+  // Temas da equipe: galeria no JH RedeFlow (quem cria publica, os outros baixam). Lista sem imagem; a imagem vem ao baixar.
+  let GAL = null, GAL_MSG = "";
+  const pedir = (tipo, dados = {}) => new Promise((ok) => { try { chrome.runtime.sendMessage({ wa: true, tipo, ...dados }, (r) => ok(r || { ok: false, erro: "Sem resposta da extensão" })); } catch (e) { ok({ ok: false, erro: String(e?.message || e) }); } });
+  // Cor que veio de outra pessoa: so cor de verdade (o servidor ja filtra; aqui e a segunda trava).
+  const corSegura = (v) => typeof v === "string" && v.length <= 400 && /^[a-z0-9#%.,()\s+-]*$/i.test(v) && !/url\s*\(|expression|javascript/i.test(v) ? v : undefined;
+  const imgSegura = (v) => typeof v === "string" && /^data:image\/(jpeg|png|webp);base64,[a-z0-9+/]+=*$/i.test(v) ? v : undefined;
+  const limparCores = (c) => { const r = { escuro: Boolean(c && c.escuro) }; for (const [k, v] of Object.entries(c || {})) { if (k === "escuro" || k === "img") continue; const ok = corSegura(v); if (ok) r[k] = ok; } return r; };
+  async function carregarGaleria(desenhar) {
+    GAL_MSG = "Carregando os temas da equipe...";
+    desenhar();
+    const r = await pedir("temasGaleria");
+    GAL = r.ok ? (r.temas || []) : [];
+    GAL_MSG = r.ok ? "" : r.erro || "Não foi possível carregar.";
+    desenhar();
+  }
   const mini = (t) => { const c = t.c || {}; const bg = (v, d) => v || d;
     return `<div class="jht-mini" style="background:${bg(c.app, c.lista)}"><div class="jht-l" style="background:${c.lista};border-color:${corSolida(c.ln, "transparent")}"><i style="background:${corSolida(c.ac, "#999")}"></i><b style="background:${corSolida(c.mu || c.tx, "#999")}"></b><i style="background:${corSolida(c.mu || c.tx, "#999")};opacity:.5"></i><b style="background:${corSolida(c.mu || c.tx, "#999")};opacity:.5"></b></div>
       <div class="jht-c" style="background:${c.img ? `url('${c.img}') center/cover` : c.fundo}"><span style="background:${c.inB}"></span><span class="o" style="background:${c.outB}"></span><span style="background:${c.inB};width:40%"></span><span class="o" style="background:${c.outB};width:55%"></span><em style="background:${c.cab}"><u style="background:${corSolida(c.ac, "#999")}"></u></em></div></div>`; };
@@ -204,17 +219,44 @@ html[data-jh-tema] body :is(#jh-bt,#jh-menu,#jh-modal,#jh-faixa,#jh-faixa-pop){-
     document.getElementById("jh-modal")?.remove();
     const m = document.createElement("div"); m.id = "jh-modal";
     const desenhar = () => {
-      const lista = todos().filter((t) => CAT === "todos" ? !t.meu : CAT === "meus" ? t.meu : t.cat === CAT);
-      const n = (k) => (k === "todos" ? TEMAS.length : k === "meus" ? (EST.meus || []).length : TEMAS.filter((t) => t.cat === k).length);
+      const equipe = (GAL || []).map((g) => ({ id: g.id, nome: g.name, desc: `por ${g.authorName} · ${g.downloads} download(s)${g.hasImage ? " · com imagem de fundo" : ""}`, c: limparCores(g.colors), equipe: true, podeRemover: g.canRemove }));
+      const lista = CAT === "equipe" ? equipe : todos().filter((t) => CAT === "todos" ? !t.meu : CAT === "meus" ? t.meu : t.cat === CAT);
+      const n = (k) => (k === "todos" ? TEMAS.length : k === "meus" ? (EST.meus || []).length : k === "equipe" ? (GAL ? GAL.length : "·") : TEMAS.filter((t) => t.cat === k).length);
       m.innerHTML = `<div class="jh-mo jht">
         <div class="jh-moh"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 0 0 0 20c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.6-10-8.6z"/></svg></i>
           <div><b>Temas</b><small>Deixe o WhatsApp com a sua cara</small></div><button class="jh-bt2 pri jht-criar" data-criar>+ Criar tema</button><button class="jh-ib2" data-x title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
         <div class="jht-corpo"><nav>${CATS.map(([k, l]) => `<button class="${CAT === k ? "on" : ""}" data-cat="${k}">${l}<i>${n(k)}</i></button>`).join("")}</nav>
           <div class="jht-grade">${lista.length ? lista.map((t) => `<div class="jht-card${EST.id === t.id ? " on" : ""}">${mini(t)}<div class="jht-tx"><b>${esc(t.nome)}${EST.id === t.id ? ' <em>EM USO</em>' : ""}</b><small>${esc(t.desc || "")}</small></div>
-            <div class="jht-bts"><button class="jh-bt2 pri" data-ap="${t.id}">Aplicar</button>${t.nativo ? "" : `<button class="jh-bt2" data-pers="${t.id}">${t.meu ? "Editar" : "Personalizar"}</button>`}${t.meu ? `<button class="jh-bt2" data-del="${t.id}" title="Apagar">✕</button>` : ""}</div></div>`).join("")
-            : `<div class="jht-vz">${CAT === "meus" ? "Você ainda não criou nenhum tema.<br><button class='jh-bt2 pri' data-criar>+ Criar tema</button>" : "Nada aqui."}</div>`}</div></div></div>`;
+            <div class="jht-bts">${t.equipe ? `<button class="jh-bt2 pri" data-baixar="${esc(t.id)}">Baixar e aplicar</button>${t.podeRemover ? `<button class="jh-bt2" data-rem="${esc(t.id)}" title="Tirar da galeria">✕</button>` : ""}`
+              : `<button class="jh-bt2 pri" data-ap="${t.id}">Aplicar</button>${t.nativo ? "" : `<button class="jh-bt2" data-pers="${t.id}">${t.meu ? "Editar" : "Personalizar"}</button>`}${t.meu ? `<button class="jh-bt2" data-pub="${t.id}" title="Deixar para a equipe baixar">Publicar</button><button class="jh-bt2" data-del="${t.id}" title="Apagar">✕</button>` : ""}`}</div></div>`).join("")
+            : `<div class="jht-vz">${CAT === "meus" ? "Você ainda não criou nenhum tema.<br><button class='jh-bt2 pri' data-criar>+ Criar tema</button>" : CAT === "equipe" ? (GAL_MSG ? esc(GAL_MSG) : "Ninguém publicou um tema ainda.<br>Crie um em “Meus temas” e clique em Publicar.") : "Nada aqui."}</div>`}</div></div>
+        ${GAL_MSG && CAT !== "equipe" ? `<div class="jht-msg">${esc(GAL_MSG)}</div>` : GAL_MSG && lista.length ? `<div class="jht-msg">${esc(GAL_MSG)}</div>` : ""}</div>`;
       m.querySelectorAll("[data-x]").forEach((b) => (b.onclick = () => m.remove()));
-      m.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => { CAT = b.dataset.cat; desenhar(); }));
+      m.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => { CAT = b.dataset.cat; if (CAT === "equipe") void carregarGaleria(desenhar); else { GAL_MSG = ""; desenhar(); } }));
+      m.querySelectorAll("[data-pub]").forEach((b) => (b.onclick = async () => {
+        const t = achar(b.dataset.pub); if (!t) return;
+        GAL_MSG = `Publicando “${t.nome}”...`; desenhar();
+        const r = await pedir("temaPublicar", { nome: t.nome, c: t.c });
+        GAL_MSG = r.ok ? `✓ “${t.nome}” publicado. A equipe já pode baixar em “Da equipe”.` : `Não publicou: ${r.erro || "erro"}`;
+        GAL = null; desenhar();
+      }));
+      m.querySelectorAll("[data-baixar]").forEach((b) => (b.onclick = async () => {
+        GAL_MSG = "Baixando o tema..."; desenhar();
+        const r = await pedir("temaBaixar", { id: b.dataset.baixar });
+        const g = r.ok && r.tema;
+        if (!g) { GAL_MSG = `Não baixou: ${r.erro || "erro"}`; desenhar(); return; }
+        const c = limparCores(g.colors); const img = imgSegura(g.image); if (img) c.img = img;
+        const id = "eq-" + g.id;
+        const t = { id, nome: g.name, desc: `Da equipe · por ${g.authorName}`, cat: c.escuro ? "escuro" : "claro", meu: true, c };
+        EST.meus = [...(EST.meus || []).filter((x) => x.id !== id), t]; EST.id = id;
+        try { await chrome.storage.local.set({ temaJH: EST }); } catch (e) { delete c.img; await chrome.storage.local.set({ temaJH: EST }); }
+        aplicar(EST.id); GAL_MSG = `✓ “${g.name}” baixado e aplicado (fica em “Meus temas”).`; desenhar();
+      }));
+      m.querySelectorAll("[data-rem]").forEach((b) => (b.onclick = async () => {
+        const r = await pedir("temaRemover", { id: b.dataset.rem });
+        GAL_MSG = r.ok ? "Tema tirado da galeria." : `Não removeu: ${r.erro || "erro"}`;
+        GAL = null; void carregarGaleria(desenhar);
+      }));
       m.querySelectorAll("[data-ap]").forEach((b) => (b.onclick = () => { EST.id = b.dataset.ap; guardar(); aplicar(EST.id); desenhar(); }));
       m.querySelectorAll("[data-pers]").forEach((b) => (b.onclick = () => editor(achar(b.dataset.pers))));
       m.querySelectorAll("[data-criar]").forEach((b) => (b.onclick = () => editor(null)));

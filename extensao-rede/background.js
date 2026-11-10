@@ -705,6 +705,22 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
 chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
   if (!msg || msg.wa !== true) return;
   (async () => {
+    // Temas da equipe (galeria no sistema). Precisa do login da extensao.
+    if (msg.tipo === "temasGaleria" || msg.tipo === "temaBaixar" || msg.tipo === "temaPublicar" || msg.tipo === "temaRemover") {
+      const auth = await autenticacao();
+      if (!auth?.sessao) return { ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup da extensão." };
+      const base = `${API_BASE}/api/integrations/whatsapp/temas`;
+      const id = encodeURIComponent(String(msg.id || ""));
+      const pedido = msg.tipo === "temasGaleria" ? fetch(base, { headers: auth.headers })
+        : msg.tipo === "temaBaixar" ? fetch(`${base}/${id}`, { headers: auth.headers })
+        : msg.tipo === "temaRemover" ? fetch(`${base}/${id}`, { method: "DELETE", headers: auth.headers })
+        : fetch(base, { method: "POST", headers: { "Content-Type": "application/json", ...auth.headers }, body: JSON.stringify({ nome: msg.nome, c: msg.c }) });
+      try {
+        const r = await pedido;
+        const corpo = await r.json().catch(() => ({}));
+        return r.ok ? { ok: true, ...corpo } : { ok: false, erro: corpo?.message || `HTTP ${r.status}` };
+      } catch (e) { return { ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` }; }
+    }
     if (msg.tipo === "prefsLer") {
       const { waPrefs } = await chrome.storage.local.get("waPrefs");
       return { ok: true, prefs: waPrefs || null };
