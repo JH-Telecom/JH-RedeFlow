@@ -177,6 +177,19 @@ test('OFS Recurso fills the technician of calls that have none', () => {
   assert.equal(matchOfsTechnician('Fulano Demitido Silva', techs), undefined);
   assert.equal(matchOfsTechnician('Desconhecido da Silva', techs), undefined);
 
+  // Cadastro com nome mais curto que o do OFS (caso real 10/11: "Paulo Herculano Firmo" x "Paulo Herculano").
+  const short = [...techs,
+    { id: 't5', name: 'Paulo Herculano', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+    { id: 't6', name: 'Paulo Vinicius Santos da Silva', active: true, teamRole: 'Auxiliar', employmentStatus: 'Trabalhando' },
+    { id: 't7', name: 'Joao Pedro', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+    { id: 't8', name: 'Joao Pedro Lima', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+  ];
+  assert.equal(matchOfsTechnician('PAULO HERCULANO FIRMO', short)?.id, 't5');
+  assert.equal(matchOfsTechnician('Maicon Santos', short)?.id, 't3'); // OFS mais curto que o cadastro
+  assert.equal(matchOfsTechnician('Paulo Silva', short), undefined); // auxiliar nao conta; primeiro nome so nao basta
+  assert.equal(matchOfsTechnician('Joao Pedro Lima Souza', short), undefined); // bate em dois: nao adivinha
+  assert.equal(matchOfsTechnician('Carlos Herculano', short), undefined); // primeiro nome diferente
+
   const open = { ...call, id: 'open', status: 'Aberto' as const };
   const assigned = { ...call, id: 'assigned', orderNumber: 'OS-2', bdesk: 'B2', officeTrack: 'O2', status: 'Atribuido' as const, technicianId: 'tX' };
   const rows: D0Row[] = [

@@ -142,8 +142,21 @@ const personKey = (value: string) => normalize(value).replace(/\s+/g, ' ');
 export function matchOfsTechnician<T extends TechnicianLike>(recurso: string, technicians: T[]): T | undefined {
   const key = personKey(recurso);
   if (!key || /^(cluster|bki)_|_/.test(key) || !/\s/.test(key)) return undefined;
-  const found = technicians.filter((technician) => technician.teamRole === 'Tecnico' && technician.active && technician.employmentStatus !== 'Demitido' && personKey(technician.name) === key);
-  return found.length === 1 ? found[0] : undefined;
+  const working = technicians.filter((technician) => technician.teamRole === 'Tecnico' && technician.active && technician.employmentStatus !== 'Demitido');
+  const exact = working.filter((technician) => personKey(technician.name) === key);
+  if (exact.length) return exact.length === 1 ? exact[0] : undefined;
+  // Nome mais curto num dos lados: OFS "Paulo Herculano Firmo" x cadastro "Paulo Herculano". Vale quando o primeiro
+  // nome e igual e todas as palavras do nome menor (pelo menos 2, sem "da/de/dos") estao no maior, e so UM tecnico bate.
+  const ofsWords = nameWords(key);
+  const partial = working.filter((technician) => sameShortName(ofsWords, nameWords(personKey(technician.name))));
+  return partial.length === 1 ? partial[0] : undefined;
+}
+const CONNECTORS = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+const nameWords = (key: string) => key.split(' ').filter((word) => word && !CONNECTORS.has(word));
+function sameShortName(left: string[], right: string[]) {
+  const [shorter, longer] = left.length <= right.length ? [left, right] : [right, left];
+  if (shorter.length < 2 || shorter[0] !== longer[0]) return false;
+  return shorter.every((word) => longer.includes(word));
 }
 
 // Prioridade da linha quando a mesma ordem aparece mais de uma vez no export (ex.: uma suspensa e outra pendente).

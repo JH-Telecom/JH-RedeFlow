@@ -5317,3 +5317,15 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Validação**:
   - suíte 228/228;
   - simulação do envio: 502 e depois 200 → ok na 2ª tentativa; sem conexão 3x → falha depois de 3 tentativas; 400 → falha na 1ª, sem repetir.
+
+## Técnico do OFS com nome diferente do cadastro (2026-11-10)
+- **Caso**: chamados sem técnico ficavam em "Chamados abertos" mesmo com o OFS "concluído" (ex.: 610121237910102, aberto desde 09/11).
+  - O OFS manda o técnico (Recurso) como "Paulo Herculano Firmo" e o cadastro tem "Paulo Herculano".
+  - A comparação só aceitava o nome inteiro igual, então o técnico não entrava. O encerramento automático (que já existia e exige técnico) também não acontecia.
+- **Regra nova** (`matchOfsTechnician`, `backend/src/imports/d0.ts`):
+  - primeiro tenta o nome igual (como antes);
+  - se não achar, aceita o nome mais curto contido no maior: mesmo primeiro nome e todas as palavras do menor (pelo menos 2, ignorando "da/de/do/dos/das/e") presentes no maior. Vale para os dois lados (OFS ou cadastro mais curto);
+  - só técnicos (não auxiliares) ativos e trabalhando, e **só quando um único técnico bate**; se bater em dois, não adivinha.
+- **Encerramento**: nada mudou na regra. Com o técnico preenchido pelo export, o próximo ciclo do Coletor lê o fechamento do OFS e finaliza o chamado com a Data Fim e o motivo do OFS (`callsReadyToFinish`).
+- Se o técnico do OFS não estiver cadastrado, o chamado continua sem técnico, como antes.
+- **Testes**: casos novos em `test/d0-import.test.ts` (cadastro mais curto, OFS mais curto, auxiliar não conta, dois candidatos, primeiro nome diferente); suíte 228/228.
