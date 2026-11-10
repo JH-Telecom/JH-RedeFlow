@@ -1,3 +1,4 @@
+import { isCallClosed } from '../call-status.js';
 import type { Call, EditableCallFields } from '../types.js';
 import { inferNeighborhood } from '../integrations/wuzapi/noc-consolidation.js';
 
@@ -65,7 +66,8 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   const region = value(row, 'Região', 'Regiao', 'Região Operacional', 'Regiao Operacional');
   const olt = value(row, 'OLT', 'OLT de atendimento');
   const ofsStatus = value(row, 'Status OFS', 'OFS Status', 'Status da Atividade OFS', 'Status da Atividade');
-  const isClosed = call.status === 'Finalizado' || call.status === 'Cancelado' || call.status === 'Baixar' || call.status === 'GIGA+';
+  // GIGA+ conta como aberto ate o OFS concluir: recebe a Data Fim do OFS so quando concluir (isCallClosed).
+  const isClosed = isCallClosed(call);
   const clientName = call.type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('field') ? value(row, 'Nome', 'Nome do Cliente', 'Cliente') : '';
   // OFS ja concluiu a atividade: traz a Data Fim mesmo que o status interno ainda esteja aberto (ex.: Atribuido).
   // Ao finalizar/baixar no sistema, essa data e mantida em vez de usar "agora".

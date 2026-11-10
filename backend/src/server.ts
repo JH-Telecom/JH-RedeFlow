@@ -1,3 +1,4 @@
+import { isCallClosed } from './call-status.js';
 import 'dotenv/config';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
@@ -506,7 +507,7 @@ app.post('/api/operacao/incidentes/acao', auth, async (request: AuthRequest, res
     try {
       const existing = await getCall(callId, await getScopedCallQuery(request, true));
       if (!existing) { results.push({ callId, ok: false, message: 'Chamado nao encontrado.' }); continue; }
-      if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(existing.status)) { results.push({ callId, ok: false, message: 'Chamado encerrado.' }); continue; }
+      if (isCallClosed(existing)) { results.push({ callId, ok: false, message: 'Chamado encerrado.' }); continue; }
       if (action === 'assign') {
         await updateCall(callId, { technicianId, ...(existing.status === 'Aberto' ? { status: 'Atribuido' as const } : {}) }, request.authUser!);
       } else if (action === 'observe') {
@@ -796,6 +797,8 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
   const rawHasTechnician = request.query.hasTechnician;
   if (rawHasTechnician !== undefined && rawHasTechnician !== 'true' && rawHasTechnician !== 'false') return response.status(400).json({ message: 'Filtro de tecnico invalido.' });
   const hasTechnician = rawHasTechnician === undefined ? undefined : rawHasTechnician === 'true';
+  // GIGA+ aberto (Em atendimento) ou concluido no OFS (Finalizados).
+  const gigaClosed = request.query.gigaClosed === 'true' ? true : request.query.gigaClosed === 'false' ? false : undefined;
   const sortOptions = ['openedAt', 'status', 'region', 'technicianName', 'client', 'orderNumber'] as const;
   type CallSortKey = typeof sortOptions[number];
   const sort: CallSortKey = typeof request.query.sort === 'string' && (sortOptions as readonly string[]).includes(request.query.sort)
@@ -808,7 +811,7 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
     : 'desc';
   try {
     const scopedQuery = await getScopedCallQuery(request, request.query.teamScope === 'true');
-    const result = await listCallsPage(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, search, region, neighborhood, olt, hasTechnician, area, sort, direction }, page, pageSize);
+    const result = await listCallsPage(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, search, region, neighborhood, olt, hasTechnician, gigaClosed, area, sort, direction }, page, pageSize);
     return response.json(result);
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }
 });
@@ -870,7 +873,7 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   const nextTechnician = parsed.data.technicianId !== undefined ? parsed.data.technicianId : existing.technicianId;
   const touchesAssignment = (parsed.data.status !== undefined && parsed.data.status !== existing.status) || parsed.data.technicianId !== undefined;
   // Encerrado (Finalizado/Cancelado/Baixar): so a troca de status e permitida; antes respondia 404 "nao encontrado".
-  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(existing.status) && (parsed.data.status === undefined || parsed.data.status === existing.status)) return response.status(409).json({ message: 'Chamado encerrado: so o status pode ser alterado (por exemplo, Baixar para Finalizado ou reabrir).' });
+  if (isCallClosed(existing) && (parsed.data.status === undefined || parsed.data.status === existing.status)) return response.status(409).json({ message: 'Chamado encerrado: so o status pode ser alterado (por exemplo, Baixar para Finalizado ou reabrir).' });
   if (touchesAssignment && ['Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'].includes(nextStatus) && !nextTechnician) return response.status(422).json({ message: `Atribua um tecnico antes de colocar o chamado como ${nextStatus}.` });
   const call = await updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
@@ -914,7 +917,7 @@ async function ownCall(request: AuthRequest, response: Response) {
   if (!technician) { response.status(403).json({ message: 'Seu usuario nao esta ligado a um tecnico.' }); return null; }
   const call = await getCall(String(request.params.id));
   if (!call || call.technicianId !== technician.id) { response.status(404).json({ message: 'Chamado nao encontrado entre os seus.' }); return null; }
-  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(call.status)) { response.status(409).json({ message: 'Chamado ja encerrado.' }); return null; }
+  if (isCallClosed(call)) { response.status(409).json({ message: 'Chamado ja encerrado.' }); return null; }
   return { technician, call };
 }
 app.get('/api/campo/eu', auth, async (request: AuthRequest, response) => {
@@ -1034,7 +1037,7 @@ app.post('/api/chamados/:id/observacoes', auth, requirePermission('calls.add_obs
   if (totalBytes > 10 * 1024 * 1024) return response.status(413).json({ message: 'O total de anexos por observacao nao pode ultrapassar 10 MB.' });
   const existing = await getCall(String(request.params.id), await getScopedCallQuery(request, request.query.teamScope === 'true'));
   if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
-  if (['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(existing.status)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
+  if (isCallClosed(existing)) return response.status(409).json({ message: 'Chamado encerrado. Reabra o chamado antes de adicionar observacoes.' });
   const observation = await addObservation(String(request.params.id), request.authUser!, parsed.data.text, decodedAttachments);
   // Mencoes (@Nome Completo): cada pessoa mencionada recebe um aviso no sino ate abrir.
   if (parsed.data.text.includes('@')) {
@@ -1382,8 +1385,7 @@ app.get('/api/public/consulta/:token', async (request, response) => {
     const activation = await getActivation(activationId);
     if (!activation) return response.status(404).json({ message: 'Acionamento não encontrado.' });
     const call = activation.createdCallId ? await getCall(activation.createdCallId) : undefined;
-    const closedStatuses = ['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'];
-    const closedAt = call ? (closedStatuses.includes(call.status) ? call.executedAt || activation.decisionAt : null) : activation.status === 'Recusado' ? activation.decisionAt : null;
+    const closedAt = call ? (isCallClosed(call) ? call.executedAt || activation.decisionAt : null) : activation.status === 'Recusado' ? activation.decisionAt : null;
     if (publicViewExpired({ receivedAt: activation.receivedAt, closedAt })) return response.status(410).json({ message: 'Este link expirou. Ele vale até 7 dias depois do encerramento do chamado.' });
     const analysis = withCardFallback((activation.analysis || {}) as Partial<ActivationAnalysis>, activation.extractedData);
     const card = {
@@ -1407,7 +1409,7 @@ app.get('/api/public/consulta/:token', async (request, response) => {
     return response.json({
       state: 'chamado',
       card,
-      call: { orderNumber: call.orderNumber, status: call.status, ofsStatus: call.ofsStatus || null, technicianName: call.technicianName || null, openedAt: call.openedAt, executedAt: closedStatuses.includes(call.status) ? call.executedAt || null : null, type: call.type, region: call.region, bairro: call.bairro, olt: call.olt, slotPon: call.slotPon, result: call.result || null },
+      call: { orderNumber: call.orderNumber, status: call.status, ofsStatus: call.ofsStatus || null, technicianName: call.technicianName || null, openedAt: call.openedAt, executedAt: isCallClosed(call) ? call.executedAt || null : null, type: call.type, region: call.region, bairro: call.bairro, olt: call.olt, slotPon: call.slotPon, result: call.result || null },
       observations: observations.filter((item) => item.text?.trim()).map((item) => ({ text: item.text.trim(), userName: item.userName, createdAt: item.createdAt })),
       timeline,
     });

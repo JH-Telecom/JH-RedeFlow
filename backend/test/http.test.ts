@@ -1583,7 +1583,7 @@ test('the Chrome extension can be downloaded as a valid zip with the current man
   assert.equal((JSON.parse(manifestText) as { version: string }).version, info.version);
 });
 
-test('GIGA+ status: call handled by the other office leaves the active queue and the overview, and can be reopened', async () => {
+test('GIGA+ status: call handled by the other office leaves the active queue and the overview, stays open for observations, and can be reopened', async () => {
   const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
   const session = await loginResponse.json() as { token: string };
   const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
@@ -1598,10 +1598,14 @@ test('GIGA+ status: call handled by the other office leaves the active queue and
   assert.equal((await marked.json() as { call: { status: string } }).call.status, 'GIGA+');
   assert.equal(await metrics(), activeBefore - 1, 'sai da fila ativa da Visao geral');
 
-  const closed = await (await fetch(`${baseUrl}/api/chamados?status=GIGA%2B&pageSize=100`, { headers })).json() as { calls: { id: string }[] };
-  assert.ok(closed.calls.some((call) => call.id === target.id), 'filtro por GIGA+ na lista');
-  // Encerrado: so troca de status (reabrir) e permitida.
-  assert.equal((await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ reason: 'x' }) })).status, 409);
+  const gigaList = async (gigaClosed: boolean) => (await (await fetch(`${baseUrl}/api/chamados?status=GIGA%2B&gigaClosed=${gigaClosed}&pageSize=100`, { headers })).json() as { calls: { id: string }[] }).calls;
+  assert.ok((await gigaList(false)).some((call) => call.id === target.id), 'GIGA+ em aberto: aba GIGA+ de Em atendimento');
+  assert.ok(!(await gigaList(true)).some((call) => call.id === target.id), 'ainda nao concluido no OFS: fora de Finalizados');
+  // GIGA+ nao e encerramento: continua editavel e aceita observacao para os gestores.
+  assert.equal((await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ reason: 'x' }) })).status, 200);
+  const observation = await fetch(`${baseUrl}/api/chamados/${target.id}/observacoes`, { method: 'POST', headers, body: JSON.stringify({ text: 'GIGA+ seguindo com a equipe deles' }) });
+  assert.ok(observation.status === 200 || observation.status === 201, `observacao em GIGA+ aberto (${observation.status})`);
+  assert.equal(await metrics(), activeBefore - 1, 'continua fora da Visao geral');
   const reopened = await fetch(`${baseUrl}/api/chamados/${target.id}`, { method: 'PATCH', headers, body: JSON.stringify({ status: 'Aberto' }) });
   assert.equal(reopened.status, 200);
   assert.equal(await metrics(), activeBefore);

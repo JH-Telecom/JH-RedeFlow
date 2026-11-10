@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronRight, Download, FileText, Paperclip, X } from "lucide-react";
-import { api, type Call, type CallAuditLog, type CallObservation, type CallStatus, type RepeatHistory, type Technician } from "../api";
+import { api, CLOSED_CALL_STATUSES, isCallClosed, type Call, type CallAuditLog, type CallObservation, type CallStatus, type RepeatHistory, type Technician } from "../api";
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
 import { MentionTextarea, withMentions } from "../components/MentionTextarea";
@@ -19,7 +19,7 @@ function formatEventGap(eventAt: string, openedAt: string) {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}`;
 }
 
-const CLOSED_STATUSES: CallStatus[] = ["Finalizado", "Cancelado", "Baixar", "GIGA+"];
+const CLOSED_STATUSES: CallStatus[] = CLOSED_CALL_STATUSES; // GIGA+ fica aberto ate o OFS concluir
 // Chave de lista do OFS (ex.: "13", "CTO_SEM_SINAL_EVENTO_PRODUTIVO") nao serve de Resultado.
 const looksLikeCode = (value?: string) => /^\d+$/.test(value?.trim() || "") || /^[A-Z0-9]+(?:_[A-Z0-9]+)+$/.test(value?.trim() || "");
 // Resultado sugerido ao finalizar: o que ja houver (se for texto) ou "Motivo — Submotivo" do fechamento do OFS.
@@ -138,7 +138,7 @@ export function CallDetailBase() {
       return;
     }
     const current = call!;
-    const wasClosed = CLOSED_STATUSES.includes(current.status);
+    const wasClosed = isCallClosed(current);
     const finishing = status === "Finalizado" && !wasClosed;
     const cancelling = status === "Cancelado" && !wasClosed;
     setMessage("");
@@ -188,7 +188,7 @@ export function CallDetailBase() {
       setSaving(false);
     }
   }
-  const closedNow = CLOSED_STATUSES.includes(call.status);
+  const closedNow = isCallClosed(call);
   const showFinish = status === "Finalizado" && !closedNow;
   const showCancel = status === "Cancelado" && !closedNow;
   const saveLabel = saving ? "Salvando..." : showFinish ? "Finalizar chamado" : showCancel ? "Cancelar chamado" : closedNow && !CLOSED_STATUSES.includes(status) ? "Reabrir chamado" : "Salvar alteracoes";
@@ -241,7 +241,7 @@ export function CallDetailBase() {
             <DetailItem label="Status OFS" value={call.ofsStatus || "Não informado"} />
             {call.cluster && <DetailItem label="Cluster (OFS)" value={({ C08: "C.8 São Paulo", C09: "C.9 ABC", C11: "C.11 Alto Tietê", C12: "C.12 Guarulhos" } as Record<string, string>)[call.cluster] || call.cluster} />}
             {call.atrelada && <LinkedOrderItem order={call.atrelada} />}
-            {call.executedAt || ["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status)
+            {call.executedAt || isCallClosed(call)
               ? <EndDateItem key={call.id} call={call} onSaved={setCall} />
               : <DetailItem label="Data Fim" value="Não informada" />}
             {/* Fechamento lido do formulario "Fechamento" do OFS pelo Coletor OFS. */}
@@ -287,7 +287,7 @@ export function CallDetailBase() {
                 ))}
             </select>
           </label>
-          {!CLOSED_STATUSES.includes(call.status) && <TechnicianSuggestions callId={call.id} selected={technicianId} onPick={setTechnicianId} />}
+          {!isCallClosed(call) && <TechnicianSuggestions callId={call.id} selected={technicianId} onPick={setTechnicianId} />}
           <div className="assignment-note">
             {technicianId
               ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`
@@ -613,7 +613,7 @@ function EndDateItem({ call, onSaved }: { call: Call; onSaved: (call: Call) => v
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
   const dirty = Boolean(value) && value !== initial;
-  const fromOfs = Boolean(call.executedAt) && !["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status);
+  const fromOfs = Boolean(call.executedAt) && !isCallClosed(call);
   async function save() {
     setSaving(true);
     setFeedback(null);

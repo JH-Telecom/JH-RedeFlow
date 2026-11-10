@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileSpreadsheet, Search, X } from "lucide-react";
-import { api, type Call, type CallListQuery, type CallListResult, type CallStatus, type Role, type User } from "../api";
+import { api, isCallClosed, type Call, type CallListQuery, type CallListResult, type CallStatus, type Role, type User } from "../api";
 import { SLA_ON_TIME_MAX_MINUTES, SLA_OUTLIER_AFTER_MINUTES, TimerCell, formatCallTimestamp, getSlaState } from "../components/call-cells";
 import { CALLS_PAGE_SIZE, operationalRegions } from "../lib/constants";
 import { shareReportImage, slugFileName, type ReportCell, type ReportColumn, type ReportTone } from "../lib/report-image";
@@ -221,7 +221,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   // Risco de estourar o prazo (ativos ainda no prazo), estimado pelo historico de 90 dias.
   const [risks, setRisks] = useState<Record<string, CallRisk>>({});
   useEffect(() => {
-    const ids = calls.filter((call) => !["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status)).map((call) => call.id).slice(0, 300);
+    const ids = calls.filter((call) => !isCallClosed(call)).map((call) => call.id).slice(0, 300);
     if (!ids.length) { setRisks({}); return; }
     let active = true;
     api.callRisks(ids).then((data) => { if (active) setRisks(data.risks); }).catch(() => undefined);
@@ -344,6 +344,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
     olt: oltFilter === "Todas" ? undefined : oltFilter,
     hasTechnician: assignedOnly ? (choice === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined,
+    // GIGA+ em aberto fica em Em atendimento; concluido no OFS, em Finalizados.
+    gigaClosed: closedOnly ? true : assignedOnly ? false : undefined,
     ...queueOrder,
   });
   function toggleSort(key: CallSortKey) {
@@ -405,6 +407,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
         olt: oltFilter === "Todas" ? undefined : oltFilter,
         hasTechnician: assignedOnly ? (statusFilter === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined,
+        gigaClosed: closedOnly ? true : assignedOnly ? false : undefined,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
         ...queueOrder,
@@ -452,6 +455,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         neighborhood: requestNeighborhood,
         olt: requestOlt,
         hasTechnician: assignedOnly ? (statusFilter === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined,
+        gigaClosed: closedOnly ? true : assignedOnly ? false : undefined,
         page: callsPage,
         pageSize: CALLS_PAGE_SIZE,
         ...queueOrder,
@@ -491,7 +495,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
 
   const closedView = closedOnly;
   const showTechnician = !unassignedOnly;
-  const currentCalls = calls.map((call) => (["Finalizado", "Cancelado", "Baixar", "GIGA+"].includes(call.status) ? call : { ...call, executedAt: null }));
+  const currentCalls = calls.map((call) => (isCallClosed(call) ? call : { ...call, executedAt: null }));
   const firstVisibleCall = totalCalls ? (callsPage - 1) * CALLS_PAGE_SIZE + 1 : 0;
   const lastVisibleCall = totalCalls ? Math.min(callsPage * CALLS_PAGE_SIZE, totalCalls) : 0;
   // Opcoes que nao somem ao filtrar: regioes oficiais + as que aparecem nos chamados + a selecionada.

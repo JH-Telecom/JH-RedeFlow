@@ -8,6 +8,12 @@ export type Supervisor = { id: string; userId?: string; name: string; region: st
 // GIGA+: chamado tratado pelo outro escritorio (GIGA+). Chega nos mesmos grupos, mas nao e da Rede SP:
 // fica encerrado para a fila e fora dos indicadores (Visao geral, relatorios, prazo, IGP).
 export type CallStatus = 'Aberto' | 'Atribuido' | 'Atrelado' | 'Deslocamento' | 'Em campo' | 'Finalizado' | 'Cancelado' | 'Baixar' | 'GIGA+';
+// Encerrado de verdade. GIGA+ fica aberto (aceita observacoes e edicao) ate o OFS mostrar a atividade concluida.
+export const CLOSED_CALL_STATUSES: CallStatus[] = ['Finalizado', 'Cancelado', 'Baixar'];
+export function isCallClosed(call: { status: CallStatus; ofsStatus?: string | null }) {
+  if (CLOSED_CALL_STATUSES.includes(call.status)) return true;
+  return call.status === 'GIGA+' && /^(conclu|finaliz|encerrad|executad)/.test(String(call.ofsStatus || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase());
+}
 export type Call = { id: string; orderNumber: string; bdesk: string; officeTrack: string; client: string; type: string; reason: string; region: string; city: string; address?: string; bairro?: string; ofsStatus?: string; olt: string; slotPon: string; status: CallStatus; atrelada?: string; technicianId?: string; technicianName?: string; supervisorName?: string; openedAt: string; eventAt?: string; assignedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string; cluster?: string; closingReason?: string; closingSubreason?: string; cableType?: string; notes: string; lastObservationAt?: string };
 export type CallObservationAttachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; createdAt: string };
 export type CallObservationAttachmentUpload = Pick<CallObservationAttachment, 'fileName' | 'mimeType' | 'sizeBytes'> & { contentBase64: string };
@@ -36,7 +42,7 @@ export type SystemSettings = { autoRefresh: boolean; refreshIntervalSeconds: num
 export type OltRegionMapping = { olt: string; region: string; defaultRegion?: string };
 export type OltRegionRequest = { id: string; olt: string; source: string; status: 'Pendente' | 'Adicionada' | 'Ignorada'; occurrences: number; firstSeenAt: string; lastSeenAt: string; region?: string };
 export type AppNotification = { id: string; type: 'warning' | 'info'; title: string; detail: string; href: string; count?: number };
-export type CallListQuery = { from?: string; to?: string; teamScope?: boolean; search?: string; region?: string; area?: 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC'; neighborhood?: string; olt?: string; hasTechnician?: boolean; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
+export type CallListQuery = { from?: string; to?: string; teamScope?: boolean; search?: string; region?: string; area?: 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC'; neighborhood?: string; olt?: string; hasTechnician?: boolean; gigaClosed?: boolean; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 export type CallListResult = { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] };
 export type IgpGroup = { orders: number; outliers: number; onTime: number; totalRepairHours: number; outlierPercent: number | null; onTimePercent: number | null; mttrHours: number | null };
 export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC';
@@ -274,6 +280,7 @@ export const api = {
     if (filters.neighborhood) params.set('neighborhood', filters.neighborhood);
     if (filters.olt) params.set('olt', filters.olt);
     if (filters.hasTechnician !== undefined) params.set('hasTechnician', String(filters.hasTechnician));
+    if (filters.gigaClosed !== undefined) params.set('gigaClosed', String(filters.gigaClosed));
     if (filters.page) params.set('page', String(filters.page));
     if (filters.pageSize) params.set('pageSize', String(Math.min(Math.max(filters.pageSize, 1), 100)));
     if (filters.sort) params.set('sort', filters.sort);

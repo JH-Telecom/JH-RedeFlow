@@ -5329,3 +5329,23 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Encerramento**: nada mudou na regra. Com o técnico preenchido pelo export, o próximo ciclo do Coletor lê o fechamento do OFS e finaliza o chamado com a Data Fim e o motivo do OFS (`callsReadyToFinish`).
 - Se o técnico do OFS não estiver cadastrado, o chamado continua sem técnico, como antes.
 - **Testes**: casos novos em `test/d0-import.test.ts` (cadastro mais curto, OFS mais curto, auxiliar não conta, dois candidatos, primeiro nome diferente); suíte 228/228.
+
+## GIGA+ passa a ser chamado aberto até o OFS concluir (2026-11-10)
+- **Pedido**: GIGA+ não deve contar como finalizado. É um chamado em aberto, só que não é tratado por nós. Precisa continuar aceitando observações (para mandar aos gestores) e só encerra quando o OFS mostrar que terminou de verdade.
+- **Antes**: GIGA+ era tratado como encerrado. Ganhava Data Fim ao ser marcado, travava a edição e recusava observação ("Chamado encerrado. Reabra o chamado antes de adicionar observacoes").
+- **Regra nova** (`backend/src/call-status.ts` e `isCallClosed` em `frontend/src/api.ts`):
+  - encerrados de verdade: Finalizado, Cancelado e Baixar;
+  - **GIGA+ só é encerrado quando o status do OFS é "concluído"**; antes disso é aberto. A regra usa o status do OFS (e não a Data Fim) porque os GIGA+ antigos ganharam Data Fim ao serem marcados; assim não precisa mexer nos dados.
+- **Na prática**:
+  - GIGA+ aberto: aceita observação e edição; aparece em **Em atendimento → GIGA+**; não aparece em Finalizados;
+  - GIGA+ concluído no OFS: vai para **Finalizados → GIGA+**, com a Data Fim do OFS (o export grava a Data Fim quando o OFS conclui e limpa a antiga enquanto não concluir);
+  - **nunca vira "Finalizado"** sozinho (o encerramento automático pelo fechamento do OFS continua só para os nossos);
+  - continua **fora dos indicadores** (Visão geral, relatórios, mapa, carga, incidentes, prazo, IGP) e da limpeza das 06:00;
+  - marcar GIGA+ não grava mais Data Fim;
+  - o export do OFS pode preencher o técnico de um GIGA+ sem técnico, como nos outros abertos.
+- **Filas**: novo filtro `gigaClosed` em `GET /api/chamados` (`false` = GIGA+ em aberto, `true` = concluído no OFS). Em atendimento pede `false`; Finalizados pede `true`.
+- **Testes**:
+  - `test/call-status.test.ts` (aberto até o OFS concluir, filtro das filas, nunca vira Finalizado);
+  - teste HTTP do GIGA+ atualizado (editável, aceita observação, fora da Visão geral, aparece só em aberto);
+  - suíte 231/231.
+- **Preview**: chamado marcado como GIGA+ aceitou observação (201), contou 1 na aba GIGA+ de Em atendimento e 0 em Finalizados.

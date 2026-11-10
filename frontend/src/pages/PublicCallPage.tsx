@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import { CircleCheck, Clock, Eye, MapPin, MessageSquareText, RefreshCw, Router, TriangleAlert } from "lucide-react";
 import faviconUrl from "../../image/favicon.ico";
-import { api, type PublicView } from "../api";
+import { api, isCallClosed, type CallStatus, type PublicView } from "../api";
 import { CopyrightNotice } from "../components/Copyright";
 import { withMentions } from "../components/MentionTextarea";
 
 // Consulta do chamado pelo link do informativo (setor Casa Cliente): so leitura, so este chamado, sem login.
 // Atualiza sozinha a cada 1 minuto. O link expira 7 dias depois do encerramento.
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "–");
-const CLOSED = ["Finalizado", "Cancelado", "Baixar", "GIGA+"];
 
-function statusTone(state: PublicView["state"], status?: string) {
+function statusTone(state: PublicView["state"], call?: PublicView["call"]) {
+  const status = call?.status;
   if (state === "recusado" || status === "Cancelado") return "is-muted";
   if (state === "aguardando") return "is-waiting";
-  if (status && CLOSED.includes(status)) return "is-done";
+  if (call && isCallClosed(call as { status: CallStatus; ofsStatus?: string | null })) return "is-done";
   return "is-active";
 }
 
@@ -50,11 +50,11 @@ export function PublicCallPage({ token }: { token: string }) {
           <section className="panel pv-message" role="status"><RefreshCw size={20} aria-hidden="true" /><p>Carregando o chamado...</p></section>
         ) : (
           <>
-            <section className={`panel pv-status ${statusTone(data.state, call?.status)}`}>
+            <section className={`panel pv-status ${statusTone(data.state, call)}`}>
               <div>
                 <span className="pv-kicker">{data.card.tipo || "Acionamento"}{data.card.evento ? ` · ${data.card.evento}` : ""}</span>
                 <h1>{call ? `Chamado ${call.orderNumber}` : `OfficeTrack ${data.card.officeTrack || "–"}`}</h1>
-                <p className="pv-status-line">{state === "chamado" && call && CLOSED.includes(call.status) ? <CircleCheck size={16} aria-hidden="true" /> : <Clock size={16} aria-hidden="true" />} {statusLabel}{call?.ofsStatus ? ` · OFS: ${call.ofsStatus}` : ""}</p>
+                <p className="pv-status-line">{state === "chamado" && call && isCallClosed(call as { status: CallStatus; ofsStatus?: string | null }) ? <CircleCheck size={16} aria-hidden="true" /> : <Clock size={16} aria-hidden="true" />} {statusLabel}{call?.ofsStatus ? ` · OFS: ${call.ofsStatus}` : ""}</p>
               </div>
               <dl className="pv-facts">
                 <div><dt>Recebido</dt><dd>{when(data.card.recebidoEm)}</dd></div>
