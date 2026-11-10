@@ -70,14 +70,36 @@ export async function updateUser(id: string, input: { name?: string; email?: str
   return { ...safeUser, role: getRole(updated.roleId) };
 }
 
+// Fotos e banners guardados em memoria por 10 min (cada um pode ter ate 3 MB): antes eram lidos do banco a cada
+// tela (Pessoas, observacoes, topo), gastando trafego do Supabase. Salvar ou remover atualiza a memoria na hora.
+const IMAGE_TTL_MS = 10 * 60_000;
+type ImageEntry = { value: string | null; at: number };
+const avatarCache = new Map<string, ImageEntry>();
+const bannerCache = new Map<string, ImageEntry>();
+async function cachedImages(cache: Map<string, ImageEntry>, ids: string[], load: (ids: string[]) => Promise<Record<string, string>>) {
+  const now = Date.now();
+  const missing = ids.filter((id) => { const hit = cache.get(id); return !hit || now - hit.at > IMAGE_TTL_MS; });
+  if (missing.length) {
+    const loaded = await load(missing);
+    for (const id of missing) cache.set(id, { value: loaded[id] || null, at: now });
+  }
+  return Object.fromEntries(ids.map((id) => [id, cache.get(id)?.value]).filter(([, value]) => value)) as Record<string, string>;
+}
+
 export async function getUserAvatar(userId: string): Promise<string | null> {
-  if (isSupabaseConfigured()) return await getSupabaseUserAvatar(userId);
+  if (isSupabaseConfigured()) {
+    const hit = avatarCache.get(userId);
+    if (hit && Date.now() - hit.at <= IMAGE_TTL_MS) return hit.value;
+    const value = await getSupabaseUserAvatar(userId);
+    avatarCache.set(userId, { value: value || null, at: Date.now() });
+    return value;
+  }
   ensureDemoData();
   return userAvatars.get(userId) || null;
 }
 
 export async function saveUserAvatar(userId: string, dataUrl: string): Promise<boolean> {
-  if (isSupabaseConfigured()) return await saveSupabaseUserAvatar(userId, dataUrl);
+  if (isSupabaseConfigured()) { const saved = await saveSupabaseUserAvatar(userId, dataUrl); if (saved) avatarCache.set(userId, { value: dataUrl, at: Date.now() }); return saved; }
   ensureDemoData();
   if (!users.has(userId)) return false;
   userAvatars.set(userId, dataUrl);
@@ -85,7 +107,7 @@ export async function saveUserAvatar(userId: string, dataUrl: string): Promise<b
 }
 
 export async function deleteUserAvatar(userId: string): Promise<void> {
-  if (isSupabaseConfigured()) return await deleteSupabaseUserAvatar(userId);
+  if (isSupabaseConfigured()) { await deleteSupabaseUserAvatar(userId); avatarCache.set(userId, { value: null, at: Date.now() }); return; }
   ensureDemoData();
   userAvatars.delete(userId);
 }
@@ -190,12 +212,12 @@ export async function updateRole(id: string, input: { name?: string; description
 // Banner do perfil: imagem larga ao fundo das observacoes do usuario nos chamados.
 export async function getUserBanners(userIds: string[]): Promise<Record<string, string>> {
   const ids = [...new Set(userIds.filter(Boolean))];
-  if (isSupabaseConfigured()) return await getSupabaseUserBanners(ids);
+  if (isSupabaseConfigured()) return await cachedImages(bannerCache, ids, getSupabaseUserBanners);
   return Object.fromEntries(ids.filter((id) => userBanners.has(id)).map((id) => [id, userBanners.get(id)!]));
 }
 
 export async function saveUserBanner(userId: string, bannerDataUrl: string | null): Promise<void> {
-  if (isSupabaseConfigured()) return await saveSupabaseUserBanner(userId, bannerDataUrl);
+  if (isSupabaseConfigured()) { await saveSupabaseUserBanner(userId, bannerDataUrl); bannerCache.set(userId, { value: bannerDataUrl, at: Date.now() }); return; }
   if (bannerDataUrl) userBanners.set(userId, bannerDataUrl); else userBanners.delete(userId);
 }
 
@@ -216,7 +238,7 @@ export async function saveUserPreferences(userId: string, preferences: UserPrefe
 // Fotos de varias pessoas (aba Pessoas, so leitura).
 export async function getUserAvatars(userIds: string[]): Promise<Record<string, string>> {
   const ids = [...new Set(userIds.filter(Boolean))];
-  if (isSupabaseConfigured()) return await getSupabaseUserAvatars(ids);
+  if (isSupabaseConfigured()) return await cachedImages(avatarCache, ids, getSupabaseUserAvatars);
   ensureDemoData();
   return Object.fromEntries(ids.filter((id) => userAvatars.get(id)).map((id) => [id, userAvatars.get(id)!]));
 }

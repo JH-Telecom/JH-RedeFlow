@@ -29,7 +29,10 @@ import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { ActivationAnalysis, AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
-import { cacheReadModel, invalidateOnWrite } from './read-cache.js';
+import { cacheReadModel, invalidateOnWrite, onDataChange } from './read-cache.js';
+import { invalidateCallsSnapshot } from './integrations/supabase/client.js';
+// Gravou algo pela API: a copia dos chamados em memoria busca o que mudou na proxima leitura.
+onDataChange(() => invalidateCallsSnapshot());
 import { runDailyReset } from './daily-reset-job.js';
 import { buildExtensionZip, extensionInfo } from './extension-package.js';
 import { latestObservations } from './store/observations.js';
@@ -144,6 +147,17 @@ function logWuzApiDecision(stage: string, details: Record<string, unknown>) {
 }
 
 type AuthRequest = Request & { authUser?: AuthUser };
+// Perfil (cargo e permissoes) de quem esta logado: lido a cada pedido do sistema. Guardado 60 s em memoria;
+// qualquer gravacao pela API (inclusive troca de cargo, senha ou desativacao) limpa na hora.
+const profileCache = new Map<string, { user: Awaited<ReturnType<typeof getSupabaseProfile>>; at: number }>();
+onDataChange(() => profileCache.clear());
+async function cachedProfile(id: string) {
+  const hit = profileCache.get(id);
+  if (hit && Date.now() - hit.at < 60_000) return hit.user;
+  const user = await getSupabaseProfile(id);
+  profileCache.set(id, { user, at: Date.now() });
+  return user;
+}
 async function auth(request: AuthRequest, response: Response, next: NextFunction) {
   const token = request.headers.authorization?.replace('Bearer ', '');
   if (!token) return response.status(401).json({ message: 'Sessao nao encontrada.' });
@@ -152,7 +166,7 @@ async function auth(request: AuthRequest, response: Response, next: NextFunction
     // Sessao da extensao (30 dias) so serve para enviar o export do OFS.
     if (payload.scope === OFS_COLLECTOR_SCOPE) return response.status(401).json({ message: 'Sessao da extensao nao vale para o sistema.' });
     if (isSupabaseConfigured()) {
-      const supabaseUser = await getSupabaseProfile(payload.sub);
+      const supabaseUser = await cachedProfile(payload.sub);
       if (!supabaseUser || !supabaseUser.active) return response.status(401).json({ message: 'Sessao invalida.' });
       request.authUser = supabaseUser;
     } else {

@@ -1,7 +1,7 @@
-import { cancelSupabaseCall, finishSupabaseCall, getSupabaseAdmin, isSupabaseConfigured, listSupabaseCalls, reopenSupabaseCall, updateSupabaseCall } from "../integrations/supabase/client.js";
+import { cancelSupabaseCall, finishSupabaseCall, getSupabaseAdmin, invalidateCallsSnapshot, isSupabaseConfigured, listSupabaseCalls, reopenSupabaseCall, updateSupabaseCall } from "../integrations/supabase/client.js";
 import { resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
 import { toOperationalDate } from "../timezone.js";
-import { classifyCallArea, igpAreaClusters, igpAreaRegionKeys } from "../igp.js";
+import { classifyCallArea } from "../igp.js";
 import type { Call, CallAuditLog, CallStatus, EditableCallFields, User } from "../types.js";
 import { activations, auditLogs, calls, ensureDemoData, observations, supervisors, technicians } from "./demo-data.js";
 import { captureUnknownOltRequests } from "./settings.js";
@@ -85,32 +85,9 @@ export async function listCallsPage(status: CallStatus | CallStatus[] | undefine
   ensureDemoData();
   const pageSize = Math.min(100, Math.max(1, Math.floor(requestedPageSize)));
   const page = Math.max(1, Math.floor(requestedPage));
-  const normalizedStatuses = status ? (Array.isArray(status) ? status : [status]) : null;
-  const emptyResult = (result?: CallPageResult) => result || { calls: [], total: 0, page: 1, pageSize, totalPages: 1, olts: [] };
 
-  if (isSupabaseConfigured()) {
-    const { data, error } = await getSupabaseAdmin().rpc('list_calls_page_with_atrelada', {
-      p_status: normalizedStatuses,
-      p_from: query.from ?? null,
-      p_to: query.to ?? null,
-      p_supervisor_id: query.supervisorId ?? null,
-      p_has_technician: query.hasTechnician ?? null,
-      p_search: query.search?.trim() || null,
-      p_region: query.region ?? null,
-      p_neighborhood: query.neighborhood ?? null,
-      p_olt: query.olt ?? null,
-      p_sort: query.sort ?? 'openedAt',
-      p_direction: query.direction ?? 'desc',
-      p_page: page,
-      p_page_size: pageSize,
-      // Area do IGP = conjunto de regioes (comparadas sem acento/maiusculas no banco).
-      p_regions: query.area ? igpAreaRegionKeys(query.area) : null,
-      // Com cluster do OFS o chamado entra pela area do cluster; sem cluster, pela regiao.
-      p_clusters: query.area ? igpAreaClusters(query.area) : null,
-    });
-    if (error) throw new Error(error.message);
-    return emptyResult(data as CallPageResult | undefined);
-  }
+  // Supabase: a fila e servida da copia dos chamados em memoria (listCalls), sem a consulta paginada no banco a
+  // cada busca/aba/pagina - era a maior fonte de trafego (egress) depois da leitura completa. Mesma regra da RPC.
 
 
   const matchingCalls = (await listCalls(status, { ...query, id: undefined, olt: undefined, page: undefined, pageSize: undefined }))
@@ -238,7 +215,7 @@ export async function createDriveCall(call: Call, sourceData: DriveCallSource): 
 export async function recordDriveCallSnapshot(callId: string, sourceData: DriveCallSource) {
   const processedAt = new Date().toISOString();
   if (isSupabaseConfigured()) {
-    const { error: updateError } = await getSupabaseAdmin().from('calls').update({ source: 'google-drive', source_identity: sourceData.identity, source_identifiers: sourceData.identifiers, source_file_id: sourceData.fileId, source_file_name: sourceData.fileName, source_reference_date: sourceData.referenceDate || null, source_payload: sourceData.payload, source_fingerprint: sourceData.fingerprint, source_processed_at: processedAt }).eq('id', callId);
+    const { error: updateError } = await getSupabaseAdmin().from('calls').update({ updated_at: new Date().toISOString(), source: 'google-drive', source_identity: sourceData.identity, source_identifiers: sourceData.identifiers, source_file_id: sourceData.fileId, source_file_name: sourceData.fileName, source_reference_date: sourceData.referenceDate || null, source_payload: sourceData.payload, source_fingerprint: sourceData.fingerprint, source_processed_at: processedAt }).eq('id', callId);
     if (updateError) throw new Error(updateError.message);
     const { error } = await getSupabaseAdmin().from('google_drive_call_snapshots').insert({ call_id: callId, source_identity: sourceData.identity, file_id: sourceData.fileId, file_name: sourceData.fileName, reference_date: sourceData.referenceDate || null, fingerprint: sourceData.fingerprint, payload: sourceData.payload, processed_at: processedAt });
     if (error) throw new Error(error.message);
@@ -281,6 +258,7 @@ export async function deleteCall(id: string): Promise<boolean> {
       if (logsError) throw new Error(logsError.message || 'Nao foi possivel remover os logs do chamado.');
       const { error: observationsError } = await admin.from('call_observations').delete().eq('call_id', id);
       if (observationsError) throw new Error(observationsError.message || 'Nao foi possivel remover as observacoes do chamado.');
+      invalidateCallsSnapshot(true);
       const { error } = await admin.from('calls').delete().eq('id', id).select('id').maybeSingle();
       if (error) throw new Error(error.message || 'Nao foi possivel apagar o chamado.');
       return true;
@@ -315,6 +293,7 @@ export async function deleteCall(id: string): Promise<boolean> {
 export async function deleteAllCalls(): Promise<number> {
   ensureDemoData();
   if (isSupabaseConfigured()) {
+    invalidateCallsSnapshot(true);
     const { data, error } = await getSupabaseAdmin().rpc('delete_all_calls');
     if (error) throw new Error(error.message || 'Nao foi possivel apagar os chamados.');
     return Number(data || 0);

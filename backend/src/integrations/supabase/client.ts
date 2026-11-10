@@ -227,6 +227,7 @@ export async function createSupabaseSupervisor(input: { userId?: string; name: s
 }
 
 export async function updateSupabaseSupervisor(id: string, input: { userId?: string | null; name?: string; region?: string; active?: boolean }) {
+  invalidateCallsSnapshot(true);
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.userId !== undefined) changes.profile_id = input.userId || null;
   if (input.name !== undefined) changes.name = input.name;
@@ -256,6 +257,7 @@ export async function createSupabaseTechnician(input: { supervisorId?: string; l
 }
 
 export async function updateSupabaseTechnician(id: string, input: { name?: string; registration?: string; region?: string; shift?: string; supervisorId?: string; currentStatus?: string; active?: boolean; employmentStatus?: 'Trabalhando' | 'Demitido'; teamRole?: string; leadTechnicianId?: string | null }) {
+  invalidateCallsSnapshot(true);
   const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.name !== undefined) changes.name = input.name;
   if (input.registration !== undefined) changes.registration = input.registration;
@@ -276,6 +278,7 @@ export async function updateSupabaseTechnician(id: string, input: { name?: strin
 }
 
 export async function deleteSupabaseTechnician(id: string) {
+  invalidateCallsSnapshot(true);
   const admin = getSupabaseAdmin();
   const { error } = await admin.from('technicians').update({ active: false, deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id).is('deleted_at', null);
   if (error) throw new Error(error.message || 'Nao foi possivel remover o tecnico.');
@@ -285,17 +288,120 @@ export async function deleteSupabaseTechnician(id: string) {
 }
 
 // summary: somente as colunas usadas pelos indicadores, sem observacoes nem textos longos.
+// ---------- Copia dos chamados em memoria (economia de trafego do Supabase) ----------
+// Antes, cada tela, atualizacao automatica e rotina de fundo baixava a tabela INTEIRA de chamados (5 mil linhas,
+// ~14 MB), dezenas de milhares de vezes por mes, e o plano gratuito estourou o limite de trafego (egress).
+// Agora o servidor guarda os chamados na memoria: carga completa a cada 30 min (pega exclusoes) e, no meio,
+// so busca o que mudou (updated_at), quando algo foi gravado ou no maximo 1x por minuto. Filtros em memoria.
+type SnapshotEntry = { call: Call; supervisorId?: string; updatedAt: string };
+const SNAPSHOT_FULL_MS = 30 * 60_000;
+const SNAPSHOT_DELTA_MS = 60_000;
+let snapshot: { entries: Map<string, SnapshotEntry>; fullAt: number; deltaAt: number; lastUpdatedAt: string } | null = null;
+let snapshotDirty = false;
+let snapshotLoading: Promise<void> | null = null;
+const CLOSED_FOR_DATES = ['Finalizado', 'Cancelado', 'Baixar'];
+
+export function invalidateCallsSnapshot(full = false) {
+  if (full) snapshot = null;
+  else snapshotDirty = true;
+}
+// Observacao nova nao mexe em calls.updated_at: atualiza a "ultima observacao" direto na copia.
+export function noteCallObservation(callId: string, createdAt: string) {
+  const entry = snapshot?.entries.get(callId);
+  if (entry && (!entry.call.lastObservationAt || createdAt > entry.call.lastObservationAt)) entry.call = { ...entry.call, lastObservationAt: createdAt };
+}
+
+async function fetchSnapshotRows(updatedSince?: string): Promise<SnapshotEntry[]> {
+  const rows = await fetchSupabaseCalls(undefined, updatedSince ? { updatedSince } : {});
+  return rows.map((call) => {
+    const extra = call as Call & { __supervisorId?: string; __updatedAt?: string };
+    const { __supervisorId, __updatedAt, ...clean } = extra;
+    return { call: clean as Call, supervisorId: __supervisorId, updatedAt: __updatedAt || '' };
+  });
+}
+
+async function ensureSnapshot() {
+  const now = Date.now();
+  const needsFull = !snapshot || now - snapshot.fullAt > SNAPSHOT_FULL_MS;
+  const needsDelta = !needsFull && (snapshotDirty || now - snapshot!.deltaAt > SNAPSHOT_DELTA_MS);
+  if (!needsFull && !needsDelta) return;
+  if (snapshotLoading) return snapshotLoading;
+  snapshotLoading = (async () => {
+    try {
+      if (needsFull) {
+        snapshotDirty = false;
+        const rows = await fetchSnapshotRows();
+        const entries = new Map(rows.map((row) => [row.call.id, row]));
+        const lastUpdatedAt = rows.reduce((max, row) => (row.updatedAt > max ? row.updatedAt : max), '');
+        snapshot = { entries, fullAt: Date.now(), deltaAt: Date.now(), lastUpdatedAt };
+      } else if (snapshot) {
+        snapshotDirty = false;
+        // 5 s de folga para gravacoes no mesmo instante.
+        const since = snapshot.lastUpdatedAt ? new Date(Date.parse(snapshot.lastUpdatedAt) - 5000).toISOString() : undefined;
+        const rows = since ? await fetchSnapshotRows(since) : await fetchSnapshotRows();
+        for (const row of rows) {
+          const previous = snapshot.entries.get(row.call.id);
+          // A busca parcial nao traz as observacoes antigas: mantem a ultima observacao que ja estava na copia.
+          const lastObservationAt = [row.call.lastObservationAt, previous?.call.lastObservationAt].filter(Boolean).sort().pop();
+          snapshot.entries.set(row.call.id, { ...row, call: { ...row.call, lastObservationAt } });
+          if (row.updatedAt > snapshot.lastUpdatedAt) snapshot.lastUpdatedAt = row.updatedAt;
+        }
+        snapshot.deltaAt = Date.now();
+      }
+    } finally {
+      snapshotLoading = null;
+    }
+  })();
+  return snapshotLoading;
+}
+
+function inDateWindow(call: Call, from?: string, to?: string) {
+  const lower = from ? operationalDayStartIso(from) : undefined;
+  const upper = to ? operationalDayStartIso(addDays(to, 1)) : undefined;
+  const within = (iso?: string | null) => Boolean(iso) && (!lower || iso! >= lower) && (!upper || iso! < upper);
+  if (CLOSED_FOR_DATES.includes(call.status)) return call.executedAt ? within(call.executedAt) : within(call.openedAt);
+  return within(call.openedAt);
+}
+const toTime = (iso?: string | null) => (iso ? Date.parse(iso) : 0);
+
 export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filters: { from?: string; to?: string; supervisorId?: string; id?: string } = {}, options: { summary?: boolean } = {}): Promise<Call[]> {
+  // Um chamado so (detalhe, antes de gravar): leitura direta e fresca, e atualiza a copia.
+  if (filters.id) {
+    const rows = (await fetchSupabaseCalls(undefined, { id: filters.id, supervisorId: filters.supervisorId })).map((call) => {
+      const { __supervisorId, __updatedAt, ...clean } = call as Call & { __supervisorId?: string; __updatedAt?: string };
+      const entry: SnapshotEntry = { call: clean as Call, supervisorId: __supervisorId, updatedAt: __updatedAt || '' };
+      const previous = snapshot?.entries.get(entry.call.id);
+      if (snapshot && (!previous || entry.updatedAt >= previous.updatedAt)) snapshot.entries.set(entry.call.id, entry);
+      return entry.call;
+    });
+    return rows;
+  }
+  void options;
+  await ensureSnapshot();
+  const wanted = status ? new Set(Array.isArray(status) ? status : [status]) : null;
+  const result: Call[] = [];
+  for (const entry of snapshot!.entries.values()) {
+    const call = entry.call;
+    if (wanted && !wanted.has(call.status)) continue;
+    if (filters.supervisorId && entry.supervisorId !== filters.supervisorId) continue;
+    if ((filters.from || filters.to) && !inDateWindow(call, filters.from, filters.to)) continue;
+    result.push(call);
+  }
+  return result.sort((a, b) => toTime(b.openedAt) - toTime(a.openedAt) || a.id.localeCompare(b.id));
+}
+
+async function fetchSupabaseCalls(status?: CallStatus | CallStatus[], filters: { from?: string; to?: string; supervisorId?: string; id?: string; updatedSince?: string } = {}, options: { summary?: boolean } = {}): Promise<Call[]> {
   const technicianJoin = filters.supervisorId ? 'technicians!inner(name, supervisor_id, supervisors(name))' : 'technicians(name, supervisor_id, supervisors(name))';
   const columns = options.summary
     ? 'id, order_number, type, region, bairro, status, technician_id, opened_at, executed_at'
-    : 'id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, atrelada_order, technician_id, opened_at, event_at, assigned_at, executed_at, result, cancellation_reason, cluster, closing_reason, closing_subreason, cable_type, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, call_observations(created_at)';
+    : 'id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, ofs_status, olt, slot_pon, status, atrelada_order, technician_id, opened_at, event_at, assigned_at, executed_at, result, cancellation_reason, cluster, closing_reason, closing_subreason, cable_type, notes, source, source_identity, source_identifiers, source_file_id, source_file_name, source_reference_date, source_fingerprint, source_processed_at, updated_at, call_observations(created_at)';
   const pageSize = 500;
   const calls: Call[] = [];
   for (let from = 0; ; from += pageSize) {
     let query = getSupabaseAdmin().from('calls').select(`${columns}, ${technicianJoin}`).order('opened_at', { ascending: false }).order('id', { ascending: true });
     if (status) query = query.in('status', Array.isArray(status) ? status : [status]);
     if (filters.id) query = query.eq('id', filters.id);
+    if (filters.updatedSince) query = query.gt('updated_at', filters.updatedSince);
   if (filters.from || filters.to) {
     const from = filters.from ? operationalDayStartIso(filters.from) : undefined;
     const upperBound = filters.to ? operationalDayStartIso(addDays(filters.to, 1)) : undefined;
@@ -313,7 +419,7 @@ export async function listSupabaseCalls(status?: CallStatus | CallStatus[], filt
       const supervisor = Array.isArray(technician?.supervisors) ? technician.supervisors[0] : technician?.supervisors;
       const observationRows = Array.isArray((row as any).call_observations) ? (row as any).call_observations : [];
       const lastObservationAt = observationRows.map((observation: { created_at?: string }) => observation.created_at).filter(Boolean).sort().pop();
-      return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', address: row.address || '', bairro: row.bairro || '', ofsStatus: row.ofs_status || undefined, olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, atrelada: row.atrelada_order || undefined, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, eventAt: row.event_at || undefined, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, cluster: row.cluster || undefined, closingReason: row.closing_reason || undefined, closingSubreason: row.closing_subreason || undefined, cableType: row.cable_type || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined };
+      return { id: row.id, orderNumber: row.order_number, bdesk: row.bdesk || '', officeTrack: row.office_track || '', client: row.client || '', type: row.type || '', reason: row.reason || '', region: row.region || '', city: row.city || '', address: row.address || '', bairro: row.bairro || '', ofsStatus: row.ofs_status || undefined, olt: row.olt || '', slotPon: row.slot_pon || '', status: row.status as CallStatus, atrelada: row.atrelada_order || undefined, technicianId: row.technician_id || undefined, technicianName: technician?.name || undefined, supervisorName: supervisor?.name || undefined, openedAt: row.opened_at, eventAt: row.event_at || undefined, assignedAt: row.assigned_at || undefined, executedAt: row.executed_at || undefined, result: row.result || undefined, cancellationReason: row.cancellation_reason || undefined, cluster: row.cluster || undefined, closingReason: row.closing_reason || undefined, closingSubreason: row.closing_subreason || undefined, cableType: row.cable_type || undefined, notes: row.notes || '', lastObservationAt, source: row.source || undefined, sourceIdentity: row.source_identity || undefined, sourceIdentifiers: Array.isArray(row.source_identifiers) ? row.source_identifiers : [], sourceFileId: row.source_file_id || undefined, sourceFileName: row.source_file_name || undefined, sourceReferenceDate: row.source_reference_date || undefined, sourceFingerprint: row.source_fingerprint || undefined, sourceProcessedAt: row.source_processed_at || undefined, __supervisorId: technician?.supervisor_id || undefined, __updatedAt: row.updated_at || '' };
     });
     calls.push(...page);
     if (page.length < pageSize) return calls;

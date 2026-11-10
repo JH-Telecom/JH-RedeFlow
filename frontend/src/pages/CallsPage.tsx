@@ -228,6 +228,9 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     return () => { active = false; };
   }, [calls]);
   const [query, setQuery] = useState(initialState.query ?? "");
+  // Busca so vai ao servidor 400 ms depois de parar de digitar (antes era uma consulta por tecla).
+  const [searchQuery, setSearchQuery] = useState(() => (initialState.query ?? "").trim());
+  useEffect(() => { const timer = window.setTimeout(() => setSearchQuery(query.trim()), 400); return () => window.clearTimeout(timer); }, [query]);
   const [loading, setLoading] = useState(false);
   const [regionFilter, setRegionFilter] = useState(initialState.regionFilter ?? "Todas");
   // Area do IGP (SP, GRU, Alto Tiete): conjunto de regioes, igual ao filtro do IGP.
@@ -265,7 +268,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
 
   useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
   useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage, sortState }); }, [pageKey, sortState, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
-  useEffect(() => { setCallsPage(1); }, [sortState, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
+  useEffect(() => { setCallsPage(1); }, [sortState, searchQuery, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
   // Imagem para WhatsApp: montada a partir dos dados (gerador unico em lib/report-image.ts), com letra grande,
   // poucas colunas e etiquetas coloridas para prazo e status.
   async function copyTableAsImage() {
@@ -335,7 +338,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     from: dateRange.from,
     to: dateRange.to,
     teamScope: teamScoped,
-    search: query.trim(),
+    search: searchQuery,
     region: regionFilter === "Todas" ? undefined : regionFilter,
     area: areaFilter === "Todas" ? undefined : areaFilter,
     neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
@@ -396,7 +399,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         from: dateRange.from,
         to: dateRange.to,
         teamScope: teamScoped,
-        search: query.trim(),
+        search: searchQuery,
         region: regionFilter === "Todas" ? undefined : regionFilter,
     area: areaFilter === "Todas" ? undefined : areaFilter,
         neighborhood: neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter,
@@ -424,7 +427,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
     const requestNeighborhood = neighborhoodFilter === "Todos" ? undefined : neighborhoodFilter;
     const requestOlt = oltFilter === "Todas" ? undefined : oltFilter;
-    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: query.trim(), region: requestRegion, area: areaFilter, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? (statusFilter === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, order: queueOrder, closedOnly, assignedOnly, unassignedOnly });
+    const cacheKey = JSON.stringify({ status: requestStatus, from: dateRange.from, to: dateRange.to, teamScope: teamScoped, search: searchQuery, region: requestRegion, area: areaFilter, neighborhood: requestNeighborhood, olt: requestOlt, hasTechnician: assignedOnly ? (statusFilter === "GIGA+" ? undefined : true) : unassignedOnly ? false : undefined, page: callsPage, pageSize: CALLS_PAGE_SIZE, order: queueOrder, closedOnly, assignedOnly, unassignedOnly });
     const cached = callsPageCache.get(cacheKey);
     if (cached && Date.now() < cached.expiresAt) {
       if (active) {
@@ -443,7 +446,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         from: dateRange.from,
         to: dateRange.to,
         teamScope: teamScoped,
-        search: query.trim(),
+        search: searchQuery,
         region: requestRegion,
         area: areaFilter === "Todas" ? undefined : areaFilter,
         neighborhood: requestNeighborhood,
@@ -470,7 +473,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       });
 
     return () => { active = false; };
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage, sortState]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, searchQuery, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage, sortState]);
 
   async function updateCallStatus(call: Call, nextStatus: CallStatus) {
     if (nextStatus === call.status) return;
@@ -506,7 +509,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, query, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls, countsVersion]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, searchQuery, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls, countsVersion]);
   const activeFilters = [
     !unassignedOnly && statusFilter !== "Todos",
     regionFilter !== "Todas",

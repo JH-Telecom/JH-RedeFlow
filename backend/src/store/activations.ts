@@ -5,9 +5,21 @@ import type { Activation, ActivationAnalysis, ActivationStatus, Call, User } fro
 import { listCalls } from "./calls.js";
 import { activations, calls } from "./demo-data.js";
 import { captureUnknownOltRequests } from "./settings.js";
+import { onDataChange } from "../read-cache.js";
 
+// Lista de acionamentos em memoria por 30 s, a mesma para todo mundo (o sino de cada aba pede a cada minuto).
+// Chegou card, aceite ou recusa (qualquer gravacao pela API): limpa na hora.
+const activationListCache = new Map<string, { at: number; list: Activation[] }>();
+onDataChange(() => activationListCache.clear());
 export async function listActivations(status?: ActivationStatus): Promise<Activation[]> {
-  if (isSupabaseConfigured()) return await listSupabaseActivations(status);
+  if (isSupabaseConfigured()) {
+    const key = status || 'todos';
+    const hit = activationListCache.get(key);
+    if (hit && Date.now() - hit.at < 30_000) return hit.list;
+    const list = await listSupabaseActivations(status);
+    activationListCache.set(key, { at: Date.now(), list });
+    return list;
+  }
   return [...activations.values()].filter((item) => !status || item.status === status).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
 }
 

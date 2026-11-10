@@ -5193,3 +5193,26 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - **Não entra no "Todos"**: ele continua somando só Atribuído, Atrelado, Deslocamento e Em campo.
   - A tela lembra a aba escolhida. Os GIGA+ continuam também em Finalizados e cancelados.
   - **Preview**: Todos 2, aba GIGA+ 1. Ao abrir a aba aparece só o GIGA+, e o Todos lista só os 2 em atendimento. Contraste OK no claro e no escuro.
+
+## Economia de tráfego do Supabase (egress) (2026-11-10)
+- **Motivo**: o plano gratuito estourou o tráfego de saída (9,2 GB de 5 GB) e o projeto foi restrito (402). Pelo `pg_stat_statements`, a maior parte vinha de ler a tabela `calls` inteira (5 mil linhas, ~14 MB) dezenas de milhares de vezes, mais a consulta paginada da fila a cada tecla da busca.
+- **Cópia dos chamados em memória** (`integrations/supabase/client.ts`):
+  - carga completa a cada 30 min;
+  - entre uma carga e outra, busca só o que mudou (`updated_at`), quando algo foi gravado pela API ou no máximo 1x por minuto;
+  - os filtros (status, período, supervisor, busca, região, área, OLT, ordenação) rodam em memória, com a mesma regra da consulta do banco;
+  - um chamado só (detalhe, antes de gravar) continua sendo lido direto do banco;
+  - exclusões e edição de técnico/supervisor forçam carga completa;
+  - observação nova atualiza a "última observação" na cópia;
+  - a importação do Drive e a troca de cluster agora gravam `updated_at`.
+- **Fila paginada** (`listCallsPage`): servida da cópia em memória, sem chamar a RPC `list_calls_page_with_atrelada` (a RPC continua no banco, sem alteração).
+- **Busca da fila com debounce de 400 ms** (`CallsPage.tsx`): uma consulta depois de parar de digitar, em vez de uma por tecla.
+- **Outros caches em memória**:
+  - perfil de quem está logado: 60 s, limpo em qualquer gravação;
+  - fotos e banners: 10 min, atualizados na hora ao salvar ou remover;
+  - lista de acionamentos: 30 s por status, limpa em qualquer gravação.
+- **Sino de notificações**: de 15 s para 60 s, só com a aba visível, e atualiza ao voltar para a aba.
+- **Sem migração, sem mudança de tabela, RLS ou variáveis de ambiente.**
+- **Validação**:
+  - typecheck do backend e do frontend;
+  - suíte 221/221;
+  - preview: digitar "silva" na busca de "Em atendimento" gerou uma única rodada de consultas, com a palavra inteira.

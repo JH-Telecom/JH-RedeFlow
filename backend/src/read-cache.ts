@@ -11,8 +11,13 @@ type Entry = { body: unknown; status: number; at: number; version: number };
 const entries = new Map<string, Entry>();
 let dataVersion = 0;
 
+const dataChangeListeners: (() => void)[] = [];
+export function onDataChange(listener: () => void) {
+  dataChangeListeners.push(listener);
+}
 export function bumpDataVersion() {
   dataVersion += 1;
+  for (const listener of dataChangeListeners) listener();
 }
 
 export function clearReadCache() {

@@ -165,7 +165,8 @@ export function Shell({
             }
           } catch { setNotifications([]); } finally { setNotificationsLoading(false); }
   }
-  useEffect(() => { void loadNotifications(); const interval = window.setInterval(() => void loadNotifications(), 15000); return () => window.clearInterval(interval); }, [location.pathname]);
+  // Sino: a cada 1 min e so com a aba visivel (antes 15 s em toda aba aberta, gastando trafego do banco).
+  useEffect(() => { void loadNotifications(); const interval = window.setInterval(() => { if (document.visibilityState === "visible") void loadNotifications(); }, 60_000); const onVisible = () => { if (document.visibilityState === "visible") void loadNotifications(); }; document.addEventListener("visibilitychange", onVisible); return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); }; }, [location.pathname]);
   useEffect(() => {
     let active = true;
     api.profileAvatar().then(({ avatarDataUrl }) => { if (active) setProfilePhoto(avatarDataUrl); }).catch(() => {});

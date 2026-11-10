@@ -40,7 +40,7 @@ async function setCallClusters(updates: Array<{ call: Call; cluster: string }>) 
   changed.forEach(({ call, cluster }) => byCluster.set(cluster, [...(byCluster.get(cluster) || []), call.id]));
   for (const [cluster, ids] of byCluster) {
     for (let offset = 0; offset < ids.length; offset += 200) {
-      const { error } = await getSupabaseAdmin().from('calls').update({ cluster }).in('id', ids.slice(offset, offset + 200));
+      const { error } = await getSupabaseAdmin().from('calls').update({ cluster, updated_at: new Date().toISOString() }).in('id', ids.slice(offset, offset + 200));
       if (error) throw new Error(error.message);
     }
   }

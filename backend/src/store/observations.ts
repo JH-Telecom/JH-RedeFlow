@@ -1,4 +1,4 @@
-import { getSupabaseAdmin, isSupabaseConfigured } from "../integrations/supabase/client.js";
+import { getSupabaseAdmin, isSupabaseConfigured, noteCallObservation } from "../integrations/supabase/client.js";
 import type { CallAuditLog, CallObservation, CallObservationAttachment, CallObservationAttachmentInput, StoredCallObservationAttachment, User } from "../types.js";
 import { auditLogs, calls, observationAttachments, observations } from "./demo-data.js";
 
@@ -45,6 +45,7 @@ export async function addObservation(callId: string, actor: User, text: string, 
     const observation: CallObservation = { id: data.id, callId: data.call_id, userId: data.user_id, userName: actor.name, text: data.text, createdAt: data.created_at, attachments: savedAttachments };
     const { error: logError } = await admin.from('call_logs').insert({ call_id: callId, user_id: actor.id, action: 'Observacao adicionada', field: 'observations', previous_value: '', new_value: auditValue });
     if (logError) throw new Error(logError.message);
+    noteCallObservation(callId, observation.createdAt);
     return observation;
   }
   const observation: CallObservation = { id: `obs-${crypto.randomUUID()}`, callId, userId: actor.id, userName: actor.name, text, createdAt: new Date().toISOString(), attachments: [] };
