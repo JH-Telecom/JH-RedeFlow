@@ -12,6 +12,8 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
+      { icon: "bell", tag: "Melhoria", title: "Notificações melhores", text: "O ponto vermelho do sino some depois que você abre e só volta com algo novo (tem também \"Marcar tudo como lido\"). E dá para receber os avisos no Windows: no sino, \"Ativar avisos no navegador\" (funciona com o sistema aberto, mesmo minimizado)." },
+      { icon: "bell", tag: "Novo", title: "Histórico de acionamentos recusados", text: "Em Acionamentos, aba Recusados: os últimos 100 com quem recusou, quando e o motivo. Recusou por engano? \"Aceitar mesmo assim\" cria o chamado e deixa uma observação contando a recusa.", permission: "activations.view" },
       { icon: "sparkles", tag: "Melhoria", title: "Pesquisa melhorada", text: "A pesquisa da fila acha por quase tudo do chamado (status do OFS, PON, apoio, observações...) e aceita várias palavras em qualquer ordem. E toda lista suspensa do sistema (técnico, status, região...) agora tem um campo Pesquisar." },
       { icon: "shield", tag: "Novo", title: "Status do sistema", text: "Página que mostra se o servidor, o banco, a coleta do OFS, o WhatsApp e o backup estão funcionando. Abre sem login (link no rodapé e em Administração), então dá para conferir mesmo quando o login não entra." },
       { icon: "sparkles", tag: "Novo", title: "Chaves dos POPs", text: "Nova tela em Administração: quem está com cada chave de POP e desde quando, com foto da pessoa tirada na retirada e o histórico de retiradas e devoluções. Já começa com a situação da planilha." },

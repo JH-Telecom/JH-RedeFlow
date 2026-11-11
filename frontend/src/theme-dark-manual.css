@@ -30,3 +30,7 @@
    para #7f8082 (4,3:1 sobre o painel). Aqui fica legivel (8,7:1). */
 :where(:root[data-theme="dark"]) .ss-search, :where(:root[data-theme="dark"]) .ss-group, :where(:root[data-theme="dark"]) .ss-empty { color: #b5b9c1; }
 :where(:root[data-theme="dark"]) .ss-option.is-disabled { color: #909398; }
+/* Pesquisa dos acionamentos recusados: mesmo ajuste (o gerador escurecia para #7f8082). */
+:where(:root[data-theme="dark"]) .ra-search { color: #b5b9c1; }
+/* Sino: aviso de notificacoes do navegador (o gerador escurecia o texto para #7f8082). */
+:where(:root[data-theme="dark"]) .notification-browser { color: #b5b9c1; }

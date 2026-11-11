@@ -479,3 +479,8 @@
     margin-left: 0;
   }
 }
+/* Sino: avisos no navegador (BrowserNotificationToggle) */
+.notification-browser { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 0 4px 8px; padding: 9px 10px; border-radius: 8px; background: #f2f6fc; font-size: 12px; line-height: 1.45; color: #45536b; }
+.notification-browser .link-button { font-size: 12px; font-weight: 700; color: #0845ae; }
+:where(:root[data-theme="dark"]) .notification-browser { background: #1d222b; color: #b5b9c1; }
+:where(:root[data-theme="dark"]) .notification-browser .link-button { color: #7cb6ff; }

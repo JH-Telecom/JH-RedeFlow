@@ -3,6 +3,7 @@ import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "reac
 import { Bell, ChevronDown, ChevronRight, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { isTabHidden, navItems } from "../lib/nav-items";
 import { canLeave, hasOpenDialog, isTypingTarget, submitSaveScope } from "../lib/keyboard";
+import { browserNotificationState, browserNotificationsOn, disableBrowserNotifications, enableBrowserNotifications, markSeen, pageInBackground, readSeen, showBrowserNotification, signatureOf, takeNew, type BrowserNotificationState } from "../lib/browser-notifications";
 export { navItems } from "../lib/nav-items";
 import { applyPalette, isPaletteId, useTheme } from "../theme";
 import { UpdateNotice } from "./UpdateNotice";
@@ -146,6 +147,12 @@ export function Shell({
   const [bellRinging, setBellRinging] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  // Ponto vermelho so com algo nao visto (ao abrir o sino, tudo conta como visto) e avisos do navegador.
+  const [seen, setSeen] = useState<Set<string>>(() => readSeen(user.id));
+  const [browserState, setBrowserState] = useState<BrowserNotificationState>(() => browserNotificationState());
+  const unseenCount = notifications.filter((item) => !seen.has(signatureOf(item))).length;
+  // Com o sino aberto, o que chegar tambem conta como visto.
+  useEffect(() => { if (notificationsOpen && notifications.length) setSeen(markSeen(user.id, notifications)); }, [notificationsOpen, notifications, user.id]);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [profilePhotoError, setProfilePhotoError] = useState("");
   const [savingProfilePhoto, setSavingProfilePhoto] = useState(false);
@@ -165,6 +172,13 @@ export function Shell({
           try {
             const notificationData = await api.notifications();
             setNotifications(notificationData.notifications);
+            // Aviso do navegador so para o que e novo de verdade (e com a pessoa fora do sistema).
+            const freshSignatures = takeNew(user.id, notificationData.notifications.map(signatureOf));
+            if (browserNotificationsOn() && pageInBackground()) {
+              for (const item of notificationData.notifications.filter((entry) => freshSignatures.has(signatureOf(entry))).slice(0, 3)) {
+                showBrowserNotification({ title: item.title, body: item.detail, tag: item.id, icon: faviconUrl, onClick: () => navigate(item.href) });
+              }
+            }
             if (user.role.permissions.includes("activations.view")) {
               const pending = (await api.activations("Pendente")).activations.map((activation) => {
                 const atrelada = activation.analysis?.atrelada;
@@ -179,6 +193,10 @@ export function Shell({
                 if (fresh.length) {
                   setBellRinging(true);
                   window.setTimeout(() => setBellRinging(false), 900);
+                  if (browserNotificationsOn() && pageInBackground()) {
+                    const first = fresh[0];
+                    showBrowserNotification({ title: fresh.length === 1 ? "Novo acionamento" : `${fresh.length} novos acionamentos`, body: [first.extractedData.orderNumber, first.extractedData.type, first.extractedData.bdesk && `BDESK ${first.extractedData.bdesk}`].filter(Boolean).join(" · ") || "Acionamento recebido pelo WhatsApp", tag: "acionamentos", icon: faviconUrl, onClick: () => navigate("/acionamentos") });
+                  }
                 }
                 // Tira da fila o que ja foi decidido (aqui ou em outra tela/computador) e junta os novos.
                 setActivationQueue((queue) => [...queue.filter((item) => pendingIds.has(item.id)), ...fresh.filter((item) => !queue.some((queued) => queued.id === item.id))]);
@@ -190,7 +208,8 @@ export function Shell({
   // Aceitou/recusou pelo aviso ou pela tela de Acionamentos: atualiza o sino e a fila do aviso na hora.
   useEffect(() => { const refresh = () => void loadNotifications(); window.addEventListener(ACTIVATIONS_CHANGED, refresh); return () => window.removeEventListener(ACTIVATIONS_CHANGED, refresh); }, []);
   // Sino: a cada 1 min e so com a aba visivel (antes 15 s em toda aba aberta, gastando trafego do banco).
-  useEffect(() => { void loadNotifications(); const interval = window.setInterval(() => { if (document.visibilityState === "visible") void loadNotifications(); }, 60_000); const onVisible = () => { if (document.visibilityState === "visible") void loadNotifications(); }; document.addEventListener("visibilitychange", onVisible); return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); }; }, [location.pathname]);
+  // Com os avisos do navegador ligados, confere tambem com a aba em segundo plano, a cada 2 min.
+  useEffect(() => { void loadNotifications(); let tick = 0; const interval = window.setInterval(() => { tick += 1; if (document.visibilityState === "visible" || (browserNotificationsOn() && tick % 2 === 0)) void loadNotifications(); }, 60_000); const onVisible = () => { if (document.visibilityState === "visible") void loadNotifications(); }; document.addEventListener("visibilitychange", onVisible); return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); }; }, [location.pathname]);
   useEffect(() => {
     let active = true;
     api.profileAvatar().then(({ avatarDataUrl }) => { if (active) setProfilePhoto(avatarDataUrl); }).catch(() => {});
@@ -380,11 +399,11 @@ export function Shell({
           <div className="topbar-actions">
             <button type="button" className="icon-button theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"} aria-label={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>
             <div className="notification-wrap">
-              <button className={`icon-button notification ${bellRinging ? "is-ringing" : ""}`} onClick={() => { setNotificationsOpen((current) => !current); void loadNotifications(); }} title="Notificacoes">
+              <button className={`icon-button notification ${bellRinging ? "is-ringing" : ""}`} onClick={() => { setNotificationsOpen((current) => { if (!current) setSeen(markSeen(user.id, notifications)); return !current; }); void loadNotifications(); }} title="Notificacoes" aria-label={unseenCount ? `Notificações: ${unseenCount} nova(s)` : "Notificações"}>
                 <Bell size={18} />
-                {notifications.length > 0 && <i />}
+                {unseenCount > 0 && <i />}
               </button>
-              {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span>{notifications.some((item) => item.id.startsWith("user:")) && <button type="button" className="link-button notification-read-all" onClick={() => void api.markNotificationsRead().then(() => loadNotifications())}>Marcar menções como lidas</button>}</div>{notifications.length ? notifications.map((notification) => <button className={`notification-item${notification.id.startsWith("user:") ? " is-personal" : ""}`} key={notification.id} onClick={() => { setNotificationsOpen(false); if (notification.id.startsWith("user:")) void api.markNotificationsRead([notification.id]).then(() => loadNotifications()); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
+              {notificationsOpen && <div className="notification-popover"><div className="notification-heading"><strong>Notificacoes</strong><span>{notifications.length}</span>{notifications.length > 0 && <button type="button" className="link-button notification-read-all" onClick={() => { setSeen(markSeen(user.id, notifications)); void (notifications.some((item) => item.id.startsWith("user:")) ? api.markNotificationsRead() : Promise.resolve()).then(() => loadNotifications()); }}>Marcar tudo como lido</button>}</div><BrowserNotificationToggle state={browserState} onChange={setBrowserState} />{notifications.length ? notifications.map((notification) => <button className={`notification-item${notification.id.startsWith("user:") ? " is-personal" : ""}`} key={notification.id} onClick={() => { setNotificationsOpen(false); if (notification.id.startsWith("user:")) void api.markNotificationsRead([notification.id]).then(() => loadNotifications()); navigate(notification.href); }}><b>{notification.title}</b><small>{notification.detail}</small></button>) : <div className="notification-empty">Nenhuma notificacao pendente.</div>}</div>}
             </div>
             <ProfileLink name={displayName} photo={profilePhoto} className="topbar-avatar" />
           </div>
@@ -446,6 +465,22 @@ export function Shell({
           <CopyrightNotice className="page-copyright" />
         </main>
       </div>
+    </div>
+  );
+}
+
+// Botao no sino: liga/desliga os avisos do navegador (Windows/Chrome). Sem permissao do navegador, explica como liberar.
+function BrowserNotificationToggle({ state, onChange }: { state: BrowserNotificationState; onChange: (state: BrowserNotificationState) => void }) {
+  if (state === "unsupported") return null;
+  return (
+    <div className="notification-browser">
+      {state === "granted" ? (
+        <><span>Avisos no navegador ligados.</span><button type="button" className="link-button" onClick={() => { disableBrowserNotifications(); onChange(browserNotificationState()); }}>Desligar</button></>
+      ) : state === "denied" ? (
+        <span>O navegador bloqueou os avisos. Para liberar, clique no cadeado ao lado do endereço do site → Notificações → Permitir.</span>
+      ) : (
+        <><span>Receba os avisos no Windows mesmo com o sistema em segundo plano.</span><button type="button" className="link-button" onClick={() => void enableBrowserNotifications().then(onChange)}>Ativar avisos no navegador</button></>
+      )}
     </div>
   );
 }

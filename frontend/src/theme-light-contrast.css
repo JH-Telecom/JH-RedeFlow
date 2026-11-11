@@ -490,6 +490,26 @@
     color: #6b21a8
 }
 
+/* activation-overrides.css */
+:where(:root:not([data-theme="dark"])) .ra-search {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .ra-icon {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .ra-refusal {
+    color: #8f1f23
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ra-search {
+    color: #656970
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ra-icon {
+    color: #a53939
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ra-refusal {
+    color: #9c4340
+}
+
 /* call-detail-overrides.css */
 :where(:root:not([data-theme="dark"])) .editable-detail-item input {
     color: var(--ink)
@@ -1641,6 +1661,18 @@
 }
 :where(:root:not([data-theme="dark"])) .notification-item small, :where(:root:not([data-theme="dark"])) .notification-empty {
     color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .notification-browser {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .notification-browser .link-button {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .notification-browser {
+    color: #656970
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .notification-browser .link-button {
+    color: #2c64a7
 }
 
 /* dashboards.css */

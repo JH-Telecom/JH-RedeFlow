@@ -5691,3 +5691,45 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - testes da pesquisa (status do OFS, PON, apoio, observação, várias palavras, acentos);
   - suíte completa e `npm run build`;
   - preview: lista de técnico no detalhe do chamado (abrir, pesquisar "pedr", Enter escolhe Pedro e a tela reage), abrir digitando uma letra, contraste conferido pela conta das cores. Durante o teste o usuário estava clicando na mesma aba, então parte dos testes automáticos parou para não atrapalhar.
+
+## Histórico de acionamentos recusados (2026-11-11)
+- **Pedido** (card "Histórico chamados recusados"): histórico dos acionamentos recusados, podendo aceitar um que foi recusado por engano.
+- **Antes**: a tela de Acionamentos só mostrava os pendentes, e o sistema só aceitava acionamento pendente. Havia 112 recusados no banco (desde 21/09) sem nenhuma tela.
+- **Tela** (Acionamentos, abas **Pendentes / Recusados**; `?aba=recusados` no endereço):
+  - os **100 recusados mais recentes**, com ordem, tipo, BDESK, quando chegou, **quando foi recusado, por quem e o motivo**;
+  - pesquisa por ordem, BDESK, motivo, quem recusou ou texto do card; "Ver dados" mostra a mensagem original;
+  - **"Aceitar mesmo assim"** (pede confirmação; só para quem tem `activations.decide`) cria o chamado e mostra o link para abrir.
+- **Backend**:
+  - `GET /api/acionamentos?status=Recusado` traz no máximo 100, com `decisionByName`;
+  - `POST /api/acionamentos/:id/reaceitar` volta o acionamento a Pendente (só se ainda estiver Recusado) e passa pelo **aceite normal**: mesma OS já com chamado liga ao chamado existente (regra de 11/11), e os aceites seguem em fila;
+  - o chamado ganha uma **observação**: "Este acionamento tinha sido recusado em DD/MM, HH:MM por Fulano (motivo: ...). Aceito depois, pelo histórico de recusados, por Ciclano.";
+  - aceitar de novo um já aceito ou um pendente responde 409, com a explicação.
+- **Validação**:
+  - teste de ponta a ponta: card chega; reaceitar pendente dá 409; recusa com motivo; aparece na lista com nome e motivo; aceite cria o chamado com a OS do card; observação com a recusa; reaceitar de novo dá 409; sai da lista;
+  - durante o teste, apareceu e foi corrigido: no modo demonstração os dados da recusa eram lidos depois do aceite (motivo sumia, data errada). Agora há uma cópia antes;
+  - `npm run build`; preview (abas, lista, aceite com confirmação e link do chamado); auditoria de contraste sem nada abaixo de 4,5:1 nos dois temas (com ajuste em `theme-dark-manual.css` para a pesquisa).
+
+## Busca rápida (Ctrl+K): contorno estranho no campo (2026-11-11)
+- **Problema** (print do usuário): na busca rápida, o campo de pesquisa aparecia com um contorno azul solto em volta do texto, desalinhado e cortado no topo da janela.
+- **Causa**: a regra global de acessibilidade em `legal.css` (`:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid #1264e8; outline-offset: 2px }`) vale para todo campo focado pelo teclado. O campo da busca rápida não tem borda própria (a caixa é a janela) e não desligava esse contorno. Abrindo com Ctrl+K, o foco conta como de teclado e o contorno aparecia. O `.search-field` genérico tinha o mesmo problema. Os outros campos sem borda (`.cq-search`, `.pk-search`, `.ra-search`, `.ss-search`, `.manual-technician-search`, `.editable-detail-item`) já tinham uma regra mais específica.
+- **Correção** (`sidebar.css`): `outline: none` nesses dois campos, e o foco aparece na caixa em volta: linha azul embaixo na busca rápida e borda azul com halo no `.search-field`, nos dois temas.
+- **Como foi achado**: no preview o contorno não aparecia, porque o foco dado por script não conta como de teclado. A regra só foi achada no CSS publicado (`index-*.css` da Vercel).
+- **Validação**: `npm run build`; no preview a regra nova está carregada e vence a global; com a busca aberta, a caixa mostra a linha azul.
+
+## Notificações: ponto vermelho só com novidade e avisos no navegador (2026-11-11)
+- **Pedido** (card "Melhorar as notificações"): notificações no navegador, não só dentro do sistema; o ponto vermelho do sino sumir quando tudo foi lido.
+- **Ponto vermelho** (`Shell.tsx` + `lib/browser-notifications.ts`):
+  - **antes**: aparecia sempre que havia qualquer item no sino. Como os avisos de operação ("X chamados sem técnico", "vencem em menos de 2h") ficam lá o tempo todo, nunca sumia;
+  - **agora**: cada item tem uma assinatura (id + título + contagem). Ao abrir o sino, tudo o que está lá conta como **visto** (guardado por login neste navegador), e o que chega com o sino aberto também. O ponto só volta com algo **novo** (outra menção, a contagem mudou, aviso novo);
+  - o botão vira **"Marcar tudo como lido"** (marca as menções como lidas no servidor e os avisos como vistos). O sino diz "Notificações: N nova(s)" para leitor de tela.
+- **Avisos no navegador** (Notification API):
+  - no sino, **"Ativar avisos no navegador"** pede a permissão do Chrome. Depois, "Avisos no navegador ligados · Desligar". Se o navegador bloqueou, explica como liberar (cadeado → Notificações → Permitir);
+  - avisa só quando a pessoa **não está olhando o sistema** (aba em segundo plano ou outra janela na frente), só para o que é novo (no máximo 3 por vez; na primeira vez só registra, sem disparar tudo) e para **acionamentos novos** ("Novo acionamento · OS · tipo · BDESK");
+  - clicar no aviso traz o sistema para frente na tela certa;
+  - com os avisos ligados, o sino confere também com a aba em segundo plano, a cada 2 min (com a aba na frente continua a cada 1 min). Sem os avisos, nada muda no tráfego;
+  - **limite**: com o navegador fechado não há aviso. Isso precisaria de Web Push (service worker, chaves VAPID e tabela de inscrições), que fica para depois se precisar.
+- **Contraste**: o texto do aviso no sino passa de 7:1 no claro. No escuro, o gerador de tema escurecia para `#7f8082`, e `theme-dark-manual.css` deixa em `#b5b9c1` (8,1:1).
+- **Validação**:
+  - `npm run build`;
+  - preview: com 4 itens o ponto aparece; ao abrir o sino some; depois de recarregar continua apagado; quando "3 chamados sem técnico" virou 2, voltou com "1 nova";
+  - no painel de pré-visualização o navegador bloqueia avisos, então apareceu a explicação de como liberar. O aviso do Windows de verdade precisa ser conferido no Chrome.
