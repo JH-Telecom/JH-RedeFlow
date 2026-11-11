@@ -239,7 +239,7 @@ function clearLoginAttempts(request: Request, email: string) {
 }
 
 app.get('/health', (_request, response) => response.json({ status: 'ok', service: 'jh-redeflow-api' }));
-// Pagina de status (sem login: quando o banco cai, o login cai junto). Resultado guardado por 60 s para a pagina
+// Pagina de status (sem login: quando o banco cai, o login cai junto). Resultado guardado por 5 min para a pagina
 // aberta em varios computadores nao bater no banco e no WuzAPI a cada atualizacao.
 let systemStatusCache: { at: number; body: ReturnType<typeof buildSystemStatus> } | null = null;
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
@@ -280,7 +280,7 @@ async function checkWhatsApp() {
   } catch (error) { return { configured: true, connected: null, loggedIn: null, error: error instanceof Error ? error.message.slice(0, 80) : 'erro', lastMessageAt }; }
 }
 app.get('/api/status', async (_request, response) => {
-  if (!systemStatusCache || Date.now() - systemStatusCache.at > 60_000) {
+  if (!systemStatusCache || Date.now() - systemStatusCache.at > 5 * 60_000) {
     const [database, whatsapp] = await Promise.all([checkDatabase(), checkWhatsApp()]);
     const events = database.ok || !database.configured ? await latestStatusEvents().catch(() => []) : [];
     const body = buildSystemStatus({ now: Date.now(), uptimeSeconds: process.uptime(), version: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || null, database, events, whatsapp, backupConfigured: Boolean(backupConfig()) });

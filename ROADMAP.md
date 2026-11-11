@@ -5733,3 +5733,11 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - `npm run build`;
   - preview: com 4 itens o ponto aparece; ao abrir o sino some; depois de recarregar continua apagado; quando "3 chamados sem técnico" virou 2, voltou com "1 nova";
   - no painel de pré-visualização o navegador bloqueia avisos, então apareceu a explicação de como liberar. O aviso do Windows de verdade precisa ser conferido no Chrome.
+
+## Página de status: atualiza a cada 5 minutos (2026-11-11)
+- **Pedido**: "Aumente esse tempo, vai usar muita requisição".
+- **Mudança**:
+  - a página `/status` atualiza sozinha a cada **5 min** (era 1 min), só com a aba visível;
+  - o servidor guarda o resultado por **5 min** (era 1 min): no máximo uma checagem do banco e do WuzAPI a cada 5 min, não importa quantas pessoas estejam com a página aberta;
+  - o botão **Atualizar** continua para conferir na hora. Se o resultado guardado ainda estiver dentro dos 5 min, ele volta sem nova consulta.
+- Com a página aberta o dia todo, isso dá cerca de 288 checagens por dia (antes 1.440), uns 1,5 MB de tráfego do banco.
