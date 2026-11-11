@@ -77,6 +77,8 @@ export function CallDetailBase() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [status, setStatus] = useState<CallStatus>("Aberto");
   const [technicianId, setTechnicianId] = useState("");
+  // Tecnico de apoio (opcional): na fila aparece no lugar do supervisor.
+  const [supportTechnicianId, setSupportTechnicianId] = useState("");
   const [notes, setNotes] = useState("");
   const [message, setMessage] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -124,6 +126,7 @@ export function CallDetailBase() {
         // Concluido no OFS: a data de execucao ja vem preenchida com a Data Fim do OFS.
         setExecutedAt(callData.call.executedAt ? toLocalDateTimeInput(callData.call.executedAt) : "");
         setTechnicianId(callData.call.technicianId || "");
+        setSupportTechnicianId(callData.call.supportTechnicianId || "");
         setNotes(callData.call.notes);
         setOpenedAt(toLocalDateTimeInput(callData.call.openedAt));
         setOrderNumber(callData.call.orderNumber); setBdesk(callData.call.bdesk); setOfficeTrack(callData.call.officeTrack); setClient(callData.call.client); setType(callData.call.type); setReason(callData.call.reason); setRegion(callData.call.region); setCity(callData.call.city); setAddress(callData.call.address || ""); setBairro(callData.call.bairro || ""); setOlt(callData.call.olt); setSlotPon(callData.call.slotPon);
@@ -156,7 +159,7 @@ export function CallDetailBase() {
     if (cancelling && cancelReason.trim().length < 3) { setMessage("Informe o motivo do cancelamento."); return; }
     setSaving(true);
     try {
-      const fields = { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, technicianId: technicianId || null, openedAt: openingDate.toISOString(), notes };
+      const fields = { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, technicianId: technicianId || null, supportTechnicianId: supportTechnicianId && supportTechnicianId !== technicianId ? supportTechnicianId : null, openedAt: openingDate.toISOString(), notes };
       if (finishing || cancelling) {
         // Primeiro salva os dados (ex.: tecnico escolhido agora), depois encerra.
         await api.updateCall(id, { ...fields, status: current.status });
@@ -165,7 +168,7 @@ export function CallDetailBase() {
         setMessage(finishing ? "Chamado finalizado com sucesso." : "Chamado cancelado com sucesso.");
       } else {
         const data = await api.updateCall(id, { ...fields, status });
-        setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || "");
+        setCall(data.call); setStatus(data.call.status); setTechnicianId(data.call.technicianId || ""); setSupportTechnicianId(data.call.supportTechnicianId || "");
         setMessage(wasClosed && !CLOSED_STATUSES.includes(status) ? "Chamado reaberto com sucesso." : "Chamado atualizado com sucesso.");
       }
       setConfirmed(true); setTimeout(() => window.location.reload(), 1100);
@@ -277,7 +280,7 @@ export function CallDetailBase() {
             Tecnico
             <select
               value={technicianId}
-              onChange={(event) => setTechnicianId(event.target.value)}
+              onChange={(event) => { setTechnicianId(event.target.value); if (event.target.value === supportTechnicianId) setSupportTechnicianId(""); }}
             >
               <option value="">Sem tecnico</option>
               {technicians
@@ -295,6 +298,19 @@ export function CallDetailBase() {
               ? `Supervisor: ${technicians.find((technician) => technician.id === technicianId)?.supervisorName || "Nao definido"}`
               : "Este chamado ainda nao possui tecnico."}
           </div>
+          <label className="detail-label">
+            Tecnico de apoio (opcional)
+            <select value={supportTechnicianId} onChange={(event) => setSupportTechnicianId(event.target.value)}>
+              <option value="">Sem apoio</option>
+              {technicians
+                .filter((technician) => technician.active && technician.employmentStatus !== "Demitido" && technician.id !== technicianId)
+                .map((technician) => (
+                  <option key={technician.id} value={technician.id}>
+                    {technician.name} · {technician.region}
+                  </option>
+                ))}
+            </select>
+          </label>
           {showFinish && (
             <div className="status-fields">
               <label className="detail-label">

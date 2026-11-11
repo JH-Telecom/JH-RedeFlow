@@ -1625,3 +1625,22 @@ test('a card with the OS of an existing call is not activated again; same BDESK 
   const sameBdesk = await (await post(card('dup-os-3', '619990000020102', '699001', 'VIP-CCC-03'))).json() as { status: string };
   assert.equal(sameBdesk.status, 'Pendente');
 });
+
+test('support technician is saved, listed in place of the supervisor, and cannot be the main technician', async () => {
+  const login = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const { token } = await login.json() as { token: string };
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${token}` };
+  const id = 'call-240916-01'; // Em campo, tecnico tech-andre
+  const same = await fetch(`${baseUrl}/api/chamados/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ supportTechnicianId: 'tech-andre' }) });
+  assert.equal(same.status, 422);
+  const saved = await fetch(`${baseUrl}/api/chamados/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ supportTechnicianId: 'tech-pedro' }) });
+  assert.equal(saved.status, 200);
+  const body = await saved.json() as { call: { supportTechnicianId?: string; supportTechnicianName?: string; technicianId?: string } };
+  assert.equal(body.call.supportTechnicianId, 'tech-pedro');
+  assert.equal(body.call.supportTechnicianName, 'Pedro Santos');
+  assert.equal(body.call.technicianId, 'tech-andre');
+  const detail = await (await fetch(`${baseUrl}/api/chamados/${id}`, { headers })).json() as { call: { supportTechnicianName?: string } };
+  assert.equal(detail.call.supportTechnicianName, 'Pedro Santos');
+  const cleared = await (await fetch(`${baseUrl}/api/chamados/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ supportTechnicianId: null }) })).json() as { call: { supportTechnicianId?: string } };
+  assert.equal(cleared.call.supportTechnicianId, undefined);
+});

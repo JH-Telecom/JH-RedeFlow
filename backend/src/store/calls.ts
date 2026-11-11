@@ -7,6 +7,24 @@ import type { Call, CallAuditLog, CallStatus, EditableCallFields, User } from ".
 import { activations, auditLogs, calls, ensureDemoData, observations, supervisors, technicians } from "./demo-data.js";
 import { captureUnknownOltRequests } from "./settings.js";
 
+// Nome do tecnico de apoio: a coluna support_technician_id nao tem chave estrangeira (uma segunda ligacao com
+// technicians deixaria ambiguo o join do tecnico principal), entao o nome vem de um mapa id -> nome (5 min).
+let technicianNames: { at: number; names: Map<string, string> } | null = null;
+async function supportNameMap() {
+  if (!isSupabaseConfigured()) return new Map([...technicians.values()].map((technician) => [technician.id, technician.name]));
+  if (technicianNames && Date.now() - technicianNames.at < 5 * 60_000) return technicianNames.names;
+  const { data, error } = await getSupabaseAdmin().from('technicians').select('id, name');
+  if (error) throw new Error(error.message);
+  technicianNames = { at: Date.now(), names: new Map((data || []).map((row) => [String(row.id), String(row.name)])) };
+  return technicianNames.names;
+}
+export function forgetTechnicianNames() { technicianNames = null; }
+export async function withSupportNames<T extends Call>(rows: T[]): Promise<T[]> {
+  if (!rows.some((call) => call.supportTechnicianId)) return rows;
+  const names = await supportNameMap().catch(() => new Map<string, string>());
+  return rows.map((call) => (call.supportTechnicianId ? { ...call, supportTechnicianName: names.get(call.supportTechnicianId) } : call));
+}
+
 export type CallQuery = { id?: string; from?: string; to?: string; supervisorId?: string; status?: CallStatus | CallStatus[]; search?: string; region?: string; neighborhood?: string; olt?: string; hasTechnician?: boolean; gigaClosed?: boolean; area?: 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC'; page?: number; pageSize?: number; sort?: 'openedAt' | 'status' | 'region' | 'technicianName' | 'client' | 'orderNumber'; direction?: 'asc' | 'desc'; };
 
 export function matchesCallStatus(status: CallStatus, filter?: CallStatus | CallStatus[]) {
@@ -52,7 +70,7 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
   if (isSupabaseConfigured()) {
     // O escopo de supervisor e aplicado no banco (join com technicians.supervisor_id), tanto aqui quanto no PostgreSQL local.
     const rows = await listSupabaseCalls(baseStatus, { from: baseQuery.from, to: baseQuery.to, supervisorId: baseQuery.supervisorId, id: baseQuery.id });
-    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && matchesCallStatus(call.status, baseQuery.status) && matchesGigaState(call, baseQuery.gigaClosed) && isCallInDateRange(call, baseQuery)), baseQuery);
+    return withSupportNames(sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && matchesCallStatus(call.status, baseQuery.status) && matchesGigaState(call, baseQuery.gigaClosed) && isCallInDateRange(call, baseQuery)), baseQuery));
   }
   const rows = [...calls.values()].map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
@@ -78,7 +96,7 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
     }
     return false;
   });
-  return sortCalls(rows, baseQuery);
+  return withSupportNames(sortCalls(rows, baseQuery));
 }
 
 export type CallPageResult = { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] };
@@ -248,7 +266,7 @@ export async function getCall(id: string, query: CallQuery = {}): Promise<Call |
   }
   if (query.from && toOperationalDate(call.openedAt) < query.from) return undefined;
   if (query.to && toOperationalDate(call.openedAt) > query.to) return undefined;
-  return call;
+  return (await withSupportNames([call]))[0];
 }
 
 export async function deleteCall(id: string): Promise<boolean> {
@@ -338,15 +356,16 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   if (isSupabaseConfigured()) {
     const current = await getCall(id);
     if (!current) return undefined;
-    return await updateSupabaseCall(id, prepareCallUpdate(current, input), actor);
+    const saved = await updateSupabaseCall(id, prepareCallUpdate(current, input), actor);
+    return saved ? (await withSupportNames([{ ...saved, supportTechnicianId: input.supportTechnicianId === undefined ? current.supportTechnicianId : input.supportTechnicianId || undefined }]))[0] : saved;
   }
   const current = calls.get(id);
   if (!current) return undefined;
   input = prepareCallUpdate(current, input);
   const technician = input.technicianId ? technicians.get(input.technicianId) : undefined;
-  const updated = { ...current, ...input, cancellationReason: input.cancellationReason === null ? undefined : input.cancellationReason ?? current.cancellationReason, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
+  const updated = { ...current, ...input, cancellationReason: input.cancellationReason === null ? undefined : input.cancellationReason ?? current.cancellationReason, supportTechnicianId: input.supportTechnicianId === null ? undefined : input.supportTechnicianId ?? current.supportTechnicianId, technicianId: input.technicianId === null ? undefined : input.technicianId ?? current.technicianId, technicianName: input.technicianId === null ? undefined : technician?.name ?? current.technicianName, supervisorName: input.technicianId === null ? undefined : technician?.supervisorId ? supervisors.get(technician.supervisorId)?.name : current.supervisorName, assignedAt: input.technicianId && !current.assignedAt ? new Date().toISOString() : input.technicianId === null ? undefined : current.assignedAt };
   calls.set(id, updated);
-  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', openedAt: 'Data de abertura', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', closingReason: 'Motivo de fechamento', closingSubreason: 'Submotivo de fechamento', cableType: 'Tipo do cabo', notes: 'Observacoes' };
+  const labels: Record<string, string> = { orderNumber: 'Ordem', bdesk: 'BDESK', officeTrack: 'Office Track', client: 'Tecnico B2C', type: 'Tipo', reason: 'Motivo', region: 'Regiao', city: 'Cidade', address: 'Endereco', bairro: 'Bairro', ofsStatus: 'Status OFS', olt: 'OLT', slotPon: 'Slot/PON', status: 'Status', technicianId: 'Tecnico', supportTechnicianId: 'Tecnico de apoio', openedAt: 'Data de abertura', executedAt: 'Data de finalizacao', result: 'Resultado', cancellationReason: 'Motivo de cancelamento', closingReason: 'Motivo de fechamento', closingSubreason: 'Submotivo de fechamento', cableType: 'Tipo do cabo', notes: 'Observacoes' };
   Object.keys(input).forEach((field) => {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(updated[field as keyof Call] ?? '');
@@ -354,7 +373,7 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
     const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: `${labels[field] || field} alterado`, field, previousValue, newValue, createdAt: new Date().toISOString() };
     auditLogs.set(log.id, log);
   });
-  return updated;
+  return (await withSupportNames([updated]))[0];
 }
 
 // Corrige so a Data Fim, inclusive com o chamado encerrado (sem reabrir e sem mexer em mais nada). O log

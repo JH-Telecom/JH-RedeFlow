@@ -5516,3 +5516,19 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - preview claro/escuro e auditoria de contraste sem nada abaixo de 4,5:1;
   - "Fazer backup agora" sem configuração responde a mensagem certa.
 - **Não testado ainda**: a leitura das tabelas no Supabase de verdade e o Apps Script real. Os dois rodam no primeiro "Fazer backup agora" depois da configuração.
+
+## Técnico de apoio no chamado (2026-11-11)
+- **Pedido**: técnicos às vezes vão como apoio numa ordem. O usuário pediu um campo para o técnico de apoio e que o nome dele apareça no lugar do supervisor.
+- **Banco**: coluna nova `calls.support_technician_id uuid` (migração `202611110001_call_support_technician.sql`, aplicada por mim pelo conector com autorização do usuário: "Pode rodar e subir"). **Sem chave estrangeira** de propósito: uma segunda ligação `calls → technicians` deixaria ambíguo o join `technicians(...)` do técnico principal, e o PostgREST recusaria a consulta da fila.
+- **Backend**:
+  - `PATCH /api/chamados/:id` aceita `supportTechnicianId` (ou `null` para tirar). Só aceita técnico ou auxiliar trabalhando e ativo, e diferente do técnico principal.
+  - O histórico registra "Tecnico de apoio alterado".
+  - O nome (`supportTechnicianName`) vem de um mapa id → nome dos técnicos guardado por 5 min, na fila e no detalhe.
+- **Frontend**:
+  - no detalhe, campo "Técnico de apoio (opcional)" logo abaixo do técnico (a lista não mostra o técnico principal; trocar o principal para o mesmo do apoio limpa o apoio);
+  - na fila, a linha de baixo do técnico mostra "Apoio: Nome" no lugar do supervisor quando há apoio;
+  - o export completo ganhou a coluna "Técnico de apoio".
+- **Validação**:
+  - teste de ponta a ponta (salva, aparece com nome no PATCH e no detalhe, recusa o mesmo técnico do chamado, remove com `null`);
+  - suíte completa;
+  - preview: apoio Pedro no chamado do Carlos, fila mostrando "Carlos Mendes / Apoio: Pedro Santos".

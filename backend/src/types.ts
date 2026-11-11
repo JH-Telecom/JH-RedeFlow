@@ -108,6 +108,9 @@ export type Call = {
   technicianId?: string;
   technicianName?: string;
   supervisorName?: string;
+  /** Tecnico de apoio na ordem (opcional). Na fila aparece no lugar do supervisor. */
+  supportTechnicianId?: string;
+  supportTechnicianName?: string;
   openedAt: string;
   /** Data/Hora do Evento informada no card de acionamento, quando houver. */
   eventAt?: string;
@@ -133,7 +136,7 @@ export type Call = {
   sourceProcessedAt?: string;
 };
 
-export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'openedAt' | 'executedAt' | 'result' | 'notes' | 'closingReason' | 'closingSubreason' | 'cableType'>, 'technicianId'> & { technicianId?: string | null; cancellationReason?: string | null };
+export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'openedAt' | 'executedAt' | 'result' | 'notes' | 'closingReason' | 'closingSubreason' | 'cableType'>, 'technicianId'> & { technicianId?: string | null; supportTechnicianId?: string | null; cancellationReason?: string | null };
 
 export type CallObservationAttachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; createdAt: string };
 export type CallObservationAttachmentInput = Omit<CallObservationAttachment, 'id' | 'createdAt'> & { contentBase64: string };

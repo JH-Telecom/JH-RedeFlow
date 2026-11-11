@@ -545,7 +545,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const eventCell = (call: Call) => <td data-label="Evento"><strong>{call.type}</strong><small className="table-subtext">{call.reason}</small></td>;
   const placeCell = (call: Call, withOlt = false) => <td data-label="Local" className="cq-place"><strong>{call.bairro || call.city || <span className="muted-cell">Sem bairro</span>}</strong><small className="table-subtext">{[call.region, call.address].filter(Boolean).join(", ") || "-"}</small>{withOlt && call.olt && <small className="table-subtext cq-olt-line">{call.olt}{call.slotPon ? ` PON ${call.slotPon}` : ""}</small>}</td>;
   const oltCell = (call: Call) => <td data-label="OLT"><span className="cq-olt">{call.olt || <span className="muted-cell">-</span>}</span>{call.slotPon && <small className="table-subtext">PON {call.slotPon}</small>}</td>;
-  const technicianCell = (call: Call) => <td data-label="Técnico">{call.technicianName ? <strong>{call.technicianName}</strong> : <span className="unassigned">Sem técnico</span>}<small className="table-subtext">{call.supervisorName || "Sem supervisor"}</small></td>;
+  const technicianCell = (call: Call) => <td data-label="Técnico">{call.technicianName ? <strong>{call.technicianName}</strong> : <span className="unassigned">Sem técnico</span>}<small className="table-subtext">{call.supportTechnicianName ? <>Apoio: {call.supportTechnicianName}</> : call.supervisorName || "Sem supervisor"}</small></td>;
   const columns = closedView
     ? ["Ordem", "Técnico", "Evento", "Local", "Abertura", "Data Fim", "Tempo total", "Status"]
     : assignedOnly

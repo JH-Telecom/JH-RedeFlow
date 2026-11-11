@@ -26,7 +26,7 @@ export function FullExportPanel() {
       sheet("Chamados", data.calls.map((call) => ({
         Ordem: call.orderNumber, BDESK: call.bdesk, "Office Track": call.officeTrack, Cliente: call.client, Tipo: call.type, Motivo: call.reason,
         "Região": call.region, Cidade: call.city, Bairro: call.bairro ?? "", "Endereço": call.address ?? "", OLT: call.olt, "Slot/PON": call.slotPon, Cluster: call.cluster ?? "",
-        Status: call.status, "Status OFS": call.ofsStatus ?? "", "Técnico": call.technicianName ?? "", Supervisor: call.supervisorName ?? "",
+        Status: call.status, "Status OFS": call.ofsStatus ?? "", "Técnico": call.technicianName ?? "", "Técnico de apoio": call.supportTechnicianName ?? "", Supervisor: call.supervisorName ?? "",
         Abertura: when(call.openedAt), "Atribuição": when(call.assignedAt), "Data Fim": when(call.executedAt), Resultado: call.result ?? "",
         "Motivo de fechamento": call.closingReason ?? "", Submotivo: call.closingSubreason ?? "", "Tipo do cabo": call.cableType ?? "", "Cancelamento": call.cancellationReason ?? "", "Observações do chamado": call.notes,
       })));
