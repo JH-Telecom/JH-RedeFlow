@@ -25,3 +25,8 @@
 :root[data-theme="dark"] { --blue: #1a5fd6; --blue-deep: #2d6fe0; --accent-text: #86b6ff; }
 /* Texto sobre fundo colorido claro (amarelo) continua escuro. */
 :root[data-theme="dark"] .nav-count.is-warning { color: #17233b; }
+
+/* Pesquisa nas listas suspensas (select-search.css): o gerador escurecia o texto dos grupos e do "Nada encontrado"
+   para #7f8082 (4,3:1 sobre o painel). Aqui fica legivel (8,7:1). */
+:where(:root[data-theme="dark"]) .ss-search, :where(:root[data-theme="dark"]) .ss-group, :where(:root[data-theme="dark"]) .ss-empty { color: #b5b9c1; }
+:where(:root[data-theme="dark"]) .ss-option.is-disabled { color: #909398; }

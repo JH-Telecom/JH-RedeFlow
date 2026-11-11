@@ -1360,6 +1360,44 @@
     color: #656970
 }
 
+/* select-search.css */
+:where(:root:not([data-theme="dark"])) .ss-search {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .ss-search input {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .ss-option {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .ss-option.is-selected {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .ss-option.is-disabled {
+    color: #5b687c
+}
+:where(:root:not([data-theme="dark"])) .ss-group {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .ss-empty {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-search {
+    color: #656970
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-search input, :where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option {
+    color: #dfe5ef
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-selected {
+    color: #3e6497
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-disabled {
+    color: #606a78
+}
+:where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-group, :where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-empty {
+    color: #656970
+}
+
 /* activation-toast.css */
 :where(:root:not([data-theme="dark"])) .act-toast {
     color: #17233b

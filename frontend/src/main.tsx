@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { SelectSearchLayer } from './components/SelectSearch';
 import './styles.css';
 import './password-change.css';
 import './team.css';
@@ -26,6 +27,7 @@ import './db-usage.css';
 import './backup.css';
 import './pop-keys.css';
 import './status-page.css';
+import './select-search.css';
 import './activation-toast.css';
 import './settings-olt.css';
 import './observation-attachments.css';
@@ -52,4 +54,4 @@ import { restorePalette } from './theme';
 
 restorePalette();
 
-createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /></BrowserRouter></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><App /><SelectSearchLayer /></BrowserRouter></StrictMode>);

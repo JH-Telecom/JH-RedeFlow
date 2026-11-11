@@ -1,0 +1,22 @@
+/* Pesquisa nas listas suspensas (SelectSearch.tsx) */
+.ss-panel { position: fixed; z-index: 2000; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; border: 1px solid #c9d3e1; border-radius: 10px; background: #fff; box-shadow: 0 16px 40px #17233b33; animation: ss-in .12s ease-out; }
+.ss-search { display: flex; align-items: center; gap: 8px; margin: 0; padding: 8px 10px; border-bottom: 1px solid #e1e7f0; color: #4f5d73; }
+.ss-search input { flex: 1; min-width: 0; border: 0; padding: 4px 0; background: transparent; color: #17233b; font: inherit; font-size: 13px; box-shadow: none; }
+.ss-search input:focus { outline: none; }
+.ss-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; }
+.ss-option { padding: 7px 10px; border-radius: 6px; font-size: 13px; color: #17233b; cursor: pointer; overflow-wrap: anywhere; }
+.ss-option.is-active { background: #e6efff; }
+.ss-option.is-selected { font-weight: 700; color: #0845ae; }
+.ss-option.is-disabled { color: #5b687c; cursor: default; }
+.ss-group { padding: 8px 10px 4px; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #4f5d73; }
+.ss-empty { padding: 10px; font-size: 13px; color: #4f5d73; }
+@keyframes ss-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .ss-panel { animation: none; } }
+
+:where(:root[data-theme="dark"]) .ss-panel { background: #181c22; border-color: #333c48; box-shadow: 0 16px 40px #000a; }
+:where(:root[data-theme="dark"]) .ss-search { border-color: #2c333e; color: #b5b9c1; }
+:where(:root[data-theme="dark"]) .ss-search input, :where(:root[data-theme="dark"]) .ss-option { color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .ss-option.is-active { background: #0f2547; }
+:where(:root[data-theme="dark"]) .ss-option.is-selected { color: #9cc6ff; }
+:where(:root[data-theme="dark"]) .ss-option.is-disabled { color: #8d97a6; }
+:where(:root[data-theme="dark"]) .ss-group, :where(:root[data-theme="dark"]) .ss-empty { color: #b5b9c1; }

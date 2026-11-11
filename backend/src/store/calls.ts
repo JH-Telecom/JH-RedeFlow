@@ -44,10 +44,17 @@ export function normalizeQueryText(value: string | undefined) {
   return value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim() ?? '';
 }
 
+// Pesquisa da fila (11/11/2026: "pesquisar coisas mais aleatorias, tipo o status do OFS"): olha quase todos os campos
+// do chamado e aceita varias palavras em qualquer ordem (todas precisam aparecer), ex.: "pendente guarulhos".
 export function matchesCallSearch(call: Call, search: string | undefined) {
-  if (!search) return true;
-  const haystack = normalizeQueryText([call.orderNumber, call.client, call.bdesk, call.region, call.city, call.bairro, call.address, call.type, call.technicianName, call.supervisorName, call.olt].join(' '));
-  return haystack.includes(normalizeQueryText(search));
+  const words = normalizeQueryText(search).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const haystack = normalizeQueryText([
+    call.orderNumber, call.officeTrack, call.bdesk, ...(call.sourceIdentifiers || []), call.client, call.status, call.ofsStatus, call.type, call.reason,
+    call.region, call.city, call.bairro, call.address, call.olt, call.slotPon, call.cluster, call.atrelada,
+    call.technicianName, call.supportTechnicianName, call.supervisorName, call.result, call.closingReason, call.closingSubreason, call.cableType, call.notes,
+  ].filter(Boolean).join(' | '));
+  return words.every((word) => haystack.includes(word));
 }
 
 export function sortCalls(calls: Call[], query: CallQuery) {
@@ -69,10 +76,11 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
   const baseQuery = { ...query, status: baseStatus };
   if (isSupabaseConfigured()) {
     // O escopo de supervisor e aplicado no banco (join com technicians.supervisor_id), tanto aqui quanto no PostgreSQL local.
-    const rows = await listSupabaseCalls(baseStatus, { from: baseQuery.from, to: baseQuery.to, supervisorId: baseQuery.supervisorId, id: baseQuery.id });
-    return withSupportNames(sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && matchesCallStatus(call.status, baseQuery.status) && matchesGigaState(call, baseQuery.gigaClosed) && isCallInDateRange(call, baseQuery)), baseQuery));
+    // Nome do apoio antes do filtro: a pesquisa tambem acha pelo tecnico de apoio.
+    const rows = await withSupportNames(await listSupabaseCalls(baseStatus, { from: baseQuery.from, to: baseQuery.to, supervisorId: baseQuery.supervisorId, id: baseQuery.id }));
+    return sortCalls(rows.filter((call) => (!baseQuery.id || call.id === baseQuery.id) && (baseQuery.hasTechnician === undefined || Boolean(call.technicianId) === baseQuery.hasTechnician) && matchesCallSearch(call, baseQuery.search) && (!baseQuery.region || call.region === baseQuery.region) && (!baseQuery.neighborhood || call.bairro === baseQuery.neighborhood) && (!baseQuery.olt || normalizeQueryText(call.olt) === normalizeQueryText(baseQuery.olt)) && matchesCallStatus(call.status, baseQuery.status) && matchesGigaState(call, baseQuery.gigaClosed) && isCallInDateRange(call, baseQuery)), baseQuery);
   }
-  const rows = [...calls.values()].map((call) => {
+  const rows = (await withSupportNames([...calls.values()])).map((call) => {
     const lastObservationAt = [...observations.values()].filter((observation) => observation.callId === call.id).sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]?.createdAt;
     return { ...call, lastObservationAt };
   }).filter((call) => {
@@ -96,7 +104,7 @@ export async function listCalls(status?: CallStatus | CallStatus[], query: CallQ
     }
     return false;
   });
-  return withSupportNames(sortCalls(rows, baseQuery));
+  return sortCalls(rows, baseQuery);
 }
 
 export type CallPageResult = { calls: Call[]; total: number; page: number; pageSize: number; totalPages: number; olts: string[] };

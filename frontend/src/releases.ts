@@ -12,6 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
+      { icon: "sparkles", tag: "Melhoria", title: "Pesquisa melhorada", text: "A pesquisa da fila acha por quase tudo do chamado (status do OFS, PON, apoio, observações...) e aceita várias palavras em qualquer ordem. E toda lista suspensa do sistema (técnico, status, região...) agora tem um campo Pesquisar." },
       { icon: "shield", tag: "Novo", title: "Status do sistema", text: "Página que mostra se o servidor, o banco, a coleta do OFS, o WhatsApp e o backup estão funcionando. Abre sem login (link no rodapé e em Administração), então dá para conferir mesmo quando o login não entra." },
       { icon: "sparkles", tag: "Novo", title: "Chaves dos POPs", text: "Nova tela em Administração: quem está com cada chave de POP e desde quando, com foto da pessoa tirada na retirada e o histórico de retiradas e devoluções. Já começa com a situação da planilha." },
       { icon: "sparkles", tag: "Novo", title: "Atalhos: Esc volta e Enter salva", text: "Esc volta para a tela anterior (do chamado para a fila) e fecha janelas. Enter salva: nos campos do chamado e nas observações (Shift+Enter quebra a linha). Se houver algo não salvo, o sistema pergunta antes de sair." },

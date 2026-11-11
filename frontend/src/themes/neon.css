@@ -2351,6 +2351,67 @@
     background: #262839;
     color: #666873
 }
+/* light · select-search.css */
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-panel {
+    border: 1px solid #ced0e7;
+    background: #fff;
+    box-shadow: 0 16px 40px #1e1e4333
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-search {
+    border-bottom: 1px solid #e4e5f4;
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-search input {
+    border: 0;
+    background: transparent;
+    color: #1e1e43;
+    box-shadow: none
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-search input:focus {
+    outline: none
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-option {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-option.is-active {
+    background: #eaedff
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-option.is-selected {
+    color: #432fba
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-option.is-disabled {
+    color: #616484
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-group {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .ss-empty {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-panel {
+    background: #1a1b24;
+    border-color: #38394d;
+    box-shadow: 0 16px 40px #000a
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-search {
+    border-color: #2f3142;
+    color: #666873
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-search input, :where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-active {
+    background: #1f1f4b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-selected {
+    color: #585c98
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-disabled {
+    color: #64677e
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-group, :where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-empty {
+    color: #666873
+}
 /* light · activation-toast.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .act-toast {
     border: 1px solid #c8ceff;
@@ -6943,6 +7004,67 @@
     background: #262839;
     color: #cbcdd9
 }
+/* dark · select-search.css */
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-panel {
+    border: 1px solid #3d405a;
+    background: #1a1b24;
+    box-shadow: 0 16px 40px #00000070
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-search {
+    border-bottom: 1px solid #373848;
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-search input {
+    border: 0;
+    background: transparent;
+    color: #e1e3f3;
+    box-shadow: none
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-search input:focus {
+    outline: none
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-option {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-option.is-active {
+    background: #13132e
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-option.is-selected {
+    color: #a2a8ff
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-option.is-disabled {
+    color: #afb1bb
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-group {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-empty {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-panel {
+    background: #1a1b24;
+    border-color: #38394d;
+    box-shadow: 0 16px 40px #00000099
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-search {
+    border-color: #2f3142;
+    color: #7f8082
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-search input, :where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-active {
+    background: #1f1f4b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-selected {
+    color: #c3c9ff
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-disabled {
+    color: #909398
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-group, :where(:root[data-palette="neon"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-empty {
+    color: #7f8082
+}
 /* dark · activation-toast.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .act-toast {
     border: 1px solid #3a3c6c;
@@ -9212,4 +9334,7 @@
 }
 :root[data-palette="neon"][data-theme="dark"] .nav-count.is-warning {
     color: #1e1e43
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .ss-search, :where(:root[data-palette="neon"][data-theme="dark"]) .ss-group, :where(:root[data-palette="neon"][data-theme="dark"]) .ss-empty {
+    color: #b6b8c4
 }

@@ -2375,6 +2375,68 @@
     color: #c9ced6
 }
 
+/* select-search.css */
+:where(:root[data-theme="dark"]) .ss-panel {
+    border: 1px solid #374353;
+    background: #181c22;
+    box-shadow: 0 16px 40px #00000070
+}
+:where(:root[data-theme="dark"]) .ss-search {
+    border-bottom: 1px solid #343a44;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ss-search input {
+    border: 0;
+    background: transparent;
+    color: #dfe5ef;
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .ss-search input:focus {
+    outline: none
+}
+:where(:root[data-theme="dark"]) .ss-option {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .ss-option.is-active {
+    background: #0d1728
+}
+:where(:root[data-theme="dark"]) .ss-option.is-selected {
+    color: #7cb6ff
+}
+:where(:root[data-theme="dark"]) .ss-option.is-disabled {
+    color: #adb2b8
+}
+:where(:root[data-theme="dark"]) .ss-group {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .ss-empty {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-panel {
+    background: #181c22;
+    border-color: #333c48;
+    box-shadow: 0 16px 40px #00000099
+}
+:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-search {
+    border-color: #2c333e;
+    color: #7f8082
+}
+:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-search input, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-active {
+    background: #0f2547
+}
+:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-selected {
+    color: #a9d3ff
+}
+:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-disabled {
+    color: #909398
+}
+:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-group, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-empty {
+    color: #7f8082
+}
+
 /* activation-toast.css */
 :where(:root[data-theme="dark"]) .act-toast {
     border: 1px solid #2b4267;

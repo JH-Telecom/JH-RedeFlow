@@ -2351,6 +2351,67 @@
     background: #292738;
     color: #686773
 }
+/* light · select-search.css */
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-panel {
+    border: 1px solid #d1cfe6;
+    background: #fff;
+    box-shadow: 0 16px 40px #241c4233
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-search {
+    border-bottom: 1px solid #e6e5f3;
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-search input {
+    border: 0;
+    background: transparent;
+    color: #241c42;
+    box-shadow: none
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-search input:focus {
+    outline: none
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-option {
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-option.is-active {
+    background: #eeebff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-option.is-selected {
+    color: #5331a7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-option.is-disabled {
+    color: #666382
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-group {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-empty {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-panel {
+    background: #1b1a24;
+    border-color: #3b384c;
+    box-shadow: 0 16px 40px #000a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-search {
+    border-color: #323041;
+    color: #686772
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-search input, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-active {
+    background: #261e45
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-selected {
+    color: #635995
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-option.is-disabled {
+    color: #68667c
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-group, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .ss-empty {
+    color: #686772
+}
 /* light · activation-toast.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .act-toast {
     border: 1px solid #d1ccfc;
@@ -6943,6 +7004,67 @@
     background: #292738;
     color: #cdccd9
 }
+/* dark · select-search.css */
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-panel {
+    border: 1px solid #413e58;
+    background: #1b1a24;
+    box-shadow: 0 16px 40px #00000070
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-search {
+    border-bottom: 1px solid #393747;
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-search input {
+    border: 0;
+    background: transparent;
+    color: #e4e3f2;
+    box-shadow: none
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-search input:focus {
+    outline: none
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-option {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-option.is-active {
+    background: #17122d
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-option.is-selected {
+    color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-option.is-disabled {
+    color: #b1b0ba
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-group {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-empty {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-panel {
+    background: #1b1a24;
+    border-color: #3b384c;
+    box-shadow: 0 16px 40px #00000099
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-search {
+    border-color: #323041;
+    color: #7f8082
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-search input, :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-active {
+    background: #261e45
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-selected {
+    color: #cdc7fe
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-option.is-disabled {
+    color: #909398
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-group, :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .ss-empty {
+    color: #7f8082
+}
 /* dark · activation-toast.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .act-toast {
     border: 1px solid #423b65;
@@ -9212,4 +9334,7 @@
 }
 :root[data-palette="aurora"][data-theme="dark"] .nav-count.is-warning {
     color: #241c42
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ss-search, :where(:root[data-palette="aurora"][data-theme="dark"]) .ss-group, :where(:root[data-palette="aurora"][data-theme="dark"]) .ss-empty {
+    color: #b8b7c3
 }

@@ -5668,3 +5668,26 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - a checagem lê só os **10 últimos envios do OFS e os 3 últimos backups**, com 5 colunas (id, tipo, ok, data e detalhes). Mais o teste leve do banco (`head`, sem linhas), que não traz dados;
   - em uso normal, o tráfego do banco por dia com a página aberta fica na casa de poucos MB.
 - **Arquivos de tema**: os gerados pelo build (`theme-dark.css`, `theme-light-contrast.css`, `themes/*.css`) foram regenerados para incluir as telas novas (chaves, status, backup, visão dos supervisores). A Vercel já os regenera a cada publicação, então isso só deixa o repositório igual ao que está no ar. Auditoria de contraste refeita nas telas de chaves, visão dos supervisores e configurações com esses arquivos: nada abaixo de 4,5:1.
+
+## Pesquisa melhorada: fila e listas suspensas (2026-11-11)
+- **Pedido** (card "Pesquisa melhorada"):
+  - pesquisar "coisas mais aleatórias", como o status do OFS;
+  - o campo de pesquisa dizer só "Pesquisar";
+  - poder pesquisar o técnico ao trocar o técnico do chamado e em **toda** lista suspensa do sistema.
+- **Pesquisa da fila** (`matchesCallSearch`, `backend/src/store/calls.ts`):
+  - **antes**: 11 campos e a frase exata;
+  - **agora**: quase todos os campos do chamado (ordem, Office Track, BDESK, identificadores, cliente, status, **status do OFS**, tipo, motivo, região, cidade, bairro, endereço, OLT, **PON**, cluster, atrelada, técnico, **apoio**, supervisor, resultado, fechamento do OFS, tipo do cabo, **observações do chamado**);
+  - **várias palavras em qualquer ordem** (todas precisam aparecer), ex.: "pendente guarulhos". Sem diferença de maiúsculas e acentos;
+  - o nome do técnico de apoio passou a ser anexado antes do filtro, para a pesquisa achar por ele.
+- **Campo da fila**: o texto agora é só "Pesquisar". A dica (title) explica o que é pesquisado, e o atalho "/" continua.
+- **Listas suspensas com pesquisa** (`frontend/src/components/SelectSearch.tsx`, montado uma vez em `main.tsx`):
+  - ao clicar em qualquer `<select>`, ou com ele em foco apertar Enter, Espaço, Alt+↓, F4 ou **digitar uma letra** (que já entra na pesquisa), abre por cima dele uma lista com o campo **"Pesquisar"**;
+  - aceita várias palavras e ignora acentos, mostra os grupos (ex.: Técnicos / Supervisores) e marca a opção atual;
+  - ↑/↓ e Enter escolhem, Esc fecha só a lista (não sai da tela nem fecha a janela por trás). Clicar fora, rolar a tela ou clicar de novo na lista fecha;
+  - o `<select>` original continua na tela, com o mesmo visual, e a escolha passa por ele (evento `change` de verdade). Por isso **nenhuma tela precisou mudar**: valem as 43 listas atuais (15 telas) e as futuras;
+  - fica de fora: lista múltipla, com `size` > 1, desativada ou com `data-native-select`.
+- **Contraste**: a opção desativada no tema claro foi para `#5b687c` (5,6:1). No escuro, o gerador de tema escurecia o texto dos grupos para 4,3:1, e `theme-dark-manual.css` deixa em `#b5b9c1` (8,7:1).
+- **Validação**:
+  - testes da pesquisa (status do OFS, PON, apoio, observação, várias palavras, acentos);
+  - suíte completa e `npm run build`;
+  - preview: lista de técnico no detalhe do chamado (abrir, pesquisar "pedr", Enter escolhe Pedro e a tela reage), abrir digitando uma letra, contraste conferido pela conta das cores. Durante o teste o usuário estava clicando na mesma aba, então parte dos testes automáticos parou para não atrapalhar.

@@ -581,7 +581,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           <div className="cq-filters-top">
             <label className="cq-search">
               <Search size={16} aria-hidden="true" />
-              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); document.querySelector<HTMLElement>(".cq-row")?.focus(); } }} placeholder="Buscar por ordem, BDESK, técnico, região ou OLT  ( / )" aria-label="Buscar chamados" />
+              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); document.querySelector<HTMLElement>(".cq-row")?.focus(); } }} placeholder="Pesquisar" aria-label="Pesquisar chamados (atalho: /)" title="Pesquisa em todos os campos do chamado: ordem, BDESK, status, status do OFS, técnico, apoio, região, bairro, endereço, OLT, PON, observações... Várias palavras em qualquer ordem." />
               {query && <button type="button" className="cq-search-clear" onClick={() => setQuery("")} aria-label="Limpar busca"><X size={14} /></button>}
             </label>
             {statusChoices.length > 0 && (
