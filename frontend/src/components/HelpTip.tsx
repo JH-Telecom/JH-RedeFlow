@@ -28,7 +28,7 @@ export const PAGE_HELP: Record<string, string[]> = {
   "/integracao-ofs": ["Semáforo da coleta do OFS (export, fechamentos, clusters, falhas) e a fila dos chamados concluídos no OFS que não finalizaram aqui, com o motivo. Atualiza a cada minuto."],
   "/pessoas": ["Todos veem quem faz parte do O&M e quem está online (atualiza a cada 30 s). Clique para ver foto, banner, cargo e e-mail. Aqui não dá para criar nem alterar ninguém."],
   "/perfil": ["Foto, banner, apelido e tema de cor. O apelido aparece só para você; o tema vale para o seu login em qualquer computador."],
-  detalhe: ["Dados do chamado, distribuição para técnico, encerramento e histórico de observações e auditoria."],
+  detalhe: ["Dados do chamado, distribuição para técnico, encerramento e histórico de observações e auditoria.", "Atalhos: Esc volta para a fila (num campo, o 1º Esc só sai do campo; se houver algo não salvo, o sistema pergunta). Enter num campo salva as alterações. Na observação, Enter salva e Shift+Enter quebra a linha."],
 };
 
 export function HelpTip({ lines, title }: { lines: string[]; title: string }) {

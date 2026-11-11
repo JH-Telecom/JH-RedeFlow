@@ -5582,3 +5582,24 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - quando já é o mesmo técnico.
   - Para o OFS reconhecer o técnico, o cadastro dele precisa ter o nome igual ou um nome mais curto contido no do OFS, como antes.
 - **Validação**: teste com os seis casos (sem técnico, técnico diferente, mesmo técnico, balde, finalizado, técnico do OFS que era o apoio); suíte completa.
+
+## Atalhos de teclado: Esc volta, Enter salva (2026-11-11)
+- **Pedido** (card "Mais atalhos do teclado"): Esc para voltar à tela anterior ou ir para uma tela principal (do chamado para a lista de chamados); Enter para salvar, por exemplo ao adicionar observação.
+- **Esc** (`frontend/src/lib/keyboard.ts` + `Shell.tsx`):
+  - **Telas internas** (detalhe do chamado, Meu perfil etc.): volta para a tela anterior; sem histórico, vai para a fila (chamado) ou para a primeira tela do menu. Nas telas do menu e no Modo TV (que tem o próprio Esc), não faz nada.
+  - **Dentro de um campo**: o 1º Esc só tira o cursor do campo, para ninguém perder o que digita.
+  - **Janela aberta**: o Esc é dela. O `AdminModal` passou a fechar com Esc e a se identificar como janela (`role="dialog"`), e a janela de observação da fila usa isso.
+  - **Algo não salvo** (campos do chamado ou rascunho de observação): pergunta "Sair mesmo assim?" antes de voltar (`registerUnsaved`).
+- **Enter**:
+  - **Caixas de observação** (detalhe do chamado e janela da fila): Enter salva, Shift+Enter quebra a linha; Ctrl+Enter continua salvando. Com a lista de @menção aberta, o Enter escolhe a pessoa, como antes.
+  - **Campos de uma linha fora de formulário**: aciona o botão de salvar da área (`data-save-scope` / `data-save-button`). No detalhe do chamado, salva as alterações; no campo Data Fim, salva a Data Fim. Formulários (`<form>`) já salvavam com Enter.
+  - "Resultado e observação" ao finalizar e o motivo de cancelamento continuam com Enter quebrando linha (texto de várias linhas).
+- A ajuda (?) do detalhe do chamado lista os atalhos.
+- **Validação no preview** (eventos de teclado):
+  - Esc no detalhe volta para a fila; Esc na fila não faz nada;
+  - Esc num campo só tira o cursor;
+  - campo alterado + Esc pergunta, e "Cancelar" fica na tela;
+  - Enter num campo dispara o PATCH do chamado;
+  - Enter na observação salva e Shift+Enter não;
+  - na janela da fila, Esc fecha só a janela e Enter salva a observação.
+- **Correção durante o teste**: o atalho usava `navigate` antes de existir no Shell (tela em branco no preview). Agora o `navigate` fica guardado numa referência.

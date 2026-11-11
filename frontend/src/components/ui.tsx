@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ClipboardList, LockKeyhole, X } from "lucide-react";
 
 export function AccessDenied() {
@@ -60,7 +61,13 @@ export function ActivityRow({
 }
 
 export function AdminModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return <div className="modal-backdrop" onClick={onClose}><section className="admin-modal" onClick={(event) => event.stopPropagation()}><div className="modal-heading"><h2>{title}</h2><button className="icon-button" type="button" onClick={onClose} title="Fechar"><X size={18} /></button></div>{children}</section></div>;
+  // Esc fecha a janela (e nao sai da tela: o atalho global ignora quando ha janela aberta).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape" && !event.defaultPrevented) { event.preventDefault(); onClose(); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return <div className="modal-backdrop" onClick={onClose}><section className="admin-modal" role="dialog" aria-modal="true" aria-label={title} onClick={(event) => event.stopPropagation()}><div className="modal-heading"><h2>{title}</h2><button className="icon-button" type="button" onClick={onClose} title="Fechar"><X size={18} /></button></div>{children}</section></div>;
 }
 
 export function DateRangeFilter({ value, onChange }: { value: { from: string; to: string }; onChange: (value: { from: string; to: string }) => void }) {

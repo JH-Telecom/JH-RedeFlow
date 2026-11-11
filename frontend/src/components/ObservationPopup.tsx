@@ -4,6 +4,7 @@ import { AtSign, Check, Clock, ExternalLink, History } from "lucide-react";
 import { api, type Call, type CallObservation } from "../api";
 import { AdminModal } from "./ui";
 import { MentionTextarea, withMentions } from "./MentionTextarea";
+import { isSaveEnter } from "../lib/keyboard";
 
 const MAX_LENGTH = 5000;
 
@@ -30,11 +31,7 @@ export function ObservationPopup({ call, teamScoped, onClose, onSaved }: { call:
     return () => { active = false; };
   }, [call.id, teamScoped]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape" && !saving) onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, saving]);
+  // Esc: o AdminModal fecha (com a mesma trava de "salvando" no onClose abaixo).
 
   async function save() {
     const value = text.trim();
@@ -68,9 +65,9 @@ export function ObservationPopup({ call, teamScoped, onClose, onSaved }: { call:
         </div>
 
         <label className="obs-popup-label">Nova observação
-          <MentionTextarea value={text} onChange={(value) => { setText(value.slice(0, MAX_LENGTH)); if (error) setError(""); }} rows={4} placeholder="Técnico chegou no local, CTO sem sinal. Aguardando fusão." onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void save(); } }} />
+          <MentionTextarea value={text} onChange={(value) => { setText(value.slice(0, MAX_LENGTH)); if (error) setError(""); }} rows={4} placeholder="Técnico chegou no local, CTO sem sinal. Aguardando fusão." onKeyDown={(event) => { if (isSaveEnter(event)) { event.preventDefault(); void save(); } }} />
         </label>
-        <div className="obs-popup-hints"><span><AtSign size={12} aria-hidden="true" /> para mencionar alguém · Ctrl+Enter salva</span><span>{text.length} / {MAX_LENGTH}</span></div>
+        <div className="obs-popup-hints"><span><AtSign size={12} aria-hidden="true" /> para mencionar alguém · Enter salva · Shift+Enter quebra a linha</span><span>{text.length} / {MAX_LENGTH}</span></div>
         {error && <p className="form-error" role="alert">{error}</p>}
         <p className="obs-popup-history"><History size={14} aria-hidden="true" /> A observação anterior continua no histórico do chamado.</p>
 

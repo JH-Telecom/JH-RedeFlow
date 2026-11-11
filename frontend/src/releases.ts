@@ -12,6 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
+      { icon: "sparkles", tag: "Novo", title: "Atalhos: Esc volta e Enter salva", text: "Esc volta para a tela anterior (do chamado para a fila) e fecha janelas. Enter salva: nos campos do chamado e nas observações (Shift+Enter quebra a linha). Se houver algo não salvo, o sistema pergunta antes de sair." },
       { icon: "user", tag: "Melhoria", title: "Técnico do OFS prevalece", text: "Se o técnico do chamado for diferente do Recurso do OFS, a coleta troca pelo do OFS. Balde do OFS (CLUSTER_) e chamado encerrado não são alterados." },
       { icon: "chart", tag: "Novo", title: "Visão dos supervisores", text: "Nova tela em Indicadores: entrantes do mês e da semana (GIGA+ incluído), média por dia, TME, entrantes por região, por horário e por dia, com filtros de período, região e tipo." },
       { icon: "user", tag: "Melhoria", title: "Supervisor vê todos os chamados", text: "Enquanto os técnicos não são divididos entre os supervisores, o supervisor vê todos os chamados, não só os da própria equipe." },

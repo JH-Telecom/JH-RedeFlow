@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, ChevronRight, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { isTabHidden, navItems } from "../lib/nav-items";
+import { canLeave, hasOpenDialog, isTypingTarget, submitSaveScope } from "../lib/keyboard";
 export { navItems } from "../lib/nav-items";
 import { applyPalette, isPaletteId, useTheme } from "../theme";
 import { UpdateNotice } from "./UpdateNotice";
@@ -114,6 +115,25 @@ export function Shell({
     // Ctrl+K (ou Cmd+K) abre a busca rapida de qualquer tela.
     const onKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPaletteOpen((current) => !current); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  // Esc volta para a tela anterior (ou para a principal) e Enter num campo de uma linha salva a area (lib/keyboard).
+  const escapeState = useRef<{ pathname: string; home: string; go: (to: string | number) => void }>({ pathname: "", home: "/", go: () => undefined });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { if (submitSaveScope(event.target)) event.preventDefault(); return; }
+      if (event.key !== "Escape" || hasOpenDialog()) return;
+      // Num campo: so sai do campo (ninguem perde o que digitou); o proximo Esc volta.
+      if (isTypingTarget(event.target)) { (event.target as HTMLElement).blur(); return; }
+      const { pathname, home, go } = escapeState.current;
+      if (pathname === "/modo-tv" || navItems.some((item) => item.to === pathname)) return;
+      if (!canLeave()) return;
+      event.preventDefault();
+      if (((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0) go(-1);
+      else go(pathname.startsWith("/chamados/") ? "/chamados/atendimento" : home);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -231,6 +251,7 @@ export function Shell({
   // Abas ocultas pelo cargo (Cargos e permissoes): saem do menu, da busca e a rota fica bloqueada.
   const hiddenTabs = user.role.hiddenTabs ?? [];
   const firstAllowedPath = navItems.find((item) => canAccess(item.permission) && (!item.fieldOnly || fieldTech) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to))?.to;
+  escapeState.current = { pathname: location.pathname, home: firstAllowedPath || "/", go: (to) => (typeof to === "number" ? navigate(to) : navigate(to)) };
   function toggleSidebar() {
     setDesktopCollapsed((current) => {
       const next = !current;

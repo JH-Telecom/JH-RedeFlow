@@ -11,6 +11,7 @@ import { CallTimeline } from "../components/CallTimeline";
 import { ChecklistBox } from "../components/FieldAdmin";
 import { checklistForType, type ChecklistTemplate } from "../api";
 import { operationalRegions } from "../lib/constants";
+import { isSaveEnter, registerUnsaved } from "../lib/keyboard";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
 function formatEventGap(eventAt: string, openedAt: string) {
@@ -134,6 +135,14 @@ export function CallDetailBase() {
       },
     );
   }, [id]);
+  // Esc com algo nao salvo nos campos do chamado: pergunta antes de sair (lib/keyboard).
+  const unsavedRef = useRef(false);
+  unsavedRef.current = Boolean(call) && !saving && !confirmed && (
+    status !== call!.status || technicianId !== (call!.technicianId || "") || supportTechnicianId !== (call!.supportTechnicianId || "") || notes !== call!.notes
+    || orderNumber !== call!.orderNumber || bdesk !== call!.bdesk || officeTrack !== call!.officeTrack || client !== call!.client || type !== call!.type
+    || reason !== call!.reason || region !== call!.region || city !== call!.city || address !== (call!.address || "") || bairro !== (call!.bairro || "")
+    || olt !== call!.olt || slotPon !== call!.slotPon || Boolean(cancelReason.trim()));
+  useEffect(() => registerUnsaved(() => unsavedRef.current), []);
   if (!call) return <div className="empty-state">Carregando chamado...</div>;
   async function save() {
     const openingDate = new Date(openedAt);
@@ -217,7 +226,7 @@ export function CallDetailBase() {
       </div>
       <RepeatBanner callId={call.id} />
       <CallTimeline call={call} />
-      <div className="detail-layout">
+      <div className="detail-layout" data-save-scope>
         <section className="panel detail-main">
           <div className="panel-heading">
             <div>
@@ -331,7 +340,7 @@ export function CallDetailBase() {
               <label className="detail-label">Motivo do cancelamento<textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} rows={3} placeholder="Informe por que o chamado será cancelado" /></label>
             </div>
           )}
-          <button className={showCancel ? "cancel-button save-call" : "primary-button save-call"} onClick={save} disabled={saving}>
+          <button className={showCancel ? "cancel-button save-call" : "primary-button save-call"} onClick={save} disabled={saving} data-save-button>
             {saveLabel} {!showCancel && <ChevronRight size={17} />}
           </button>
           {missing.length > 0 && <div className="validation-error">Faltando: {missing.join(", ")}</div>}
@@ -353,6 +362,10 @@ export function AuditedCallDetailPage() {
   const [logs, setLogs] = useState<CallAuditLog[]>([]);
   const [text, setText] = useState("");
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  // Rascunho de observacao ainda nao salvo: o Esc pergunta antes de sair.
+  const draftRef = useRef(false);
+  draftRef.current = Boolean(text.trim()) || attachmentFiles.length > 0;
+  useEffect(() => registerUnsaved(() => draftRef.current), []);
   const [attachmentError, setAttachmentError] = useState("");
   const [savingObservation, setSavingObservation] = useState(false);
   const [tab, setTab] = useState<"observations" | "logs">("observations");
@@ -427,8 +440,8 @@ export function AuditedCallDetailPage() {
               <MentionTextarea
                 value={text}
                 onChange={setText}
-                onKeyDown={(event) => { if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void addNote(); } }}
-                placeholder="Registrar uma observacao operacional... Use @ para mencionar alguém (Ctrl+Enter salva)"
+                onKeyDown={(event) => { if (isSaveEnter(event)) { event.preventDefault(); void addNote(); } }}
+                placeholder="Registrar uma observacao operacional... Use @ para mencionar alguém (Enter salva, Shift+Enter quebra a linha)"
                 rows={3}
               />
               <div className="observation-compose-actions">
@@ -644,12 +657,12 @@ function EndDateItem({ call, onSaved }: { call: Call; onSaved: (call: Call) => v
     } finally { setSaving(false); }
   }
   return (
-    <div className="detail-item editable-detail-item end-date-item">
+    <div className="detail-item editable-detail-item end-date-item" data-save-scope>
       <label htmlFor="call-end-date"><span>Data Fim{fromOfs ? " (OFS)" : ""}</span></label>
       <input id="call-end-date" type="datetime-local" value={value} max={toLocalDateTimeInput(new Date().toISOString())} onChange={(event) => { setValue(event.target.value); setFeedback(null); }} />
       {dirty && (
         <div className="end-date-actions">
-          <button className="primary-button compact" type="button" onClick={() => void save()} disabled={saving}>{saving ? "Salvando..." : "Salvar Data Fim"}</button>
+          <button className="primary-button compact" type="button" onClick={() => void save()} disabled={saving} data-save-button>{saving ? "Salvando..." : "Salvar Data Fim"}</button>
           <button className="secondary-button compact" type="button" onClick={() => { setValue(initial); setFeedback(null); }} disabled={saving}>Desfazer</button>
         </div>
       )}
