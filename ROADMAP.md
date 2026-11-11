@@ -5468,3 +5468,12 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - sintaxe dos dois arquivos;
   - simulação com a mesma biblioteca de editor (Lexical 0.17, sem navegador) e um nó de menção: depois de prefixar, a menção continua menção (com o contato) e o texto fica `*Administrador - Matheus:*` + quebra + `@WALLAF JH bom dia`; texto comum não é tocado.
 - **Não testado no WhatsApp Web de verdade**: falta confirmar num grupo de teste depois de atualizar a extensão.
+
+## Acionamento repetido: só a OS conta, não o BDESK (2026-11-11)
+- **Correção da regra de 11/11**: o BDESK deixou de barrar acionamento. O NOC reaproveita o mesmo BDESK para chamados diferentes. Exemplo: o 678676 foi para a OS 611052298430102 (OLT VIP-PAL-SPO-OHW-01, PON 02/14, evento 06:40, hoje GIGA+) e para a OS 611236335390102 (OLT VIP-GZ1-SPO-OHW-01, PON 07/04, evento 22:24). O usuário confirmou: "Mesmo sendo o mesmo BDESK o chamado é diferente".
+- **Regra agora**: só a **mesma OS** (ordem / Office Track) de um chamado não cancelado barra o card e faz o aceite ligar ao chamado existente.
+  - O BDESK saiu da checagem na chegada do card (webhook);
+  - saiu da busca do chamado existente no aceite;
+  - saiu da checagem que reaproveitava acionamento pendente/aceito dos últimos 14 dias (fica: mesma mensagem ou mesma OS).
+- **Engano na limpeza de 11/11**: o chamado da OS 611236335390102 (BDESK 678676) não era duplicado. O acionamento dele (recebido 10/11 22:42) volta a Pendente para ser aceito de novo, depois de publicar a regra nova.
+- **Validação**: testes da regra (mesma OS, mesmo BDESK com outra OS, cancelado, PEND, aceites em fila); teste de ponta a ponta no webhook (mesmo BDESK com outra OS entra como Pendente); suíte 243 testes (1 de senha estourou o tempo com a máquina carregada e passou sozinho).

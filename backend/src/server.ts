@@ -1658,9 +1658,9 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   if (!analysis.eh_acionamento) { groupLog('ignorada pela analise (Gemini)'); return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' }); }
   const operationalText = analysisMessage.message || '';
   const legacyData = extractOperationalData(operationalText);
-  // Ja existe chamado (nao cancelado) com a mesma OS ou o mesmo BDESK: nao aciona de novo (nem o informativo).
-  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber], bdesk: analysis.bdesk || legacyData.bdesk }), await listCalls());
-  if (duplicate) { groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS/BDESK`); return response.status(202).json({ status: 'ignored', reason: 'Ja existe chamado com a mesma OS ou BDESK.', callId: duplicate.id }); }
+  // Ja existe chamado (nao cancelado) com a mesma OS: nao aciona de novo (nem o informativo). BDESK nao conta.
+  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber] }), await listCalls());
+  if (duplicate) { groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS`); return response.status(202).json({ status: 'ignored', reason: 'Ja existe chamado com a mesma OS.', callId: duplicate.id }); }
   try {
     const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
     groupLog(`acionamento registrado ${activation.id} (${analysis.tipo_card || 'sem tipo'}, BDESK ${analysis.bdesk || '-'})`);

@@ -1611,7 +1611,7 @@ test('GIGA+ status: call handled by the other office leaves the active queue and
   assert.equal(await metrics(), activeBefore);
 });
 
-test('a card with the OS or BDESK of an existing call is not activated again', async () => {
+test('a card with the OS of an existing call is not activated again; same BDESK with another OS is', async () => {
   const login = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
   const { token } = await login.json() as { token: string };
   const card = (id: string, ot: string, bdesk: string, olt: string) => JSON.stringify({ id, type: 'Message', chatId: '120363422003961917@g.us', isGroup: true, message: `VALIDAR COM NOC ACESSO\nOLT: ${olt}\nBDESK: ${bdesk}\nTAREFA OFFICE TRACK: ${ot}\nMOTIVO: teste` });
@@ -1623,5 +1623,5 @@ test('a card with the OS or BDESK of an existing call is not activated again', a
   assert.equal(sameOs.status, 'ignored');
   assert.ok(sameOs.callId);
   const sameBdesk = await (await post(card('dup-os-3', '619990000020102', '699001', 'VIP-CCC-03'))).json() as { status: string };
-  assert.equal(sameBdesk.status, 'ignored');
+  assert.equal(sameBdesk.status, 'Pendente');
 });
