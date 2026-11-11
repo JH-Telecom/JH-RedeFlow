@@ -172,3 +172,13 @@ button.nav-section-title:focus-visible { outline: 2px solid var(--blue); outline
 .search-field:focus-within { border-color: #76a9f4; box-shadow: 0 0 0 3px #1264e812; }
 :where(:root[data-theme="dark"]) .palette-search:focus-within { border-bottom-color: #4d94ff; box-shadow: inset 0 -1px 0 #4d94ff; }
 :where(:root[data-theme="dark"]) .search-field:focus-within { border-color: #4d94ff; box-shadow: 0 0 0 3px #4d94ff26; }
+
+/* Secoes do menu abrindo e fechando com animacao (11/11/2026): os itens ficam na tela e a altura vai a zero.
+   O espaco entre itens fica dentro do item (padding), para a secao fechada nao sobrar vao. */
+.nav-section { gap: 0; }
+.nav-section > .nav-section-title { margin-bottom: 2px; }
+.nav-item-slot { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows .24s ease, opacity .18s ease; }
+.nav-item-slot-inner { min-height: 0; overflow: hidden; padding-bottom: 2px; }
+.nav-item-slot.is-hidden { grid-template-rows: 0fr; opacity: 0; }
+button.nav-section-title svg { transition: transform .24s ease, opacity .15s ease; }
+@media (prefers-reduced-motion: reduce) { .nav-item-slot, button.nav-section-title svg { transition: none; } }

@@ -5741,3 +5741,14 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - o servidor guarda o resultado por **5 min** (era 1 min): no máximo uma checagem do banco e do WuzAPI a cada 5 min, não importa quantas pessoas estejam com a página aberta;
   - o botão **Atualizar** continua para conferir na hora. Se o resultado guardado ainda estiver dentro dos 5 min, ele volta sem nova consulta.
 - Com a página aberta o dia todo, isso dá cerca de 288 checagens por dia (antes 1.440), uns 1,5 MB de tráfego do banco.
+
+## Menu lateral: seções abrindo e fechando com animação (2026-11-11)
+- **Pedido** (vídeo do usuário): "Adicione efeito abrindo e fechando" nas seções do menu lateral (clique em "OPERAÇÃO", "INDICADORES"...).
+- **Antes**: ao recolher, os itens saíam da tela de uma vez (eram tirados da lista), sem como animar.
+- **Agora** (`Shell.tsx` + `sidebar.css`):
+  - os itens ficam sempre na tela, cada um num invólucro (`.nav-item-slot`), e a altura vai a zero ao recolher (`grid-template-rows` de 1fr a 0fr, com fade), em 0,24 s. A seta gira junto;
+  - o item da tela atual continua aparecendo com a seção recolhida, como antes;
+  - itens escondidos ficam `inert` e `aria-hidden` (fora do Tab e do leitor de tela);
+  - o espaço entre itens passou a ficar dentro de cada item, para a seção fechada não deixar vão;
+  - com "reduzir movimento" ligado no sistema, abre e fecha sem animação.
+- **Validação**: `npm run build`; no preview, ao fechar "Operação" a altura foi de 285 a 69 px em cerca de 0,24 s; ao abrir, voltou a 285. Fechada, só a tela atual (Chamados abertos) fica visível, e os outros 6 itens ficam `inert`.

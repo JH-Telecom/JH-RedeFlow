@@ -342,11 +342,14 @@ export function Shell({
                 {sectionName}
                 <ChevronDown size={13} aria-hidden="true" />
               </button>
-              {visibleItems.filter((item) => item.section === sectionName).filter((item) => !sectionCollapsed || item === currentItem || (item.to === "/chamados/atendimento" && isCallDetail)).map((item) => {
+              {visibleItems.filter((item) => item.section === sectionName).map((item) => {
                 const count = item.counter ? counters[item.counter] : 0;
+                // Secao recolhida: os itens ficam na tela e encolhem com animacao (abrir/fechar); o da tela atual fica.
+                // Escondido: inert (fora do teclado e do leitor de tela).
+                const hidden = sectionCollapsed && !(item === currentItem || (item.to === "/chamados/atendimento" && isCallDetail));
                 return (
+                  <div key={item.to} className={`nav-item-slot${hidden ? " is-hidden" : ""}`} inert={hidden} aria-hidden={hidden || undefined}><div className="nav-item-slot-inner">
                   <NavLink
-                    key={item.to}
                     to={item.to}
                     end={item.to === "/"}
                     onClick={() => setMobileOpen(false)}
@@ -357,6 +360,7 @@ export function Shell({
                     <span>{item.label}</span>
                     {count > 0 && <b className={`nav-count${item.counter === "unassigned" ? " is-warning" : ""}`} aria-label={item.counter === "unassigned" ? `${count} sem técnico` : `${count} pendentes`}>{count > 99 ? "99+" : count}</b>}
                   </NavLink>
+                  </div></div>
                 );
               })}
             </div>

@@ -12,6 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
+      { icon: "list", tag: "Melhoria", title: "Menu com animação", text: "As seções do menu lateral (Operação, Indicadores...) agora abrem e fecham com um efeito suave." },
       { icon: "bell", tag: "Melhoria", title: "Notificações melhores", text: "O ponto vermelho do sino some depois que você abre e só volta com algo novo (tem também \"Marcar tudo como lido\"). E dá para receber os avisos no Windows: no sino, \"Ativar avisos no navegador\" (funciona com o sistema aberto, mesmo minimizado)." },
       { icon: "bell", tag: "Novo", title: "Histórico de acionamentos recusados", text: "Em Acionamentos, aba Recusados: os últimos 100 com quem recusou, quando e o motivo. Recusou por engano? \"Aceitar mesmo assim\" cria o chamado e deixa uma observação contando a recusa.", permission: "activations.view" },
       { icon: "sparkles", tag: "Melhoria", title: "Pesquisa melhorada", text: "A pesquisa da fila acha por quase tudo do chamado (status do OFS, PON, apoio, observações...) e aceita várias palavras em qualquer ordem. E toda lista suspensa do sistema (técnico, status, região...) agora tem um campo Pesquisar." },
