@@ -101,8 +101,11 @@
   let preparando = false; // identificador sendo colocado: outro Enter nesse meio tempo e ignorado
   function identificarEEnviar(evento) {
     const cx = caixa();
+    // Envio feito por nos (clique no Enviar depois de por o identificador): passa direto. Antes da 1.9.4 a trava
+    // "preparando" barrava esse clique e a mensagem so saia no segundo Enter.
+    if (liberado) return;
     if (preparando) { evento.preventDefault(); evento.stopImmediatePropagation(); return; }
-    if (liberado || !deveIdentificar(cx)) return;
+    if (!deveIdentificar(cx)) return;
     evento.preventDefault();
     evento.stopImmediatePropagation();
     preparando = true;

@@ -5489,3 +5489,8 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - "@Matheus" e "oi @Matheus": ficaram `*Teste - Nome:*` + quebra + a mensagem, com o nó `mention` intacto (o WhatsApp ainda reconheceu o `*...*` como negrito);
   - a caixa foi limpa depois e a aba fechada.
 - Nós registrados no WhatsApp hoje: root, text, linebreak, tab, paragraph, artificial, emoji, mention, list-bullet, numbered-symbol, quote-line, bidi-paragraph, delimiter, non-jid-mention.
+
+## Identificador: um Enter só envia de novo (extensão 1.9.4) (2026-11-11)
+- **Problema** (desde a 1.9.2): era preciso apertar Enter duas vezes para enviar. A trava `preparando` (que ignora outro Enter enquanto o identificador é colocado) também barrava o clique no botão Enviar que a própria extensão faz no fim. A mensagem ficava pronta na caixa e só saía no segundo Enter, quando o identificador já estava lá.
+- **Correção** (`whatsapp-identificador.js`): o envio feito pela extensão (`liberado`) é conferido antes da trava e passa direto.
+- **Validação**: sintaxe; leitura do fluxo (Enter → identificador → clique da extensão com `liberado` → WhatsApp envia). O envio de verdade não foi testado: depende de mandar mensagem num grupo.

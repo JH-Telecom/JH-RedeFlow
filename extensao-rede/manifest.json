@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JH RedeFlow – Coletor OFS",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "description": "Exporta as atividades do OFS e envia ao JH RedeFlow. No WhatsApp Web: identifica quem enviou cada mensagem, temas, privacidade, agendar mensagem e respostas rápidas.",
   "permissions": [
     "storage",
