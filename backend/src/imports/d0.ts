@@ -167,18 +167,20 @@ const rowWeight = (row: D0Row) => {
   return /^(conclu|finaliz|encerrad|executad)/.test(status) ? 3 : /^(suspens|cancel|nao concl)/.test(status) ? 1 : 2;
 };
 
-// Chamado sem tecnico + linha do OFS com Recurso conhecido -> tecnico do OFS. "Aberto" vira "Atribuido".
+// Linha do OFS com Recurso conhecido -> tecnico do OFS no chamado. "Aberto" vira "Atribuido".
+// Desde 11/11/2026 o OFS prevalece: se o chamado ja tem OUTRO tecnico, troca pelo do OFS (pedido do usuario).
+// So troca quando o Recurso bate com UM tecnico trabalhando (balde CLUSTER_/BKI_ ou nome desconhecido nao mexe).
 export function technicianAssignmentsFromRows<T extends TechnicianLike>(rows: D0Row[], calls: Call[], technicians: T[]) {
   const best = new Map<string, { row: D0Row; call: Call }>();
   for (const pair of matchRowsToCalls(rows, calls)) {
     const previous = best.get(pair.call.id);
     if (!previous || rowWeight(pair.row) >= rowWeight(previous.row)) best.set(pair.call.id, pair);
   }
-  const assignments: Array<{ callId: string; technicianId: string; status?: 'Atribuido' }> = [];
+  const assignments: Array<{ callId: string; technicianId: string; status?: 'Atribuido'; supportTechnicianId?: null }> = [];
   for (const { row, call } of best.values()) {
-    if (call.technicianId || ['Cancelado', 'Finalizado', 'Baixar'].includes(call.status)) continue;
+    if (['Cancelado', 'Finalizado', 'Baixar'].includes(call.status)) continue;
     const technician = matchOfsTechnician(value(row, 'Recurso', 'Técnico', 'Tecnico'), technicians);
-    if (technician) assignments.push({ callId: call.id, technicianId: technician.id, ...(call.status === 'Aberto' ? { status: 'Atribuido' as const } : {}) });
+    if (technician && technician.id !== call.technicianId) assignments.push({ callId: call.id, technicianId: technician.id, ...(call.status === 'Aberto' ? { status: 'Atribuido' as const } : {}), ...(call.supportTechnicianId === technician.id ? { supportTechnicianId: null } : {}) });
   }
   return assignments;
 }

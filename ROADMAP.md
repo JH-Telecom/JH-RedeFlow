@@ -5551,3 +5551,34 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - testes do cálculo (semana começando na segunda, mês/semana/período, perto da meia-noite, áreas, filtros, Cancelado e GIGA+ fora);
   - teste de ponta a ponta (supervisor com o mesmo total que o administrador; tela responde; período invertido ou maior que 3 meses recusado);
   - preview nos dois temas e auditoria de contraste sem nada abaixo de 4,5:1.
+
+## Visão dos supervisores conta os GIGA+ (2026-11-11)
+- **Pedido**: "os GIGA+ também é para contar nessa tela dos supervisores".
+- **Mudança** (`backend/src/supervisor-overview.ts`):
+  - **entrante** passa a ser todo chamado aberto no período, menos o Cancelado. O GIGA+ entra, diferente dos outros indicadores (IGP, painel), que continuam sem ele;
+  - **finalizados e TME**: o GIGA+ entra quando o OFS concluir (mesma regra de `isCallClosed`), pela Data Fim.
+- O rodapé da tela e a ajuda (?) foram atualizados com a regra nova.
+- **Validação**: o teste do cálculo agora tem um GIGA+ aberto e um GIGA+ concluído (TME de 4 h) e confere entrantes, finalizados e TME; suíte completa.
+
+## Visão dos supervisores por região, não por área (2026-11-11)
+- **Pedido**: "Ao invés de area, quero que o filtro seja por região e não area, esse também" (o filtro e a tabela).
+- **Filtro**: "Região" com as regiões dos chamados (sem diferença de maiúsculas e minúsculas). Substitui o filtro de área. Rota: `region` no lugar de `area`.
+- **Tabela**: "Entrantes por região", com cada região (entrantes, % do total, média/dia, finalizados, TME), da que mais recebeu para a que menos recebeu. "Sem região" (vazia ou "Nao informada") vai por último. A tabela tem rolagem própria (até 380 px), com o cabeçalho fixo, e mostra no máximo 100 linhas.
+- **Validação**:
+  - testes (ordem das regiões, "Sem região" no fim, filtro sem diferença de caixa, lista de regiões do filtro);
+  - teste de ponta a ponta;
+  - preview: filtro LESTE reduz a tabela e os cartões; cabeçalho fixo com o mesmo fundo do quadro nos dois temas.
+
+## Técnico do OFS prevalece sobre o do sistema (2026-11-11)
+- **Pedido**: "se os nomes dos técnicos forem divergentes, o do OFS prevaleça e troque o do sistema". Exemplo: no OFS, a OS 611021112580102 estava com Edson Luan Parras de Oliveira Alves, e no sistema com Francinaldo Lima de Freitas.
+- **Antes**: o "Recurso" do OFS só entrava no chamado **sem técnico**.
+- **Agora** (`technicianAssignmentsFromRows`, `backend/src/imports/d0.ts`): a cada coleta do OFS (export e D-0), se o Recurso bate com **um** técnico trabalhando e é diferente do técnico do chamado, o técnico do chamado passa a ser o do OFS.
+  - O status fica como está; só "Aberto" vira "Atribuído", como antes.
+  - A troca fica no histórico do chamado ("Tecnico alterado", pela coleta).
+  - Se o técnico do OFS era o **apoio** do chamado, ele vira o técnico e o apoio sai.
+- **Não mexe**:
+  - em chamado Finalizado, Cancelado ou Baixar;
+  - quando o Recurso é balde (`CLUSTER_`, `BKI_`), nome desconhecido ou nome que bate com mais de um técnico;
+  - quando já é o mesmo técnico.
+  - Para o OFS reconhecer o técnico, o cadastro dele precisa ter o nome igual ou um nome mais curto contido no do OFS, como antes.
+- **Validação**: teste com os seis casos (sem técnico, técnico diferente, mesmo técnico, balde, finalizado, técnico do OFS que era o apoio); suíte completa.

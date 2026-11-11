@@ -12,7 +12,8 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
-      { icon: "chart", tag: "Novo", title: "Visão dos supervisores", text: "Nova tela em Indicadores: entrantes do mês e da semana, média por dia, TME, entrantes por área, por horário e por dia, com filtros de período, área e tipo." },
+      { icon: "user", tag: "Melhoria", title: "Técnico do OFS prevalece", text: "Se o técnico do chamado for diferente do Recurso do OFS, a coleta troca pelo do OFS. Balde do OFS (CLUSTER_) e chamado encerrado não são alterados." },
+      { icon: "chart", tag: "Novo", title: "Visão dos supervisores", text: "Nova tela em Indicadores: entrantes do mês e da semana (GIGA+ incluído), média por dia, TME, entrantes por região, por horário e por dia, com filtros de período, região e tipo." },
       { icon: "user", tag: "Melhoria", title: "Supervisor vê todos os chamados", text: "Enquanto os técnicos não são divididos entre os supervisores, o supervisor vê todos os chamados, não só os da própria equipe." },
       { icon: "user", tag: "Novo", title: "Técnico de apoio", text: "No detalhe do chamado tem o campo Técnico de apoio (opcional). Quando preenchido, a fila mostra \"Apoio: Nome\" embaixo do técnico, no lugar do supervisor." },
       { icon: "database", tag: "Novo", title: "Backup diário do banco no Google Drive", text: "Todo dia às 03:00 o sistema guarda uma cópia de todas as tabelas no Google Drive, por 90 dias. Configure em Configurações > Backup do banco.", permission: "settings.manage" },

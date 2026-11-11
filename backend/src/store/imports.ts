@@ -65,7 +65,7 @@ export async function replaceD0Base(fileName: string, uploadedBy: string, rows: 
 export async function applyOfsRowsToCalls(rows: D0Row[], actorName: string): Promise<D0SyncResult> {
   const currentCalls = await listCalls();
   const { matches, unmatchedRows } = matchD0Rows(rows, currentCalls);
-  // Tecnico do OFS ("Recurso") entra no chamado que ainda nao tem tecnico.
+  // Tecnico do OFS ("Recurso") entra no chamado; se o chamado tiver outro tecnico, o do OFS prevalece.
   for (const assignment of technicianAssignmentsFromRows(rows, currentCalls, await listTechnicians())) {
     const { callId, ...fields } = assignment;
     const match = matches.find((item) => item.callId === callId);

@@ -165,7 +165,7 @@ test('an order repeated by a cancelled copy updates the active call', () => {
   assert.equal(matchD0Rows([{ 'Ordem de Serviço': call.orderNumber }], [active, { ...active, id: 'other' }]).unmatchedRows, 1);
 });
 
-test('OFS Recurso fills the technician of calls that have none', () => {
+test('OFS Recurso fills the technician, and replaces a different one (OFS prevails)', () => {
   const techs = [
     { id: 't1', name: 'Caíque da Silva Bento Aguiar', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
     { id: 't2', name: 'Carlos Roberto Oliveira Filho', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
@@ -192,11 +192,26 @@ test('OFS Recurso fills the technician of calls that have none', () => {
 
   const open = { ...call, id: 'open', status: 'Aberto' as const };
   const assigned = { ...call, id: 'assigned', orderNumber: 'OS-2', bdesk: 'B2', officeTrack: 'O2', status: 'Atribuido' as const, technicianId: 'tX' };
+  const same = { ...call, id: 'same', orderNumber: 'OS-3', bdesk: 'B3', officeTrack: 'O3', status: 'Em campo' as const, technicianId: 't1' };
+  const bucket = { ...call, id: 'bucket', orderNumber: 'OS-4', bdesk: 'B4', officeTrack: 'O4', status: 'Atribuido' as const, technicianId: 'tX' };
+  const closed = { ...call, id: 'closed', orderNumber: 'OS-5', bdesk: 'B5', officeTrack: 'O5', status: 'Finalizado' as const, technicianId: 'tX' };
+  const support = { ...call, id: 'support', orderNumber: 'OS-6', bdesk: 'B6', officeTrack: 'O6', status: 'Atribuido' as const, technicianId: 'tX', supportTechnicianId: 't2' };
   const rows: D0Row[] = [
     // mesma ordem duas vezes: a suspensa (Carlos) perde para a pendente (Maicon)
     { 'Ordem de Serviço': `BDESK-${call.orderNumber}`, Recurso: 'Carlos Roberto Oliveira Filho', 'Status da Atividade': 'suspenso' },
     { 'Ordem de Serviço': `BDESK-${call.orderNumber}`, Recurso: 'Maicon Torres dos Santos', 'Status da Atividade': 'pendente' },
     { 'Ordem de Serviço': 'OS-2', Recurso: 'Carlos Roberto Oliveira Filho', 'Status da Atividade': 'concluído' },
+    { 'Ordem de Serviço': 'OS-3', Recurso: 'Caique da Silva Bento Aguiar', 'Status da Atividade': 'pendente' },
+    { 'Ordem de Serviço': 'OS-4', Recurso: 'CLUSTER_C08', 'Status da Atividade': 'pendente' },
+    { 'Ordem de Serviço': 'OS-5', Recurso: 'Carlos Roberto Oliveira Filho', 'Status da Atividade': 'concluído' },
+    { 'Ordem de Serviço': 'OS-6', Recurso: 'Carlos Roberto Oliveira Filho', 'Status da Atividade': 'pendente' },
   ];
-  assert.deepEqual(technicianAssignmentsFromRows(rows, [open, assigned], techs), [{ callId: 'open', technicianId: 't3', status: 'Atribuido' }]);
+  // open: sem tecnico, recebe o do OFS e vira Atribuido. assigned: tinha tX, o OFS (Carlos) prevalece e o status fica.
+  // same: ja e o mesmo do OFS, nada muda. bucket: Recurso e balde, nao mexe. closed: finalizado, nao mexe.
+  // support: o tecnico do OFS era o apoio do chamado; vira o tecnico e o apoio sai.
+  assert.deepEqual(technicianAssignmentsFromRows(rows, [open, assigned, same, bucket, closed, support], techs), [
+    { callId: 'open', technicianId: 't3', status: 'Atribuido' },
+    { callId: 'assigned', technicianId: 't2' },
+    { callId: 'support', technicianId: 't2', supportTechnicianId: null },
+  ]);
 });
