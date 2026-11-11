@@ -163,3 +163,12 @@ button.nav-section-title:focus-visible { outline: 2px solid var(--blue); outline
 .palette-text strong { font-size: 13px; }
 .palette-text small { overflow: hidden; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .palette-hint { padding: 10px 12px; color: var(--muted); font-size: 12px; }
+
+/* Busca rapida (Ctrl+K) e campos de pesquisa sem borda: a regra global de acessibilidade (legal.css,
+   :where(...input...):focus-visible) desenhava um contorno solto em volta do texto, desalinhado e cortado no topo
+   da janela (11/11/2026). O contorno sai do campo e o foco aparece na caixa em volta. */
+.palette-search input:focus-visible, .search-field input:focus-visible { outline: none; }
+.palette-search:focus-within { border-bottom-color: #1264e8; box-shadow: inset 0 -1px 0 #1264e8; }
+.search-field:focus-within { border-color: #76a9f4; box-shadow: 0 0 0 3px #1264e812; }
+:where(:root[data-theme="dark"]) .palette-search:focus-within { border-bottom-color: #4d94ff; box-shadow: inset 0 -1px 0 #4d94ff; }
+:where(:root[data-theme="dark"]) .search-field:focus-within { border-color: #4d94ff; box-shadow: 0 0 0 3px #4d94ff26; }
