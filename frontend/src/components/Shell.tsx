@@ -21,6 +21,7 @@ import { ActivationsPage } from "../pages/ActivationsPage";
 import { CallDetailRoute } from "../pages/CallDetailPage";
 import { CallsPage, SupervisorOrdersPage } from "../pages/CallsPage";
 import { SupervisorOverviewPage } from "../pages/SupervisorOverviewPage";
+import { PopKeysPage } from "../pages/PopKeysPage";
 import { DashboardWithDateFilter } from "../pages/DashboardPage";
 import { IGPPage } from "../pages/IgpPage";
 import { SlaAnalysisPage } from "../pages/SlaAnalysisPage";
@@ -430,6 +431,7 @@ export function Shell({
             <Route path="/cargos" element={guard("roles.view", <RolesPage currentRoleId={user.roleId} />)} />
             <Route path="/historico-alteracoes" element={guard("calls.view_logs", <AuditHistoryPage />)} />
             <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
+            <Route path="/chaves" element={guard("calls.view", <PopKeysPage user={user} />)} />
             <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />
             <Route path="/integracao-ofs" element={guard("imports.view", <IntegrationHealthPage />)} />
             <Route path="/campo" element={<FieldPage />} />

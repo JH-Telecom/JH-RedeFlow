@@ -5603,3 +5603,31 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - Enter na observação salva e Shift+Enter não;
   - na janela da fila, Esc fecha só a janela e Enter salva a observação.
 - **Correção durante o teste**: o atalho usava `navigate` antes de existir no Shell (tela em branco no preview). Agora o `navigate` fica guardado numa referência.
+
+## Chaves dos POPs (2026-11-11)
+- **Pedido** (card "Chaves – controle de chaves de POP"): tela de controle das chaves dos POPs, com o nome do técnico ou supervisor que pegou a chave e uma foto da pessoa.
+- **Decisões do usuário**: foto tirada **na retirada** (comprovante); registram retirada e devolução **quem edita chamados** (`calls.edit`; os demais só consultam com `calls.view`); a tela começa com a **situação da planilha** de chaves.
+- **Banco** (migração `202611110002_pop_keys.sql`, aplicada por mim pelo conector com autorização do usuário: "Pode rodar e subir"):
+  - `pop_keys`: situação de cada chave (Base / Retirada / A conferir, quem está, desde quando, observação, movimento atual);
+  - `pop_key_movements`: histórico de retiradas, devoluções e conferências, com a foto (`photo` em data URL, `has_photo` calculada);
+  - RLS ligado e sem políticas (só o backend acessa);
+  - **40 POPs** da planilha (Aricanduva a Serraria): 6 retiradas (Rogério em Ferraz 1 desde 10/09, Adriano Jose em Itaim Paulista, Everaldo em Mogi desde 18/09, Lucas em Palmeiras e em Suzano 1, Mauro GIGA na Penha desde 12/09), 5 "A conferir" (sem status na planilha: Ferraz 2, Taubaté 1 e 2, São José dos Campos, Piraporinha) e 29 na base.
+- **Backend** (`backend/src/store/pop-keys.ts`, rotas em `server.ts`):
+  - `GET /api/chaves` lista as chaves sem foto, para pouco tráfego;
+  - `POST /api/chaves/:id/retirada` recebe pessoa, tipo, data, observação e foto (JPG/PNG/WEBP até ~450 KB). Recusa se a chave já está retirada;
+  - `POST /api/chaves/:id/devolucao` registra a devolução, ou a conferência quando estava "A conferir";
+  - `GET /api/chaves/:id/historico` traz até 100 movimentos;
+  - `GET /api/chaves/movimentos/:id/foto` traz a foto sob demanda;
+  - `POST /api/chaves` cadastra POP novo (`settings.manage`);
+  - no modo demonstração, tudo roda em memória, com os mesmos 40 POPs.
+- **Tela** "Chaves dos POPs" (Operação, `/chaves`):
+  - filtro Todas / Retirada / Na base / A conferir (com contagem) e busca por POP ou pessoa;
+  - um cartão por POP, com faixa verde (base), laranja (retirada) ou cinza (a conferir). Na retirada, mostra a foto (ou as iniciais), o nome, o tipo, desde quando e há quantos dias, em vermelho a partir de 7 dias;
+  - **Registrar retirada**: a pessoa vem da lista de técnicos (inclui auxiliares) e supervisores ativos, ou é "Outra pessoa" com o nome escrito; data e hora; observação; foto pela câmera ("Usar a câmera", espelhada, no PC ou no celular) ou "Escolher foto" (no celular abre a câmera frontal). A foto é reduzida a 720 px em JPEG antes de enviar;
+  - **Devolver** e **Está na base** (para os "A conferir"); **histórico** com as fotos (clique para ampliar);
+  - "Novo POP" aparece para quem gerencia as configurações;
+  - Enter salva e Esc fecha as janelas (atalhos de 11/11). A ajuda (?) explica a tela.
+- **Validação**:
+  - teste de ponta a ponta: 40 POPs; o Supervisor não registra (403); foto inválida recusada; retirada com foto; segunda retirada recusada (409); histórico e foto; devolução; POP novo só com `settings.manage`, sem repetir;
+  - preview: retirada com foto escolhida, foto no cartão e no histórico, devolução, "Está na base", Esc fechando a janela;
+  - auditoria de contraste sem nada abaixo de 4,5:1 nos dois temas; o campo "Quem retirou" ganhou o estilo dos outros campos.

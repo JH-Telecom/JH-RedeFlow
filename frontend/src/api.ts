@@ -79,6 +79,8 @@ export function clearResponseCache() {
   responseCache.clear();
 }
 // Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
+export type PopKey = { id: string; pop: string; status: 'Base' | 'Retirada' | 'A conferir'; holderName: string | null; holderKind: 'Tecnico' | 'Supervisor' | 'Outro' | null; holderId: string | null; takenAt: string | null; notes: string | null; currentMovementId: string | null; hasPhoto: boolean; updatedAt: string };
+export type PopKeyMovement = { id: string; popKeyId: string; action: 'Retirada' | 'Devolucao' | 'Ajuste'; holderName: string | null; holderKind: string | null; holderId: string | null; hasPhoto: boolean; notes: string | null; happenedAt: string; userName: string | null };
 export type SupervisorOverview = {
   filters: { from: string; to: string; today: string; region?: string; type?: string };
   month: { from: string; entrantes: number; perDay: number }; week: { from: string; entrantes: number; perDay: number };
@@ -333,6 +335,12 @@ export const api = {
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
   dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
   supervisorOverview: (filters: { from: string; to: string; region?: string; type?: string }) => request<SupervisorOverview>(`/api/visao-supervisores?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as [string, string][]).toString()}`),
+  popKeys: () => request<{ keys: PopKey[] }>('/api/chaves'),
+  addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),
+  takePopKey: (id: string, data: { holderName: string; holderKind: 'Tecnico' | 'Supervisor' | 'Outro'; holderId: string | null; notes: string | null; photo: string | null; takenAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/retirada`, { method: 'POST', body: JSON.stringify(data) }),
+  returnPopKey: (id: string, data: { notes: string | null; returnedAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/devolucao`, { method: 'POST', body: JSON.stringify(data) }),
+  popKeyHistory: (id: string) => request<{ movements: PopKeyMovement[] }>(`/api/chaves/${id}/historico`),
+  popKeyPhoto: (movementId: string) => request<{ photo: string }>(`/api/chaves/movimentos/${movementId}/foto`),
   backupStatus: () => request<BackupStatus>('/api/configuracoes/backup'),
   runBackup: () => request<{ ok: true; summary: string; name: string; gzipBytes: number }>('/api/configuracoes/backup', { method: 'POST' }),
   updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) }),

@@ -52,6 +52,7 @@ import { scaled, usageReport } from './db-usage.js';
 import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
 import { backupStatus, runBackupJob, runBackupNow } from './db-backup.js';
 import { supervisorOverview } from './supervisor-overview.js';
+import { addPopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -696,6 +697,54 @@ app.patch('/api/roles/:id', auth, requirePermission('roles.manage'), async (requ
   const role = await updateRole(String(request.params.id), { ...parsed.data, permissions: parsed.data.permissions as PermissionCode[] | undefined });
   if (!role) return response.status(404).json({ message: 'Cargo nao encontrado.' });
   return response.json({ role });
+});
+// Chaves dos POPs: quem esta com cada chave. Ver: quem ve chamados. Retirar/devolver: quem edita chamados.
+// Cadastrar POP novo: quem gerencia as configuracoes. Foto so vem sob demanda (lista sem foto).
+app.get('/api/chaves', auth, requirePermission('calls.view'), async (_request, response) => {
+  try { return response.json({ keys: await listPopKeys() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar as chaves.' }); }
+});
+app.post('/api/chaves', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ pop: z.string().trim().min(2).max(80) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe o nome do POP.' });
+  try { return response.status(201).json({ key: await addPopKey(parsed.data.pop) }); }
+  catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel cadastrar o POP.' }); }
+});
+app.post('/api/chaves/:id/retirada', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
+  const parsed = z.object({
+    holderName: z.string().trim().min(2).max(120),
+    holderKind: z.enum(['Tecnico', 'Supervisor', 'Outro']),
+    holderId: z.string().max(100).nullable().optional(),
+    notes: z.string().max(500).nullable().optional(),
+    photo: z.string().max(700_000).nullable().optional(),
+    takenAt: z.string().datetime({ offset: true }).optional(),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe quem retirou a chave.' });
+  if (parsed.data.takenAt && Date.parse(parsed.data.takenAt) > Date.now() + 5 * 60_000) return response.status(422).json({ message: 'A data da retirada nao pode estar no futuro.' });
+  try {
+    const result = await takePopKey(String(request.params.id), parsed.data, request.authUser!);
+    return result.status === 200 ? response.json({ key: result.key }) : response.status(result.status).json({ message: result.message });
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel registrar a retirada.' }); }
+});
+app.post('/api/chaves/:id/devolucao', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ notes: z.string().max(500).nullable().optional(), returnedAt: z.string().datetime({ offset: true }).optional() }).safeParse(request.body ?? {});
+  if (!parsed.success) return response.status(400).json({ message: 'Dados da devolucao invalidos.' });
+  try {
+    const result = await returnPopKey(String(request.params.id), parsed.data, request.authUser!);
+    return result.status === 200 ? response.json({ key: result.key }) : response.status(result.status).json({ message: result.message });
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel registrar a devolucao.' }); }
+});
+app.get('/api/chaves/:id/historico', auth, requirePermission('calls.view'), async (request, response) => {
+  try { return response.json({ movements: await listPopKeyMovements(String(request.params.id)) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o historico.' }); }
+});
+app.get('/api/chaves/movimentos/:movementId/foto', auth, requirePermission('calls.view'), async (request, response) => {
+  try {
+    const photo = await getPopKeyPhoto(String(request.params.movementId));
+    if (!photo) return response.status(404).json({ message: 'Sem foto.' });
+    response.setHeader('Cache-Control', 'private, max-age=86400');
+    return response.json({ photo });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar a foto.' }); }
 });
 // Visao dos supervisores: entrantes por regiao/dia/horario, media por dia, TME, mes e semana. Copia em memoria dos
 // chamados (sem consulta nova ao banco).

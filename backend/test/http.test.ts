@@ -1659,3 +1659,40 @@ test('supervisor sees every call (teams not split yet) and the supervisors overv
   assert.equal((await fetch(`${baseUrl}/api/visao-supervisores?from=2026-11-10&to=2026-11-01`, { headers: admin })).status, 400);
   assert.equal((await fetch(`${baseUrl}/api/visao-supervisores?from=2026-01-01&to=2026-11-11`, { headers: admin })).status, 400);
 });
+
+test('POP keys: list, take with photo, block double take, history, photo, return, permissions', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  const supervisor = { 'content-type': 'application/json', authorization: `Bearer ${await login('joao@jhtelecom.com')}` };
+  const list = await (await fetch(`${baseUrl}/api/chaves`, { headers: supervisor })).json() as { keys: Array<{ id: string; pop: string; status: string; holderName: string | null; hasPhoto: boolean }> };
+  assert.equal(list.keys.length, 40);
+  assert.equal(list.keys.find((key) => key.pop === 'PENHA')?.holderName, 'Mauro GIGA');
+  const key = list.keys.find((item) => item.pop === 'ARICANDUVA')!;
+  assert.equal(key.status, 'Base');
+  const photo = `data:image/jpeg;base64,${Buffer.from('foto').toString('base64')}`;
+  // Supervisor so consulta.
+  assert.equal((await fetch(`${baseUrl}/api/chaves/${key.id}/retirada`, { method: 'POST', headers: supervisor, body: JSON.stringify({ holderName: 'Carlos Mendes', holderKind: 'Tecnico' }) })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/chaves/${key.id}/retirada`, { method: 'POST', headers: admin, body: JSON.stringify({ holderName: 'Carlos Mendes', holderKind: 'Tecnico', photo: 'data:text/html;base64,PHNjcmlwdD4=' }) })).status, 422);
+  const taken = await fetch(`${baseUrl}/api/chaves/${key.id}/retirada`, { method: 'POST', headers: admin, body: JSON.stringify({ holderName: 'Carlos Mendes', holderKind: 'Tecnico', holderId: 'tech-carlos', notes: 'Manutencao no rack', photo }) });
+  assert.equal(taken.status, 200);
+  const takenKey = (await taken.json() as { key: { status: string; holderName: string; hasPhoto: boolean; takenAt: string } }).key;
+  assert.equal(takenKey.status, 'Retirada');
+  assert.equal(takenKey.holderName, 'Carlos Mendes');
+  assert.equal(takenKey.hasPhoto, true);
+  assert.equal((await fetch(`${baseUrl}/api/chaves/${key.id}/retirada`, { method: 'POST', headers: admin, body: JSON.stringify({ holderName: 'Outro', holderKind: 'Outro' }) })).status, 409);
+  const history = await (await fetch(`${baseUrl}/api/chaves/${key.id}/historico`, { headers: supervisor })).json() as { movements: Array<{ id: string; action: string; hasPhoto: boolean; userName: string }> };
+  assert.equal(history.movements[0].action, 'Retirada');
+  assert.equal(history.movements[0].hasPhoto, true);
+  const photoBody = await (await fetch(`${baseUrl}/api/chaves/movimentos/${history.movements[0].id}/foto`, { headers: supervisor })).json() as { photo: string };
+  assert.equal(photoBody.photo, photo);
+  const returned = await fetch(`${baseUrl}/api/chaves/${key.id}/devolucao`, { method: 'POST', headers: admin, body: JSON.stringify({ notes: 'Devolvida na base' }) });
+  assert.equal(returned.status, 200);
+  assert.equal((await returned.json() as { key: { status: string; holderName: string | null } }).key.status, 'Base');
+  assert.equal((await fetch(`${baseUrl}/api/chaves/${key.id}/devolucao`, { method: 'POST', headers: admin, body: '{}' })).status, 409);
+  const after = await (await fetch(`${baseUrl}/api/chaves/${key.id}/historico`, { headers: admin })).json() as { movements: Array<{ action: string }> };
+  assert.deepEqual(after.movements.map((movement) => movement.action), ['Devolucao', 'Retirada']);
+  // POP novo: so quem gerencia as configuracoes.
+  assert.equal((await fetch(`${baseUrl}/api/chaves`, { method: 'POST', headers: supervisor, body: JSON.stringify({ pop: 'POP TESTE' }) })).status, 403);
+  assert.equal((await fetch(`${baseUrl}/api/chaves`, { method: 'POST', headers: admin, body: JSON.stringify({ pop: 'pop teste' }) })).status, 201);
+  assert.equal((await fetch(`${baseUrl}/api/chaves`, { method: 'POST', headers: admin, body: JSON.stringify({ pop: 'POP TESTE' }) })).status, 422);
+});
