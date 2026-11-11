@@ -79,6 +79,14 @@ export function clearResponseCache() {
   responseCache.clear();
 }
 // Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
+export type SupervisorOverviewArea = 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC' | 'OUTRAS';
+export type SupervisorOverview = {
+  filters: { from: string; to: string; today: string; area?: SupervisorOverviewArea; type?: string };
+  month: { from: string; entrantes: number; perDay: number }; week: { from: string; entrantes: number; perDay: number };
+  period: { days: number; perDay: number; entrantes: number; finalizados: number; tmeHours: number | null };
+  byArea: { area: SupervisorOverviewArea; entrantes: number; finalizados: number; tmeHours: number | null }[];
+  byHour: { hour: number; entrantes: number }[]; byDay: { day: string; entrantes: number; finalizados: number }[]; types: string[];
+};
 export type BackupStatus = { configured: boolean; retentionDays: number; hour: number; running: boolean; scriptTemplate: string; history: { ok: boolean; summary: string; createdAt: string; gzipBytes: number | null }[] };
 export type DbUsageReport = {
   supabase: boolean; limitBytes: number; last30DaysBytes: number; percent: number; projected30DaysBytes: number;
@@ -325,6 +333,7 @@ export const api = {
   updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[]; hiddenTabs?: string[] }) => request<{ role: Role }>(`/api/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
   dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
+  supervisorOverview: (filters: { from: string; to: string; area?: SupervisorOverviewArea; type?: string }) => request<SupervisorOverview>(`/api/visao-supervisores?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as [string, string][]).toString()}`),
   backupStatus: () => request<BackupStatus>('/api/configuracoes/backup'),
   runBackup: () => request<{ ok: true; summary: string; name: string; gzipBytes: number }>('/api/configuracoes/backup', { method: 'POST' }),
   updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) }),

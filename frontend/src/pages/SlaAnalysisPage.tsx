@@ -109,7 +109,7 @@ function HeatmapTable({ cells }: { cells: SlaAnalysis["heatmap"] }) {
 
 // Colunas por hora com dica no hover/foco. `value` define a altura; `tone` a cor; noite com faixa de fundo.
 type HourColumn = { hour: number; value: number; tone: string; tooltip: string[] };
-function HourColumns({ columns, max, unit, ariaLabel }: { columns: HourColumn[]; max: number; unit: (value: number) => string; ariaLabel: string }) {
+export function HourColumns({ columns, max, unit, ariaLabel }: { columns: HourColumn[]; max: number; unit: (value: number) => string; ariaLabel: string }) {
   const [active, setActive] = useState<number | null>(null);
   const activeIndex = columns.findIndex((column) => column.hour === active);
   const top = Math.max(max, 1);

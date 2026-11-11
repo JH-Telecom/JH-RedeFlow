@@ -51,6 +51,7 @@ import { deliverOltNotice } from './olt-notice-delivery.js';
 import { scaled, usageReport } from './db-usage.js';
 import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
 import { backupStatus, runBackupJob, runBackupNow } from './db-backup.js';
+import { OVERVIEW_AREAS, supervisorOverview, type OverviewArea } from './supervisor-overview.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -196,11 +197,14 @@ function requirePermission(permission: PermissionCode) {
     next();
   };
 }
+// 11/11/2026: os tecnicos ainda nao foram divididos entre os supervisores, entao o Supervisor ve todos os chamados
+// (antes so os da propria equipe). Quando dividirem, SUPERVISOR_TEAM_SCOPE=true no Render volta a restringir.
+const supervisorTeamScope = () => process.env.SUPERVISOR_TEAM_SCOPE === 'true';
 async function getScopedCallQuery(request: AuthRequest, scopeToSupervisor = false) {
   const from = typeof request.query.from === 'string' ? request.query.from : undefined;
   const to = typeof request.query.to === 'string' ? request.query.to : undefined;
   if ((from && !/^\d{4}-\d{2}-\d{2}$/.test(from)) || (to && !/^\d{4}-\d{2}-\d{2}$/.test(to))) throw new Error('Periodo invalido.');
-  if (scopeToSupervisor && request.authUser?.role.name === 'Supervisor') {
+  if (scopeToSupervisor && supervisorTeamScope() && request.authUser?.role.name === 'Supervisor') {
     const supervisorId = await getSupervisorIdForUser(request.authUser.id);
     if (!supervisorId) throw new Error('Supervisor sem equipe vinculada.');
     return { from, to, supervisorId };
@@ -692,6 +696,22 @@ app.patch('/api/roles/:id', auth, requirePermission('roles.manage'), async (requ
   const role = await updateRole(String(request.params.id), { ...parsed.data, permissions: parsed.data.permissions as PermissionCode[] | undefined });
   if (!role) return response.status(404).json({ message: 'Cargo nao encontrado.' });
   return response.json({ role });
+});
+// Visao dos supervisores: entrantes por area/dia/horario, media por dia, TME, mes e semana. Copia em memoria dos
+// chamados (sem consulta nova ao banco).
+app.get('/api/visao-supervisores', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  const today = toOperationalDate();
+  const from = typeof request.query.from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(request.query.from) ? request.query.from : `${today.slice(0, 7)}-01`;
+  const to = typeof request.query.to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(request.query.to) ? request.query.to : today;
+  if (from > to) return response.status(400).json({ message: 'A data inicial e depois da final.' });
+  if (Date.parse(to) - Date.parse(from) > 92 * 86_400_000) return response.status(400).json({ message: 'Escolha um periodo de ate 3 meses.' });
+  const area = typeof request.query.area === 'string' && (OVERVIEW_AREAS as readonly string[]).includes(request.query.area) ? request.query.area as OverviewArea : undefined;
+  const type = typeof request.query.type === 'string' && request.query.type.trim() ? request.query.type.trim().slice(0, 100) : undefined;
+  try {
+    const scope = await getScopedCallQuery(request, true);
+    const calls = await listCalls(undefined, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined });
+    return response.json(supervisorOverview(calls, { from, to, area, type }));
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar a visao.' }); }
 });
 app.get('/api/configuracoes', auth, requirePermission('settings.manage'), (_request, response) => response.json({ settings: getSettings() }));
 // Trafego estimado do Supabase (ultimos 30 dias, por dia e por tabela) e o modo de economia atual.

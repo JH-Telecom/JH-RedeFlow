@@ -1644,3 +1644,18 @@ test('support technician is saved, listed in place of the supervisor, and cannot
   const cleared = await (await fetch(`${baseUrl}/api/chamados/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ supportTechnicianId: null }) })).json() as { call: { supportTechnicianId?: string } };
   assert.equal(cleared.call.supportTechnicianId, undefined);
 });
+
+test('supervisor sees every call (teams not split yet) and the supervisors overview answers', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  const supervisor = { authorization: `Bearer ${await login('joao@jhtelecom.com')}` };
+  const total = async (headers: Record<string, string>) => (await (await fetch(`${baseUrl}/api/chamados?teamScope=true&pageSize=100`, { headers })).json() as { total: number }).total;
+  assert.equal(await total(supervisor), await total(admin));
+  const overview = await fetch(`${baseUrl}/api/visao-supervisores?from=2026-09-01&to=2026-11-11`, { headers: supervisor });
+  assert.equal(overview.status, 200);
+  const body = await overview.json() as { period: { entrantes: number }; byHour: unknown[]; byArea: unknown[] };
+  assert.equal(body.byHour.length, 24);
+  assert.ok(body.byArea.length >= 4);
+  assert.equal((await fetch(`${baseUrl}/api/visao-supervisores?from=2026-11-10&to=2026-11-01`, { headers: admin })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/visao-supervisores?from=2026-01-01&to=2026-11-11`, { headers: admin })).status, 400);
+});

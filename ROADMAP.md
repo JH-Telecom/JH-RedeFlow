@@ -5532,3 +5532,22 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - teste de ponta a ponta (salva, aparece com nome no PATCH e no detalhe, recusa o mesmo técnico do chamado, remove com `null`);
   - suíte completa;
   - preview: apoio Pedro no chamado do Carlos, fila mostrando "Carlos Mendes / Apoio: Pedro Santos".
+
+## Visão dos supervisores e supervisor vendo todos os chamados (2026-11-11)
+- **Pedido** (card "Tela de Visão dos Supervisores"): como os técnicos ainda não foram divididos, o supervisor precisa ver todos os chamados, sem o bloqueio da própria equipe. E uma tela com quantidade por área, entrantes do mês e da semana, média, TME, filtros e entrantes por horário.
+- **Supervisor vê tudo**: o bloqueio por equipe (`getScopedCallQuery`, cargo "Supervisor") agora só vale com `SUPERVISOR_TEAM_SCOPE=true` no Render. Sem a variável (padrão), o supervisor vê os mesmos chamados que os outros cargos, em todas as telas que usavam o bloqueio (fila, painel, relatórios, carga, Ordens da equipe). Quando dividirem as equipes, basta criar a variável.
+- **Tela nova** "Visão dos supervisores" (Indicadores, `/visao-supervisores`, permissão `dashboard.view`):
+  - **Cartões**: entrantes no mês e na semana (desde segunda), com a média por dia corrido; média por dia no período; TME no período.
+  - **Por área**: tabela com SP, GRU, Alto Tietê, ABC e "Sem área" (entrantes, % do total, média/dia, finalizados, TME).
+  - **Gráficos**: entrantes por hora de abertura (00h–23h, com o pico) e entrantes e finalizados por dia.
+  - **Filtros**: período (este mês, mês anterior, últimos 3 meses, personalizado até 3 meses), área e tipo. Valem para todos os números.
+- **Definições**:
+  - **entrante**: chamado aberto no período, pela abertura, sem Cancelado e sem GIGA+;
+  - **TME**: da abertura até a Data Fim, nos finalizados do período (pela Data Fim), igual à Análise de prazo;
+  - **área**: pelo cluster do OFS ou, sem cluster, pela região (`classifyCallArea`);
+  - **horas**: horário de São Paulo.
+- Usa a cópia dos chamados em memória (sem consulta nova ao banco). Rota `GET /api/visao-supervisores?from&to&area&type` (`backend/src/supervisor-overview.ts`).
+- **Validação**:
+  - testes do cálculo (semana começando na segunda, mês/semana/período, perto da meia-noite, áreas, filtros, Cancelado e GIGA+ fora);
+  - teste de ponta a ponta (supervisor com o mesmo total que o administrador; tela responde; período invertido ou maior que 3 meses recusado);
+  - preview nos dois temas e auditoria de contraste sem nada abaixo de 4,5:1.

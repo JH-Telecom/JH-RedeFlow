@@ -19,6 +19,7 @@ import { AccessDenied } from "./ui";
 import { ActivationsPage } from "../pages/ActivationsPage";
 import { CallDetailRoute } from "../pages/CallDetailPage";
 import { CallsPage, SupervisorOrdersPage } from "../pages/CallsPage";
+import { SupervisorOverviewPage } from "../pages/SupervisorOverviewPage";
 import { DashboardWithDateFilter } from "../pages/DashboardPage";
 import { IGPPage } from "../pages/IgpPage";
 import { SlaAnalysisPage } from "../pages/SlaAnalysisPage";
@@ -393,6 +394,7 @@ export function Shell({
               element={guard("calls.view", <CallsPage title="Finalizados e cancelados" closedOnly />)}
             />
             <Route path="/repetidos" element={guard("calls.view", <RepeatedCallsPage teamScoped={user.role.name === "Supervisor"} />)} />
+            <Route path="/visao-supervisores" element={guard("dashboard.view", <SupervisorOverviewPage />)} />
             <Route path="/supervisor/ordens" element={user.role.name === "Supervisor" ? guard("calls.view", <SupervisorOrdersPage user={user} />) : <AccessDenied />} />
             <Route path="/acionamentos" element={guard("activations.view", <ActivationsPage />)} />
             <Route path="/painel-diario" element={guard("dashboard.view", <ManualProductionDashboard />)} />
