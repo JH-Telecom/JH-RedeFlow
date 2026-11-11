@@ -707,9 +707,15 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
     const callColumns = 'id, order_number, bdesk, office_track, client, type, reason, region, city, address, bairro, olt, slot_pon, status, atrelada_order, technician_id, opened_at, event_at, assigned_at, executed_at, result, cancellation_reason, notes';
     // O mesmo card chega por mais de um grupo do WhatsApp: se a ordem ja tem chamado (nao cancelado), o aceite liga o
     // acionamento a esse chamado em vez de criar outro. Dois chamados ativos da mesma ordem travam o status do OFS.
+    // Tambem pelo BDESK: mesmo ticket com outra OS nao vira um segundo chamado.
     let existingRow = null as Record<string, any> | null;
-    if (!orderNumber.startsWith('PEND-') && /^[A-Za-z0-9-]+$/.test(orderNumber)) {
-      const { data: found, error: findError } = await admin.from('calls').select(callColumns).neq('status', 'Cancelado').or(`order_number.eq.${orderNumber},office_track.eq.${orderNumber}`).order('created_at', { ascending: true }).limit(1);
+    const safe = (value: string) => /^[A-Za-z0-9-]+$/.test(value);
+    const lookups = [
+      ...(!orderNumber.startsWith('PEND-') && safe(orderNumber) ? [`order_number.eq.${orderNumber}`, `office_track.eq.${orderNumber}`] : []),
+      ...(callInput.bdesk.length >= 5 && safe(callInput.bdesk) ? [`bdesk.eq.${callInput.bdesk}`] : []),
+    ];
+    if (lookups.length) {
+      const { data: found, error: findError } = await admin.from('calls').select(callColumns).neq('status', 'Cancelado').or(lookups.join(',')).order('created_at', { ascending: true }).limit(1);
       if (findError) throw new Error(findError.message);
       existingRow = found?.[0] || null;
     }

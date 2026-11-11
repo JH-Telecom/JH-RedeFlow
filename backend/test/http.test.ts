@@ -1610,3 +1610,18 @@ test('GIGA+ status: call handled by the other office leaves the active queue and
   assert.equal(reopened.status, 200);
   assert.equal(await metrics(), activeBefore);
 });
+
+test('a card with the OS or BDESK of an existing call is not activated again', async () => {
+  const login = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) });
+  const { token } = await login.json() as { token: string };
+  const card = (id: string, ot: string, bdesk: string, olt: string) => JSON.stringify({ id, type: 'Message', chatId: '120363422003961917@g.us', isGroup: true, message: `VALIDAR COM NOC ACESSO\nOLT: ${olt}\nBDESK: ${bdesk}\nTAREFA OFFICE TRACK: ${ot}\nMOTIVO: teste` });
+  const post = (body: string) => fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body });
+  const first = await (await post(card('dup-os-1', '619990000010102', '699001', 'VIP-AAA-01'))).json() as { activationId: string };
+  const accepted = await fetch(`${baseUrl}/api/acionamentos/${first.activationId}/aceitar`, { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+  assert.equal(accepted.status, 200);
+  const sameOs = await (await post(card('dup-os-2', '619990000010102', '699777', 'VIP-BBB-02'))).json() as { status: string; callId?: string };
+  assert.equal(sameOs.status, 'ignored');
+  assert.ok(sameOs.callId);
+  const sameBdesk = await (await post(card('dup-os-3', '619990000020102', '699001', 'VIP-CCC-03'))).json() as { status: string };
+  assert.equal(sameBdesk.status, 'ignored');
+});

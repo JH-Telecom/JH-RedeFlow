@@ -5440,3 +5440,20 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - Vale para os acionamentos novos. O chamado 679131 já criado não é alterado sozinho.
 - Novidade registrada em `releases.ts` (versão 11/11).
 - **Validação**: teste com o card real (e variações do rótulo); suíte 239/239; typecheck.
+
+## Sem acionamento repetido pela mesma OS ou BDESK (2026-11-11)
+- **Problema**: chamados repetidos com a mesma OS. Ex.: 610056119940102 / BDESK 675979 em dois chamados. Os dois foram criados no mesmo segundo: dois acionamentos aceitos ao mesmo tempo, e nenhum dos dois via o chamado do outro.
+- **Regra nova** (`backend/src/activation-dedupe.ts`): se já existe chamado não cancelado com a mesma **OS** (ordem / Office Track) ou o mesmo **BDESK**, não aciona de novo.
+  - **Na chegada do card** (webhook): o card é ignorado. Não vira acionamento pendente nem envia informativo, e o log do Render registra qual chamado já existe.
+  - **No aceite**: os aceites rodam um de cada vez, para que dois cliques ao mesmo tempo não criem dois chamados. A busca do chamado existente também usa o BDESK, além da OS. Se achar, liga o acionamento ao chamado que já existe.
+  - Chamado **Cancelado** não conta: o card pode ser acionado de novo.
+- **Limpeza no banco** (autorizada pelo usuário: "só os 3 recentes"). Ficou sempre o chamado aberto primeiro, e os acionamentos dos apagados passaram a apontar para ele. Foram apagados, com logs e observações (só "GIGA+"):
+  - 2º chamado da OS 12674461 (06/11 14:02);
+  - 2º da OS 610056119940102 (07/11 07:37);
+  - o da 2ª OS do BDESK 678676 (10/11 22:42, sem técnico).
+- **Mantidos de propósito**: 10 grupos da importação da planilha (jun–out) com o mesmo BDESK e OS diferentes do OFS, todos finalizados. São ordens distintas e contam no IGP.
+- **Validação**:
+  - testes da regra (OS, BDESK, cancelado, "PEND-", aceites em fila);
+  - teste de ponta a ponta no webhook;
+  - suíte completa;
+  - conferência no banco depois da limpeza.

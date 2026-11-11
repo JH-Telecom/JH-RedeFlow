@@ -7,6 +7,7 @@ import { activations, calls } from "./demo-data.js";
 import { captureUnknownOltRequests } from "./settings.js";
 import { onDataChange } from "../read-cache.js";
 import { scaled } from "../db-usage.js";
+import { activationKeys, findDuplicateCall, serializeAccept } from "../activation-dedupe.js";
 
 // Lista de acionamentos em memoria por 30 s, a mesma para todo mundo (o sino de cada aba pede a cada minuto).
 // Chegou card, aceite ou recusa (qualquer gravacao pela API): limpa na hora.
@@ -42,6 +43,11 @@ export async function receiveActivation(input: { source: string; originalMessage
 }
 
 export async function decideActivation(id: string, decision: 'Aceito' | 'Recusado', actor: User, rejectionReason?: string): Promise<{ activation?: Activation; call?: Call }> {
+  // Aceites em fila: dois ao mesmo tempo criavam dois chamados da mesma OS (um nao via o do outro).
+  return decision === 'Aceito' ? serializeAccept(() => decideActivationNow(id, decision, actor, rejectionReason)) : decideActivationNow(id, decision, actor, rejectionReason);
+}
+
+async function decideActivationNow(id: string, decision: 'Aceito' | 'Recusado', actor: User, rejectionReason?: string): Promise<{ activation?: Activation; call?: Call }> {
   if (isSupabaseConfigured()) return await decideSupabaseActivation(id, decision, actor.id, rejectionReason);
   const activation = activations.get(id);
   if (!activation || activation.status !== 'Pendente') return {};
@@ -51,8 +57,7 @@ export async function decideActivation(id: string, decision: 'Aceito' | 'Recusad
     const analysis = activation.analysis;
     const olt = data.olt || analysis?.olt || '';
     // Mesmo card vindo de outro grupo: liga ao chamado que ja existe para a ordem (nao cancelado).
-    const order = data.orderNumber?.trim();
-    const existing = order ? [...calls.values()].find((item) => item.status !== 'Cancelado' && (item.orderNumber === order || item.officeTrack === order)) : undefined;
+    const existing = findDuplicateCall(activationKeys({ orders: [data.orderNumber, data.officeTrack, analysis?.office_track], bdesk: data.bdesk || analysis?.bdesk }), [...calls.values()]);
     if (existing) { activation.createdCallId = existing.id; return { activation, call: existing }; }
     const mappedRegion = resolveOltRegion(olt).region;
     const call: Call = { id: `call-${crypto.randomUUID()}`, orderNumber: data.orderNumber || `PEND-${id.slice(-6)}`, bdesk: data.bdesk || '', officeTrack: data.orderNumber || '', client: data.client || 'Cliente nao identificado', type: data.type || analysis?.tipo_registro || 'NOC ACESSO', reason: data.reason || analysis?.motivo || 'Acionamento recebido', region: mappedRegion || data.region || 'Nao informada', city: data.city || '', olt, slotPon: data.slotPon || analysis?.slot_pon?.join(', ') || '', atrelada: analysis?.atrelada || undefined, address: analysis?.endereco_principal || '', bairro: analysis?.bairro_principal || '', status: 'Aberto', openedAt: activation.receivedAt || new Date().toISOString(), eventAt: parseSaoPauloDateTime(analysis?.data_hora_evento), notes: analysis?.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${analysis.atrelada}` : 'Criado a partir de acionamento aceito.' };

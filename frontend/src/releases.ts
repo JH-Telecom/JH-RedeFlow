@@ -12,6 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
+      { icon: "bell", tag: "Melhoria", title: "Sem acionamento repetido", text: "Card com a mesma OS ou o mesmo BDESK de um chamado que já existe não vira acionamento de novo. E dois aceites ao mesmo tempo não criam mais dois chamados.", permission: "activations.view" },
       { icon: "wrench", tag: "Correção", title: "Ordem dos cards de backbone com \"OfficeTrack/OS\"", text: "Cards de backbone que trazem a ordem como \"OfficeTrack/OS:\" agora têm a ordem reconhecida, em vez de usar o número do ticket." },
     ],
   },
