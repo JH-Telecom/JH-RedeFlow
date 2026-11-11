@@ -5477,3 +5477,15 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - saiu da checagem que reaproveitava acionamento pendente/aceito dos últimos 14 dias (fica: mesma mensagem ou mesma OS).
 - **Engano na limpeza de 11/11**: o chamado da OS 611236335390102 (BDESK 678676) não era duplicado. O acionamento dele (recebido 10/11 22:42) volta a Pendente para ser aceito de novo, depois de publicar a regra nova.
 - **Validação**: testes da regra (mesma OS, mesmo BDESK com outra OS, cancelado, PEND, aceites em fila); teste de ponta a ponta no webhook (mesmo BDESK com outra OS entra como Pendente); suíte 243 testes (1 de senha estourou o tempo com a máquina carregada e passou sozinho).
+
+## Menção (@) com o identificador, de verdade (extensão 1.9.3) (2026-11-11)
+- **A 1.9.2 não resolveu**: o usuário atualizou e a menção continuava saindo como texto.
+- **Causa encontrada no WhatsApp Web de verdade** (inspeção autorizada pelo usuário no grupo "teste", sem enviar nada): o editor da caixa de digitar é Lexical, mas o nó de **menção do WhatsApp não exporta JSON**. `getEditorState().toJSON()` falha com o erro Lexical #130, a ação `prefixar` dava erro e a extensão caía no jeito antigo de colar, que desfaz a menção.
+- **Correção** (`whatsapp/wa-page.js`, `prefixar`): dentro de `editor.update`, cria o texto `*Cargo - Nome:*` e a quebra de linha com as classes de nó que o próprio WhatsApp registrou (`editor._nodes`: `text`, `linebreak`) e insere antes do primeiro nó da mensagem com `insertBefore`/`insertAfter`. Nada passa por JSON e a menção não é tocada.
+  - Só age se houver algo além de texto comum: tipos fora de `text`, `linebreak`, `delimiter`, `tab`, `artificial`; por exemplo `mention` ou `emoji`.
+  - Texto comum segue o jeito de colar.
+- **Validação no WhatsApp Web real, sem enviar**:
+  - "oi": não mexeu ("texto comum");
+  - "@Matheus" e "oi @Matheus": ficaram `*Teste - Nome:*` + quebra + a mensagem, com o nó `mention` intacto (o WhatsApp ainda reconheceu o `*...*` como negrito);
+  - a caixa foi limpa depois e a aba fechada.
+- Nós registrados no WhatsApp hoje: root, text, linebreak, tab, paragraph, artificial, emoji, mention, list-bullet, numbered-symbol, quote-line, bidi-paragraph, delimiter, non-jid-mention.

@@ -5,7 +5,7 @@
      Tecnico a caminho da CTO.
    Ninguem precisa digitar nada. Liga/desliga, nome e "so em grupos" ficam no popup da extensao.
    - Cola so o identificador no comeco (o resto do texto, mencoes @ e formatacao ficam como estao).
-   - Com mencao @ (1.9.2): o identificador entra pelo editor do WhatsApp (wa-page.js), sem desfazer a mencao.
+   - Com mencao @ (1.9.3): o identificador entra pelo editor do WhatsApp (wa-page.js), sem desfazer a mencao.
    - Nao mexe em cards de acionamento nem em informativos (o sistema le esses textos).
    - Mensagem que ja comeca com o identificador nao ganha outro. Nada e enviado sozinho: so quando a pessoa envia. */
 (function () {

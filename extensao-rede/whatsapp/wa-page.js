@@ -146,27 +146,32 @@
   }
 
   // 11/11: identificador (*Cargo - Nome:*) em mensagem com mencao @. Colar no comeco caia dentro da mencao e o
-  // WhatsApp a transformava em texto comum. Aqui o nome entra direto no estado do editor (Lexical) da caixa de
-  // digitar, antes de tudo, sem tocar nos nos da mencao. So age se a mensagem tiver algo alem de texto comum
-  // (mencao, etc.); texto comum continua pelo jeito de colar, no content script.
+  // WhatsApp a transformava em texto comum. Aqui o nome entra direto no editor (Lexical) da caixa de digitar, antes
+  // de tudo, com as classes de no que o proprio WhatsApp registrou (texto e quebra de linha), sem tocar na mencao.
+  // (1.9.2 usava o JSON do editor, mas o no de mencao do WhatsApp nao exporta JSON: erro #130 e caia no colar.)
+  // So age se a mensagem tiver algo alem de texto comum (mencao etc.); texto comum segue pelo colar do content script.
+  const COMUNS = new Set(["text", "linebreak", "delimiter", "tab", "artificial"]);
   function prefixar(texto) {
     const el = document.querySelector('#main footer div[contenteditable="true"]');
     const ed = el && el.__lexicalEditor;
-    if (!ed || typeof ed.getEditorState !== "function" || typeof ed.parseEditorState !== "function" || typeof ed.setEditorState !== "function") return { feito: false, motivo: "sem editor" };
-    const json = ed.getEditorState().toJSON();
-    const blocos = (json && json.root && json.root.children) || [];
-    const primeiro = blocos[0];
-    if (!primeiro || !Array.isArray(primeiro.children)) return { feito: false, motivo: "formato" };
-    // Paragrafo nao conta; dentro dele, qualquer no que nao seja texto comum ou quebra de linha (mencao etc.).
-    const especial = (n) => {
-      if (!n) return false;
-      if (Array.isArray(n.children)) return n.type !== "paragraph" || n.children.some(especial);
-      return (n.type !== "text" && n.type !== "linebreak") || (n.type === "text" && Boolean(n.mode) && n.mode !== "normal");
-    };
-    if (!blocos.some((bloco) => Array.isArray(bloco.children) && bloco.children.some(especial))) return { feito: false, motivo: "texto comum" };
-    primeiro.children.unshift({ type: "text", text: String(texto || ""), detail: 0, format: 0, mode: "normal", style: "", version: 1 }, { type: "linebreak", version: 1 });
-    ed.setEditorState(ed.parseEditorState(json));
-    return { feito: true };
+    const nos = ed && ed._nodes;
+    const Texto = nos && nos.get("text") && nos.get("text").klass;
+    const Quebra = nos && nos.get("linebreak") && nos.get("linebreak").klass;
+    if (!ed || typeof ed.update !== "function" || !Texto || !Quebra) return { feito: false, motivo: "sem editor" };
+    let resultado = { feito: false, motivo: "texto comum" };
+    ed.update(() => {
+      const estado = ed._pendingEditorState || ed.getEditorState();
+      const raiz = estado && estado._nodeMap && estado._nodeMap.get("root");
+      const blocos = raiz ? raiz.getChildren() : [];
+      const especial = blocos.some((bloco) => typeof bloco.getChildren === "function" && bloco.getChildren().some((no) => !COMUNS.has(no.getType())));
+      if (!especial || !blocos[0] || typeof blocos[0].getFirstChild !== "function") return;
+      const nome = new Texto(String(texto || ""));
+      const primeiro = blocos[0].getFirstChild();
+      if (primeiro) primeiro.insertBefore(nome); else blocos[0].append(nome);
+      nome.insertAfter(new Quebra());
+      resultado = { feito: true };
+    }, { discrete: true });
+    return resultado;
   }
 
   const ACOES = {

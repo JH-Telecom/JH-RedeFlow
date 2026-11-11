@@ -12,7 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
-      { icon: "whatsapp", tag: "Correção", title: "Menção (@) com o identificador", text: "Na extensão 1.9.2, mensagem que marca alguém com @ continua marcando depois que o *Cargo - Nome:* entra na frente. Atualize a extensão em Configurações." },
+      { icon: "whatsapp", tag: "Correção", title: "Menção (@) com o identificador", text: "Na extensão 1.9.3, mensagem que marca alguém com @ continua marcando depois que o *Cargo - Nome:* entra na frente. Atualize a extensão em Configurações e recarregue o WhatsApp Web." },
       { icon: "bell", tag: "Melhoria", title: "Sem acionamento repetido", text: "Card com a mesma OS de um chamado que já existe não vira acionamento de novo (o mesmo BDESK pode ser outro chamado e entra normalmente). E dois aceites ao mesmo tempo não criam mais dois chamados.", permission: "activations.view" },
       { icon: "wrench", tag: "Correção", title: "Ordem dos cards de backbone com \"OfficeTrack/OS\"", text: "Cards de backbone que trazem a ordem como \"OfficeTrack/OS:\" agora têm a ordem reconhecida, em vez de usar o número do ticket." },
     ],
