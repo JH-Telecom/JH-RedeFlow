@@ -12,6 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-11",
     label: "11/11",
     items: [
+      { icon: "database", tag: "Novo", title: "Backup diário do banco no Google Drive", text: "Todo dia às 03:00 o sistema guarda uma cópia de todas as tabelas no Google Drive, por 90 dias. Configure em Configurações > Backup do banco.", permission: "settings.manage" },
       { icon: "whatsapp", tag: "Correção", title: "Menção (@) com o identificador", text: "Na extensão 1.9.4, mensagem que marca alguém com @ continua marcando depois que o *Cargo - Nome:* entra na frente, e um Enter só já envia. Atualize a extensão em Configurações e recarregue o WhatsApp Web." },
       { icon: "bell", tag: "Melhoria", title: "Sem acionamento repetido", text: "Card com a mesma OS de um chamado que já existe não vira acionamento de novo (o mesmo BDESK pode ser outro chamado e entra normalmente). E dois aceites ao mesmo tempo não criam mais dois chamados.", permission: "activations.view" },
       { icon: "wrench", tag: "Correção", title: "Ordem dos cards de backbone com \"OfficeTrack/OS\"", text: "Cards de backbone que trazem a ordem como \"OfficeTrack/OS:\" agora têm a ordem reconhecida, em vez de usar o número do ticket." },

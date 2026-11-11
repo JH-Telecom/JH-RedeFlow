@@ -23,6 +23,7 @@ import './sidebar.css';
 import './profile-photo.css';
 import './admin.css';
 import './db-usage.css';
+import './backup.css';
 import './activation-toast.css';
 import './settings-olt.css';
 import './observation-attachments.css';

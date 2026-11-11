@@ -79,6 +79,7 @@ export function clearResponseCache() {
   responseCache.clear();
 }
 // Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
+export type BackupStatus = { configured: boolean; retentionDays: number; hour: number; running: boolean; scriptTemplate: string; history: { ok: boolean; summary: string; createdAt: string; gzipBytes: number | null }[] };
 export type DbUsageReport = {
   supabase: boolean; limitBytes: number; last30DaysBytes: number; percent: number; projected30DaysBytes: number;
   mode: 'normal' | 'economia' | 'economia_forte'; trackedDays: number; today: { bytes: number; requests: number };
@@ -324,6 +325,8 @@ export const api = {
   updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[]; hiddenTabs?: string[] }) => request<{ role: Role }>(`/api/roles/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
   dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
+  backupStatus: () => request<BackupStatus>('/api/configuracoes/backup'),
+  runBackup: () => request<{ ok: true; summary: string; name: string; gzipBytes: number }>('/api/configuracoes/backup', { method: 'POST' }),
   updateSettings: (data: Partial<SystemSettings>) => request<{ settings: SystemSettings }>('/api/configuracoes', { method: 'PATCH', body: JSON.stringify(data) }),
   customOperationalRegions: () => request<{ regions: string[] }>('/api/configuracoes/regioes'),
   addCustomOperationalRegion: (region: string) => request<{ region: string }>('/api/configuracoes/regioes', { method: 'POST', body: JSON.stringify({ region }) }),

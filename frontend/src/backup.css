@@ -1,0 +1,26 @@
+/* Configuracoes -> Backup do banco (BackupCard) */
+.bkp-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bkp-link { padding: 2px 0; background: none; color: #0845ae; font-size: 12px; font-weight: 700; }
+.bkp-link:hover { text-decoration: underline; }
+.bkp-steps { margin: 0; padding-left: 20px; display: grid; gap: 12px; font-size: 13px; line-height: 1.55; color: #17233b; }
+.bkp-steps a { color: #0845ae; font-weight: 700; }
+.bkp-steps code, .bkp-card > .dbu-note code { padding: 1px 5px; border-radius: 4px; background: #eef2f7; font-size: 12px; color: #17233b; }
+.bkp-code-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0 6px; }
+.bkp-code { max-height: 220px; overflow: auto; margin: 0; padding: 12px; border: 1px solid #d5dde8; border-radius: 8px; background: #f7f9fc; color: #17233b; font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
+.bkp-env { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.bkp-env span { font-size: 12px; color: #4f5d73; }
+.bkp-secret { overflow-wrap: anywhere; }
+.bkp-history { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 12px; }
+.bkp-history li { display: grid; grid-template-columns: 16px 92px 1fr; align-items: start; gap: 8px; color: #17233b; }
+.bkp-history li.is-ok svg { color: #137a4b; }
+.bkp-history li.is-fail svg { color: #a3262a; }
+.bkp-when { color: #4f5d73; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .bkp-history li { grid-template-columns: 16px 1fr; } .bkp-history li > span:last-child { grid-column: 2; } }
+
+:where(:root[data-theme="dark"]) .bkp-link, :where(:root[data-theme="dark"]) .bkp-steps a { color: #7cb6ff; }
+:where(:root[data-theme="dark"]) .bkp-steps, :where(:root[data-theme="dark"]) .bkp-history li { color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .bkp-steps code, :where(:root[data-theme="dark"]) .bkp-card > .dbu-note code { background: #232a35; color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .bkp-code { background: #12161c; border-color: #2c3440; color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .bkp-env span, :where(:root[data-theme="dark"]) .bkp-when { color: #b5b9c1; }
+:where(:root[data-theme="dark"]) .bkp-history li.is-ok svg { color: #73ce9a; }
+:where(:root[data-theme="dark"]) .bkp-history li.is-fail svg { color: #ff8a84; }

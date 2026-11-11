@@ -50,6 +50,7 @@ import { sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.j
 import { deliverOltNotice } from './olt-notice-delivery.js';
 import { scaled, usageReport } from './db-usage.js';
 import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
+import { backupStatus, runBackupJob, runBackupNow } from './db-backup.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -697,6 +698,15 @@ app.get('/api/configuracoes', auth, requirePermission('settings.manage'), (_requ
 app.get('/api/configuracoes/banco', auth, requirePermission('settings.manage'), async (_request, response) => {
   await loadDbUsage();
   response.json({ supabase: isSupabaseConfigured(), ...usageReport() });
+});
+// Backup diario do banco no Google Drive (Apps Script do usuario): situacao e "fazer agora".
+app.get('/api/configuracoes/backup', auth, requirePermission('settings.manage'), async (_request, response) => {
+  try { return response.json(await backupStatus()); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel ler os backups.' }); }
+});
+app.post('/api/configuracoes/backup', auth, requirePermission('settings.manage'), async (_request, response) => {
+  try { return response.json(await runBackupNow()); }
+  catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'O backup falhou.' }); }
 });
 app.patch('/api/configuracoes', auth, requirePermission('settings.manage'), async (request, response) => {
   const parsed = z.object({ autoRefresh: z.boolean().optional(), refreshIntervalSeconds: z.number().int().min(10).max(3600).optional(), slaAlertHours: z.number().min(1).max(72).optional(), defaultRegion: z.string().min(1).optional() }).safeParse(request.body);
@@ -1904,6 +1914,8 @@ async function startServer() {
     // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
     void loadDbUsage();
     setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();
+    // Backup diario do banco no Google Drive (a partir das 03:00; so com BACKUP_DRIVE_URL e BACKUP_DRIVE_SECRET).
+    setInterval(() => { const config = whatsappConfig(); void runBackupJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();
     // Deploy no Render: a instancia antiga recebe SIGTERM. Antes saia na hora e cortava o que estava chegando
     // (ex.: export do OFS das 09:10 de 10/11 voltou HTTP 502). Agora para de aceitar conexoes novas, termina as
     // que estao em andamento (ate 25 s, o Render espera 30 s), grava a medicao do trafego e so entao sai.

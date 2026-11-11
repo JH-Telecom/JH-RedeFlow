@@ -5494,3 +5494,25 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Problema** (desde a 1.9.2): era preciso apertar Enter duas vezes para enviar. A trava `preparando` (que ignora outro Enter enquanto o identificador é colocado) também barrava o clique no botão Enviar que a própria extensão faz no fim. A mensagem ficava pronta na caixa e só saía no segundo Enter, quando o identificador já estava lá.
 - **Correção** (`whatsapp-identificador.js`): o envio feito pela extensão (`liberado`) é conferido antes da trava e passa direto.
 - **Validação**: sintaxe; leitura do fluxo (Enter → identificador → clique da extensão com `liberado` → WhatsApp envia). O envio de verdade não foi testado: depende de mandar mensagem num grupo.
+
+## Backup diário do banco no Google Drive (2026-11-11)
+- **Por quê**: o Supabase gratuito não guarda backup, e o projeto antigo já caiu uma vez.
+- **Como funciona** (`backend/src/db-backup.ts`):
+  - **Horário e tentativas**: a partir das **03:00** (São Paulo), uma vez por dia. Se falhar, tenta de novo a cada 30 min, no máximo 4 vezes. Na 4ª falha, avisa no WhatsApp dos avisos.
+  - **Conteúdo**: lê as **26 tabelas** do schema public, em páginas de 1.000 linhas, mais a lista de logins (`auth.users`: id, e-mail, datas e metadados, **sem senha**).
+  - **Formato**: tudo num JSON compactado com gzip, `redeflow-backup-AAAA-MM-DD-HHMM.json.gz`. Hoje dá uns 2–3 MB.
+  - **Destino**: o arquivo vai para um **Apps Script na conta Google do usuário**, que grava na pasta `JH RedeFlow - Backups` do Drive e põe na lixeira os backups com mais de **90 dias**, sempre guardando os 7 mais novos e sem mexer em outros arquivos da pasta.
+  - Cada resultado fica em `integration_events` (kind `db_backup`).
+  - Tráfego: uns 12 MB por backup (cerca de 360 MB/mês dos 5 GB), contados no medidor do banco.
+- **Configuração**: `BACKUP_DRIVE_URL` (link `/exec` do app da Web) e `BACKUP_DRIVE_SECRET` (segredo de 48 caracteres gerado na tela, o mesmo que vai no código do script), criadas pelo usuário no Render. Sem as duas, nada roda.
+- **Tela** (Configurações → Backup do banco, só para quem tem `settings.manage`):
+  - situação (Ativo / Não configurado / Último backup falhou) e último backup certo;
+  - passo a passo com o código do Apps Script pronto para copiar (o segredo já vai no código);
+  - botão "Fazer backup agora" e os últimos 10 resultados.
+- **Rotas**: `GET /api/configuracoes/backup` (situação) e `POST /api/configuracoes/backup` (fazer agora).
+- **Validação**:
+  - testes: arquivo abre igual ao que foi gerado; config; horário e tentativas; erros de segredo e de resposta não-JSON; o código do Apps Script rodando num Google de mentira (segredo, nome, retenção de 90 dias com 7 garantidos);
+  - suíte 248/248;
+  - preview claro/escuro e auditoria de contraste sem nada abaixo de 4,5:1;
+  - "Fazer backup agora" sem configuração responde a mensagem certa.
+- **Não testado ainda**: a leitura das tabelas no Supabase de verdade e o Apps Script real. Os dois rodam no primeiro "Fazer backup agora" depois da configuração.

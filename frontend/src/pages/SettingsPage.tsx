@@ -9,6 +9,7 @@ import { ChecklistSettings } from "../components/FieldAdmin";
 import { Pager, usePaged } from "../components/Pager";
 import { ExtensionDownloadCard } from "../components/ExtensionDownload";
 import { DbUsageCard } from "../components/DbUsageCard";
+import { BackupCard } from "../components/BackupCard";
 
 type ProfilePhotoControls = { photo: string | null; saving: boolean; error: string; onChange: (file: File) => Promise<void>; onRemove: () => Promise<void> };
 
@@ -26,6 +27,7 @@ export function SettingsPage({ user, canManage, profile }: { user: User & { role
       <ProfileShortcut user={user} photo={profile.photo} />
       <ExtensionDownloadCard />
       {canManage && <DbUsageCard />}
+      {canManage && <BackupCard />}
       {canManage && <SystemSettings />}
       {canManage && <ChecklistSettings />}
       {canManage && <FullExportPanel />}
