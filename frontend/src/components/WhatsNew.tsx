@@ -3,21 +3,41 @@ import { Bell, Chrome, ChartColumn, Database, List, MessageCircle, ShieldCheck, 
 import { Link } from "react-router-dom";
 import { LATEST_RELEASE_ID, RELEASES, type Release, type ReleaseIcon, type ReleaseItem } from "../releases";
 
-// "O que ha de novo": abre sozinho uma vez por versao (por login, neste navegador) e de novo em Meu perfil > Novidades.
+// "O que ha de novo": abre sozinho quando ha novidade que a pessoa ainda nao viu (por login, neste navegador) e de
+// novo em Meu perfil > Novidades.
+// Desde 11/11/2026 guarda CADA novidade vista (versao + titulo), nao so a versao: varias entregas no mesmo dia entram
+// na mesma versao, e antes quem ja tinha visto a versao do dia nao via os itens acrescentados depois.
 const ICONS: Record<ReleaseIcon, typeof Bell> = { sparkles: Sparkles, bell: Bell, list: List, chrome: Chrome, database: Database, whatsapp: MessageCircle, chart: ChartColumn, user: UserRound, shield: ShieldCheck, wrench: Wrench };
-const seenKey = (userId: string) => `jh-novidades-vistas:${userId}`;
+const legacySeenKey = (userId: string) => `jh-novidades-vistas:${userId}`; // formato antigo: id da ultima versao vista
+const itemsSeenKey = (userId: string) => `jh-novidades-itens:${userId}`;
+const itemKey = (release: Release, item: ReleaseItem) => `${release.id}|${item.title}`;
 
+function readSeenItems(userId: string): Set<string> | null {
+  try { const raw = window.localStorage.getItem(itemsSeenKey(userId)); return raw ? new Set<string>(JSON.parse(raw)) : null; } catch { return null; }
+}
 export function lastSeenRelease(userId: string) {
-  try { return window.localStorage.getItem(seenKey(userId)) || ""; } catch { return ""; }
+  try { return window.localStorage.getItem(legacySeenKey(userId)) || ""; } catch { return ""; }
 }
+// Marca como visto tudo o que existe hoje (todas as versoes).
 export function markReleasesSeen(userId: string) {
-  try { window.localStorage.setItem(seenKey(userId), LATEST_RELEASE_ID); } catch { /* sem armazenamento: aparece de novo, sem problema */ }
+  const keys = RELEASES.flatMap((release) => release.items.map((item) => itemKey(release, item)));
+  try {
+    window.localStorage.setItem(itemsSeenKey(userId), JSON.stringify(keys));
+    window.localStorage.setItem(legacySeenKey(userId), LATEST_RELEASE_ID);
+  } catch { /* sem armazenamento: aparece de novo, sem problema */ }
 }
 
-// Versoes que a pessoa ainda nao viu. Primeiro acesso: so a mais recente.
+// Novidades que a pessoa ainda nao viu.
+// - Com a lista de itens vistos: so os itens fora dela (inclusive os acrescentados depois numa versao ja vista).
+// - So com o formato antigo (id da versao): versoes anteriores contam como vistas; a versao vista e as novas aparecem
+//   (nao da para saber quais itens dela ja tinham sido vistos).
+// - Primeiro acesso: so a versao mais recente.
 export function unseenReleases(userId: string, canAccess: (permission: string) => boolean): Release[] {
-  const seen = lastSeenRelease(userId);
-  const pending = seen ? RELEASES.filter((release) => release.id > seen) : RELEASES.slice(0, 1);
+  const seenItems = readSeenItems(userId);
+  const legacy = lastSeenRelease(userId);
+  const pending = seenItems
+    ? RELEASES.map((release) => ({ ...release, items: release.items.filter((item) => !seenItems.has(itemKey(release, item))) }))
+    : legacy ? RELEASES.filter((release) => release.id >= legacy) : RELEASES.slice(0, 1);
   return visibleReleases(pending, canAccess);
 }
 export function visibleReleases(releases: Release[], canAccess: (permission: string) => boolean) {

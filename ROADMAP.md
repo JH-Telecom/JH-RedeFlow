@@ -5752,3 +5752,16 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - o espaço entre itens passou a ficar dentro de cada item, para a seção fechada não deixar vão;
   - com "reduzir movimento" ligado no sistema, abre e fecha sem animação.
 - **Validação**: `npm run build`; no preview, ao fechar "Operação" a altura foi de 285 a 69 px em cerca de 0,24 s; ao abrir, voltou a 285. Fechada, só a tela atual (Chamados abertos) fica visível, e os outros 6 itens ficam `inert`.
+
+## "O que há de novo" passa a lembrar cada novidade vista (2026-11-11)
+- **Problema** (usuário): "O patchnote não tá aparecendo após eu apertar o botão de atualizar."
+- **Causa**: o modal guardava só o id da última **versão** vista (`jh-novidades-vistas:<login>` = "2026-11-11"). Todas as entregas de 11/11 foram na mesma versão, então quem já tinha visto a 11/11 de manhã não via os itens acrescentados depois.
+- **Correção** (`frontend/src/components/WhatsNew.tsx`):
+  - agora guarda **cada item visto** (`jh-novidades-itens:<login>`, chave "versão|título"). O modal abre com os itens fora dessa lista, inclusive os acrescentados depois numa versão já vista;
+  - **transição**: quem só tem o formato antigo vê a versão que já tinha visto mais as novas (não dá para saber quais itens dela já tinham sido vistos). Depois de fechar, passa ao formato novo;
+  - primeiro acesso: só a versão mais recente, como antes. Meu perfil › Novidades marca tudo como visto, como antes.
+- **Validação**:
+  - `npm run build`;
+  - preview: com o formato antigo ("2026-11-11"), o modal abriu com os itens de 11/11 e, ao fechar, guardou os 40 itens;
+  - recarregando, não abriu de novo;
+  - simulando um item novo na 11/11 ("Menu com animação"), abriu só com ele ("1 novidade pra você").
