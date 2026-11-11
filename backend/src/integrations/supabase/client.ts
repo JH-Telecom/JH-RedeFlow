@@ -633,10 +633,11 @@ export async function countSupabaseUnassignedOpenCalls(): Promise<number> {
   return count || 0;
 }
 
-export async function listSupabaseActivations(status?: ActivationStatus): Promise<Activation[]> {
+export async function listSupabaseActivations(status?: ActivationStatus, limit?: number): Promise<Activation[]> {
   const admin = getSupabaseAdmin();
   let query = admin.from('activations').select('id, source, original_message, received_at, status, decision_by, decision_at, created_call_id, rejection_reason').order('received_at', { ascending: false });
   if (status) query = query.eq('status', status);
+  if (limit) query = query.limit(limit);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   const activations: Activation[] = [];
@@ -662,6 +663,13 @@ export async function getSupabaseActivation(id: string): Promise<Activation | un
   const extracted = (await latestProcessingByActivation([row.id])).get(row.id) || {};
   const { _analysis: analysis, ...extractedData } = extracted;
   return { id: row.id, source: row.source, originalMessage: row.original_message, receivedAt: row.received_at, status: row.status as ActivationStatus, decisionBy: row.decision_by || undefined, decisionAt: row.decision_at || undefined, createdCallId: row.created_call_id || undefined, rejectionReason: row.rejection_reason || undefined, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
+}
+
+// Acionamento recusado por engano volta a Pendente (para ser aceito pelo caminho normal). So mexe se ainda estiver Recusado.
+export async function reopenSupabaseRejectedActivation(id: string) {
+  const { data, error } = await getSupabaseAdmin().from('activations').update({ status: 'Pendente', decision_by: null, decision_at: null }).eq('id', id).eq('status', 'Recusado').select('id').maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
 }
 
 export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 'Recusado', actorId: string, rejectionReason?: string): Promise<{ activation?: Activation; call?: Call }> {

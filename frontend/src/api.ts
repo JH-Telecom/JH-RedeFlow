@@ -318,6 +318,7 @@ export const api = {
   auditLogs: (id: string) => request<{ logs: CallAuditLog[] }>(`/api/chamados/${id}/logs`),
   activations: (status?: Activation['status']) => request<{ activations: Activation[] }>(`/api/acionamentos${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   acceptActivation: (id: string) => requestCallMutation<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
+  reacceptActivation: (id: string) => requestCallMutation<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/reaceitar`, { method: 'POST' }),
   rejectActivation: (id: string, reason: string) => request<{ activation: Activation }>(`/api/acionamentos/${id}/recusar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   imports: () => request<{ imports: ImportRecord[] }>('/api/importacoes'),
   d0Base: () => request<{ base: D0BaseSummary }>('/api/importacoes/d0'),

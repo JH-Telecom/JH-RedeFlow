@@ -52,6 +52,7 @@ import { currentMode, scaled, usageReport } from './db-usage.js';
 import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
 import { backupStatus, runBackupJob, runBackupNow } from './db-backup.js';
 import { supervisorOverview } from './supervisor-overview.js';
+import { reacceptActivation } from './store/activations.js';
 import { buildSystemStatus } from './system-status.js';
 import { backupConfig } from './db-backup.js';
 import { addPopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
@@ -1807,7 +1808,23 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
     return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel registrar o acionamento.' });
   }
 });
-app.get('/api/acionamentos', auth, requirePermission('activations.view'), async (request, response) => response.json({ activations: await listActivations(request.query.status as 'Pendente' | 'Aceito' | 'Recusado' | undefined) }));
+app.get('/api/acionamentos', auth, requirePermission('activations.view'), async (request, response) => {
+  const status = request.query.status as 'Pendente' | 'Aceito' | 'Recusado' | undefined;
+  // Recusados: so os 100 mais recentes, com o nome de quem recusou (historico de recusados).
+  if (status === 'Recusado') {
+    const [list, users] = await Promise.all([listActivations('Recusado', 100), listUsers().catch(() => [])]);
+    const names = new Map(users.map((user) => [user.id, user.name]));
+    return response.json({ activations: list.map((item) => ({ ...item, decisionByName: item.decisionBy ? names.get(item.decisionBy) || null : null })) });
+  }
+  return response.json({ activations: await listActivations(status) });
+});
+app.post('/api/acionamentos/:id/reaceitar', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
+  try {
+    const result = await reacceptActivation(String(request.params.id), request.authUser!);
+    if (result.status !== 200) return response.status(result.status).json({ message: result.message });
+    return response.json({ activation: result.activation, call: result.call });
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? `Nao foi possivel aceitar o acionamento. ${error.message}` : 'Nao foi possivel aceitar o acionamento.' }); }
+});
 app.post('/api/acionamentos/:id/aceitar', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
   try {
     const result = await decideActivation(String(request.params.id), 'Aceito', request.authUser!);

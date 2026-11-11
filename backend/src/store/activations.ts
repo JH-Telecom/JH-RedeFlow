@@ -1,5 +1,7 @@
 import { parseSaoPauloDateTime } from '../timezone.js';
-import { createSupabaseActivation, decideSupabaseActivation, getSupabaseActivation, isSupabaseConfigured, listSupabaseActivations } from "../integrations/supabase/client.js";
+import { createSupabaseActivation, decideSupabaseActivation, getSupabaseActivation, isSupabaseConfigured, listSupabaseActivations, reopenSupabaseRejectedActivation } from "../integrations/supabase/client.js";
+import { addObservation } from "./observations.js";
+import { listUsers } from "./users.js";
 import { ATRELADA_OPEN_STATUSES, findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, User } from "../types.js";
 import { listCalls } from "./calls.js";
@@ -13,16 +15,42 @@ import { activationKeys, findDuplicateCall, serializeAccept } from "../activatio
 // Chegou card, aceite ou recusa (qualquer gravacao pela API): limpa na hora.
 const activationListCache = new Map<string, { at: number; list: Activation[] }>();
 onDataChange(() => activationListCache.clear());
-export async function listActivations(status?: ActivationStatus): Promise<Activation[]> {
+export async function listActivations(status?: ActivationStatus, limit?: number): Promise<Activation[]> {
   if (isSupabaseConfigured()) {
-    const key = status || 'todos';
+    const key = `${status || 'todos'}:${limit || ''}`;
     const hit = activationListCache.get(key);
     if (hit && Date.now() - hit.at < scaled(30_000)) return hit.list;
-    const list = await listSupabaseActivations(status);
+    const list = await listSupabaseActivations(status, limit);
     activationListCache.set(key, { at: Date.now(), list });
     return list;
   }
-  return [...activations.values()].filter((item) => !status || item.status === status).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  const list = [...activations.values()].filter((item) => !status || item.status === status).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  return limit ? list.slice(0, limit) : list;
+}
+
+// Historico de recusados (11/11/2026): aceitar um acionamento recusado por engano. Volta a Pendente e passa pelo
+// aceite normal (mesma OS ja com chamado: liga a esse chamado). O chamado ganha uma observacao contando a recusa.
+export async function reacceptActivation(id: string, actor: User): Promise<{ status: 200 | 404 | 409; message?: string; activation?: Activation; call?: Call }> {
+  const before = isSupabaseConfigured() ? await getSupabaseActivation(id) : activations.get(id);
+  if (!before) return { status: 404, message: 'Acionamento nao encontrado.' };
+  if (before.status !== 'Recusado') return { status: 409, message: before.status === 'Aceito' ? 'Este acionamento ja foi aceito.' : 'Este acionamento ainda esta pendente: aceite pela lista de pendentes.' };
+  // Copia da recusa antes de aceitar (no modo demonstracao o aceite altera este mesmo objeto).
+  const refusal = { by: before.decisionBy, at: before.decisionAt, reason: before.rejectionReason };
+  if (isSupabaseConfigured()) {
+    if (!(await reopenSupabaseRejectedActivation(id))) return { status: 409, message: 'O acionamento mudou enquanto isso. Atualize a tela.' };
+  } else {
+    Object.assign(before, { status: 'Pendente', decisionBy: undefined, decisionAt: undefined });
+  }
+  activationListCache.clear();
+  const result = await decideActivation(id, 'Aceito', actor);
+  activationListCache.clear();
+  if (result.call) {
+    const refusedBy = refusal.by ? (await listUsers().catch(() => [])).find((user) => user.id === refusal.by)?.name : undefined;
+    const when = refusal.at ? ` em ${new Date(refusal.at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '';
+    const text = `Este acionamento tinha sido recusado${when}${refusedBy ? ` por ${refusedBy}` : ''}${refusal.reason ? ` (motivo: ${refusal.reason})` : ''}. Aceito depois, pelo historico de recusados, por ${actor.name}.`;
+    await addObservation(result.call.id, actor, text).catch((error) => console.warn(`[Acionamentos] observacao da reaceitacao falhou: ${error instanceof Error ? error.message : error}`));
+  }
+  return { status: 200, ...result };
 }
 
 export async function getActivation(id: string): Promise<Activation | undefined> {

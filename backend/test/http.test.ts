@@ -1706,3 +1706,27 @@ test('status page answers without login and shows only status and short texts', 
   assert.equal(body.components[1].status, 'unknown'); // demonstracao: sem banco
   assert.ok(!JSON.stringify(body).match(/token|secret|senha|password/i));
 });
+
+test('refused activations history: list with who refused, accept later, call gets a note', async () => {
+  const login = async (email: string) => (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { 'content-type': 'application/json', authorization: `Bearer ${await login('admin@jhtelecom.com')}` };
+  const card = JSON.stringify({ id: 'refused-1', type: 'Message', chatId: '120363422003961917@g.us', isGroup: true, message: 'VALIDAR COM NOC ACESSO\nOLT: VIP-REC-01\nBDESK: 698100\nTAREFA OFFICE TRACK: 619880000010102\nMOTIVO: teste recusa' });
+  const received = await (await fetch(`${baseUrl}/api/integrations/wuzapi/webhook?token=test-webhook-token`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: card })).json() as { activationId: string };
+  assert.equal((await fetch(`${baseUrl}/api/acionamentos/${received.activationId}/reaceitar`, { method: 'POST', headers: admin })).status, 409); // ainda pendente
+  const refused = await fetch(`${baseUrl}/api/acionamentos/${received.activationId}/recusar`, { method: 'POST', headers: admin, body: JSON.stringify({ reason: 'Card duplicado' }) });
+  assert.equal(refused.status, 200);
+  const list = await (await fetch(`${baseUrl}/api/acionamentos?status=Recusado`, { headers: admin })).json() as { activations: Array<{ id: string; rejectionReason?: string; decisionByName?: string }> };
+  const item = list.activations.find((activation) => activation.id === received.activationId);
+  assert.equal(item?.rejectionReason, 'Card duplicado');
+  assert.equal(item?.decisionByName, 'Administrador JH');
+  const accepted = await fetch(`${baseUrl}/api/acionamentos/${received.activationId}/reaceitar`, { method: 'POST', headers: admin });
+  assert.equal(accepted.status, 200);
+  const body = await accepted.json() as { activation: { status: string }; call: { id: string; orderNumber: string } };
+  assert.equal(body.activation.status, 'Aceito');
+  assert.equal(body.call.orderNumber, '619880000010102');
+  const observations = await (await fetch(`${baseUrl}/api/chamados/${body.call.id}/observacoes`, { headers: admin })).json() as { observations: Array<{ text: string }> };
+  assert.ok(observations.observations.some((observation) => /tinha sido recusado.*Card duplicado.*Aceito depois/.test(observation.text)), JSON.stringify(observations).slice(0, 400));
+  assert.equal((await fetch(`${baseUrl}/api/acionamentos/${received.activationId}/reaceitar`, { method: 'POST', headers: admin })).status, 409);
+  const after = await (await fetch(`${baseUrl}/api/acionamentos?status=Recusado`, { headers: admin })).json() as { activations: Array<{ id: string }> };
+  assert.ok(!after.activations.some((activation) => activation.id === received.activationId));
+});
