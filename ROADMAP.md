@@ -5765,3 +5765,16 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - preview: com o formato antigo ("2026-11-11"), o modal abriu com os itens de 11/11 e, ao fechar, guardou os 40 itens;
   - recarregando, não abriu de novo;
   - simulando um item novo na 11/11 ("Menu com animação"), abriu só com ele ("1 novidade pra você").
+
+## Extensão 1.9.5: qualquer pessoa liga e desliga o identificador do WhatsApp (2026-11-11)
+- **Pedido**: "Quero que qualquer um possa ligar e desligar" o identificador ("Identificar minhas mensagens").
+- **Antes** (desde a 1.7.0): o card inteiro ficava travado para quem não é Administrador, inclusive o interruptor "Ligado".
+- **Agora** (`popup.html`, `popup.js`, `popup.css`):
+  - o interruptor tem `data-livre` e a trava (`aplicarBloqueio`) não o desativa. Ele fica com a aparência normal dentro do card travado;
+  - ao mudar, **salva na hora** (`waIdentificador.ativo`, mantendo nome, cargo e onde), sem o botão Salvar, que continua só do Administrador. A mensagem confirma: "Identificador ligado. Vale na próxima mensagem." / "desligado: as mensagens saem sem o nome.";
+  - o WhatsApp Web já ouve a mudança dessa configuração, então vale na próxima mensagem, sem recarregar;
+  - nome, cargo e "Onde" continuam travados para não-Administrador. O aviso diz: "Ligar e desligar é livre. Nome, cargo e onde: só o cargo Administrador altera".
+- **Validação**: sintaxe do `popup.js`; cópia do popup aberta no preview com um Chrome de mentira:
+  - com Mesário, o card fica travado, o interruptor livre (opacidade 1) e nome, cargo e Salvar desativados; desligar e ligar salvaram e mostraram a mensagem;
+  - com Administrador, tudo liberado.
+- Chega aos computadores ao atualizar a extensão em Configurações.

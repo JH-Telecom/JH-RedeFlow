@@ -217,6 +217,14 @@ $("waSalvar").onclick = async () => {
   $("waStatus").textContent = !cfg.ativo ? "Identificador desligado." : nome ? `✓ Suas mensagens vão sair como *${cargo ? `${cargo} - ` : ""}${nome}:*. Recarregue o WhatsApp Web se ele já estava aberto.` : "Entre com seu usuário ou escreva um nome.";
   $("waStatus").className = `hint ${cfg.ativo && nome ? "ok" : ""}`;
 };
+// Liga/desliga do identificador: qualquer pessoa, salva na hora (sem o botao Salvar, que e so do Administrador).
+$("waAtivo").addEventListener("change", async () => {
+  const { waIdentificador } = await chrome.storage.local.get(["waIdentificador"]);
+  const cfg = { ativo: true, nome: "", cargo: "", escopo: "todas", ...(waIdentificador || {}), ativo: $("waAtivo").checked };
+  await chrome.storage.local.set({ waIdentificador: cfg });
+  $("waStatus").textContent = cfg.ativo ? "✓ Identificador ligado. Vale na próxima mensagem." : "Identificador desligado: as mensagens saem sem o nome.";
+  $("waStatus").className = `hint ${cfg.ativo ? "ok" : ""}`;
+});
 $("waAbrir").onclick = async () => {
   let numero = $("waNumero").value.replace(/\D/g, "");
   if (numero.length === 10 || numero.length === 11) numero = `55${numero}`;
@@ -274,13 +282,14 @@ $("waTemas").onclick = async () => {
 
 // Ajustes da extensao (coleta automatica e identificador do WhatsApp) so mudam com login de Administrador.
 // Sem login ou com outro cargo: tudo aparece, mas travado, com o aviso.
+// Excecao (1.9.5): o interruptor "Ligado" do identificador e livre para qualquer pessoa (data-livre).
 function aplicarBloqueio(sessao) {
   const admin = sessao?.cargo === "Administrador";
   const areas = [document.querySelector('[data-painel="ajustes"] .card'), $("cardWhatsapp")];
   for (const area of areas) {
     if (!area) continue;
     area.classList.toggle("travado", !admin);
-    area.querySelectorAll("input, select, button").forEach((campo) => { campo.disabled = !admin; });
+    area.querySelectorAll("input, select, button").forEach((campo) => { campo.disabled = !admin && !campo.closest("[data-livre]"); });
     const aviso = area.querySelector("[data-bloqueio]");
     if (aviso) aviso.hidden = admin;
   }
