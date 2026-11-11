@@ -5457,3 +5457,14 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - teste de ponta a ponta no webhook;
   - suíte completa;
   - conferência no banco depois da limpeza.
+
+## Menção (@) mantida com o identificador do WhatsApp (extensão 1.9.2) (2026-11-11)
+- **Problema**: mensagem que começa com uma menção (`@WALLAF JH`) saía com o `*Cargo - Nome:*`, mas a pessoa não era marcada. A extensão punha o cursor no começo da caixa e colava o identificador ali. Com a menção no começo, o cursor caía dentro dela e o WhatsApp a transformava em texto comum.
+- **Correção**:
+  - **Mensagem com menção** (ou outro elemento que não seja texto comum): o identificador entra direto no editor do WhatsApp (Lexical) da caixa de digitar, como texto mais quebra de linha antes de tudo, sem tocar na menção. Isso é feito pela ponte que já roda na página (`whatsapp/wa-page.js`, ação `prefixar`); `whatsapp-identificador.js` pede e espera até 300 ms.
+  - **Texto comum, ou se a ponte não responder**: continua o jeito atual de colar, que já funcionava.
+  - Enter apertado enquanto o identificador é colocado é ignorado, para a mensagem não sair duas vezes.
+- **Validação**:
+  - sintaxe dos dois arquivos;
+  - simulação com a mesma biblioteca de editor (Lexical 0.17, sem navegador) e um nó de menção: depois de prefixar, a menção continua menção (com o contato) e o texto fica `*Administrador - Matheus:*` + quebra + `@WALLAF JH bom dia`; texto comum não é tocado.
+- **Não testado no WhatsApp Web de verdade**: falta confirmar num grupo de teste depois de atualizar a extensão.

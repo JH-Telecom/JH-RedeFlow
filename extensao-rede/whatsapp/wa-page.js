@@ -145,7 +145,32 @@
     return out;
   }
 
+  // 11/11: identificador (*Cargo - Nome:*) em mensagem com mencao @. Colar no comeco caia dentro da mencao e o
+  // WhatsApp a transformava em texto comum. Aqui o nome entra direto no estado do editor (Lexical) da caixa de
+  // digitar, antes de tudo, sem tocar nos nos da mencao. So age se a mensagem tiver algo alem de texto comum
+  // (mencao, etc.); texto comum continua pelo jeito de colar, no content script.
+  function prefixar(texto) {
+    const el = document.querySelector('#main footer div[contenteditable="true"]');
+    const ed = el && el.__lexicalEditor;
+    if (!ed || typeof ed.getEditorState !== "function" || typeof ed.parseEditorState !== "function" || typeof ed.setEditorState !== "function") return { feito: false, motivo: "sem editor" };
+    const json = ed.getEditorState().toJSON();
+    const blocos = (json && json.root && json.root.children) || [];
+    const primeiro = blocos[0];
+    if (!primeiro || !Array.isArray(primeiro.children)) return { feito: false, motivo: "formato" };
+    // Paragrafo nao conta; dentro dele, qualquer no que nao seja texto comum ou quebra de linha (mencao etc.).
+    const especial = (n) => {
+      if (!n) return false;
+      if (Array.isArray(n.children)) return n.type !== "paragraph" || n.children.some(especial);
+      return (n.type !== "text" && n.type !== "linebreak") || (n.type === "text" && Boolean(n.mode) && n.mode !== "normal");
+    };
+    if (!blocos.some((bloco) => Array.isArray(bloco.children) && bloco.children.some(especial))) return { feito: false, motivo: "texto comum" };
+    primeiro.children.unshift({ type: "text", text: String(texto || ""), detail: 0, format: 0, mode: "normal", style: "", version: 1 }, { type: "linebreak", version: 1 });
+    ed.setEditorState(ed.parseEditorState(json));
+    return { feito: true };
+  }
+
   const ACOES = {
+    prefixar: async (a) => prefixar(a && a.texto),
     conversei: async (a) => conversei(a && a.tels),
     presenca: async (a) => presenca(a && a.tels),
     ativa: async () => resumo(ativa()),

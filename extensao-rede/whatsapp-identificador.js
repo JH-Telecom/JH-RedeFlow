@@ -5,6 +5,7 @@
      Tecnico a caminho da CTO.
    Ninguem precisa digitar nada. Liga/desliga, nome e "so em grupos" ficam no popup da extensao.
    - Cola so o identificador no comeco (o resto do texto, mencoes @ e formatacao ficam como estao).
+   - Com mencao @ (1.9.2): o identificador entra pelo editor do WhatsApp (wa-page.js), sem desfazer a mencao.
    - Nao mexe em cards de acionamento nem em informativos (o sistema le esses textos).
    - Mensagem que ja comeca com o identificador nao ganha outro. Nada e enviado sozinho: so quando a pessoa envia. */
 (function () {
@@ -79,18 +80,45 @@
       cx.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dados, bubbles: true, cancelable: true }));
     } catch (_) { /* cai no jeito abaixo */ }
   }
+  // Mensagem com mencao @: pede a ponte da pagina (wa-page.js) para por o identificador no editor do WhatsApp sem
+  // desfazer a mencao. Responde { feito: false } para texto comum ou se a ponte nao responder em 300 ms.
+  let pedidoN = 0;
+  function prefixarPelaPagina(texto) {
+    return new Promise((resolver) => {
+      const id = `ident-${Date.now()}-${++pedidoN}`;
+      const fim = (r) => { document.removeEventListener("jhwa:res", ouvir); clearTimeout(limite); resolver(r); };
+      const ouvir = (e) => { let r; try { r = JSON.parse(e.detail || "{}"); } catch (_) { return; } if (r.id === id) fim(r.ok && r.res ? r.res : { feito: false }); };
+      const limite = setTimeout(() => fim({ feito: false }), 300);
+      document.addEventListener("jhwa:res", ouvir);
+      document.dispatchEvent(new CustomEvent("jhwa:req", { detail: JSON.stringify({ id, acao: "prefixar", args: { texto } }) }));
+    });
+  }
+
   // O WhatsApp so mostra o texto colado um pouco depois: conferir na hora fazia o nome entrar duas vezes.
   const jaTemIdentificador = (cx) => (cx.innerText || "").trim().startsWith(prefixo());
 
   let liberado = false; // envio feito por nos depois de colocar o identificador
+  let preparando = false; // identificador sendo colocado: outro Enter nesse meio tempo e ignorado
   function identificarEEnviar(evento) {
     const cx = caixa();
+    if (preparando) { evento.preventDefault(); evento.stopImmediatePropagation(); return; }
     if (liberado || !deveIdentificar(cx)) return;
     evento.preventDefault();
     evento.stopImmediatePropagation();
-    colocarIdentificador(cx);
-    // Colagem nao pegou (outra versao do WhatsApp): escreve direto no comeco, uma vez so.
-    setTimeout(() => { if (!jaTemIdentificador(cx)) document.execCommand("insertText", false, `${prefixo()} `); }, 150);
+    preparando = true;
+    void prefixarPelaPagina(prefixo()).then((r) => setTimeout(() => {
+      // O editor aceitou: nao cola de novo (o nome sairia duas vezes).
+      const pelaPagina = Boolean(r && r.feito);
+      if (!pelaPagina) {
+        colocarIdentificador(cx);
+        // Colagem nao pegou (outra versao do WhatsApp): escreve direto no comeco, uma vez so.
+        setTimeout(() => { if (!jaTemIdentificador(cx)) document.execCommand("insertText", false, `${prefixo()} `); }, 150);
+      }
+      enviarDepois(cx, pelaPagina ? 120 : 320);
+    }, 40));
+  }
+
+  function enviarDepois(cx, espera) {
     setTimeout(() => {
       const botao = botaoEnviar();
       liberado = true;
@@ -98,9 +126,10 @@
         if (botao) botao.click();
         else cx.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true }));
       } finally {
+        preparando = false;
         setTimeout(() => { liberado = false; }, 300);
       }
-    }, 320);
+    }, espera);
   }
 
   // Enter (sem Shift) na caixa de digitar da conversa.
