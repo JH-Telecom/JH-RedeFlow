@@ -10,6 +10,7 @@ export function CopyrightNotice({ className = "" }: { className?: string }) {
         <Link to="/privacidade">Privacidade</Link>
         <Link to="/termos">Termos</Link>
         <Link to="/licencas">Licenças</Link>
+        <Link to="/status">Status do sistema</Link>
       </nav>
     </footer>
   );

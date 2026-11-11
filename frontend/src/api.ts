@@ -79,6 +79,8 @@ export function clearResponseCache() {
   responseCache.clear();
 }
 // Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
+export type SystemStatusLevel = 'ok' | 'warn' | 'down' | 'unknown';
+export type SystemStatus = { status: SystemStatusLevel; checkedAt: string; components: { key: string; label: string; status: SystemStatusLevel; detail: string; checkedAt: string }[] };
 export type PopKey = { id: string; pop: string; status: 'Base' | 'Retirada' | 'A conferir'; holderName: string | null; holderKind: 'Tecnico' | 'Supervisor' | 'Outro' | null; holderId: string | null; takenAt: string | null; notes: string | null; currentMovementId: string | null; hasPhoto: boolean; updatedAt: string };
 export type PopKeyMovement = { id: string; popKeyId: string; action: 'Retirada' | 'Devolucao' | 'Ajuste'; holderName: string | null; holderKind: string | null; holderId: string | null; hasPhoto: boolean; notes: string | null; happenedAt: string; userName: string | null };
 export type SupervisorOverview = {
@@ -335,6 +337,7 @@ export const api = {
   settings: () => request<{ settings: SystemSettings }>('/api/configuracoes'),
   dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
   supervisorOverview: (filters: { from: string; to: string; region?: string; type?: string }) => request<SupervisorOverview>(`/api/visao-supervisores?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as [string, string][]).toString()}`),
+  systemStatus: () => request<SystemStatus>('/api/status'),
   popKeys: () => request<{ keys: PopKey[] }>('/api/chaves'),
   addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),
   takePopKey: (id: string, data: { holderName: string; holderKind: 'Tecnico' | 'Supervisor' | 'Outro'; holderId: string | null; notes: string | null; photo: string | null; takenAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/retirada`, { method: 'POST', body: JSON.stringify(data) }),

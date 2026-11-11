@@ -1696,3 +1696,13 @@ test('POP keys: list, take with photo, block double take, history, photo, return
   assert.equal((await fetch(`${baseUrl}/api/chaves`, { method: 'POST', headers: admin, body: JSON.stringify({ pop: 'pop teste' }) })).status, 201);
   assert.equal((await fetch(`${baseUrl}/api/chaves`, { method: 'POST', headers: admin, body: JSON.stringify({ pop: 'POP TESTE' }) })).status, 422);
 });
+
+test('status page answers without login and shows only status and short texts', async () => {
+  const response = await fetch(`${baseUrl}/api/status`);
+  assert.equal(response.status, 200);
+  const body = await response.json() as { status: string; components: Array<{ key: string; status: string; detail: string }> };
+  assert.deepEqual(body.components.map((item) => item.key), ['server', 'database', 'ofs', 'whatsapp', 'backup']);
+  assert.equal(body.components[0].status, 'ok');
+  assert.equal(body.components[1].status, 'unknown'); // demonstracao: sem banco
+  assert.ok(!JSON.stringify(body).match(/token|secret|senha|password/i));
+});

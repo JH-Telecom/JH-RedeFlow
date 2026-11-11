@@ -25,6 +25,7 @@ import './admin.css';
 import './db-usage.css';
 import './backup.css';
 import './pop-keys.css';
+import './status-page.css';
 import './activation-toast.css';
 import './settings-olt.css';
 import './observation-attachments.css';

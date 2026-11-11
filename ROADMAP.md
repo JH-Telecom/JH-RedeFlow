@@ -5637,3 +5637,24 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Correção**: a condição passou a ser `typeof navigator.mediaDevices?.getUserMedia === "function"`. `npm run build` (o mesmo da Vercel) agora passa.
 - **Pedido do usuário**: a tela foi para a seção **Administração** do menu (antes em Operação), e o título da tela e a novidade acompanham.
 - **Daqui em diante**: a checagem do frontend antes de subir é `npm run build`, e depois de subir confiro na Vercel se o deploy ficou READY.
+
+## Página de status do sistema (2026-11-11)
+- **Pedido** (card "Página de status"): mostrar se o servidor, o banco, a coleta do OFS e o WhatsApp estão funcionando, para a equipe não ficar no escuro quando algo cai.
+- **Página `/status`**:
+  - **aberta sem login**, porque quando o banco cai o login cai junto. Link no rodapé (login, menu e páginas legais) e em **Administração → Status do sistema**;
+  - faixa geral (Tudo funcionando / Funcionando, com pontos de atenção / Há parte do sistema fora do ar) e uma linha por parte, com Funcionando, Atenção, Fora do ar ou Sem informação e um texto curto;
+  - atualiza a cada 30 s com a aba visível, e tem o botão Atualizar;
+  - **se o servidor não responde**, a página mesmo assim mostra "Servidor fora do ar" (com a explicação de que costuma voltar sozinho, por exemplo durante uma atualização) e "Sem informação" no resto.
+- **O que é checado** (`backend/src/system-status.ts`, rota `GET /api/status`, sem login, resultado guardado 30 s):
+  - **Servidor**: no ar há quanto tempo e versão (commit do Render);
+  - **Banco**: consulta leve com limite de 5 s (tempo de resposta). Atenção se passar de 2 s ou em modo economia de tráfego; fora do ar se não responder;
+  - **Coleta do OFS**: último envio certo do export. Atenção depois de 90 min ou se a última tentativa falhou; fora do ar depois de 180 min. Das 22h às 7h não acusa, porque é normal ficar parada;
+  - **WhatsApp**: `GET /session/status` do WuzAPI (conectado e com login). Fora do ar se desconectado ou sem login (precisa ler o QR Code). Mostra também a última mensagem recebida;
+  - **Backup diário**: último backup certo em até 30 h; "Sem informação" se ainda não configurado.
+- Só mostra situação e textos curtos, sem dados de chamados nem tokens (o teste confere).
+- **Validação**:
+  - testes do cálculo (tudo ok; banco fora, WhatsApp sem login e coleta parada; avisos de economia, falha, coleta atrasada e backup velho; madrugada sem alarme; partes não configuradas não contam);
+  - teste de ponta a ponta (sem login, cinco partes, nada sensível);
+  - `npm run build` (o mesmo da Vercel);
+  - preview com o servidor no ar e desligado;
+  - auditoria de contraste sem nada abaixo de 4,5:1 nos dois temas.

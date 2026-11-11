@@ -35,7 +35,7 @@ import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, 
 import type { ActivationAnalysis, AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { clearPresence, presenceOf, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite, onDataChange } from './read-cache.js';
-import { invalidateCallsSnapshot } from './integrations/supabase/client.js';
+import { getSupabaseAdmin, invalidateCallsSnapshot } from './integrations/supabase/client.js';
 // Gravou algo pela API: a copia dos chamados em memoria busca o que mudou na proxima leitura.
 onDataChange(() => invalidateCallsSnapshot());
 import { runDailyReset } from './daily-reset-job.js';
@@ -48,10 +48,12 @@ import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsa
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
 import { sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
 import { deliverOltNotice } from './olt-notice-delivery.js';
-import { scaled, usageReport } from './db-usage.js';
+import { currentMode, scaled, usageReport } from './db-usage.js';
 import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
 import { backupStatus, runBackupJob, runBackupNow } from './db-backup.js';
 import { supervisorOverview } from './supervisor-overview.js';
+import { buildSystemStatus } from './system-status.js';
+import { backupConfig } from './db-backup.js';
 import { addPopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
@@ -236,6 +238,44 @@ function clearLoginAttempts(request: Request, email: string) {
 }
 
 app.get('/health', (_request, response) => response.json({ status: 'ok', service: 'jh-redeflow-api' }));
+// Pagina de status (sem login: quando o banco cai, o login cai junto). Resultado guardado por 30 s para a pagina
+// aberta em varios computadores nao bater no banco e no WuzAPI a cada atualizacao.
+let systemStatusCache: { at: number; body: ReturnType<typeof buildSystemStatus> } | null = null;
+async function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return await Promise.race([Promise.resolve(promise), new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`sem resposta em ${ms / 1000} s`)), ms))]);
+}
+async function checkDatabase() {
+  if (!isSupabaseConfigured()) return { configured: false, ok: false, ms: null };
+  const started = Date.now();
+  try {
+    const { error } = await withTimeout<{ error: { message: string } | null }>(getSupabaseAdmin().from('roles').select('id', { head: true, count: 'exact' }).limit(1), 5000);
+    if (error) return { configured: true, ok: false, ms: null, error: error.message.slice(0, 120) };
+    return { configured: true, ok: true, ms: Date.now() - started, economyMode: currentMode() };
+  } catch (error) { return { configured: true, ok: false, ms: null, error: error instanceof Error ? error.message.slice(0, 120) : 'erro' }; }
+}
+async function checkWhatsApp() {
+  const config = whatsappConfig();
+  const lastMessageAt = [...wuzapiGroupSightings.values()].map((item) => item.lastAt).filter(Boolean).sort().pop() || null;
+  if (!config) return { configured: false, connected: null, loggedIn: null, lastMessageAt };
+  try {
+    const response = await fetch(`${config.url}/session/status`, { headers: { Token: config.token }, signal: AbortSignal.timeout(5000) });
+    const body = await response.json().catch(() => ({})) as { data?: Record<string, unknown> };
+    const data = (body.data || body) as Record<string, unknown>;
+    const pick = (name: string) => { const key = Object.keys(data).find((item) => item.toLowerCase() === name); return key === undefined ? null : Boolean(data[key]); };
+    if (!response.ok) return { configured: true, connected: null, loggedIn: null, error: `HTTP ${response.status}`, lastMessageAt };
+    return { configured: true, connected: pick('connected'), loggedIn: pick('loggedin'), lastMessageAt };
+  } catch (error) { return { configured: true, connected: null, loggedIn: null, error: error instanceof Error ? error.message.slice(0, 80) : 'erro', lastMessageAt }; }
+}
+app.get('/api/status', async (_request, response) => {
+  if (!systemStatusCache || Date.now() - systemStatusCache.at > 30_000) {
+    const [database, whatsapp] = await Promise.all([checkDatabase(), checkWhatsApp()]);
+    const events = database.ok || !database.configured ? await listIntegrationEvents(48, ['export', 'db_backup']).catch(() => []) : [];
+    const body = buildSystemStatus({ now: Date.now(), uptimeSeconds: process.uptime(), version: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || null, database, events, whatsapp, backupConfigured: Boolean(backupConfig()) });
+    systemStatusCache = { at: Date.now(), body };
+  }
+  response.setHeader('Cache-Control', 'no-store');
+  return response.json(systemStatusCache.body);
+});
 app.get('/health/supabase', async (_request, response) => {
   const result = await checkSupabaseConnection();
   return response.status(result.connected ? 200 : 503).json({ configured: result.configured, connected: result.connected, error: result.connected ? undefined : result.error });
