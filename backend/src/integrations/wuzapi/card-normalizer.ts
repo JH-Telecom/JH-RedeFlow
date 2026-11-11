@@ -24,6 +24,8 @@ const LABEL_ALIASES: Array<[RegExp, string]> = [
   [/^(?:TIPO\s+(?:DA\s+)?FALHA|FALHA)$/, 'Tipo de Falha'],
   [/^(?:MOTIVO\s+(?:DO\s+)?ACIONAMENTO|DEFEITO|PROBLEMA)$/, 'MOTIVO'],
   [/^(?:TAREFA\s+(?:DO\s+|DA\s+)?(?:OFFICE\s*TRACK|OT|OFS)|OFFICE\s*TRACK|N[º°O]?\s*OT|OT|OFS)$/, 'Tarefa Office Track'],
+  // "OfficeTrack/OS", "OS/OfficeTrack", "Office Track / O.S." (cards de backbone)
+  [/^(?:OFFICE\s*TRACK|OT|OFS)\s*\/\s*O\.?\s*S\.?$|^O\.?\s*S\.?\s*\/\s*(?:OFFICE\s*TRACK|OFS)$/, 'Tarefa Office Track'],
   [/^O\.?\s*S\.?\s*(?:DA\s+|DO\s+)?CASA\s+(?:DO\s+|DA\s+)?CLIENTE$/, 'O.S. CASA CLIENTE'],
   [/^(?:O\.?\s*S\.?\s*OT|OS\s*\/\s*OT)$/, 'OS OT'],
   [/^CONTRATOS?\s*(?:\(S\))?\s+(?:DE\s+)?EXEMPLOS?\s*(?:\(S\))?$|^CONTRATO\(S\)(?:\s+EXEMPLO\(S\))?$/, 'Contratos Exemplos'],

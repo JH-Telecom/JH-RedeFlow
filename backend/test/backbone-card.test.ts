@@ -50,3 +50,26 @@ test('OLT written as "OLT VIP-..." still finds the region', async () => {
   const analysis = analyzeOperationalMessage('⚠️VALIDAR COM NOC ACESSO⚠️\n- OLT: OLT VIP-GRU-4-SPO-ONK-01\n- BDESK: 674153');
   assert.equal(analysis.olt, 'VIP-GRU-4-SPO-ONK-01');
 });
+
+// Card de backbone com a ordem em "OfficeTrack/OS:" (10/11): antes o rotulo nao era reconhecido e a ordem virava o ticket.
+test('backbone card reads the order from "OfficeTrack/OS:"', () => {
+  const card = [
+    '⚠️VALIDAR COM NOC TX⚠️',
+    '⚠️ACIONAMENTO DE EVENTO BACKBONE ⚠️',
+    '- TICKET: 679131 » SP::ATN::CIDADE DE TIRADENTES_CT1<>MAUÁ_TURQUESA_TQA01::ROTA B::ALLOHA',
+    '- ABERTO EM: 10/11/2026 20:01:31',
+    '- TIPO: ATENUAÇÃO',
+    'Ponta A:',
+    '- Localizacao: CT1SPN16-01 - Cidade Tiradentes',
+    '- Placa: CT1SPN16-01',
+    '- Recurso: PORT-1-3-LINEIN',
+    '- OfficeTrack/OS: 611150177550102',
+    '- Técnico Rede: JH TELECOM REDES',
+  ].join('\n');
+  const analysis = analyzeOperationalMessage(card);
+  assert.equal(analysis.office_track, '611150177550102');
+  assert.equal(analysis.ticket, '679131');
+  for (const label of ['OS/OfficeTrack', 'Office Track / OS', 'OS / OT']) {
+    assert.equal(analyzeOperationalMessage(`⚠️VALIDAR COM NOC TX⚠️\n- TICKET: 1\n- ${label}: 611150177550102`).office_track, '611150177550102', label);
+  }
+});

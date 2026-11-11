@@ -5433,3 +5433,10 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - contraste de todas as cores do modal ≥ 4,5:1 nos dois temas;
   - fechar marca como visto e não reabre ao recarregar;
   - o link abre Meu perfil já na seção.
+
+## Ordem dos cards de backbone em "OfficeTrack/OS:" (2026-11-11)
+- **Problema**: card de backbone (NOC TX) com a ordem escrita como `- OfficeTrack/OS: 611150177550102` não tinha a ordem reconhecida. O chamado ficava com o número do ticket (679131) em Ordem e o Office Track vazio.
+- **Correção** (`card-normalizer.ts`): os rótulos `OfficeTrack/OS`, `OS/OfficeTrack`, `Office Track / O.S.` e `OFS/OS` passam a valer como "Tarefa Office Track", igual a `OFS:`.
+- Vale para os acionamentos novos. O chamado 679131 já criado não é alterado sozinho.
+- Novidade registrada em `releases.ts` (versão 11/11).
+- **Validação**: teste com o card real (e variações do rótulo); suíte 239/239; typecheck.

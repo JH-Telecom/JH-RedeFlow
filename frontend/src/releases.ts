@@ -9,6 +9,13 @@ export type Release = { id: string; label: string; items: ReleaseItem[] };
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-11",
+    label: "11/11",
+    items: [
+      { icon: "wrench", tag: "Correção", title: "Ordem dos cards de backbone com \"OfficeTrack/OS\"", text: "Cards de backbone que trazem a ordem como \"OfficeTrack/OS:\" agora têm a ordem reconhecida, em vez de usar o número do ticket." },
+    ],
+  },
+  {
     id: "2026-11-10",
     label: "10/11",
     items: [
