@@ -51,7 +51,7 @@ import { deliverOltNotice } from './olt-notice-delivery.js';
 import { scaled, usageReport } from './db-usage.js';
 import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
 import { backupStatus, runBackupJob, runBackupNow } from './db-backup.js';
-import { OVERVIEW_AREAS, supervisorOverview, type OverviewArea } from './supervisor-overview.js';
+import { supervisorOverview } from './supervisor-overview.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -697,7 +697,7 @@ app.patch('/api/roles/:id', auth, requirePermission('roles.manage'), async (requ
   if (!role) return response.status(404).json({ message: 'Cargo nao encontrado.' });
   return response.json({ role });
 });
-// Visao dos supervisores: entrantes por area/dia/horario, media por dia, TME, mes e semana. Copia em memoria dos
+// Visao dos supervisores: entrantes por regiao/dia/horario, media por dia, TME, mes e semana. Copia em memoria dos
 // chamados (sem consulta nova ao banco).
 app.get('/api/visao-supervisores', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   const today = toOperationalDate();
@@ -705,12 +705,12 @@ app.get('/api/visao-supervisores', auth, requirePermission('dashboard.view'), as
   const to = typeof request.query.to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(request.query.to) ? request.query.to : today;
   if (from > to) return response.status(400).json({ message: 'A data inicial e depois da final.' });
   if (Date.parse(to) - Date.parse(from) > 92 * 86_400_000) return response.status(400).json({ message: 'Escolha um periodo de ate 3 meses.' });
-  const area = typeof request.query.area === 'string' && (OVERVIEW_AREAS as readonly string[]).includes(request.query.area) ? request.query.area as OverviewArea : undefined;
+  const region = typeof request.query.region === 'string' && request.query.region.trim() ? request.query.region.trim().slice(0, 100) : undefined;
   const type = typeof request.query.type === 'string' && request.query.type.trim() ? request.query.type.trim().slice(0, 100) : undefined;
   try {
     const scope = await getScopedCallQuery(request, true);
     const calls = await listCalls(undefined, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined });
-    return response.json(supervisorOverview(calls, { from, to, area, type }));
+    return response.json(supervisorOverview(calls, { from, to, region, type }));
   } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar a visao.' }); }
 });
 app.get('/api/configuracoes', auth, requirePermission('settings.manage'), (_request, response) => response.json({ settings: getSettings() }));

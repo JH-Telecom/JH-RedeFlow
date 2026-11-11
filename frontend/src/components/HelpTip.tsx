@@ -8,7 +8,7 @@ export const PAGE_HELP: Record<string, string[]> = {
   "/chamados/atendimento": ["Chamados com técnico (Atribuído, Deslocamento ou Em campo).", "As abas mostram quantos chamados há em cada status com os filtros atuais.", "\"Última observação\" mostra há quanto tempo ninguém registra andamento."],
   "/chamados/finalizados": ["Chamados finalizados, cancelados ou a baixar, filtrados pela data de encerramento.", "\"Tempo total\" vai da abertura até a Data Fim e define se ficou no prazo (até 6h)."],
   "/repetidos": ["Endereços, OLTs e PONs com chamados repetidos, para achar a causa que volta."],
-  "/visao-supervisores": ["Entrantes são os chamados que chegaram (pela abertura), sem Cancelado e sem GIGA+.", "Mês e semana contam até hoje; a média divide pelos dias corridos.", "TME: tempo médio da abertura até a Data Fim dos finalizados no período.", "Os filtros de área e tipo valem para todos os números da tela."],
+  "/visao-supervisores": ["Entrantes são os chamados que chegaram (pela abertura), inclusive GIGA+; só o Cancelado fica de fora.", "Mês e semana contam até hoje; a média divide pelos dias corridos.", "TME: tempo médio da abertura até a Data Fim dos finalizados no período (GIGA+ entra quando o OFS concluir).", "Os filtros de região e tipo valem para todos os números da tela."],
   "/supervisor/ordens": ["Ordens da sua equipe: atribua, acompanhe e finalize os chamados dos seus técnicos."],
   "/acionamentos": ["Cards recebidos do grupo de acionamento no WhatsApp.", "Aceitar cria o chamado com a abertura no horário em que o card foi enviado; a Data/Hora do Evento fica guardada.", "Recusar exige um motivo."],
   "/painel-diario": ["Produção do dia a partir da base importada: ordens, técnicos e atividades."],

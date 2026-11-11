@@ -1,14 +1,13 @@
 import { useRef, useState } from "react";
 import { CalendarDays, CalendarRange, Inbox, Timer } from "lucide-react";
-import { api, type SupervisorOverview, type SupervisorOverviewArea } from "../api";
+import { api, type SupervisorOverview } from "../api";
 import { toOperationalDate } from "../dates";
 import { DailyBars, KpiTile, Panel, formatCount, formatHours } from "../components/charts";
 import { useCachedData } from "../lib/data-cache";
 import { HourColumns } from "./SlaAnalysisPage";
 
-// Visao dos supervisores: quantos chamados entraram (por area, por dia e por horario), media por dia, TME e os
-// totais do mes e da semana. Entrante = chamado aberto no periodo, sem Cancelado e sem GIGA+.
-const AREA_LABEL: Record<SupervisorOverviewArea, string> = { SP: "SP", GRU: "GRU", ALTO_TIETE: "Alto Tietê", ABC: "ABC", OUTRAS: "Sem área" };
+// Visao dos supervisores: quantos chamados entraram (por regiao, por dia e por horario), media por dia, TME e os
+// totais do mes e da semana. Entrante = chamado aberto no periodo, sem Cancelado (GIGA+ conta).
 type Preset = "month" | "previous" | "quarter" | "custom";
 const iso = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
 function presetRange(preset: Preset, today: string) {
@@ -25,12 +24,12 @@ export function SupervisorOverviewPage() {
   const today = toOperationalDate();
   const [preset, setPreset] = useState<Preset>("month");
   const [range, setRange] = useState(() => presetRange("month", today));
-  const [area, setArea] = useState<SupervisorOverviewArea | "">("");
+  const [region, setRegion] = useState("");
   const [type, setType] = useState("");
   const lastValid = useRef(range);
   if (range.from && range.to && range.from <= range.to) lastValid.current = range;
   const query = lastValid.current;
-  const overview = useCachedData<SupervisorOverview>(`visao-supervisores:${query.from}:${query.to}:${area}:${type}`, () => api.supervisorOverview({ from: query.from, to: query.to, area: area || undefined, type: type || undefined }));
+  const overview = useCachedData<SupervisorOverview>(`visao-supervisores:${query.from}:${query.to}:${region}:${type}`, () => api.supervisorOverview({ from: query.from, to: query.to, region: region || undefined, type: type || undefined }));
   const data = overview.data ?? null;
 
   function choosePreset(next: Preset) {
@@ -60,9 +59,9 @@ export function SupervisorOverviewPage() {
             <label>De<input type="date" value={range.from} max={range.to} onChange={(event) => setRange({ ...range, from: event.target.value })} /></label>
             <label>Até<input type="date" value={range.to} min={range.from} onChange={(event) => setRange({ ...range, to: event.target.value })} /></label>
           </div>}
-          <label className="sa-area">Área<select value={area} onChange={(event) => setArea(event.target.value as SupervisorOverviewArea | "")}>
+          <label className="sa-area">Região<select value={region} onChange={(event) => setRegion(event.target.value)}>
             <option value="">Todas</option>
-            {(["SP", "GRU", "ALTO_TIETE", "ABC"] as SupervisorOverviewArea[]).map((item) => <option key={item} value={item}>{AREA_LABEL[item]}</option>)}
+            {(data?.regions ?? []).map((item) => <option key={item} value={item}>{item}</option>)}
           </select></label>
           <label className="sa-area">Tipo<select value={type} onChange={(event) => setType(event.target.value)}>
             <option value="">Todos</option>
@@ -80,13 +79,15 @@ export function SupervisorOverviewPage() {
         </div>
 
         <div className="sa-grid">
-          <Panel kicker="ÁREA" title="Entrantes por área">
+          <Panel kicker="REGIÃO" title="Entrantes por região" aside={<span className="sa-aside">{data.byRegion.length} região(ões)</span>}>
+            <div className="sv-region-scroll">
             <table className="sa-table sv-area-table">
-              <thead><tr><th>Área</th><th>Entrantes</th><th>% do total</th><th>Média/dia</th><th>Finalizados</th><th>TME</th></tr></thead>
+              <thead><tr><th>Região</th><th>Entrantes</th><th>% do total</th><th>Média/dia</th><th>Finalizados</th><th>TME</th></tr></thead>
               <tbody>
-                {data.byArea.map((row) => (
-                  <tr key={row.area}>
-                    <td>{AREA_LABEL[row.area]}</td>
+                {data.byRegion.length === 0 && <tr><td colSpan={6}>Nenhum chamado no período.</td></tr>}
+                {data.byRegion.slice(0, 100).map((row) => (
+                  <tr key={row.region}>
+                    <td>{row.region === "SEM REGIÃO" ? "Sem região" : row.region}</td>
                     <td><b>{formatCount(row.entrantes)}</b></td>
                     <td>{total ? `${Math.round((row.entrantes / total) * 100)}%` : "–"}</td>
                     <td>{(row.entrantes / data.period.days).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</td>
@@ -96,7 +97,8 @@ export function SupervisorOverviewPage() {
                 ))}
               </tbody>
             </table>
-            <p className="dv-footnote">Área pelo cluster do OFS ou, sem cluster, pela região do chamado. "Sem área" é região que ainda não tem área definida.</p>
+            </div>
+            <p className="dv-footnote">Região do chamado, da que mais recebeu para a que menos recebeu. "Sem região": chamado sem região informada.</p>
           </Panel>
           <Panel kicker="HORÁRIO" title="Entrantes por horário" aside={busiest && busiest.entrantes ? <span className="sa-aside">Pico: {hourLabel(busiest.hour)}</span> : undefined}>
             <HourColumns ariaLabel="Chamados que entraram por hora de abertura" max={maxHour} unit={(value) => formatCount(value)}
@@ -107,7 +109,7 @@ export function SupervisorOverviewPage() {
 
         <Panel kicker="DIA A DIA" title="Entrantes e finalizados por dia">
           <DailyBars days={data.byDay.map((day) => ({ date: day.day, opened: day.entrantes, finished: day.finalizados }))} />
-          <p className="dv-footnote">Entrante: chamado aberto no dia, sem Cancelado e sem GIGA+ (atendido pelo outro escritório). Finalizado: pela Data Fim.</p>
+          <p className="dv-footnote">Entrante: chamado aberto no dia, inclusive GIGA+; só o Cancelado fica de fora. Finalizado: pela Data Fim (GIGA+ quando o OFS concluir).</p>
         </Panel>
       </>}
     </div>

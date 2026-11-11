@@ -370,3 +370,8 @@
 .fa-link { display: grid; gap: 6px; margin: 10px 0; }
 .fa-link small { color: #5f6d84; font-size: 11px; line-height: 1.5; }
 @media (max-width: 640px) { .cl-row { grid-template-columns: 1fr; } .fd-actions { grid-template-columns: 1fr; } }
+
+/* Visao dos supervisores: tabela por regiao com rolagem propria (sao ~50 regioes) */
+.sv-region-scroll { max-height: 380px; overflow-y: auto; }
+.sv-region-scroll thead th { position: sticky; top: 0; z-index: 1; background: #fff; }
+:where(:root[data-theme="dark"]) .sv-region-scroll thead th { background: #181c22; }

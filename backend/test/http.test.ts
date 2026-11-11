@@ -1653,9 +1653,9 @@ test('supervisor sees every call (teams not split yet) and the supervisors overv
   assert.equal(await total(supervisor), await total(admin));
   const overview = await fetch(`${baseUrl}/api/visao-supervisores?from=2026-09-01&to=2026-11-11`, { headers: supervisor });
   assert.equal(overview.status, 200);
-  const body = await overview.json() as { period: { entrantes: number }; byHour: unknown[]; byArea: unknown[] };
+  const body = await overview.json() as { period: { entrantes: number }; byHour: unknown[]; byRegion: unknown[]; regions: string[] };
   assert.equal(body.byHour.length, 24);
-  assert.ok(body.byArea.length >= 4);
+  assert.ok(Array.isArray(body.byRegion) && Array.isArray(body.regions));
   assert.equal((await fetch(`${baseUrl}/api/visao-supervisores?from=2026-11-10&to=2026-11-01`, { headers: admin })).status, 400);
   assert.equal((await fetch(`${baseUrl}/api/visao-supervisores?from=2026-01-01&to=2026-11-11`, { headers: admin })).status, 400);
 });
