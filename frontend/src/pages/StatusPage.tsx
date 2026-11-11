@@ -4,7 +4,8 @@ import { CircleCheck, CircleHelp, CircleX, Database, HardDriveDownload, MessageC
 import { api, type SystemStatus, type SystemStatusLevel } from "../api";
 import faviconUrl from "../../image/favicon.ico";
 
-// Status do sistema (aberta sem login): servidor, banco, coleta do OFS, WhatsApp e backup. Atualiza a cada 30 s.
+// Status do sistema (aberta sem login): servidor, banco, coleta do OFS, WhatsApp e backup. Atualiza a cada 1 min
+// (so com a aba visivel); o servidor guarda o resultado 1 min, entao varias pessoas com a pagina aberta nao somam.
 // Se o servidor nao responde, mostra "fora do ar" sem depender dele.
 const ICONS: Record<string, typeof Server> = { server: Server, database: Database, ofs: Truck, whatsapp: MessageCircle, backup: HardDriveDownload };
 const LEVEL: Record<SystemStatusLevel, { label: string; icon: typeof CircleCheck }> = {
@@ -39,7 +40,7 @@ export function StatusPage() {
   }
   useEffect(() => {
     void load();
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 30_000);
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 60_000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -57,7 +58,7 @@ export function StatusPage() {
           <OverallIcon size={26} aria-hidden="true" />
           <div>
             <strong>{data ? HEADLINE[overall] : "Consultando..."}</strong>
-            <span>{lastLoad ? `Atualizado às ${lastLoad.toLocaleTimeString("pt-BR")} · confere de novo a cada 30 s` : "Consultando o servidor..."}</span>
+            <span>{lastLoad ? `Atualizado às ${lastLoad.toLocaleTimeString("pt-BR")} · confere de novo a cada 1 min` : "Consultando o servidor..."}</span>
           </div>
           <button type="button" className="secondary-button compact" onClick={() => void load()} disabled={loading}><RefreshCw size={14} aria-hidden="true" />{loading ? "Atualizando..." : "Atualizar"}</button>
         </section>

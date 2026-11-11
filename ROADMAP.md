@@ -5658,3 +5658,13 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - `npm run build` (o mesmo da Vercel);
   - preview com o servidor no ar e desligado;
   - auditoria de contraste sem nada abaixo de 4,5:1 nos dois temas.
+
+## Página de status mais leve: 1 minuto e consulta mínima (2026-11-11)
+- **Pergunta do usuário**: "30 s não usa muita requisição?"
+- **Antes**: a página consultava o servidor a cada 30 s, e o servidor guardava o resultado 30 s. A consulta de eventos trazia até 48 h de envios do OFS (até 500 linhas com os detalhes). Com a página aberta o dia todo, isso podia somar dezenas de MB por dia no limite de tráfego do banco.
+- **Agora**:
+  - a página atualiza a cada **1 min**, só com a aba visível;
+  - o servidor guarda o resultado por **1 min**: com várias pessoas com a página aberta, no máximo uma rodada de checagem por minuto;
+  - a checagem lê só os **10 últimos envios do OFS e os 3 últimos backups**, com 5 colunas (id, tipo, ok, data e detalhes). Mais o teste leve do banco (`head`, sem linhas), que não traz dados;
+  - em uso normal, o tráfego do banco por dia com a página aberta fica na casa de poucos MB.
+- **Arquivos de tema**: os gerados pelo build (`theme-dark.css`, `theme-light-contrast.css`, `themes/*.css`) foram regenerados para incluir as telas novas (chaves, status, backup, visão dos supervisores). A Vercel já os regenera a cada publicação, então isso só deixa o repositório igual ao que está no ar. Auditoria de contraste refeita nas telas de chaves, visão dos supervisores e configurações com esses arquivos: nada abaixo de 4,5:1.

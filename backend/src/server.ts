@@ -238,7 +238,7 @@ function clearLoginAttempts(request: Request, email: string) {
 }
 
 app.get('/health', (_request, response) => response.json({ status: 'ok', service: 'jh-redeflow-api' }));
-// Pagina de status (sem login: quando o banco cai, o login cai junto). Resultado guardado por 30 s para a pagina
+// Pagina de status (sem login: quando o banco cai, o login cai junto). Resultado guardado por 60 s para a pagina
 // aberta em varios computadores nao bater no banco e no WuzAPI a cada atualizacao.
 let systemStatusCache: { at: number; body: ReturnType<typeof buildSystemStatus> } | null = null;
 async function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
@@ -252,6 +252,18 @@ async function checkDatabase() {
     if (error) return { configured: true, ok: false, ms: null, error: error.message.slice(0, 120) };
     return { configured: true, ok: true, ms: Date.now() - started, economyMode: currentMode() };
   } catch (error) { return { configured: true, ok: false, ms: null, error: error instanceof Error ? error.message.slice(0, 120) : 'erro' }; }
+}
+// So os ultimos eventos (10 da coleta, 3 do backup) e so as colunas usadas: a pagina pode ficar aberta o dia todo.
+async function latestStatusEvents() {
+  if (!isSupabaseConfigured()) return listIntegrationEvents(48, ['export', 'db_backup']);
+  const admin = getSupabaseAdmin();
+  const read = async (kind: 'export' | 'db_backup', limit: number) => {
+    const { data, error } = await admin.from('integration_events').select('id, kind, ok, created_at, details').eq('kind', kind).order('created_at', { ascending: false }).limit(limit);
+    if (error) throw new Error(error.message);
+    return (data || []).map((row) => ({ id: String(row.id), kind, ok: Boolean(row.ok), summary: '', details: (row.details || {}) as Record<string, unknown>, createdAt: String(row.created_at) }));
+  };
+  const [exports, backups] = await Promise.all([read('export', 10), read('db_backup', 3)]);
+  return [...exports, ...backups];
 }
 async function checkWhatsApp() {
   const config = whatsappConfig();
@@ -267,9 +279,9 @@ async function checkWhatsApp() {
   } catch (error) { return { configured: true, connected: null, loggedIn: null, error: error instanceof Error ? error.message.slice(0, 80) : 'erro', lastMessageAt }; }
 }
 app.get('/api/status', async (_request, response) => {
-  if (!systemStatusCache || Date.now() - systemStatusCache.at > 30_000) {
+  if (!systemStatusCache || Date.now() - systemStatusCache.at > 60_000) {
     const [database, whatsapp] = await Promise.all([checkDatabase(), checkWhatsApp()]);
-    const events = database.ok || !database.configured ? await listIntegrationEvents(48, ['export', 'db_backup']).catch(() => []) : [];
+    const events = database.ok || !database.configured ? await latestStatusEvents().catch(() => []) : [];
     const body = buildSystemStatus({ now: Date.now(), uptimeSeconds: process.uptime(), version: process.env.RENDER_GIT_COMMIT?.slice(0, 7) || null, database, events, whatsapp, backupConfigured: Boolean(backupConfig()) });
     systemStatusCache = { at: Date.now(), body };
   }
