@@ -13,7 +13,6 @@ export const navItems: NavItem[] = [
   { section: "Operação", label: "Repetidos", to: "/repetidos", icon: Repeat2, permission: "calls.view" },
   { section: "Operação", label: "Ordens da equipe", to: "/supervisor/ordens", icon: ClipboardCheck, permission: "calls.view", roles: ["Supervisor"] },
   { section: "Operação", label: "Mapa da fila", to: "/mapa", icon: MapIcon, permission: "calls.view" },
-  { section: "Operação", label: "Chaves dos POPs", to: "/chaves", icon: KeyRound, permission: "calls.view" },
   { section: "Operação", label: "Acionamentos", to: "/acionamentos", icon: BellRing, permission: "activations.view", counter: "activations" },
   { section: "Indicadores", label: "Visão dos supervisores", to: "/visao-supervisores", icon: Binoculars, permission: "dashboard.view" },
   { section: "Indicadores", label: "Painel diário", to: "/painel-diario", icon: CalendarDays, permission: "dashboard.view" },
@@ -26,6 +25,7 @@ export const navItems: NavItem[] = [
   { section: "Equipes", label: "Carga dos técnicos", to: "/carga", icon: UsersRound, permission: "calls.view" },
   // Aberta a todos (so leitura): perfis e quem esta online.
   { section: "Equipes", label: "Pessoas", to: "/pessoas", icon: Contact, permission: "" },
+  { section: "Administração", label: "Chaves dos POPs", to: "/chaves", icon: KeyRound, permission: "calls.view" },
   { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
   { section: "Administração", label: "Histórico de alterações", to: "/historico-alteracoes", icon: History, permission: "calls.view_logs" },
   { section: "Administração", label: "Integração OFS", to: "/integracao-ofs", icon: Activity, permission: "imports.view" },

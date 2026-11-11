@@ -5631,3 +5631,9 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - teste de ponta a ponta: 40 POPs; o Supervisor não registra (403); foto inválida recusada; retirada com foto; segunda retirada recusada (409); histórico e foto; devolução; POP novo só com `settings.manage`, sem repetir;
   - preview: retirada com foto escolhida, foto no cartão e no histórico, devolução, "Está na base", Esc fechando a janela;
   - auditoria de contraste sem nada abaixo de 4,5:1 nos dois temas; o campo "Quem retirou" ganhou o estilo dos outros campos.
+
+## Chaves dos POPs: build corrigido e tela em Administração (2026-11-11)
+- **Problema**: a tela não apareceu porque o **build da Vercel falhou** no commit 1091110. O `tsc -b` do build recusou `navigator.mediaDevices?.getUserMedia && ...` (TS2774: a função sempre existe nos tipos). A checagem local usada antes (`tsc --noEmit -p .`) não pegou. Os deploys anteriores estavam todos certos (READY).
+- **Correção**: a condição passou a ser `typeof navigator.mediaDevices?.getUserMedia === "function"`. `npm run build` (o mesmo da Vercel) agora passa.
+- **Pedido do usuário**: a tela foi para a seção **Administração** do menu (antes em Operação), e o título da tela e a novidade acompanham.
+- **Daqui em diante**: a checagem do frontend antes de subir é `npm run build`, e depois de subir confiro na Vercel se o deploy ficou READY.

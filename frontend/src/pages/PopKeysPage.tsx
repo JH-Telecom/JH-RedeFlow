@@ -55,7 +55,7 @@ export function PopKeysPage({ user }: { user: User & { role: Role } }) {
     <div className="pk-page">
       <div className="page-heading">
         <div>
-          <span className="section-kicker">OPERAÇÃO</span>
+          <span className="section-kicker">ADMINISTRAÇÃO</span>
           <h1>Chaves dos POPs</h1>
           <p>Quem está com cada chave e desde quando. Na retirada dá para tirar uma foto da pessoa com a chave.</p>
         </div>
@@ -179,7 +179,7 @@ function TakeModal({ popKey, onClose, onSaved }: { popKey: PopKey; onClose: () =
             <CameraCapture onCapture={(value) => { setPhoto(value); setCamera(false); }} onCancel={() => setCamera(false)} onError={(message) => { setError(message); setCamera(false); }} />
           ) : (
             <div className="pk-photo-buttons">
-              {typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia && <button type="button" className="secondary-button compact" onClick={() => setCamera(true)}><Camera size={15} aria-hidden="true" /> Usar a câmera</button>}
+              {typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function" && <button type="button" className="secondary-button compact" onClick={() => setCamera(true)}><Camera size={15} aria-hidden="true" /> Usar a câmera</button>}
               <button type="button" className="secondary-button compact" onClick={() => fileInput.current?.click()}><ImagePlus size={15} aria-hidden="true" /> Escolher foto</button>
               <input ref={fileInput} type="file" accept="image/*" capture="user" hidden onChange={(event) => void pickFile(event)} />
             </div>
