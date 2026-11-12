@@ -20,3 +20,15 @@
 .call-notes-item .history-avatar{background:#e8eef7;color:#4a5a70}
 .call-notes-item small{color:#5c6b80}
 .call-notes-item .call-notes-text{white-space:pre-wrap;color:#3d4b5f}
+
+/* Status do dia e observacao dos tecnicos (12/11/2026) */
+.duty-select { min-width: 140px; font-weight: 600; }
+.duty-select.is-green { color: #116b40; border-color: #9fd9bd; background-color: #effaf4; }
+.duty-select.is-blue { color: #0845ae; border-color: #a9c6f5; background-color: #eef4ff; }
+.duty-select.is-amber { color: #8a4b00; border-color: #f0cf96; background-color: #fff7e8; }
+.duty-select.is-red { color: #a3262a; border-color: #f0b4b6; background-color: #fff1f1; }
+.duty-select.is-gray { color: #45536b; border-color: #d5dce7; background-color: #f4f6f9; }
+.duty-note { width: 100%; min-width: 160px; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #17233b; font-size: 12px; }
+.duty-note:hover { border-color: #dce4ef; }
+.duty-note:focus { border-color: #76a9f4; background: #fff; }
+.duty-note::placeholder { color: #6f7d93; }

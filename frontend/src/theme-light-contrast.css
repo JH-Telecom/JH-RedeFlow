@@ -298,6 +298,27 @@
 :where(:root:not([data-theme="dark"])) .call-notes-item .call-notes-text {
     color: #3d4b5f
 }
+:where(:root:not([data-theme="dark"])) .duty-select.is-green {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .duty-select.is-blue {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .duty-select.is-amber {
+    color: #8a4b00
+}
+:where(:root:not([data-theme="dark"])) .duty-select.is-red {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .duty-select.is-gray {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .duty-note {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .duty-note::placeholder {
+    color: #5c6a7f
+}
 
 /* supervisor-overrides.css */
 :where(:root:not([data-theme="dark"])) .supervisor-heading h2 {
@@ -1378,6 +1399,166 @@
 }
 :where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .st-level.is-unknown {
     color: #656970
+}
+
+/* night-router.css */
+:where(:root:not([data-theme="dark"])) .nr-page h2 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .nr-muted {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .nr-notice {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .nr-status-head small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .nr-status-icon {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .nr-state.is-on {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .nr-state.is-test {
+    color: #8a4b00
+}
+:where(:root:not([data-theme="dark"])) .nr-state.is-off {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .nr-switch {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .nr-rules {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .nr-table th, :where(:root:not([data-theme="dark"])) .nr-table td {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .nr-table thead th {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .nr-table select {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .nr-table select.has-value {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .nr-row-actions .icon-button {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .nr-result.is-ok {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .nr-result.is-test {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .nr-result.is-skip {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .nr-result.is-error {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .nr-message {
+    color: #45536b
+}
+
+/* jota-h.css */
+:where(:root:not([data-theme="dark"])) .jw-launcher {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-head {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-head-avatar {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-head-text strong {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-head-text small {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-head-button {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-avatar {
+    color: #0056d9
+}
+:where(:root:not([data-theme="dark"])) .jw-bubble {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-bubble strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-user {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-topics button, :where(:root:not([data-theme="dark"])) .jw-chips button {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .jw-muted {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .jw-error {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .jw-icon {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .jw-icon:hover:not(:disabled), :where(:root:not([data-theme="dark"])) .jw-icon[aria-pressed="true"] {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .jw-rate {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .jw-table th, :where(:root:not([data-theme="dark"])) .jw-table td {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-table th {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .jw-pager {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .jw-tile span {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .jw-tile strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-sql {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-suggestions button {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .jw-send {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jw-foot {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .jw-usage h3 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-usage h4 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-usage-tiles span {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .jw-usage-tiles strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-usage-tiles small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .jw-empty-list {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .jw-empty-list span {
+    color: #4f5d73
 }
 
 /* select-search.css */

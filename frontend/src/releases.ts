@@ -9,6 +9,15 @@ export type Release = { id: string; label: string; items: ReleaseItem[] };
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-12",
+    label: "12/11",
+    items: [
+      { icon: "user", tag: "Melhoria", title: "Status do dia dos técnicos", text: "Em Técnicos, a coluna Status agora tem os status da escala (Ativo, Folga, Falta, Ativar às 13:00, Interjornada, Atestado, Vindo na base, Ativar às 22:00, Saiu de rota, Frota, Férias) e há uma coluna Obs. Filtre por Ativo e use \"Copiar imagem\" para mandar a atualização no WhatsApp.", permission: "technicians.view" },
+      { icon: "sparkles", tag: "Novo", title: "Jota H, o assistente de dados", text: "Clique no robô no canto inferior direito, em qualquer tela, e pergunte em português (\"quantos chamados entraram hoje por região?\"). Ele responde com a tabela, direto do banco e só leitura. A IA só recebe a sua pergunta, nunca os dados. Dá para avaliar cada resposta com 👍 ou 👎.", permission: "dashboard.view" },
+      { icon: "chrome", tag: "Novo", title: "Roteirizador da madrugada", text: "Das 00h às 06h, a extensão do computador da coleta move no OFS os chamados sem técnico para o técnico de plantão da região. Escala, liga/desliga, modo teste e o que o robô fez ficam em Administração › Roteirizador. Precisa da extensão 1.10.0.", permission: "imports.view" },
+    ],
+  },
+  {
     id: "2026-11-11",
     label: "11/11",
     items: [

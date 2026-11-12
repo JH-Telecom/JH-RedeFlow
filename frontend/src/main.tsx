@@ -27,6 +27,8 @@ import './db-usage.css';
 import './backup.css';
 import './pop-keys.css';
 import './status-page.css';
+import './night-router.css';
+import './jota-h.css';
 import './select-search.css';
 import './activation-toast.css';
 import './settings-olt.css';

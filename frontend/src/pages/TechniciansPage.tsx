@@ -6,6 +6,7 @@ import { api, type Technician, type Supervisor } from "../api";
 import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal, DetailItem, Metric } from "../components/ui";
 import { Pager, usePaged } from "../components/Pager";
+import { DUTY_STATUSES, dutyOf, dutyTone, isWorkingDuty } from "../lib/duty-status";
 
 export function TechniciansPage() {
   // Lista longa rola dentro do cartao (cabecalho fixo); lista curta continua compacta.
@@ -21,7 +22,9 @@ export function TechniciansPage() {
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [editingTechnician, setEditingTechnician] = useState<Technician | null>(null);
   const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
-  const [form, setForm] = useState({ name: "", registration: "", supervisorId: "", teamRole: "Tecnico" as Technician["teamRole"], leadTechnicianId: "", region: "", shift: "", currentStatus: "Disponivel" as Technician["currentStatus"], active: true, employmentStatus: "Trabalhando" as Technician["employmentStatus"] });
+  const emptyForm = { name: "", registration: "", supervisorId: "", teamRole: "Tecnico" as Technician["teamRole"], leadTechnicianId: "", region: "", shift: "", currentStatus: "Disponivel" as Technician["currentStatus"], active: true, employmentStatus: "Trabalhando" as Technician["employmentStatus"], dutyStatus: "", statusNote: "" };
+  const [form, setForm] = useState(emptyForm);
+  const [notes, setNotes] = useState<Record<string, string>>({});
   async function load() {
     try {
       const [technicianData, supervisorData] = await Promise.all([api.technicians(), api.supervisors()]);
@@ -35,11 +38,11 @@ export function TechniciansPage() {
   }, []);
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    try { await api.createTechnician({ ...form, supervisorId: form.supervisorId || undefined, leadTechnicianId: form.teamRole === "Auxiliar" ? form.leadTechnicianId || undefined : undefined }); setShowForm(false); setForm({ name: "", registration: "", supervisorId: "", teamRole: "Tecnico", leadTechnicianId: "", region: "", shift: "", currentStatus: "Disponivel", active: true, employmentStatus: "Trabalhando" }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar tecnico."); }
+    try { await api.createTechnician({ ...form, supervisorId: form.supervisorId || undefined, leadTechnicianId: form.teamRole === "Auxiliar" ? form.leadTechnicianId || undefined : undefined }); setShowForm(false); setForm(emptyForm); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar tecnico."); }
   }
   function editTechnician(technician: Technician) {
     setError("");
-    setForm({ name: technician.name, registration: technician.registration, supervisorId: technician.supervisorId || "", teamRole: technician.teamRole, leadTechnicianId: technician.leadTechnicianId || "", region: technician.region, shift: technician.shift, currentStatus: technician.currentStatus, active: technician.active, employmentStatus: technician.employmentStatus || "Trabalhando" });
+    setForm({ name: technician.name, registration: technician.registration, supervisorId: technician.supervisorId || "", teamRole: technician.teamRole, leadTechnicianId: technician.leadTechnicianId || "", region: technician.region, shift: technician.shift, currentStatus: technician.currentStatus, active: technician.active, employmentStatus: technician.employmentStatus || "Trabalhando", dutyStatus: dutyOf(technician), statusNote: technician.statusNote || "" });
     setSelectedTechnician(null);
     setEditingTechnician(technician);
   }
@@ -55,8 +58,8 @@ export function TechniciansPage() {
         ...(form.supervisorId !== (editingTechnician.supervisorId || "") ? { supervisorId: form.supervisorId } : {}),
         ...(form.teamRole !== editingTechnician.teamRole ? { teamRole: form.teamRole } : {}),
         ...(form.leadTechnicianId !== (editingTechnician.leadTechnicianId || "") || (form.teamRole !== editingTechnician.teamRole && form.teamRole === "Tecnico") ? { leadTechnicianId: form.teamRole === "Auxiliar" ? form.leadTechnicianId || null : null } : {}),
-        ...(form.currentStatus !== editingTechnician.currentStatus ? { currentStatus: form.currentStatus } : {}),
-        ...(form.active !== editingTechnician.active ? { active: form.active } : {}),
+        ...(form.dutyStatus && form.dutyStatus !== dutyOf(editingTechnician) ? { dutyStatus: form.dutyStatus } : {}),
+        ...(form.statusNote.trim() !== (editingTechnician.statusNote || "") ? { statusNote: form.statusNote.trim() || null } : {}),
         ...(form.employmentStatus !== editingTechnician.employmentStatus ? { employmentStatus: form.employmentStatus } : {}),
       });
       setTechnicians((items) => items.map((item) => item.id === result.technician.id ? result.technician : item));
@@ -68,46 +71,43 @@ export function TechniciansPage() {
     }
   }
   const regions = [...new Set(technicians.map((technician) => technician.region))];
-  const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (roleFilter === "Todos" || technician.teamRole === roleFilter) && (statusFilter === "Todos" || technician.currentStatus === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
+  const visibleTechnicians = technicians.filter((technician) => `${technician.name} ${technician.registration} ${technician.region}`.toLowerCase().includes(query.toLowerCase()) && (roleFilter === "Todos" || technician.teamRole === roleFilter) && (statusFilter === "Todos" || dutyOf(technician) === statusFilter) && (regionFilter === "Todas" || technician.region === regionFilter));
   const pagedTechnicians = usePaged(visibleTechnicians, visibleTechnicians.length);
   const filtersActive = Boolean(query.trim()) || roleFilter !== "Todos" || statusFilter !== "Todos" || regionFilter !== "Todas";
   // Imagem da equipe (para mandar a atualizacao no WhatsApp): todos os da lista com os filtros atuais, ate 100.
   const [copyState, setCopyState] = useState<"idle" | "working" | "copied" | "downloaded" | "error">("idle");
   async function copyTeamImage() {
     setCopyState("working");
-    const situationTone = (value: Technician["currentStatus"]): ReportTone => (value === "Disponivel" ? "green" : value === "Em campo" ? "blue" : "red");
     const list = visibleTechnicians.slice(0, 100);
     const helpersOf = (id: string) => technicians.filter((item) => item.teamRole === "Auxiliar" && item.leadTechnicianId === id).map((item) => item.name);
     const columns: ReportColumn[] = [
       { label: "Técnico", width: 330 },
-      { label: "Tipo", width: 120 },
-      { label: "Supervisor", width: 190 },
-      { label: "Turno", width: 150 },
-      { label: "Situação", width: 160 },
-      { label: "Status", width: 120 },
+      { label: "Região", width: 170 },
+      { label: "Supervisor", width: 180 },
+      { label: "Status", width: 150 },
+      { label: "Obs", width: 260 },
     ];
     const rows: ReportCell[][] = list.map((technician) => {
       const helpers = technician.teamRole === "Tecnico" ? helpersOf(technician.id) : [];
       const lead = technician.teamRole === "Auxiliar" ? technician.leadTechnicianName : undefined;
       return [
         { text: technician.name, strong: true, sub: helpers.length ? `Auxiliar: ${helpers.join(", ")}` : lead ? `Com ${lead}` : undefined },
-        { text: technician.teamRole === "Auxiliar" ? "Auxiliar" : "Técnico", tone: "muted" },
+        { text: technician.region || "—" },
         { text: technician.supervisorName || "Sem supervisor" },
-        { text: technician.shift || "A definir" },
-        { text: technician.currentStatus, tone: situationTone(technician.currentStatus) },
-        { text: technician.active ? "Ativo" : "Inativo", tone: technician.active ? "green" : "gray" },
+        { text: dutyOf(technician) || "—", tone: dutyTone(dutyOf(technician)) as ReportTone },
+        { text: technician.statusNote || "", tone: "muted" },
       ];
     });
     const filtered = filtersActive;
     const stamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
-    const available = list.filter((item) => item.currentStatus === "Disponivel").length;
-    const inField = list.filter((item) => item.currentStatus === "Em campo").length;
+    const working = list.filter((item) => isWorkingDuty(dutyOf(item))).length;
+    const away = list.filter((item) => dutyOf(item) && !isWorkingDuty(dutyOf(item))).length;
     const title = roleFilter === "Auxiliar" ? "Auxiliares" : roleFilter === "Tecnico" ? "Técnicos" : "Técnicos e auxiliares";
     try {
       const copied = await shareReportImage({
         kicker: "JH Telecom · Rede",
         title,
-        subtitle: `${available} disponíveis · ${inField} em campo${filtered ? " · com os filtros atuais" : ""} · ${stamp}`,
+        subtitle: `${working} ativos · ${away} fora${filtered ? " · com os filtros atuais" : ""} · ${stamp}`,
         badge: `${list.length} ${list.length === 1 ? "pessoa" : "pessoas"}`,
         columns,
         rows,
@@ -119,11 +119,18 @@ export function TechniciansPage() {
     }
     window.setTimeout(() => setCopyState("idle"), 2200);
   }
-  async function changeStatus(technician: Technician, currentStatus: Technician["currentStatus"]) {
-    try { const result = await api.updateTechnician(technician.id, { currentStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar status."); }
+  // Status do dia (substitui Situacao e Ativo/Inativo): ao trocar, o sistema acerta ativo/inativo sozinho.
+  async function changeDuty(technician: Technician, dutyStatus: string) {
+    if (!dutyStatus) return;
+    try { const result = await api.updateTechnician(technician.id, { dutyStatus }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar o status."); }
   }
-  async function changeActive(technician: Technician, active: boolean) {
-    try { const result = await api.updateTechnician(technician.id, { active }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel atualizar a ativacao."); }
+  async function saveNote(technician: Technician) {
+    const draft = notes[technician.id];
+    if (draft === undefined) return;
+    const next = draft.trim();
+    setNotes((current) => { const copy = { ...current }; delete copy[technician.id]; return copy; });
+    if (next === (technician.statusNote || "")) return;
+    try { const result = await api.updateTechnician(technician.id, { statusNote: next || null }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel salvar a observacao."); }
   }
   async function assignAssistant(technician: Technician, leadTechnicianId: string) {
     try { const result = await api.updateTechnician(technician.id, { leadTechnicianId: leadTechnicianId || null }); setTechnicians((items) => items.map((item) => item.id === result.technician.id ? { ...item, ...result.technician } : item)); setSelectedTechnician(result.technician); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel vincular o auxiliar."); }
@@ -160,23 +167,15 @@ export function TechniciansPage() {
           positive
         />
         <Metric
-          label="Em campo"
-          value={String(
-            visibleTechnicians.filter(
-              (technician) => technician.employmentStatus !== "Demitido" && technician.currentStatus === "Em campo",
-            ).length,
-          )}
-          note="Atendimento em curso"
+          label="Ativos"
+          value={String(visibleTechnicians.filter((technician) => technician.employmentStatus !== "Demitido" && isWorkingDuty(dutyOf(technician))).length)}
+          note="Ativo, vindo na base ou saiu de rota"
+          positive
         />
         <Metric
-          label="Disponiveis"
-          value={String(
-            visibleTechnicians.filter(
-              (technician) => technician.employmentStatus !== "Demitido" && technician.currentStatus === "Disponivel",
-            ).length,
-          )}
-          note="Prontos para atribuicao"
-          positive
+          label="Fora hoje"
+          value={String(visibleTechnicians.filter((technician) => technician.employmentStatus !== "Demitido" && dutyOf(technician) && !isWorkingDuty(dutyOf(technician))).length)}
+          note="Folga, falta, atestado, férias, frota..."
         />
         <Metric
           label="Regioes"
@@ -195,7 +194,7 @@ export function TechniciansPage() {
           <button className="secondary-button compact" onClick={() => setShowFilters((current) => !current)}>
             <SlidersHorizontal size={15} /> Filtros
           </button>
-          {showFilters && <><select className="toolbar-select" aria-label="Filtrar por tipo" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as Technician["teamRole"] | "Todos")}><option value="Todos">Todos os tipos</option><option value="Tecnico">Técnicos</option><option value="Auxiliar">Auxiliares</option></select><select className="toolbar-select" aria-label="Filtrar por situação operacional" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Todos</option><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select></>}
+          {showFilters && <><select className="toolbar-select" aria-label="Filtrar por tipo" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as Technician["teamRole"] | "Todos")}><option value="Todos">Todos os tipos</option><option value="Tecnico">Técnicos</option><option value="Auxiliar">Auxiliares</option></select><select className="toolbar-select" aria-label="Filtrar por status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="Todos">Todos os status</option>{DUTY_STATUSES.map((status) => <option key={status}>{status}</option>)}</select><select className="toolbar-select" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)}><option>Todas</option>{regions.map((region) => <option key={region}>{region}</option>)}</select></>}
         </div>
         {error ? (
           <div className="empty-state">{error}</div>
@@ -210,8 +209,8 @@ export function TechniciansPage() {
                 <th>Supervisor</th>
                 <th>Regiao</th>
                 <th>Turno</th>
-                <th>Situacao</th>
                 <th>Status</th>
+                <th>Obs</th>
               </tr>
             </thead>
             <tbody>
@@ -235,15 +234,13 @@ export function TechniciansPage() {
                   <td>{technician.region}</td>
                   <td>{technician.shift}</td>
                   <td>
-                    <select className="status-select" value={technician.currentStatus} onClick={(event) => event.stopPropagation()} onChange={(event) => changeStatus(technician, event.target.value as Technician["currentStatus"])} aria-label={`Status de ${technician.name}`}>
-                      <option>Disponivel</option><option>Em campo</option><option>Indisponivel</option>
+                    <select className={`status-select duty-select is-${dutyTone(dutyOf(technician))}`} value={dutyOf(technician)} onClick={(event) => event.stopPropagation()} onChange={(event) => void changeDuty(technician, event.target.value)} aria-label={`Status de ${technician.name}`}>
+                      {!dutyOf(technician) && <option value="">—</option>}
+                      {DUTY_STATUSES.map((status) => <option key={status}>{status}</option>)}
                     </select>
                   </td>
                   <td>
-                    <select className="status-select" value={technician.active ? "true" : "false"} onClick={(event) => event.stopPropagation()} onChange={(event) => void changeActive(technician, event.target.value === "true")} aria-label={`Ativacao de ${technician.name}`}>
-                      <option value="true">Ativo</option>
-                      <option value="false">Inativo</option>
-                    </select>
+                    <input className="duty-note" value={notes[technician.id] ?? technician.statusNote ?? ""} placeholder="Obs." maxLength={300} onClick={(event) => event.stopPropagation()} onChange={(event) => setNotes((current) => ({ ...current, [technician.id]: event.target.value }))} onBlur={() => void saveNote(technician)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} aria-label={`Observação de ${technician.name}`} title={technician.statusUpdatedAt ? `Atualizado em ${new Date(technician.statusUpdatedAt).toLocaleString("pt-BR")}` : undefined} />
                   </td>
                 </tr>
               ))}
@@ -260,19 +257,18 @@ export function TechniciansPage() {
         <label>Supervisor<select value={form.supervisorId} onChange={(event) => setForm({ ...form, supervisorId: event.target.value })}><option value="">Sem supervisor</option>{supervisors.map((supervisor) => <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>)}</select></label>
         <label>Regiao<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} /></label>
         <label>Turno<input value={form.shift} onChange={(event) => setForm({ ...form, shift: event.target.value })} placeholder="07:00 - 16:00" required /></label>
-        <label>Status<select value={form.currentStatus} onChange={(event) => setForm({ ...form, currentStatus: event.target.value as Technician["currentStatus"] })}><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select></label>
         <button className="primary-button" type="submit">Cadastrar tecnico <ChevronRight size={16} /></button>
       </form></AdminModal>}
       {selectedTechnician && <AdminModal title={selectedTechnician.name} onClose={() => setSelectedTechnician(null)}>
         <div className="detail-grid">
-          <DetailItem label="Tipo" value={selectedTechnician.teamRole} /><DetailItem label="Matrícula" value={selectedTechnician.registration} /><DetailItem label="Região" value={selectedTechnician.region} /><DetailItem label="Turno" value={selectedTechnician.shift} /><DetailItem label="Supervisor" value={selectedTechnician.supervisorName || "Sem supervisor"} /><DetailItem label="Situação operacional" value={selectedTechnician.currentStatus} />
+          <DetailItem label="Tipo" value={selectedTechnician.teamRole} /><DetailItem label="Matrícula" value={selectedTechnician.registration} /><DetailItem label="Região" value={selectedTechnician.region} /><DetailItem label="Turno" value={selectedTechnician.shift} /><DetailItem label="Supervisor" value={selectedTechnician.supervisorName || "Sem supervisor"} /><DetailItem label="Status" value={dutyOf(selectedTechnician) || "—"} /><DetailItem label="Obs" value={selectedTechnician.statusNote || "—"} />
         </div>
         <button className="secondary-button compact" type="button" onClick={() => editTechnician(selectedTechnician)}><Pencil size={15}/> Editar cadastro</button>
         {selectedTechnician.teamRole === "Tecnico" && <TechnicianUserLink technicianId={selectedTechnician.id} />}
         {selectedTechnician.teamRole === "Tecnico" ? <div className="team-member-list"><strong>Auxiliares vinculados</strong>{technicians.filter((technician) => technician.leadTechnicianId === selectedTechnician.id).map((assistant) => <span key={assistant.id}>{assistant.name} · {assistant.registration}</span>)}{!technicians.some((technician) => technician.leadTechnicianId === selectedTechnician.id) && <small>Nenhum auxiliar vinculado.</small>}</div> : <label className="detail-label">Técnico responsável<select value={selectedTechnician.leadTechnicianId || ""} onChange={(event) => void assignAssistant(selectedTechnician, event.target.value)}><option value="">Sem vínculo</option>{technicians.filter((technician) => technician.teamRole === "Tecnico" && technician.id !== selectedTechnician.id).map((technician) => <option key={technician.id} value={technician.id}>{technician.name}</option>)}</select></label>}
         <button className="delete-button" type="button" onClick={() => void removeTechnician(selectedTechnician)}>Excluir técnico</button>
       </AdminModal>}
-      {editingTechnician && <AdminModal title={`Editar ${editingTechnician.teamRole === "Auxiliar" ? "auxiliar" : "técnico"}`} onClose={() => { setEditingTechnician(null); setForm({ name: "", registration: "", supervisorId: "", teamRole: "Tecnico", leadTechnicianId: "", region: "", shift: "", currentStatus: "Disponivel", active: true, employmentStatus: "Trabalhando" }); setError(""); }}><form className="admin-form" onSubmit={saveTechnicianEdits}>
+      {editingTechnician && <AdminModal title={`Editar ${editingTechnician.teamRole === "Auxiliar" ? "auxiliar" : "técnico"}`} onClose={() => { setEditingTechnician(null); setForm(emptyForm); setError(""); }}><form className="admin-form" onSubmit={saveTechnicianEdits}>
         <label>Nome<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} minLength={2} maxLength={160} required /></label>
         <label>Matrícula<input value={form.registration} onChange={(event) => setForm({ ...form, registration: event.target.value })} minLength={2} maxLength={80} required /></label>
         <label>Tipo<select value={form.teamRole} onChange={(event) => setForm({ ...form, teamRole: event.target.value as Technician["teamRole"], leadTechnicianId: "" })}><option value="Tecnico">Técnico</option><option value="Auxiliar">Auxiliar</option></select></label>
@@ -280,8 +276,8 @@ export function TechniciansPage() {
         <label>Supervisor<select value={form.supervisorId} onChange={(event) => setForm({ ...form, supervisorId: event.target.value })}><option value="">Sem supervisor</option>{supervisors.map((supervisor) => <option key={supervisor.id} value={supervisor.id}>{supervisor.name}</option>)}</select></label>
         <label>Região<input value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })} maxLength={100} /></label>
         <label>Turno<input value={form.shift} onChange={(event) => setForm({ ...form, shift: event.target.value })} minLength={2} maxLength={80} required /></label>
-        <label>Status<select value={form.currentStatus} onChange={(event) => setForm({ ...form, currentStatus: event.target.value as Technician["currentStatus"] })}><option>Disponivel</option><option>Em campo</option><option>Indisponivel</option></select></label>
-        <label>Status do cadastro<select value={form.active ? "true" : "false"} onChange={(event) => setForm({ ...form, active: event.target.value === "true" })}><option value="true">Ativo</option><option value="false">Inativo</option></select></label>
+        <label>Status<select value={form.dutyStatus} onChange={(event) => setForm({ ...form, dutyStatus: event.target.value })}>{!form.dutyStatus && <option value="">—</option>}{DUTY_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label>
+        <label>Obs<input value={form.statusNote} onChange={(event) => setForm({ ...form, statusNote: event.target.value })} maxLength={300} placeholder="Ex.: chega 9h, carro na oficina" /></label>
         {error && <div className="form-error">{error}</div>}
         <button className="primary-button" type="submit">Salvar alterações <ChevronRight size={16} /></button>
       </form></AdminModal>}

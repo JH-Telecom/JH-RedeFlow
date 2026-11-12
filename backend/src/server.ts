@@ -55,6 +55,11 @@ import { supervisorOverview } from './supervisor-overview.js';
 import { reacceptActivation } from './store/activations.js';
 import { buildSystemStatus } from './system-status.js';
 import { backupConfig } from './db-backup.js';
+import { addNightRuns, getNightRouterSettings, listNightRuns, listNightShifts, replaceNightShifts, saveNightRouterSettings } from './store/night-router.js';
+import { askJotaGemini, validateJotaSql } from './jota-h.js';
+import { DUTY_STATUSES } from './duty-status.js';
+import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
+import { isNightWindow, nightStartIso, pickNightOrders, regionKey } from './night-router.js';
 import { addPopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
@@ -878,7 +883,7 @@ app.post('/api/tecnicos', auth, requirePermission('technicians.create'), async (
   return response.status(201).json({ technician: await addTechnician(parsed.data) });
 });
 app.patch('/api/tecnicos/:id', auth, requirePermission('technicians.edit'), async (request, response) => {
-  const parsed = z.object({ name: z.string().trim().min(2).max(160).optional(), registration: z.string().trim().min(2).max(80).optional(), region: z.string().trim().max(100).optional(), shift: z.string().trim().min(2).max(80).optional(), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).optional(), leadTechnicianId: z.string().nullable().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional(), employmentStatus: z.enum(['Trabalhando', 'Demitido']).optional() }).safeParse(request.body);
+  const parsed = z.object({ name: z.string().trim().min(2).max(160).optional(), registration: z.string().trim().min(2).max(80).optional(), region: z.string().trim().max(100).optional(), shift: z.string().trim().min(2).max(80).optional(), supervisorId: z.string().optional(), teamRole: z.enum(['Tecnico', 'Auxiliar']).optional(), leadTechnicianId: z.string().nullable().optional(), currentStatus: z.enum(['Disponivel', 'Em campo', 'Indisponivel']).optional(), active: z.boolean().optional(), employmentStatus: z.enum(['Trabalhando', 'Demitido']).optional(), dutyStatus: z.enum(DUTY_STATUSES).nullable().optional(), statusNote: z.string().trim().max(300).transform((value) => value || null).nullable().optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Dados de tecnico invalidos.' });
   try {
     const technician = await updateTechnician(String(request.params.id), parsed.data);
@@ -1466,6 +1471,146 @@ app.post('/api/integrations/ofs/relato', async (request, response) => {
   // O ciclo vale pelo resultado geral; ordens com erro de leitura ficam no resumo (e o semaforo vira Atencao).
   await recordIntegrationEvent(tipo, ok, summary, { stage: 'extension', by: identity.label, versao, falhas, orderErrors: errors });
   return response.json({ ok: true });
+});
+// Roteirizador da madrugada (ver night-router.ts). A extensao pergunta a cada 15 min o que mover; fora das 00h-06h,
+// desligado ou sem escala, a lista vem vazia. Depois manda o resultado de cada ordem.
+app.get('/api/integrations/ofs/roteirizador/pendentes', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  try {
+    const settings = await getNightRouterSettings();
+    const janela = isNightWindow();
+    // "Rodar agora" no popup (forcar=1): fora da madrugada so vale no modo teste, que nao move nada.
+    const forced = request.query.forcar === '1' && settings.testMode;
+    if (!settings.enabled || (!janela && !forced)) return response.json({ ativo: settings.enabled, teste: settings.testMode, janela, ordens: [] });
+    const [calls, shifts, technicians, runs] = await Promise.all([listCalls(['Aberto', 'Atribuido', 'Atrelado']), listNightShifts(), listTechnicians(), listNightRuns({ since: nightStartIso(), limit: 500 })]);
+    return response.json({ ativo: true, teste: settings.testMode, janela, ordens: pickNightOrders(calls, shifts, technicians, runs, Date.now(), forced) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar a lista do roteirizador.' }); }
+});
+app.post('/api/integrations/ofs/roteirizador/resultado', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  const parsed = z.object({
+    maquina: z.string().trim().max(120).optional(),
+    itens: z.array(z.object({ callId: z.string().trim().min(1).max(100), os: z.string().trim().min(1).max(60), tecnicoId: z.string().trim().max(100), resultado: z.enum(['Movida', 'Teste', 'Erro', 'Pulada']), mensagem: z.string().trim().max(500).optional() })).max(50),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie o resultado das ordens.' });
+  try {
+    const settings = await getNightRouterSettings();
+    const technicians = await listTechnicians();
+    const actor = { ...ofsClosingActor(identity.label), id: 'system-night-router', name: `Roteirizador da madrugada${identity.label ? ` – ${identity.label}` : ''}` };
+    const runs: Array<Parameters<typeof addNightRuns>[0][number]> = [];
+    let atribuidos = 0;
+    for (const item of parsed.data.itens) {
+      const call = await getCall(item.callId);
+      const technician = technicians.find((tech) => tech.id === item.tecnicoId);
+      let message = item.mensagem || '';
+      // Moveu de verdade no OFS: o chamado ja recebe o tecnico (a proxima coleta confirma pelo Recurso).
+      if (item.resultado === 'Movida' && call && technician && !call.technicianId && ['Aberto', 'Atribuido', 'Atrelado'].includes(call.status)) {
+        const updated = await updateCall(call.id, { technicianId: technician.id, ...(call.status === 'Aberto' ? { status: 'Atribuido' as const } : {}) }, actor);
+        if (updated) atribuidos += 1;
+        else message = `${message}${message ? ' · ' : ''}movida no OFS, mas nao consegui atribuir aqui`;
+      }
+      runs.push({ callId: call?.id ?? null, orderNumber: item.os, region: call?.region ?? '', technicianId: technician?.id ?? null, technicianName: technician?.name ?? '', result: item.resultado, message, testMode: item.resultado === 'Teste' || settings.testMode });
+    }
+    await addNightRuns(runs, parsed.data.maquina || identity.label || null);
+    const count = (result: string) => runs.filter((run) => run.result === result).length;
+    const summary = `Roteirizador: ${count('Movida')} movida(s), ${count('Teste')} teste(s), ${count('Erro')} erro(s), ${count('Pulada')} pulada(s)`;
+    console.log(`[Roteirizador] ${actor.name}: ${summary}`);
+    void recordIntegrationEvent('night_router', count('Erro') === 0, summary, { stage: 'extension', by: identity.label, itens: parsed.data.itens.map((item) => ({ os: item.os, resultado: item.resultado, mensagem: item.mensagem })) });
+    return response.json({ ok: true, atribuidos });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel gravar o resultado.' }); }
+});
+// Tela Administracao > Roteirizador: ver (quem ve a Integracao OFS) e mudar (quem gerencia configuracoes).
+app.get('/api/roteirizador', auth, requirePermission('imports.view'), async (_request, response) => {
+  try {
+    const [settings, shifts, runs, technicians, calls, custom] = await Promise.all([getNightRouterSettings(), listNightShifts(), listNightRuns({ limit: 100 }), listTechnicians(), listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']), listCustomOperationalRegions().catch(() => [] as string[])]);
+    const regions = new Map<string, string>();
+    [...technicians.map((tech) => tech.region), ...calls.map((call) => call.region), ...custom, ...shifts.map((shift) => shift.region)].forEach((region) => { const key = regionKey(region); if (key && !regions.has(key)) regions.set(key, String(region).trim()); });
+    const waiting = calls.filter((call) => ['Aberto', 'Atribuido', 'Atrelado'].includes(call.status) && !call.technicianId).length;
+    return response.json({ settings, shifts, runs, regions: [...regions.values()].sort((left, right) => left.localeCompare(right, 'pt-BR')), technicians: technicians.filter((tech) => tech.teamRole === 'Tecnico' && tech.employmentStatus !== 'Demitido').map((tech) => ({ id: tech.id, name: tech.name, region: tech.region })), janela: isNightWindow(), semTecnico: waiting });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o roteirizador.' }); }
+});
+app.put('/api/roteirizador/config', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ enabled: z.boolean(), testMode: z.boolean() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Configuracao invalida.' });
+  try { return response.json({ settings: await saveNightRouterSettings(parsed.data, request.authUser!.name) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar.' }); }
+});
+app.put('/api/roteirizador/escala', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ shifts: z.array(z.object({ region: z.string().trim().min(1).max(160), weekday: z.number().int().min(0).max(6), technicianId: z.string().trim().min(1).max(100) })).max(1000) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Escala invalida.' });
+  try {
+    const known = new Set((await listTechnicians()).map((tech) => tech.id));
+    if (parsed.data.shifts.some((shift) => !known.has(shift.technicianId))) return response.status(422).json({ message: 'A escala tem um tecnico que nao existe mais.' });
+    return response.json({ shifts: await replaceNightShifts(parsed.data.shifts) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar a escala.' }); }
+});
+// Jota H: pergunta em portugues -> Gemini monta o SELECT (sem ver dados) -> roda no banco so leitura (jota_consultar)
+// -> volta a tabela. Quem ve os indicadores pode usar. No maximo 20 perguntas por minuto por pessoa. Cada pergunta fica
+// registrada (sem o resultado) para o painel de uso e a avaliacao 👍/👎.
+const jotaRate = new Map<string, number[]>();
+app.post('/api/jota-h', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  const parsed = z.object({
+    pergunta: z.string().trim().min(3).max(500),
+    contexto: z.array(z.object({ pergunta: z.string().trim().max(500), sql: z.string().trim().max(6000).optional() })).max(5).optional(),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Escreva a pergunta (de 3 a 500 letras).' });
+  const user = request.authUser!;
+  const now = Date.now();
+  const recent = (jotaRate.get(user.id) || []).filter((at) => now - at < 60_000);
+  if (recent.length >= 20) return response.status(429).json({ message: 'Muitas perguntas seguidas. Espere um minuto.' });
+  jotaRate.set(user.id, [...recent, now]);
+  const question = parsed.data.pergunta;
+  const log = async (entry: { status: JotaLogStatus; title?: string; sql?: string; rowCount?: number | null; durationMs?: number | null; error?: string }) => {
+    try { return await addJotaLog({ userId: user.id, userName: user.name, question, title: entry.title || '', sql: entry.sql || '', status: entry.status, rowCount: entry.rowCount ?? null, durationMs: entry.durationMs ?? null, error: entry.error || '' }); }
+    catch (error) { console.warn(`[Jota H] nao registrou o uso: ${error instanceof Error ? error.message : error}`); return null; }
+  };
+  // Modo demonstracao (preview): sem banco nem Gemini, responde um exemplo com os chamados em memoria.
+  if (!isSupabaseConfigured()) {
+    const counts = new Map<string, number>();
+    (await listCalls()).forEach((call) => counts.set(call.region || 'Sem região', (counts.get(call.region || 'Sem região') ?? 0) + 1));
+    const linhas = [...counts].sort((left, right) => right[1] - left[1]).map(([region, total]) => ({ 'Região': region, 'Chamados': total }));
+    const logId = await log({ status: 'ok', title: 'Exemplo (modo demonstração)', rowCount: linhas.length });
+    return response.json({ kind: 'query', logId, titulo: 'Exemplo (modo demonstração)', sql: 'SELECT regiao AS "Região", count(*) AS "Chamados" FROM chamados GROUP BY 1 ORDER BY 2 DESC', explicacao: 'No modo demonstração o Jota H não chama a IA: mostra este exemplo com os chamados de teste.', sugestoes: ['Quantos chamados entraram hoje?', 'Ranking de técnicos este mês', 'TME da semana passada'], linhas, colunas: ['Região', 'Chamados'], limite: false });
+  }
+  try {
+    const answer = await askJotaGemini(question, parsed.data.contexto);
+    if (answer.kind === 'question') return response.json({ ...answer, logId: await log({ status: 'pergunta', title: answer.texto }) });
+    if (answer.kind === 'refused') return response.json({ ...answer, logId: await log({ status: 'recusada', title: answer.titulo, error: answer.explicacao }) });
+    const checked = validateJotaSql(answer.sql);
+    if (!checked.ok) return response.json({ kind: 'refused', titulo: 'Não consigo responder', explicacao: checked.message, sql: answer.sql, logId: await log({ status: 'recusada', title: answer.titulo, sql: answer.sql, error: checked.message }) });
+    const started = Date.now();
+    const { data, error } = await getSupabaseAdmin().rpc('jota_consultar', { consulta: checked.sql });
+    if (error) {
+      const message = /jota_consultar/.test(error.message) && /function|exist/i.test(error.message) ? 'O Jota H ainda não foi instalado no banco (falta a migração jota_h).'
+        : /statement timeout|canceling statement/i.test(error.message) ? 'A consulta demorou mais de 8 segundos. Tente um período menor.'
+        : `O banco não aceitou a consulta: ${error.message}`;
+      console.warn(`[Jota H] ${user.name}: consulta recusada (${error.message})`);
+      const logId = await log({ status: 'erro', title: answer.titulo, sql: checked.sql, durationMs: Date.now() - started, error: error.message });
+      return response.json({ kind: 'error', titulo: answer.titulo, explicacao: message, sql: checked.sql, sugestoes: answer.sugestoes, logId });
+    }
+    const rows = Array.isArray(data) ? data as Record<string, unknown>[] : [];
+    const durationMs = Date.now() - started;
+    console.log(`[Jota H] ${user.name}: ${rows.length} linha(s) em ${durationMs} ms`);
+    const logId = await log({ status: rows.length ? 'ok' : 'vazio', title: answer.titulo, sql: checked.sql, rowCount: rows.length, durationMs });
+    return response.json({ ...answer, logId, linhas: rows, colunas: rows.length ? Object.keys(rows[0]) : [], limite: rows.length >= 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'O Jota H não conseguiu responder agora.';
+    await log({ status: 'erro', error: message });
+    return response.status(502).json({ message });
+  }
+});
+app.post('/api/jota-h/:id/avaliacao', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ util: z.boolean() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Avaliação inválida.' });
+  try { return (await setJotaFeedback(String(request.params.id), request.authUser!.id, parsed.data.util ? 1 : -1)) ? response.json({ ok: true }) : response.status(404).json({ message: 'Pergunta não encontrada.' }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível salvar a avaliação.' }); }
+});
+// Painel de uso (botão de grafico no bot): quem gerencia as configuracoes.
+app.get('/api/jota-h/uso', auth, requirePermission('settings.manage'), async (_request, response) => {
+  try { return response.json(await jotaUsage()); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível carregar o uso do Jota H.' }); }
 });
 const maskChat = (chat: string) => (chat.length > 8 ? `${chat.slice(0, 4)}…${chat.slice(-6)}` : '…');
 app.get('/api/integracoes/saude', auth, requirePermission('imports.view'), async (_request, response) => {

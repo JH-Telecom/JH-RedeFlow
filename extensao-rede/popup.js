@@ -62,6 +62,13 @@ async function mostrarStatus() {
   const fins = Array.isArray(f?.finalizados) ? f.finalizados : [];
   const textoFins = fins.length ? ` ${fins.length} finalizado(s) automaticamente: ${fins.join(", ")}.` : "";
   $("fechamentoStatus").textContent = texto + textoFins + (prox?.fechamentos ? ` Próxima leitura às ${new Date(prox.fechamentos).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.` : "");
+  const { ultimoRoteiro: r } = await chrome.storage.local.get("ultimoRoteiro");
+  const itensR = Array.isArray(r?.itens) ? r.itens : [];
+  const contar = (tipo) => itensR.filter((i) => i.resultado === tipo).length;
+  $("roteiroStatus").textContent = !r ? "Roteirizador: nenhuma rodada ainda."
+    : r.erro ? `Roteirizador (${quando(r.quando)}): ✗ ${r.erro}`
+    : !itensR.length ? `Roteirizador (${quando(r.quando)}): ${r.ativo === false ? "desligado no sistema" : r.janela === false ? "fora do horário (00h–06h)" : "nada para mover"}.`
+    : `Roteirizador (${quando(r.quando)})${r.teste ? " — modo teste" : ""}: ${contar("Movida")} movida(s), ${contar("Teste")} teste(s), ${contar("Pulada")} pulada(s), ${contar("Erro")} erro(s).`;
 }
 
 function mostrarConta(sessao) {
@@ -174,6 +181,16 @@ $("lerClusters").onclick = async (e) => {
   botao.disabled = true;
   $("clusterStatus").textContent = "Exportando os baldes de cluster no OFS…";
   await enviar({ tipo: "clusters" });
+  botao.disabled = false;
+  mostrarStatus();
+};
+
+// Fora da madrugada o servidor so libera a lista no modo teste (nada e movido), para conferir o caminho no OFS.
+$("rodarRoteiro").onclick = async (e) => {
+  const botao = e.currentTarget;
+  botao.disabled = true;
+  $("roteiroStatus").textContent = "Roteirizador: rodando no OFS…";
+  await enviar({ tipo: "roteirizar" });
   botao.disabled = false;
   mostrarStatus();
 };

@@ -3,7 +3,7 @@ const API_URL = (isVercelDeployment ? '' : import.meta.env.VITE_API_URL || (impo
 export type Permission = { code: string; description: string };
 export type Role = { id: string; name: string; description: string; permissions: string[]; hiddenTabs?: string[] };
 export type User = { id: string; name: string; email: string; roleId: string; active: boolean; createdAt: string; mustChangePassword?: boolean; role?: Role; online?: boolean; lastSeenAt?: string };
-export type Technician = { id: string; supervisorId?: string; name: string; registration: string; supervisorName?: string; region: string; shift: string; currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel'; active: boolean; employmentStatus: 'Trabalhando' | 'Demitido'; activeOverride?: boolean; teamRole: 'Tecnico' | 'Auxiliar'; leadTechnicianId?: string | null; leadTechnicianName?: string };
+export type Technician = { id: string; supervisorId?: string; name: string; registration: string; supervisorName?: string; region: string; shift: string; currentStatus: 'Disponivel' | 'Em campo' | 'Indisponivel'; active: boolean; employmentStatus: 'Trabalhando' | 'Demitido'; activeOverride?: boolean; teamRole: 'Tecnico' | 'Auxiliar'; leadTechnicianId?: string | null; leadTechnicianName?: string; dutyStatus?: string | null; statusNote?: string | null; statusUpdatedAt?: string | null };
 export type Supervisor = { id: string; userId?: string; name: string; region: string; active: boolean; technicianCount: number };
 // GIGA+: chamado tratado pelo outro escritorio (GIGA+). Chega nos mesmos grupos, mas nao e da Rede SP:
 // fica encerrado para a fila e fora dos indicadores (Visao geral, relatorios, prazo, IGP).
@@ -81,6 +81,16 @@ export function clearResponseCache() {
 // Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
 export type SystemStatusLevel = 'ok' | 'warn' | 'down' | 'unknown';
 export type SystemStatus = { status: SystemStatusLevel; checkedAt: string; components: { key: string; label: string; status: SystemStatusLevel; detail: string; checkedAt: string }[] };
+export type JotaAnswer =
+  | { kind: 'query'; titulo: string; sql: string; explicacao: string; sugestoes: string[]; linhas: Record<string, unknown>[]; colunas: string[]; limite: boolean; logId?: string | null }
+  | { kind: 'question'; texto: string; opcoes: string[]; logId?: string | null }
+  | { kind: 'refused'; titulo: string; explicacao: string; sql?: string; logId?: string | null }
+  | { kind: 'error'; titulo: string; explicacao: string; sql?: string; sugestoes?: string[]; logId?: string | null };
+export type JotaUsage = { today: number; week: number; errors: number; errorRate: number; people: number; thumbsUp: number; thumbsDown: number; byDay: { day: string; total: number; errors: number }[]; byPerson: { name: string; today: number; week: number; errors: number }[]; recentErrors: { at: string; name: string; question: string; error: string }[]; empty: { at: string; name: string; question: string }[] };
+export type NightRouterSettings = { enabled: boolean; testMode: boolean; updatedAt: string | null; updatedBy: string | null };
+export type NightShift = { region: string; weekday: number; technicianId: string };
+export type NightRun = { id: string; callId: string | null; orderNumber: string; region: string; technicianId: string | null; technicianName: string; result: 'Movida' | 'Teste' | 'Erro' | 'Pulada'; message: string; testMode: boolean; createdAt: string };
+export type NightRouterData = { settings: NightRouterSettings; shifts: NightShift[]; runs: NightRun[]; regions: string[]; technicians: Array<{ id: string; name: string; region: string }>; janela: boolean; semTecnico: number };
 export type PopKey = { id: string; pop: string; status: 'Base' | 'Retirada' | 'A conferir'; holderName: string | null; holderKind: 'Tecnico' | 'Supervisor' | 'Outro' | null; holderId: string | null; takenAt: string | null; notes: string | null; currentMovementId: string | null; hasPhoto: boolean; updatedAt: string };
 export type PopKeyMovement = { id: string; popKeyId: string; action: 'Retirada' | 'Devolucao' | 'Ajuste'; holderName: string | null; holderKind: string | null; holderId: string | null; hasPhoto: boolean; notes: string | null; happenedAt: string; userName: string | null };
 export type SupervisorOverview = {
@@ -274,7 +284,7 @@ export const api = {
   roles: () => request<{ roles: Role[]; permissions: Permission[] }>('/api/roles'),
   technicians: () => request<{ technicians: Technician[] }>('/api/tecnicos'),
   createTechnician: (data: Omit<Technician, 'id' | 'supervisorName' | 'leadTechnicianName'>) => request<{ technician: Technician }>('/api/tecnicos', { method: 'POST', body: JSON.stringify(data) }),
-  updateTechnician: (id: string, data: { name?: string; registration?: string; region?: string; shift?: string; supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; employmentStatus?: Technician['employmentStatus']; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null }) => request<{ technician: Technician }>(`/api/tecnicos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateTechnician: (id: string, data: { name?: string; registration?: string; region?: string; shift?: string; supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; employmentStatus?: Technician['employmentStatus']; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null; dutyStatus?: string | null; statusNote?: string | null }) => request<{ technician: Technician }>(`/api/tecnicos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteTechnician: (id: string) => request<{ deleted: boolean }>(`/api/tecnicos/${id}`, { method: 'DELETE' }),
   supervisors: () => request<{ supervisors: Supervisor[]; technicians: Technician[] }>('/api/supervisores'),
   createSupervisor: (data: Omit<Supervisor, 'id' | 'technicianCount'>) => request<{ supervisor: Supervisor }>('/api/supervisores', { method: 'POST', body: JSON.stringify(data) }),
@@ -339,6 +349,12 @@ export const api = {
   dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
   supervisorOverview: (filters: { from: string; to: string; region?: string; type?: string }) => request<SupervisorOverview>(`/api/visao-supervisores?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as [string, string][]).toString()}`),
   systemStatus: () => request<SystemStatus>('/api/status'),
+  jotaH: (pergunta: string, contexto: { pergunta: string; sql?: string }[]) => request<JotaAnswer>('/api/jota-h', { method: 'POST', body: JSON.stringify({ pergunta, contexto }) }),
+  jotaFeedback: (logId: string, util: boolean) => request<{ ok: boolean }>(`/api/jota-h/${encodeURIComponent(logId)}/avaliacao`, { method: 'POST', body: JSON.stringify({ util }) }),
+  jotaUsage: () => request<JotaUsage>('/api/jota-h/uso'),
+  nightRouter: () => request<NightRouterData>('/api/roteirizador'),
+  saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
+  saveNightShifts: (shifts: NightShift[]) => request<{ shifts: NightShift[] }>('/api/roteirizador/escala', { method: 'PUT', body: JSON.stringify({ shifts }) }),
   popKeys: () => request<{ keys: PopKey[] }>('/api/chaves'),
   addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),
   takePopKey: (id: string, data: { holderName: string; holderKind: 'Tecnico' | 'Supervisor' | 'Outro'; holderId: string | null; notes: string | null; photo: string | null; takenAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/retirada`, { method: 'POST', body: JSON.stringify(data) }),

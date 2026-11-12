@@ -5794,3 +5794,131 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - teste do caso real (pendente + iniciado nas duas ordens dá sempre "iniciado" e o técnico da iniciada, com o endereço completado pela outra; pendente + concluído dá sempre "concluído" com a Data Fim);
   - teste da comparação de datas;
   - suíte 264/264.
+
+## Limpeza dos logs falsos de "Data Fim alterada" (2026-11-12)
+- **Autorizado pelo usuário** ("Pode apagar"), depois da correção do commit 2fd008d estar no ar (12/11 07:22).
+- **Apagados**: **2.132** registros de `call_logs` (193 chamados), todos gerados pelo **sistema** (`user_id` nulo), campo `executedAt`, com valor anterior e novo sendo o **mesmo instante** em fusos diferentes. Eram 1.971 em 11/11; as coletas seguiram gerando até a correção entrar no ar.
+- **Mantidos de propósito**: 12 registros iguais feitos por **pessoas** (correção manual de Data Fim). Eles fazem a coleta do OFS não sobrescrever a correção (`callsWithManualEndDate`).
+- **Conferência depois**: nenhum registro do sistema nessa condição; os 12 de pessoas continuam. Nenhum chamado foi alterado (só o histórico).
+
+## Roteirizador da madrugada (2026-11-12)
+- **Pedido**: analisar a parte que manda ordem (o "Mover") da extensão JH Telecom 2.1.1 e deixar automático, só de madrugada, quando os mesários não estão.
+- **O que a extensão da loja faz** (`mover.js`, só leitura, nada dela foi alterado):
+  - quem escolhe técnico e posição é uma pessoa, no site jh-agendamentos;
+  - a extensão só executa no OFS: busca a OS pendente de hoje → Mover → técnico → posição → Continuar → "Reordenação de Prioridade - BackOffice" → Mover → confere pela pesquisa.
+- **Decisões do usuário**:
+  - quais ordens: chamados do RedeFlow;
+  - técnico: escala de plantão por região;
+  - horário: 00:00 às 06:00;
+  - onde roda: na extensão RedeFlow do PC da coleta.
+- **Regra** (`backend/src/night-router.ts`, `pickNightOrders`):
+  - entram chamados Aberto, Atribuído ou Atrelado **sem técnico**, com Status OFS pendente (ou vazio), de região com plantão naquela madrugada (dia da semana em São Paulo);
+  - o técnico vem da escala; vale qualquer técnico "Trabalhando" (o `active` segue o turno do dia e de madrugada ficaria falso);
+  - até 10 ordens por ciclo;
+  - na mesma madrugada não repete: ordem movida, pulada ou testada fica de fora, e depois de 2 erros não tenta mais.
+- **Banco** (`supabase/migrations/202611120001_night_router.sql`), com RLS ligado e sem políticas:
+  - `night_router_settings`: liga/desliga e modo teste (começa desligado e em teste);
+  - `night_router_shifts`: região × dia da semana → técnico;
+  - `night_router_runs`: histórico.
+- **API**:
+  - extensão: `GET /api/integrations/ofs/roteirizador/pendentes` e `POST .../resultado`. O "Movida" já atribui o técnico ao chamado (status Atribuído), com o ator "Roteirizador da madrugada", e grava o evento `night_router` na Integração OFS;
+  - tela: `GET /api/roteirizador` (`imports.view`), `PUT /api/roteirizador/config` e `PUT /api/roteirizador/escala` (`settings.manage`).
+- **Extensão 1.10.0** (`extensao-rede/roteirizador.js`):
+  - alarme a cada 15 min; só age das 00h às 06h;
+  - espera a coleta liberar a aba do OFS e segura a aba enquanto move (o export do dia fica para o ciclo seguinte);
+  - caminho adaptado do `moverNaPagina` da loja para uma OS, sem posição (fica onde o OFS colocar);
+  - **trava de segurança**: só move a OS **pendente de hoje** que está num **balde** (CLUSTER_/BKI_). Com uma pessoa, não mexe e marca "Pulada". Não lendo com quem está, não move. Ordem que cairia em "Não ordenado" não é movida;
+  - modo teste: faz tudo até a rota do técnico e clica Ignorar;
+  - para o ciclo depois de 2 erros seguidos (OFS deslogado);
+  - popup, aba OFS: cartão com o último resultado e "Rodar agora" (fora do horário só no modo teste, `?forcar=1`).
+- **Tela**: Administração › Roteirizador (`NightRouterPage`). Liga/desliga, modo teste, escala (repetir a linha em todos os dias, limpar) e "O que o robô fez" (últimas 100).
+- **Validação**:
+  - testes da janela, da escolha das ordens e da não repetição;
+  - fluxo completo da API no preview com dados de demonstração;
+  - build do frontend;
+  - contraste da tela nos temas claro e escuro;
+  - suíte 266/267. A que falha é a do técnico de apoio, por horário: no demo o turno do Pedro começa às 08:00 e o teste rodou às 07:46. Já falhava assim antes.
+- **Falta**: aplicar a migração no Supabase e testar no OFS de verdade, com o modo teste, no PC da coleta.
+
+## Jota H, assistente de dados (2026-11-12)
+- **Pedido**: fazer o Jota H no RedeFlow a partir do prompt enviado (`prompt-jota-h.md`, feito para o sistema de agendamentos).
+- **Como funciona**:
+  - a pessoa pergunta em português;
+  - o Gemini (`GEMINI_API_KEY`, que já existe no servidor; modelo `JOTA_H_MODEL` ou `GEMINI_MODEL`, padrão `gemini-2.5-flash`, temperatura 0.1, resposta JSON) recebe o prompt e a pergunta e devolve só o SELECT;
+  - o banco roda o SELECT e a tabela vai direto para a tela;
+  - **nenhum dado do banco vai para a IA**: só o prompt e a pergunta, e nas perguntas seguintes as perguntas e o SQL anteriores, sem resultado.
+- **Adaptação do prompt** (`backend/src/jota-h.ts`):
+  - as tabelas do agendamento (visitas_campo, tratativas, campo_hoje, kpi_*, onu_*, plantao_*) foram trocadas pelas views do RedeFlow;
+  - regras de negócio daqui: prazo de 6 h, TME, entrantes/finalizados, GIGA+ e Cancelado fora dos indicadores, repetido igual à aba Repetidos (endereço + OLT + slot/PON até 30 dias antes);
+  - mantidos do prompt original: perguntar de volta com opções, confirmar quando houver duas leituras, "de onde vem esse número" e comparar períodos;
+  - ficou só o prompt da liderança, porque aqui não há a visão restrita das atendentes.
+- **Banco** (`supabase/migrations/202611120002_jota_h.sql`):
+  - schema `jota` com views em português: `chamados`, `observacoes`, `historico`, `acionamentos`, `tecnicos`, `supervisores`, `chaves_pop`, `chaves_pop_movimentos`, `roteirizador`;
+  - ficam de fora a mensagem crua do card, e-mails, fotos e o payload de origem;
+  - a função `public.jota_consultar(consulta)` troca para o papel `jota_reader` (só SELECT nas views `jota.*`), transação somente leitura, 8 s, no máximo 200 linhas. Só o `service_role` pode chamá-la.
+- **Defesa em dobro no backend** (`validateJotaSql`):
+  - só SELECT/WITH;
+  - sem `;`, sem comentários e sem `public.`/`auth.`/`pg_catalog.`;
+  - bloqueia comandos de escrita, `INTO`, `pg_sleep`, `set_config` e outros.
+- **Rota**: `POST /api/jota-h` (quem tem `dashboard.view`, até 20 perguntas por minuto por pessoa). No modo demonstração responde que precisa do banco.
+- **Tela**: Indicadores › Jota H (`JotaHPage`).
+  - conversa com exemplos, opções quando ele pergunta de volta e sugestões de próxima pergunta;
+  - resultado de uma linha vira cartões; tabelas com páginas de 100;
+  - ver a consulta (`</>`) e baixar CSV.
+- **Validação**:
+  - testes da validação do SQL (inclusive `WITH ... DELETE`, `INTO`, `public.calls`), da leitura das respostas e do prompt sem dados;
+  - build do frontend;
+  - contraste da tela nos temas claro e escuro;
+  - suíte 269/270 (a mesma falha de horário do teste do técnico de apoio).
+- **Falta**: aplicar a migração no Supabase (depois da `night_router`, porque a view `roteirizador` usa a tabela dela) e testar com perguntas reais.
+
+## Jota H vira assistente flutuante (2026-11-12)
+- **Pedido**: "Quero o bot assim", com um vídeo de referência (o Jota H do sistema de agendamentos).
+- **O que mudou**: a página Indicadores › Jota H (ainda não publicada) foi trocada por um **balão com robô no canto inferior direito**, em qualquer tela, para quem tem `dashboard.view` (`frontend/src/components/JotaHWidget.tsx`, `jota-h.css`). Saíram a rota `/jota-h`, o item do menu e a ajuda da página.
+- **Painel do bot**:
+  - cabeçalho azul "Jota H · assistente da operação · IA", com os botões ampliar, uso (só quem tem `settings.manage`), nova conversa e fechar;
+  - saudação "Oi, Nome!" com chips de assunto: chamados de hoje, prazo e TME, técnicos, repetidos, acionamentos, chaves dos POPs, roteirizador. Cada assunto mostra três perguntas prontas;
+  - "digitando" (•••) enquanto pensa;
+  - sugestões em linha acima do campo (as da última resposta);
+  - rodapé "A IA só monta a conta — os dados da operação não saem do sistema";
+  - 👍/👎 em cada resposta;
+  - o Esc fecha o bot sem voltar a tela;
+  - os avisos do canto (acionamento, imagem copiada) sobem para não ficar em cima do balão.
+- **Uso do Jota H — últimos 7 dias** (botão de gráfico):
+  - perguntas hoje, nos 7 dias, com erro (e %), pessoas e 👍/👎;
+  - gráfico por dia;
+  - tabela por pessoa (hoje, 7 dias, erros);
+  - últimas perguntas com erro;
+  - perguntas que responderam vazio (podem ter sido mal entendidas).
+- **Backend**:
+  - tabela `jota_h_log`, na mesma migração `202611120002_jota_h.sql`, ainda não aplicada. Guarda pergunta, quem, título, SQL, situação (ok, vazio, erro, recusada, pergunta), linhas, tempo e avaliação. **Não guarda o resultado**;
+  - rotas novas `POST /api/jota-h/:id/avaliacao` (só quem perguntou) e `GET /api/jota-h/uso` (`settings.manage`);
+  - no modo demonstração, o bot responde um exemplo com os chamados de teste, para dar para ver o fluxo no preview.
+- **Validação**:
+  - teste do resumo de uso (hoje, semana, erros, pessoas, polegares, por dia no fuso de São Paulo, por pessoa, vazias);
+  - build do frontend;
+  - teste no preview: abrir, escolher assunto, perguntar, 👍 e painel de uso;
+  - contraste nos temas claro e escuro. O subtítulo do cabeçalho passou a branco: no degradê azul o tom anterior ficava no limite de 4,5:1.
+
+## Status do dia e observação dos técnicos (2026-11-12)
+- **Pedido**: na tela de Técnicos, tirar "Situação" e deixar só "Status", com os status da planilha de escala, mais um campo de observação, para mandar a atualização dos técnicos ativos.
+- **Status** (`backend/src/duty-status.ts`, `frontend/src/lib/duty-status.ts`): Ativo, Folga, Falta, Ativar às 13:00, Interjornada, Atestado, Vindo na base, Ativar às 22:00, Saiu de rota, Frota, Férias.
+- **Tela Técnicos**:
+  - a coluna Situação (Disponível/Em campo/Indisponível) e o Ativo/Inativo viraram **uma coluna Status**, colorida por tipo (verde ativo; azul vindo na base ou saiu de rota; amarelo "Ativar às…"; vermelho falta, atestado ou frota; cinza folga, interjornada ou férias);
+  - nova coluna **Obs**, editável na linha (salva ao sair do campo ou com Enter; até 300 letras);
+  - filtro por status;
+  - cartões "Ativos" e "Fora hoje" no lugar de "Em campo" e "Disponíveis";
+  - no detalhe e na edição, os campos Status e Obs.
+- **Imagem para o WhatsApp** ("Copiar imagem", segue os filtros): colunas Técnico (com o auxiliar), Região, Supervisor, Status e Obs, e o subtítulo "N ativos · N fora". Filtrando por Ativo, sai a atualização só dos ativos.
+- **O resto do sistema continua igual**: ao escolher o status, o `active` passa a valer o status (Ativo, Vindo na base e Saiu de rota contam como ativo) e a situação antiga é ajustada (Indisponível quando fora). O apoio, o plantão do roteirizador e os relatórios seguem funcionando.
+- **Técnico ainda sem status**: aparece "Ativo" se está ativo no sistema; se não, "—".
+- **Banco** (`supabase/migrations/202611120003_technician_duty_status.sql`, ainda não aplicada):
+  - colunas novas e opcionais em `technicians`: `duty_status`, `status_note` e `status_updated_at`;
+  - nenhum dado existente é alterado;
+  - a view `jota.tecnicos` ganha `status_dia`, `obs_status` e `status_atualizado_em` para o Jota H.
+- **Atenção**: o backend novo lê essas colunas, então a migração tem que ser aplicada **antes** do deploy.
+- **Validação**:
+  - testes da regra (status → ativo e situação) e de gravar status e obs;
+  - build;
+  - teste no preview: trocar status, digitar a obs e conferir depois de recarregar;
+  - contraste nos temas claro e escuro sem pendências.

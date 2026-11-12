@@ -1,4 +1,4 @@
-import { Activity, Archive, Binoculars, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Binoculars, MoonStar, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
 
 // Abas do menu lateral. Usado pelo Shell (menu, rotas, busca Ctrl+K) e pela tela de Cargos (abas visiveis por cargo).
 // fieldOnly: so aparece para o usuario ligado a um tecnico (Meus chamados).
@@ -30,6 +30,7 @@ export const navItems: NavItem[] = [
   { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
   { section: "Administração", label: "Histórico de alterações", to: "/historico-alteracoes", icon: History, permission: "calls.view_logs" },
   { section: "Administração", label: "Integração OFS", to: "/integracao-ofs", icon: Activity, permission: "imports.view" },
+  { section: "Administração", label: "Roteirizador", to: "/roteirizador", icon: MoonStar, permission: "imports.view" },
   { section: "Administração", label: "Usuários", to: "/usuarios", icon: Users, permission: "users.view" },
   { section: "Administração", label: "Cargos e permissões", to: "/cargos", icon: ShieldCheck, permission: "roles.view" },
   { section: "Administração", label: "Configurações", to: "/configuracoes", icon: Settings, permission: "" },

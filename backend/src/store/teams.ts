@@ -1,3 +1,4 @@
+import { dutyStatusChanges, type DutyStatus } from '../duty-status.js';
 import { createSupabaseSupervisor, createSupabaseTechnician, deleteSupabaseTechnician, getSupabaseAdmin, isSupabaseConfigured, listSupabaseSupervisors, listSupabaseTechnicians, updateSupabaseSupervisor, updateSupabaseTechnician } from "../integrations/supabase/client.js";
 import type { Supervisor, Technician } from "../types.js";
 import { ensureDemoData, now, supervisors, technicians } from "./demo-data.js";
@@ -41,8 +42,13 @@ export async function addTechnician(input: Omit<Technician, 'id' | 'supervisorNa
   return { ...technician, supervisorName: technician.supervisorId ? supervisors.get(technician.supervisorId)?.name : undefined };
 }
 
-export async function updateTechnician(id: string, input: { name?: string; registration?: string; region?: string; shift?: string; supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; employmentStatus?: Technician['employmentStatus']; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null }): Promise<Technician | undefined> {
+export async function updateTechnician(id: string, input: { name?: string; registration?: string; region?: string; shift?: string; supervisorId?: string; currentStatus?: Technician['currentStatus']; active?: boolean; employmentStatus?: Technician['employmentStatus']; teamRole?: Technician['teamRole']; leadTechnicianId?: string | null; dutyStatus?: DutyStatus | null; statusNote?: string | null }): Promise<Technician | undefined> {
   ensureDemoData();
+  // Status do dia: tambem acerta ativo/inativo e a situacao antiga (o resto do sistema ainda usa os dois).
+  if (input.dutyStatus) {
+    const before = (await listTechnicians()).find((technician) => technician.id === id);
+    if (before) input = { ...input, ...dutyStatusChanges(input.dutyStatus, before.currentStatus) };
+  }
   if (input.registration !== undefined) {
     const registration = input.registration.trim().toLocaleUpperCase();
     const duplicate = (await listTechnicians()).find((technician) => technician.id !== id && technician.registration.trim().toLocaleUpperCase() === registration);
@@ -52,7 +58,8 @@ export async function updateTechnician(id: string, input: { name?: string; regis
   const current = technicians.get(id);
   if (!current) return undefined;
   const nextActive = input.active !== undefined ? input.active : input.currentStatus === 'Indisponivel' ? false : current.active;
-  const updated = { ...current, ...input, employmentStatus: input.employmentStatus ?? current.employmentStatus ?? 'Trabalhando', active: nextActive, activeOverride: input.active !== undefined || input.currentStatus !== undefined ? true : current.activeOverride };
+  const statusStamp = input.dutyStatus !== undefined || input.statusNote !== undefined ? { statusUpdatedAt: new Date().toISOString() } : {};
+  const updated = { ...current, ...input, ...statusStamp, employmentStatus: input.employmentStatus ?? current.employmentStatus ?? 'Trabalhando', active: nextActive, activeOverride: input.active !== undefined || input.currentStatus !== undefined ? true : current.activeOverride };
   technicians.set(id, updated);
   return { ...updated, active: resolveTechnicianActive(updated), supervisorName: updated.supervisorId ? supervisors.get(updated.supervisorId)?.name : undefined };
 }

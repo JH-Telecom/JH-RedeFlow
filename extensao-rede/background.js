@@ -280,6 +280,9 @@ async function exportarDia(data, automatico, cluster) {
   if (!aba) return registrar({ ok: false, data, automatico, erro: "Nenhuma aba do OFS aberta (abra o Console de Alocação e faça login)" });
   const { captura } = await chrome.storage.local.get("captura");
   if (captura && Date.now() < captura.ate) return { ok: false, erro: `Já há uma exportação em andamento (${diaBR(captura.data)})` };
+  // 1.10.0: o roteirizador da madrugada usa a mesma aba do OFS; enquanto ele move, a coleta fica para o proximo ciclo.
+  const { roteando } = await chrome.storage.local.get("roteando");
+  if (!cluster && roteando && Date.now() < roteando) return registrar({ ok: false, data, automatico, erro: "O roteirizador está movendo ordens nesta aba do OFS; a coleta fica para o próximo ciclo" });
   await chrome.storage.local.set({ captura: { ate: Date.now() + JANELA_CAPTURA_MS, data, tabId: aba.id, automatico, balde: cluster?.nome } });
   if (!cluster) atualizarSelo();
   let res;
@@ -694,6 +697,8 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     fechamentos: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarFechamentos(false)),
     clusters: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarClusters(false)),
     buscarSn: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : buscarSnAutoIsp()),
+    roteirizar: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : roteirizar(false)),
+    ultimoRoteiro: async () => (await chrome.storage.local.get("ultimoRoteiro")).ultimoRoteiro || null,
   };
   const tarefa = tarefas[msg?.tipo];
   if (!tarefa) return false;
@@ -744,3 +749,6 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.tipo === "recarregarExtensao") setTimeout(() => chrome.runtime.reload(), 300);
 });
+
+// 1.10.0: roteirizador da madrugada (00h-06h), no fim porque usa as constantes e funcoes deste arquivo.
+importScripts("roteirizador.js");

@@ -82,6 +82,11 @@ export type Technician = {
   teamRole: 'Tecnico' | 'Auxiliar';
   leadTechnicianId?: string | null;
   leadTechnicianName?: string;
+  /** Status do dia (Ativo, Folga, Falta, Ativar às 13:00...). Ver duty-status.ts. */
+  dutyStatus?: string | null;
+  /** Observacao do status (ex.: "chega 9h"). */
+  statusNote?: string | null;
+  statusUpdatedAt?: string | null;
 };
 
 // GIGA+: chamado tratado pelo outro escritorio (GIGA+). Chega nos mesmos grupos, mas nao e da Rede SP:
