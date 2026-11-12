@@ -1,0 +1,22 @@
+/* Fila "Sem região" (MissingRegionPage) */
+.mr-page { display: grid; gap: 16px; }
+.mr-notice { margin: 0; padding: 10px 12px; border: 1px solid #b9e4cf; border-radius: 8px; background: #eefaf4; color: #116b40; font-size: 13px; }
+.mr-summary { padding: 14px 18px; border-bottom: 1px solid #f0f3f7; font-size: 13px; color: #45536b; }
+.mr-summary strong { color: #17233b; }
+.mr-empty { display: flex; align-items: center; justify-content: center; gap: 8px; color: #45536b; }
+.mr-scroll { overflow-x: auto; }
+.mr-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.mr-table th { padding: 12px 14px; border-bottom: 1px solid #f0f3f7; background: #fbfcfe; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #4f5d73; }
+.mr-table td { padding: 12px 14px; border-bottom: 1px solid #f0f3f7; color: #45536b; vertical-align: top; }
+.mr-table td strong { color: #17233b; }
+.mr-table td small { display: block; margin-top: 3px; font-size: 11px; color: #4f5d73; }
+.mr-table a { color: #0845ae; text-decoration: none; }
+.mr-place { max-width: 260px; overflow-wrap: anywhere; }
+.mr-edit { min-width: 300px; }
+.mr-edit-row { display: flex; gap: 8px; align-items: center; }
+.mr-edit-row select { flex: 1; min-width: 160px; padding: 8px 10px; border: 1px solid #dce4ef; border-radius: 7px; background: #fff; color: #17233b; font-size: 12px; }
+.mr-edit-row .primary-button { min-height: 34px; box-shadow: none; }
+.mr-olt { display: flex !important; align-items: flex-start; gap: 6px !important; margin-top: 8px; font-size: 11px; font-weight: 600; color: #45536b; }
+.mr-olt input { width: 14px; height: 14px; margin-top: 1px; padding: 0; }
+.mr-muted { font-size: 12px; color: #4f5d73; }
+.mr-pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 18px; font-size: 12px; color: #45536b; }

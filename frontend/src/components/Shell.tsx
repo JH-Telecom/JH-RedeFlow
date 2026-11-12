@@ -25,6 +25,7 @@ import { SupervisorOverviewPage } from "../pages/SupervisorOverviewPage";
 import { PopKeysPage } from "../pages/PopKeysPage";
 import { NightRouterPage } from "../pages/NightRouterPage";
 import { JotaHWidget } from "./JotaHWidget";
+import { MissingRegionPage } from "../pages/MissingRegionPage";
 import { DashboardWithDateFilter } from "../pages/DashboardPage";
 import { IGPPage } from "../pages/IgpPage";
 import { SlaAnalysisPage } from "../pages/SlaAnalysisPage";
@@ -458,6 +459,7 @@ export function Shell({
             <Route path="/historico-alteracoes" element={guard("calls.view_logs", <AuditHistoryPage />)} />
             <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
             <Route path="/chaves" element={guard("calls.view", <PopKeysPage user={user} />)} />
+            <Route path="/sem-regiao" element={guard("calls.view", <MissingRegionPage user={user} />)} />
             <Route path="/roteirizador" element={guard("imports.view", <NightRouterPage user={user} />)} />
             <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />
             <Route path="/integracao-ofs" element={guard("imports.view", <IntegrationHealthPage />)} />

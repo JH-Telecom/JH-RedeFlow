@@ -2783,6 +2783,58 @@
     border: 0
 }
 
+/* missing-region.css */
+:where(:root[data-theme="dark"]) .mr-notice {
+    border: 1px solid #104b35;
+    background: #0b1913;
+    color: #7ccc9b
+}
+:where(:root[data-theme="dark"]) .mr-summary {
+    border-bottom: 1px solid #31353c;
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .mr-summary strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mr-empty {
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .mr-table th {
+    border-bottom: 1px solid #31353c;
+    background: #15181f;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-table td {
+    border-bottom: 1px solid #31353c;
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .mr-table td strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mr-table td small {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-table a {
+    color: #7cb6ff
+}
+:where(:root[data-theme="dark"]) .mr-edit-row select {
+    border: 1px solid #333c48;
+    background: #181c22;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .mr-edit-row .primary-button {
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .mr-olt {
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .mr-muted {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .mr-pager {
+    color: #bbc0c9
+}
+
 /* select-search.css */
 :where(:root[data-theme="dark"]) .ss-panel {
     border: 1px solid #374353;

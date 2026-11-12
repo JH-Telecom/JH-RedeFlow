@@ -58,8 +58,10 @@ import { backupConfig } from './db-backup.js';
 import { addNightRuns, getNightRouterSettings, listNightRuns, listNightShifts, replaceNightShifts, saveNightRouterSettings } from './store/night-router.js';
 import { askJotaGemini, validateJotaSql } from './jota-h.js';
 import { DUTY_STATUSES } from './duty-status.js';
+import { normalizeOltCode } from './integrations/wuzapi/noc-consolidation.js';
+import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing } from './missing-region.js';
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
-import { isNightWindow, nightStartIso, pickNightOrders, regionKey } from './night-router.js';
+import { isNightWindow, nightStartIso, pickNightOrders } from './night-router.js';
 import { addPopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
@@ -980,6 +982,43 @@ app.get('/api/chamados/ultimas-observacoes', auth, requirePermission('calls.view
     return response.json({ observations: await latestObservations(allowed) });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar as observacoes.' }); }
 });
+// Fila "Sem regiao": chamados com regiao vazia ou "Nao informada" (qualquer status), para colocar a regiao certa.
+// Vem antes de /api/chamados/:id para "sem-regiao" nao ser lido como id.
+app.get('/api/chamados/sem-regiao', auth, requirePermission('calls.view'), async (request, response) => {
+  try {
+    const page = Math.max(1, Math.floor(Number(request.query.page ?? 1)));
+    const [calls, technicians, custom] = await Promise.all([listCalls(), listTechnicians(), listCustomOperationalRegions().catch(() => [] as string[])]);
+    const missing = missingRegionCalls(calls);
+    const items = missing.slice((page - 1) * 100, page * 100).map((call) => ({ ...call, sameOlt: sameOltMissing(calls, call.olt, call.id).length }));
+    return response.json({ calls: items, total: missing.length, page, pageSize: 100, regions: knownRegions(calls.map((call) => call.region), technicians.map((technician) => technician.region), custom) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados sem regiao.' }); }
+});
+// Corrige so a regiao (vale tambem para chamado encerrado, que nao aceita outras edicoes). "aplicarOlt": os outros
+// chamados sem regiao da mesma OLT recebem a mesma regiao; quem gerencia as configuracoes tambem grava a OLT -> regiao,
+// para os proximos chamados dessa OLT ja chegarem com a regiao.
+app.post('/api/chamados/:id/regiao', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ region: z.string().trim().min(2).max(100), aplicarOlt: z.boolean().optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Escolha a regiao.' });
+  if (isMissingRegion(parsed.data.region)) return response.status(422).json({ message: 'Escolha uma regiao de verdade.' });
+  try {
+    const existing = await getCall(String(request.params.id));
+    if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+    const region = parsed.data.region;
+    const call = await updateCall(existing.id, { region }, request.authUser!);
+    let others = 0;
+    let oltSaved = false;
+    if (parsed.data.aplicarOlt && existing.olt) {
+      for (const other of sameOltMissing(await listCalls(), existing.olt, existing.id)) if (await updateCall(other.id, { region }, request.authUser!)) others += 1;
+      if (request.authUser!.role.permissions.includes('settings.manage')) {
+        const olt = normalizeOltCode(existing.olt) || existing.olt.trim().toUpperCase();
+        const current = await listOltRegionMappings();
+        await saveOltRegionMappings([...current.filter((mapping) => normalizeOltCode(mapping.olt) !== olt), { olt, region }]);
+        oltSaved = true;
+      }
+    }
+    return response.json({ call, others, oltSaved });
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar a regiao.' }); }
+});
 app.get('/api/chamados/:id', auth, requirePermission('calls.view'), async (request, response) => {
   const call = await getCall(String(request.params.id), await getScopedCallQuery(request as AuthRequest, request.query.teamScope === 'true'));
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
@@ -1524,11 +1563,12 @@ app.post('/api/integrations/ofs/roteirizador/resultado', async (request, respons
 // Tela Administracao > Roteirizador: ver (quem ve a Integracao OFS) e mudar (quem gerencia configuracoes).
 app.get('/api/roteirizador', auth, requirePermission('imports.view'), async (_request, response) => {
   try {
-    const [settings, shifts, runs, technicians, calls, custom] = await Promise.all([getNightRouterSettings(), listNightShifts(), listNightRuns({ limit: 100 }), listTechnicians(), listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']), listCustomOperationalRegions().catch(() => [] as string[])]);
-    const regions = new Map<string, string>();
-    [...technicians.map((tech) => tech.region), ...calls.map((call) => call.region), ...custom, ...shifts.map((shift) => shift.region)].forEach((region) => { const key = regionKey(region); if (key && !regions.has(key)) regions.set(key, String(region).trim()); });
+    const [settings, shifts, runs, technicians, calls, custom, oltMappings] = await Promise.all([getNightRouterSettings(), listNightShifts(), listNightRuns({ limit: 100 }), listTechnicians(), listCalls(), listCustomOperationalRegions().catch(() => [] as string[]), listOltRegionMappings().catch(() => [])]);
+    // Todas as regioes conhecidas: de todos os chamados (nao so os abertos agora), das OLTs, dos tecnicos, as
+    // cadastradas e as que ja estao na escala. "Nao informada" fica de fora (vai para a fila Sem regiao).
+    const regions = knownRegions(calls.map((call) => call.region), oltMappings.map((mapping) => mapping.region), technicians.map((tech) => tech.region), custom, shifts.map((shift) => shift.region));
     const waiting = calls.filter((call) => ['Aberto', 'Atribuido', 'Atrelado'].includes(call.status) && !call.technicianId).length;
-    return response.json({ settings, shifts, runs, regions: [...regions.values()].sort((left, right) => left.localeCompare(right, 'pt-BR')), technicians: technicians.filter((tech) => tech.teamRole === 'Tecnico' && tech.employmentStatus !== 'Demitido').map((tech) => ({ id: tech.id, name: tech.name, region: tech.region })), janela: isNightWindow(), semTecnico: waiting });
+    return response.json({ settings, shifts, runs, regions, technicians: technicians.filter((tech) => tech.teamRole === 'Tecnico' && tech.employmentStatus !== 'Demitido').map((tech) => ({ id: tech.id, name: tech.name, region: tech.region })), janela: isNightWindow(), semTecnico: waiting });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o roteirizador.' }); }
 });
 app.put('/api/roteirizador/config', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {

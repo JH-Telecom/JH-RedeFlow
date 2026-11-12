@@ -1,4 +1,4 @@
-import { Activity, Archive, Binoculars, MoonStar, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Binoculars, MapPinOff, MoonStar, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
 
 // Abas do menu lateral. Usado pelo Shell (menu, rotas, busca Ctrl+K) e pela tela de Cargos (abas visiveis por cargo).
 // fieldOnly: so aparece para o usuario ligado a um tecnico (Meus chamados).
@@ -11,6 +11,7 @@ export const navItems: NavItem[] = [
   { section: "Operação", label: "Em atendimento", to: "/chamados/atendimento", icon: Wrench, permission: "calls.view" },
   { section: "Operação", label: "Finalizados e cancelados", to: "/chamados/finalizados", icon: Archive, permission: "calls.view" },
   { section: "Operação", label: "Repetidos", to: "/repetidos", icon: Repeat2, permission: "calls.view" },
+  { section: "Operação", label: "Sem região", to: "/sem-regiao", icon: MapPinOff, permission: "calls.view" },
   { section: "Operação", label: "Ordens da equipe", to: "/supervisor/ordens", icon: ClipboardCheck, permission: "calls.view", roles: ["Supervisor"] },
   { section: "Operação", label: "Mapa da fila", to: "/mapa", icon: MapIcon, permission: "calls.view" },
   { section: "Operação", label: "Acionamentos", to: "/acionamentos", icon: BellRing, permission: "activations.view", counter: "activations" },

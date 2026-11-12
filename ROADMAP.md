@@ -5940,3 +5940,30 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - Conferido: Padrão, Flor, Aurora, Neon e Ardósia, claro e escuro. A cabeça fica `#1264e8` no Padrão claro, `#c12175` na Flor, `#734bdf` na Aurora…
   - No cabeçalho (fundo na cor do tema) o robô fica claro, também no escuro, com ajuste em `theme-dark-manual.css`.
 - **Validação**: build e preview (cores calculadas em cada tema e as animações rodando).
+
+## Fila "Sem região" (2026-11-12)
+- **Pedido**: os chamados com região "Não informada" ficarem numa fila separada para colocar a região certa.
+- **Por que aparecem**: a região vem da OLT. Quando a OLT não tem região cadastrada (e o card não traz região), o chamado entra como "Nao informada" e some dos filtros e indicadores por região (no banco havia 42 chamados assim).
+- **Tela nova**: Operação › Sem região (`/sem-regiao`, `MissingRegionPage`).
+  - Lista os chamados de qualquer status com região vazia ou "Não informada", do mais novo para o mais antigo, com páginas de 100.
+  - Cada linha mostra ordem (link para o chamado), status, tipo, OLT e slot/PON, local e abertura.
+  - Escolha a região e clique em Salvar. O chamado sai da fila.
+- **Aplicar à OLT**: com a caixa marcada, os outros chamados sem região da mesma OLT recebem a mesma região. Para quem tem `settings.manage`, a OLT também é cadastrada nessa região (o mesmo cadastro de Configurações › OLTs) e os próximos chamados dela já chegam com região.
+- **Backend** (`backend/src/missing-region.ts`):
+  - `isMissingRegion` (vazio, "Não informada/o", "Sem região", em qualquer grafia);
+  - `GET /api/chamados/sem-regiao` (`calls.view`);
+  - `POST /api/chamados/:id/regiao` (`calls.edit`). Vale também para chamado encerrado, que não aceita outras edições, e fica no histórico do chamado como "Região" alterada.
+- **Validação**:
+  - testes da regra (grafias, ordem, mesma OLT, regiões conhecidas);
+  - build;
+  - teste no preview: salvar a região pela tela; aplicar à OLT corrigiu o outro chamado e cadastrou a OLT;
+  - contraste nos temas claro e escuro.
+
+## Escala do roteirizador com todas as regiões (2026-11-12)
+- **Relato**: a escala de plantão mostrava só 5 regiões (Conquista, GRU, Guaianazes 1 e 2 e "Nao informada").
+- **Causa**: a lista vinha só dos técnicos, dos chamados **abertos naquele momento**, das regiões cadastradas à mão e da própria escala.
+- **Correção** (`GET /api/roteirizador`):
+  - a lista agora junta as regiões de **todos os chamados**, das **OLTs** (padrão do sistema e cadastradas), dos técnicos, as cadastradas e as da escala (`knownRegions`);
+  - "Não informada" fica de fora; esses chamados vão para a fila Sem região;
+  - com os dados de hoje são cerca de 39 regiões.
+- **Observação**: grafias diferentes da mesma região aparecem separadas (ex.: "GUAIANASES 2" e "GUAIANAZES 2", "GUARULHOS" e "GUARULHOS 1"). Vale padronizar nos chamados e nas OLTs. O roteirizador compara a região da escala com a do chamado sem diferença de acento ou maiúscula.

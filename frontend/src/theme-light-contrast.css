@@ -1561,6 +1561,47 @@
     color: #4f5d73
 }
 
+/* missing-region.css */
+:where(:root:not([data-theme="dark"])) .mr-notice {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .mr-summary {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .mr-summary strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .mr-empty {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .mr-table th {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-table td {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .mr-table td strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .mr-table td small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-table a {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .mr-edit-row select {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .mr-olt {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .mr-muted {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .mr-pager {
+    color: #45536b
+}
+
 /* select-search.css */
 :where(:root:not([data-theme="dark"])) .ss-search {
     color: #4f5d73

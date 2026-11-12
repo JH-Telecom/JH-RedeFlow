@@ -2756,6 +2756,57 @@
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .sr-only {
     border: 0
 }
+/* light · missing-region.css */
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-notice {
+    border: 1px solid #b9e4cf;
+    background: #eefaf4;
+    color: #116b40
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-summary {
+    border-bottom: 1px solid #f0f3f7;
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-summary strong {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-empty {
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-table th {
+    border-bottom: 1px solid #f0f3f7;
+    background: #fbfcfe;
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-table td {
+    border-bottom: 1px solid #f0f3f7;
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-table td strong {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-table td small {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-table a {
+    color: #8e0b54
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-edit-row select {
+    border: 1px solid #eedee4;
+    background: #fff;
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-edit-row .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-olt {
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-muted {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-pager {
+    color: #684854
+}
 /* light · select-search.css */
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .ss-panel {
     border: 1px solid #e0ccd3;
@@ -7827,6 +7878,57 @@
 }
 :where(:root[data-palette="flor"][data-theme="dark"]) .sr-only {
     border: 0
+}
+/* dark · missing-region.css */
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-notice {
+    border: 1px solid #104b35;
+    background: #0b1913;
+    color: #7ccc9b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-summary {
+    border-bottom: 1px solid #3b3235;
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-summary strong {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-empty {
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-table th {
+    border-bottom: 1px solid #3b3235;
+    background: #1e1518;
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-table td {
+    border-bottom: 1px solid #3b3235;
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-table td strong {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-table td small {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-table a {
+    color: #ed93b7
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-edit-row select {
+    border: 1px solid #47363c;
+    background: #21191c;
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-edit-row .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-olt {
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-muted {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .mr-pager {
+    color: #c8bcc0
 }
 /* dark · select-search.css */
 :where(:root[data-palette="flor"][data-theme="dark"]) .ss-panel {

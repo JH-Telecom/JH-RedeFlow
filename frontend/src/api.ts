@@ -81,6 +81,7 @@ export function clearResponseCache() {
 // Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
 export type SystemStatusLevel = 'ok' | 'warn' | 'down' | 'unknown';
 export type SystemStatus = { status: SystemStatusLevel; checkedAt: string; components: { key: string; label: string; status: SystemStatusLevel; detail: string; checkedAt: string }[] };
+export type MissingRegionCall = { id: string; orderNumber: string; status: CallStatus; type: string; client: string; olt: string; slotPon: string; city: string; bairro?: string; address?: string; openedAt: string; technicianName?: string; sameOlt: number };
 export type JotaAnswer =
   | { kind: 'query'; titulo: string; sql: string; explicacao: string; sugestoes: string[]; linhas: Record<string, unknown>[]; colunas: string[]; limite: boolean; logId?: string | null }
   | { kind: 'question'; texto: string; opcoes: string[]; logId?: string | null }
@@ -349,6 +350,8 @@ export const api = {
   dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
   supervisorOverview: (filters: { from: string; to: string; region?: string; type?: string }) => request<SupervisorOverview>(`/api/visao-supervisores?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as [string, string][]).toString()}`),
   systemStatus: () => request<SystemStatus>('/api/status'),
+  missingRegionCalls: (page = 1) => request<{ calls: MissingRegionCall[]; total: number; page: number; pageSize: number; regions: string[] }>(`/api/chamados/sem-regiao?page=${page}`),
+  setCallRegion: (id: string, region: string, aplicarOlt: boolean) => request<{ others: number; oltSaved: boolean }>(`/api/chamados/${encodeURIComponent(id)}/regiao`, { method: 'POST', body: JSON.stringify({ region, aplicarOlt }) }),
   jotaH: (pergunta: string, contexto: { pergunta: string; sql?: string }[]) => request<JotaAnswer>('/api/jota-h', { method: 'POST', body: JSON.stringify({ pergunta, contexto }) }),
   jotaFeedback: (logId: string, util: boolean) => request<{ ok: boolean }>(`/api/jota-h/${encodeURIComponent(logId)}/avaliacao`, { method: 'POST', body: JSON.stringify({ util }) }),
   jotaUsage: () => request<JotaUsage>('/api/jota-h/uso'),
