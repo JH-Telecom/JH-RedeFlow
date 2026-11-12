@@ -83,7 +83,9 @@ export function IgpScorePage({ user }: { user: User & { role: Role } }) {
 
   async function load(nextMonth = month, nextCluster = cluster) {
     try {
-      const next = await api.igpScore(nextMonth, nextCluster);
+      const raw = await api.igpScore(nextMonth, nextCluster);
+      // Defensivo: resposta antiga ou parcial (sem planilha importada) nao pode quebrar a tela.
+      const next: IgpScoreData = { ...raw, months: raw.months ?? [], clusters: raw.clusters ?? [], history: raw.history ?? [], latest: raw.latest ?? null, score: raw.score ?? null, live: raw.live ?? null, mainCluster: raw.mainCluster ?? null };
       setData(next); setError("");
       if (next.month && next.cluster) setRec(await api.igpReconciliation(next.month, next.cluster)); else setRec(null);
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível carregar a pontuação."); }

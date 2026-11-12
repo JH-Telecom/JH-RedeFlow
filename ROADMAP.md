@@ -6022,3 +6022,9 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - build;
   - preview com a JH (58) importada no demo;
   - contraste nos temas claro e escuro.
+
+## Correção: Pontuação IGP sem planilha importada (2026-11-12)
+- **Relato**: a tela Pontuação IGP não abria em produção.
+- **Causa**: sem nenhuma planilha da Giga importada, `GET /api/igp/pontuacao` respondia só com `months`, `month` e `imports`, sem `clusters`. A tela lia `clusters.length` e quebrava, ficando em branco. No preview não apareceu porque a planilha tinha sido importada antes.
+- **Correção**: a resposta vazia passa a ter a mesma forma da completa (`clusters`, `latest`, `score`, `history` e `live` vazios, mais as regras), e a tela completa campos que faltarem. Sem planilha, aparece o convite "Importar planilha da Giga".
+- **Validação**: preview sem planilha importada; a tela abre e o console fica sem erros.

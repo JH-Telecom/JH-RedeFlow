@@ -1672,7 +1672,8 @@ app.get('/api/igp/pontuacao', auth, requirePermission('dashboard.view'), async (
     const recent = await listGigaImports(undefined, 100);
     const months = [...new Set(recent.map((item) => item.month))].sort().reverse();
     const month = giganMonth(request.query.month) || months[0];
-    if (!month) return response.json({ months: [], month: null, imports: [] });
+    // Nenhuma planilha importada ainda: mesma forma da resposta, vazia (a tela mostra o convite para importar).
+    if (!month) { const { rules } = await getIgpRules(); return response.json({ months: [], month: null, clusters: [], mainCluster: null, latest: null, score: null, history: [], live: null, rules }); }
     const imports = recent.filter((item) => item.month === month);
     const latest = imports[0];
     const { rules, updatedAt, updatedBy } = await getIgpRules();
