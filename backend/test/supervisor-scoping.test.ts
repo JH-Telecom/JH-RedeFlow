@@ -181,13 +181,15 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   assert.equal(metrics.access.outlierPercent, 50);
   assert.equal(metrics.access.onTimePercent, 50);
   assert.equal(metrics.access.mttrHours, 8.5);
-  // NOC TX nao entra no IGP desde 12/11/2026: so o Acesso conta e a NOC TX do mes fica em nocTxOrders.
-  assert.equal(metrics.backbone.orders, 0);
-  assert.equal(metrics.nocTxOrders, 1);
-  assert.equal(metrics.total.orders, 2);
-  assert.equal(metrics.total.outlierPercent, 50);
-  assert.equal(metrics.total.onTimePercent, 50);
-  assert.equal(metrics.total.mttrHours, 8.5);
+  // NOC TX entra no IGP como Backbone (regra 6h/9h), como a Giga conta.
+  assert.equal(metrics.backbone.orders, 1);
+  assert.equal(metrics.backbone.outlierPercent, 0);
+  assert.equal(metrics.backbone.onTimePercent, 0);
+  assert.equal(metrics.nocTxOrders, 0);
+  assert.equal(metrics.total.orders, 3);
+  assert.ok(Math.abs(metrics.total.outlierPercent! - 100 / 3) < 1e-10);
+  assert.ok(Math.abs(metrics.total.onTimePercent! - 100 / 3) < 1e-10);
+  assert.equal(metrics.total.mttrHours, 26 / 3);
   assert.equal(metrics.excludedOrders, 1);
 
   const guarulhosMetrics = calculateIgpMetrics([

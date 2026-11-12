@@ -19,7 +19,7 @@ export type IgpMetrics = {
   backbone: IgpGroup;
   total: IgpGroup;
   excludedOrders: number;
-  /** Ordens NOC TX do mes: nao entram no IGP (pedido de 12/11/2026). */
+  /** Sempre 0: NOC TX voltou ao IGP no grupo Backbone, como a Giga conta (campo mantido para as telas). */
   nocTxOrders: number;
 };
 
@@ -122,11 +122,12 @@ function finalizeGroup(group: IgpGroup): IgpGroup {
   };
 }
 
-// NOC TX nao entra no IGP (12/11/2026): fica fora do calculo e e contado a parte (nocTxOrders).
+// NOC TX (Links/Backbone): a Giga CONTA no IGP, com a mesma regra de 6h/9h (planilha JH 58: 143 OS no C.8 = 127 de
+// Acesso + 16 de Backbone). Entra no grupo Backbone. O prazo de 15 dias dos Links vale so na operacao (sla.ts).
 export const isNocTx = (type: string) => /NOC\s*TX/.test(type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase());
 function classifyIgpGroup(type: string): IgpGroupKey | undefined {
   const normalized = type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-  if (normalized.includes('BACKBONE')) return 'backbone';
+  if (normalized.includes('BACKBONE') || normalized.includes('NOC TX')) return 'backbone';
   if (normalized.includes('NOC ACESSO') || normalized.includes('FIELD')) return 'access';
   return undefined;
 }
@@ -152,7 +153,7 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
   const groups = { access: createGroup(), backbone: createGroup() };
   const total = createGroup();
   let excludedOrders = 0;
-  let nocTxOrders = 0;
+  const nocTxOrders = 0; // NOC TX voltou ao IGP (grupo Backbone), como a Giga conta
 
   for (const call of calls) {
     // Abertura e fechamento da Giga quando a ordem ja esta na planilha dela (o fechamento de BDESK e o do ticket, ~20 min
@@ -160,7 +161,6 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
     const closedAt = call.gigaClosedAt || call.executedAt;
     if (call.status !== 'Finalizado' || !closedAt || toOperationalDate(closedAt).slice(0, 7) !== month) continue;
     if (area !== 'ALL' && classifyCallArea(call) !== area) continue;
-    if (isNocTx(call.type)) { nocTxOrders += 1; continue; }
     const groupKey = classifyIgpGroup(call.type);
     const openedAt = Date.parse(call.gigaOpenedAt || call.openedAt);
     const executedAt = Date.parse(closedAt);
@@ -278,7 +278,7 @@ export function calculateIgpPlan(group: IgpGroup, month: string, today = toOpera
 // ---- IGP com a planilha da Giga (12/11/2026) ----
 // No periodo que a planilha cobre (ate closedUntil), as ordens e marcacoes sao as da propria Giga (cluster, prazo,
 // outlier e TME), entao o numero bate com o dela. Depois do corte, completa com as finalizadas do sistema que a Giga
-// ainda nao listou. Backbone/NOC TX fica fora (conta em nocTxOrders).
+// ainda nao listou. Backbone (NOC TX) entra no grupo Backbone, como na Giga.
 export type GigaIgpOrder = { origin: string; cluster: string; closedAt: string | null; tmeHours: number | null; onTime: boolean | null; outlier: boolean | null; month: string | null; callId: string | null };
 export type IgpSource = { gigaOrders: number; systemOrders: number; closedUntil: string | null; fileName: string | null };
 export function calculateIgpWithGiga(calls: Call[], month: string, area: IgpArea, giga: { orders: GigaIgpOrder[]; closedUntil: string | null; fileName: string | null } | null): IgpMetrics & { source: IgpSource } {
@@ -289,26 +289,25 @@ export function calculateIgpWithGiga(calls: Call[], month: string, area: IgpArea
   const until = Date.parse(giga.closedUntil);
   const inArea = (cluster: string) => { const mapped = CLUSTER_AREAS[normalizeCluster(cluster) ?? '']; return area === 'ALL' ? Boolean(mapped) : mapped === area; };
   const access = createGroup();
-  let nocTx = 0;
+  const backbone = createGroup();
   for (const order of giga.orders) {
     if (order.month !== month || !order.closedAt || Date.parse(order.closedAt) > until || !inArea(order.cluster)) continue;
-    if (order.origin === 'BACKBONE') { nocTx += 1; continue; }
-    access.orders += 1;
-    access.totalRepairHours += order.tmeHours ?? 0;
-    if (order.outlier) access.outliers += 1;
-    if (order.onTime) access.onTime += 1;
+    const group = order.origin === 'BACKBONE' ? backbone : access;
+    group.orders += 1;
+    group.totalRepairHours += order.tmeHours ?? 0;
+    if (order.outlier) group.outliers += 1;
+    if (order.onTime) group.onTime += 1;
   }
-  const gigaOrders = access.orders;
+  const gigaOrders = access.orders + backbone.orders;
   const linked = new Set(giga.orders.map((order) => order.callId).filter(Boolean) as string[]);
   const after = calls.filter((call) => !linked.has(call.id) && call.executedAt && Date.parse(call.executedAt) > until);
   const rest = calculateIgpMetrics(after, month, area);
-  for (const key of ['orders', 'outliers', 'onTime', 'totalRepairHours'] as const) access[key] += rest.access[key];
-  const backbone = rest.backbone;
+  for (const key of ['orders', 'outliers', 'onTime', 'totalRepairHours'] as const) { access[key] += rest.access[key]; backbone[key] += rest.backbone[key]; }
   const total = createGroup();
   for (const group of [access, backbone]) for (const key of ['orders', 'outliers', 'onTime', 'totalRepairHours'] as const) total[key] += group[key];
   return {
     month, area, access: finalizeGroup(access), backbone: finalizeGroup(backbone), total: finalizeGroup(total),
-    excludedOrders: rest.excludedOrders, nocTxOrders: rest.nocTxOrders + nocTx,
+    excludedOrders: rest.excludedOrders, nocTxOrders: 0,
     source: { gigaOrders, systemOrders: rest.total.orders, closedUntil: giga.closedUntil, fileName: giga.fileName },
   };
 }

@@ -108,12 +108,12 @@ export type Reconciliation = {
 };
 export function reconcile(orders: StoredGigaOrder[], calls: Call[], cluster: string, closedUntil: string | null): Reconciliation {
   const area = CLUSTER_AREAS[normalizeCluster(cluster) ?? ''];
-  const mine = orders.filter((order) => order.cluster === cluster && order.origin !== 'BACKBONE');
+  const mine = orders.filter((order) => order.cluster === cluster); // Backbone entra, como a Giga conta
   const linked = new Set(mine.map((order) => order.callId).filter(Boolean) as string[]);
   const allLinked = new Set(orders.map((order) => order.callId).filter(Boolean) as string[]);
   const month = mine[0]?.month || orders[0]?.month || '';
   const until = closedUntil ? Date.parse(closedUntil) : Infinity;
-  const onlySystem = calls.filter((call) => call.status === 'Finalizado' && call.executedAt && !/NOC\s*TX/i.test(call.type) && toOperationalDate(call.executedAt).slice(0, 7) === month && Date.parse(call.executedAt) <= until && !allLinked.has(call.id) && area && classifyCallArea(call) === area)
+  const onlySystem = calls.filter((call) => call.status === 'Finalizado' && call.executedAt && toOperationalDate(call.executedAt).slice(0, 7) === month && Date.parse(call.executedAt) <= until && !allLinked.has(call.id) && area && classifyCallArea(call) === area)
     .sort((left, right) => Date.parse(right.executedAt!) - Date.parse(left.executedAt!))
     .map(({ id, orderNumber, bdesk, type, region, executedAt, openedAt }) => ({ id, orderNumber, bdesk, type, region, executedAt, openedAt }));
   const byId = new Map(calls.map((call) => [call.id, call]));

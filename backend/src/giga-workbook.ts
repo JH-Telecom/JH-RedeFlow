@@ -81,8 +81,8 @@ export function parseGigaWorkbook(buffer: Buffer): GigaWorkbook {
   const indicators: Record<string, IgpIndicatorsRaw> = {};
   for (const cluster of clusters) {
     const mine = <T extends Record<string, unknown>>(rows: T[]) => rows.filter((row) => clusterOf(row) === cluster);
-    // Redes do IGP ACESSO: BDESK e FIELD do cluster, sem BACKBONE (NOC TX nao entra no IGP).
-    const redes = orders.filter((order) => order.cluster === cluster && order.origin !== 'BACKBONE' && order.month === month);
+    // Redes do IGP ACESSO: todas as ordens do cluster (BDESK, FIELD e BACKBONE), como a Giga conta.
+    const redes = orders.filter((order) => order.cluster === cluster && order.month === month);
     const alta = mine(altas).filter((row) => text(row.tipo).toUpperCase() === 'ALTA');
     const me = mine(altas).filter((row) => text(row.tipo).toUpperCase() === 'ME');
     const rep = mine(reparos);

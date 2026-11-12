@@ -6057,3 +6057,16 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - suíte 283/283;
   - build;
   - preview.
+
+## Backbone (NOC TX) volta ao IGP, igual à Giga (2026-11-12)
+- **Relato**: o sistema mostrava 127 OS no C.8 e a base da Giga tem 143.
+- **Causa**: as 16 que faltavam eram de Backbone (NOC TX/Links), que tinham saído do IGP. A própria Giga conta essas ordens no IGP e marca prazo e outlier nelas com a regra de 6h/9h. O usuário confirmou: igual à Giga.
+- **Agora**:
+  - no IGP e na Pontuação, NOC TX/Backbone entra no grupo Backbone com a regra 6h/9h (`classifyIgpGroup`, `calculateIgpWithGiga`, `giga-workbook.ts`), e a conciliação também inclui o Backbone;
+  - o prazo de **15 dias dos Links continua valendo na operação** (fila, avisos, relatórios de prazo);
+  - `nocTxOrders` ficou sempre 0 (campo mantido para as telas);
+  - textos das telas IGP e Pontuação atualizados.
+- **Validação**:
+  - testes atualizados (NOC TX como Backbone; planilha e IGP misto com Backbone);
+  - no preview com a JH (58), SP em novembro: **143 OS (127 Acesso + 16 Backbone), prazo 75,52%, outlier 5,59%, MTTR 3,92 h**, igual à base da Giga.
+- **Falta**: reimportar a JH (58) em produção depois do deploy (a importação guarda os indicadores calculados).

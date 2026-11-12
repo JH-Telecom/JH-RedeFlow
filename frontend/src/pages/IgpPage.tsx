@@ -183,7 +183,7 @@ export function IGPPage() {
 
   return <div className="dv-dashboard">
     <div className="page-heading dv-heading">
-      <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso (NOC ACESSO e Acionamento FIELD), ponderado pela quantidade de ordens. NOC TX não entra no IGP. Ordens que já estão na planilha da Giga usam o cluster e o fechamento dela. <Link to="/igp/pontuacao">Ver a pontuação IGP</Link></p></div>
+      <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso (NOC ACESSO e Acionamento FIELD) e Backbone (NOC TX), ponderado pela quantidade de ordens, como a Giga conta. Ordens que já estão na planilha da Giga usam o cluster e o fechamento dela. <Link to="/igp/pontuacao">Ver a pontuação IGP</Link></p></div>
       <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option><option value="ABC">ABC</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
     </div>
     {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !metrics ? <div className="dv-empty" role="status">Calculando indicadores do mês...</div> : <>
@@ -237,7 +237,7 @@ export function IGPPage() {
       </Panel>
       </div>
       <Panel kicker="METODOLOGIA" title="Como o IGP é calculado">
-        <div className="igp-methodology"><strong>Quais ordens entram:</strong> OS finalizadas no mês de NOC ACESSO e Acionamento FIELD (Acesso). <b>NOC TX não entra no IGP</b>{metrics.nocTxOrders ? <> ({metrics.nocTxOrders} neste mês)</> : null}. Ordens sem tipo reconhecido ou com fim antes da abertura: <b>{metrics.excludedOrders}</b>.<br /><span>Prazo: reparo até 6h · Fora do prazo: acima de 6h até 9h · Outlier: reparo acima de 9h · MTTR: Data Fim − Data de Abertura.</span></div>
+        <div className="igp-methodology"><strong>Quais ordens entram:</strong> OS finalizadas no mês de Acesso (NOC ACESSO e Acionamento FIELD) e de Backbone (NOC TX/Links), como a Giga conta, todas com a regra de 6h/9h do IGP. O prazo de 15 dias dos Links vale só na operação (fila e avisos). Ordens sem tipo reconhecido ou com fim antes da abertura: <b>{metrics.excludedOrders}</b>.<br /><span>Prazo: reparo até 6h · Fora do prazo: acima de 6h até 9h · Outlier: reparo acima de 9h · MTTR: Data Fim − Data de Abertura.</span></div>
       </Panel>
     </>}
   </div>;

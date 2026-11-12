@@ -42,10 +42,10 @@ test('reads clusters, dates and the Giga orders', () => {
   assert.equal(wb.orders.length, 5);
   assert.equal(wb.orders[0].osOfs, '610000000000102');
   const c8 = wb.indicators['C.8'];
-  // Redes sem BACKBONE: 3 ordens do C.8 (2 BDESK + 1 FIELD).
-  assert.deepEqual(c8.prazo, { num: 2, den: 3 });
-  assert.deepEqual(c8.outlier, { num: 1, den: 3 });
-  assert.equal(c8.mttr.hours / c8.mttr.orders, 5);
+  // Redes com BACKBONE, como a Giga conta: 4 ordens do C.8 (2 BDESK + 1 FIELD + 1 BACKBONE).
+  assert.deepEqual(c8.prazo, { num: 2, den: 4 });
+  assert.deepEqual(c8.outlier, { num: 1, den: 4 });
+  assert.equal(c8.mttr.hours / c8.mttr.orders, 6);
   assert.deepEqual(c8.altasAgenda, { num: 9, den: 10 });
   assert.deepEqual(c8.meAgenda, { num: 3, den: 4 });
   assert.deepEqual(c8.irr, { num: 1, den: 20 });
@@ -56,7 +56,7 @@ test('reads clusters, dates and the Giga orders', () => {
 test('scores the IGP ACESSO with the group conditions', () => {
   const score = scoreIgp(parseGigaWorkbook(workbook()).indicators['C.8']);
   const by = Object.fromEntries(score.indicators.map((item) => [item.key, item]));
-  assert.equal(by.mttr.points, 15); // 5h = meta
+  assert.equal(by.mttr.points, 12); // 6h = meta minima
   assert.equal(by.prazo.status, 'abaixo');
   assert.equal(by.eficiencia.points, 10); // (90% + 80%) / 2 = 85% = meta, e as duas >= 75%
   assert.equal(by.capexAgenda.value, 0.825); // (90% + 75%) / 2
@@ -92,7 +92,7 @@ test('matches orders to calls, uses the Giga cluster/times in the IGP and reconc
   const stored = matched.map(({ order, call: found }) => ({ ...order, callId: found?.id ?? null }));
   const result = reconcile(stored, calls, 'C.8', '2026-11-06T11:00:00-03:00');
   assert.equal(result.both, 2);
-  assert.deepEqual(result.onlyGiga.map((order) => order.os), ['671004']);
+  assert.deepEqual(result.onlyGiga.map((order) => order.os), ['671002', '671004']);
   assert.deepEqual(result.onlySystem.map((item) => item.id), ['d']);
   assert.deepEqual(result.timeDiffs.map((item) => [item.os, item.minutes]), [['12600001', -1770], ['671001', 30]]);
 });
@@ -110,14 +110,15 @@ test('IGP uses the Giga orders up to the cut and the system after it', async () 
   // 'a' ja esta na Giga; 'b' foi antes do corte mas a Giga nao contou (fica de fora); 'c' e depois do corte (entra).
   const calls = [call('a', '2026-11-02T12:30:00-03:00'), call('b', '2026-11-05T10:00:00-03:00'), call('c', '2026-11-11T10:00:00-03:00')];
   const sp = calculateIgpWithGiga(calls, '2026-11', 'SP', giga);
-  assert.equal(sp.total.orders, 3); // 2 da Giga (sem backbone) + 1 do sistema depois do corte
-  assert.equal(sp.source.gigaOrders, 2);
+  assert.equal(sp.total.orders, 4); // 3 da Giga (com o backbone, como ela conta) + 1 do sistema depois do corte
+  assert.equal(sp.source.gigaOrders, 3);
+  assert.equal(sp.backbone.orders, 1);
   assert.equal(sp.source.systemOrders, 1);
-  assert.equal(sp.nocTxOrders, 1);
+  assert.equal(sp.nocTxOrders, 0);
   assert.equal(sp.total.outliers, 1);
-  assert.equal(sp.total.mttrHours, (2 + 10 + 3) / 3);
+  assert.equal(sp.total.mttrHours, (2 + 10 + 9 + 3) / 4);
   assert.equal(calculateIgpWithGiga(calls, '2026-11', 'GRU', giga).total.orders, 1);
-  assert.equal(calculateIgpWithGiga(calls, '2026-11', 'ALL', giga).total.orders, 4);
+  assert.equal(calculateIgpWithGiga(calls, '2026-11', 'ALL', giga).total.orders, 5);
   // Sem planilha: so o sistema.
   assert.equal(calculateIgpWithGiga(calls, '2026-11', 'SP', null).total.orders, 3);
 });

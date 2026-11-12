@@ -161,7 +161,7 @@ export function IgpScorePage({ user }: { user: User & { role: Role } }) {
               </tbody>
             </table>
           </div>
-          <p className="dv-footnote">Redes = BDESK e FIELD do cluster (Backbone/NOC TX fora). IRT projetado pelos dias úteis do mês. As condições de grupo seguem as premissas gerais da Giga; a do grupo Redes ainda precisa ser confirmada com a Giga (hoje só aparece, não trava).</p>
+          <p className="dv-footnote">Redes = todas as ordens do cluster na planilha (BDESK, FIELD e Backbone), como a Giga conta. IRT projetado pelos dias úteis do mês. As condições de grupo seguem as premissas gerais da Giga; a do grupo Redes ainda precisa ser confirmada com a Giga (hoje só aparece, não trava).</p>
         </Panel>
 
         <div className="dv-grid dv-grid-split">
