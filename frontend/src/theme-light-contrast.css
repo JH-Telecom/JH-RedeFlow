@@ -1602,6 +1602,74 @@
     color: #45536b
 }
 
+/* igp-score.css */
+:where(:root:not([data-theme="dark"])) .isc-notice {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .isc-source {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .isc-source b {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .isc-table th, :where(:root:not([data-theme="dark"])) .isc-table td {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .isc-table thead th {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .isc-table small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .isc-group {
+    color: #0845ae !important
+}
+:where(:root:not([data-theme="dark"])) .isc-gate.is-ok {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .isc-gate.is-fail {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .isc-status.is-hit {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .isc-status.is-min {
+    color: #8a4b00
+}
+:where(:root:not([data-theme="dark"])) .isc-status.is-miss {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .isc-status.is-locked {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .isc-status.is-empty {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .isc-bands li {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .isc-bands .is-pos {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .isc-bands .is-neg {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .isc-history li {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .isc-history li span {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .isc-history em {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .isc-check {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .isc-rules-foot {
+    color: #45536b
+}
+
 /* select-search.css */
 :where(:root:not([data-theme="dark"])) .ss-search {
     color: #4f5d73

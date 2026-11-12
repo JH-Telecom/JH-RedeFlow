@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Timer, XCircle } from "lucide-react";
 import { api, type IgpArea, type IgpGoalPlan, type IgpMetrics, type IgpPlan } from "../api";
 import { toOperationalDate } from "../dates";
@@ -182,7 +183,7 @@ export function IGPPage() {
 
   return <div className="dv-dashboard">
     <div className="page-heading dv-heading">
-      <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso (NOC ACESSO e Acionamento FIELD), ponderado pela quantidade de ordens. NOC TX não entra no IGP.</p></div>
+      <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso (NOC ACESSO e Acionamento FIELD), ponderado pela quantidade de ordens. NOC TX não entra no IGP. Ordens que já estão na planilha da Giga usam o cluster e o fechamento dela. <Link to="/igp/pontuacao">Ver a pontuação IGP</Link></p></div>
       <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option><option value="ABC">ABC</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
     </div>
     {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !metrics ? <div className="dv-empty" role="status">Calculando indicadores do mês...</div> : <>

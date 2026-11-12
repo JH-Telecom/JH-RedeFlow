@@ -40,6 +40,8 @@ const altoTieteRegions = new Set([
   'SUZANO',
   'FERRAZ DE VASCONCELOS',
   'FERRAZ DE VASCONCELOS 1',
+  // Planilha da Giga (12/11/2026): Ferraz de Vasconcelos 2 e Alto Tiete (C.11).
+  'FERRAZ DE VASCONCELOS 2',
   // Cluster C.11 no relatorio da operadora.
   'COTIA',
 ]);
@@ -75,6 +77,8 @@ const abcRegions = new Set([
   'MAUA',
   'RIBEIRAO PIRES',
   'RIO GRANDE DA SERRA',
+  // Planilha da Giga (12/11/2026): "Maua/Conquista" e ABC (C.9).
+  'CONQUISTA',
 ]);
 
 // Balde do OFS -> area. C.8 Sao Paulo, C.9 ABC, C.11 Alto Tiete, C.12 Guarulhos.
@@ -90,11 +94,16 @@ export function igpAreaClusters(area: Exclude<IgpArea, 'ALL'>): string[] {
   return Object.entries(CLUSTER_AREAS).filter(([, value]) => value === area).map(([cluster]) => cluster);
 }
 
-// Area do chamado: pelo cluster do OFS quando houver; sem cluster, pela regiao (listas acima).
-export function classifyCallArea(call: { cluster?: string; region: string }): Exclude<IgpArea, 'ALL'> | 'OUTRAS' {
+// Area do chamado (12/11/2026): 1) cluster da planilha da Giga, quando a ordem ja esta nela (e o oficial);
+// 2) regiao (listas acima: bateu com a Giga em ~92% das ordens); 3) cluster do balde do OFS, so quando a regiao nao
+// diz nada (ele divergiu da Giga: Guarulhos em C08, Sao Rafael em C11...).
+export function classifyCallArea(call: { cluster?: string; gigaCluster?: string; region: string }): Exclude<IgpArea, 'ALL'> | 'OUTRAS' {
+  const giga = normalizeCluster(call.gigaCluster);
+  if (giga) return CLUSTER_AREAS[giga] ?? 'OUTRAS';
+  const byRegion = classifyIgpArea(call.region);
+  if (byRegion !== 'OUTRAS') return byRegion;
   const cluster = normalizeCluster(call.cluster);
-  if (cluster && CLUSTER_AREAS[cluster]) return CLUSTER_AREAS[cluster];
-  return classifyIgpArea(call.region);
+  return cluster && CLUSTER_AREAS[cluster] ? CLUSTER_AREAS[cluster] : 'OUTRAS';
 }
 
 function createGroup(): IgpGroup {
@@ -143,12 +152,15 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
   let nocTxOrders = 0;
 
   for (const call of calls) {
-    if (call.status !== 'Finalizado' || !call.executedAt || toOperationalDate(call.executedAt).slice(0, 7) !== month) continue;
+    // Abertura e fechamento da Giga quando a ordem ja esta na planilha dela (o fechamento de BDESK e o do ticket, ~20 min
+    // antes do fim da atividade no OFS); senao, os do sistema.
+    const closedAt = call.gigaClosedAt || call.executedAt;
+    if (call.status !== 'Finalizado' || !closedAt || toOperationalDate(closedAt).slice(0, 7) !== month) continue;
     if (area !== 'ALL' && classifyCallArea(call) !== area) continue;
     if (isNocTx(call.type)) { nocTxOrders += 1; continue; }
     const groupKey = classifyIgpGroup(call.type);
-    const openedAt = Date.parse(call.openedAt);
-    const executedAt = Date.parse(call.executedAt);
+    const openedAt = Date.parse(call.gigaOpenedAt || call.openedAt);
+    const executedAt = Date.parse(closedAt);
     if (!groupKey || !Number.isFinite(openedAt) || !Number.isFinite(executedAt) || executedAt < openedAt) {
       excludedOrders += 1;
       continue;

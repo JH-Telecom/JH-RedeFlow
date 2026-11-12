@@ -24,6 +24,17 @@ function value(row: D0Row, ...aliases: string[]) {
   return '';
 }
 
+// O OFS manda a data da ATIVIDADE e a hora de fim separadas. Fim depois da meia-noite vinha com a data do dia anterior
+// (aberto 05/11 21:10, fim "05/11 00:05" em vez de 06/11 00:05) e o chamado saia do IGP como "fim antes da abertura".
+// Se o fim ficar antes da abertura por menos de 24h, e o dia seguinte (12/11/2026).
+export function finishAfterOpening(executedAt: string, openedAt: string | undefined) {
+  const finish = Date.parse(executedAt);
+  const opened = Date.parse(String(openedAt ?? ''));
+  if (!Number.isFinite(finish) || !Number.isFinite(opened) || finish >= opened || opened - finish >= 86_400_000) return executedAt;
+  const next = new Date(finish + 86_400_000 - 3 * 3_600_000).toISOString().slice(0, 19);
+  return `${next}-03:00`;
+}
+
 export function parseD0FinishedAt(dateValue: string, timeValue: string) {
   const dateText = dateValue.trim();
   const dateMatch = dateText.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
@@ -73,7 +84,8 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   // Ao finalizar/baixar no sistema, essa data e mantida em vez de usar "agora".
   const ofsConcluded = /^(conclu|finaliz|encerrad|executad)/.test(normalize(ofsStatus));
   const keepsFinish = isClosed || ofsConcluded;
-  const executedAt = keepsFinish ? parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) : null;
+  const parsedFinish = keepsFinish ? parseD0FinishedAt(value(row, 'Data', 'Data Fim', 'Data de Finalização', 'Data de Finalizacao'), value(row, 'Fim', 'Hora Fim', 'Horário Fim', 'Horario Fim')) : null;
+  const executedAt = parsedFinish ? finishAfterOpening(parsedFinish, call.openedAt) : parsedFinish;
   if (address) fields.address = address;
   if (bairro) fields.bairro = bairro;
   if (city) fields.city = city;

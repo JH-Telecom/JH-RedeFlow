@@ -2807,6 +2807,97 @@
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .mr-pager {
     color: #684854
 }
+/* light · igp-score.css */
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-page .igp-filter-controls .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-notice {
+    border: 1px solid #b9e4cf;
+    background: #eefaf4;
+    color: #116b40
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-source {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-source b {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-table th, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-table td {
+    border-bottom: 1px solid #eef2f7;
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-table thead th {
+    color: #71525d;
+    background: #fbfcfe
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-table small {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-table tr.is-group-start > * {
+    border-top: 2px solid #f4e5ea
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-group {
+    background: #f7f9fc;
+    color: #8e0b54 !important
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-table input {
+    border: 1px solid #eedee4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-gate.is-ok {
+    color: #116b40
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-gate.is-fail {
+    color: #a3262a
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-status.is-hit {
+    background: #e3f6ec;
+    color: #116b40
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-status.is-min {
+    background: #fff4dd;
+    color: #8a4b00
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-status.is-miss {
+    background: #fdecec;
+    color: #a3262a
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-status.is-locked {
+    background: #eef2f7;
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-status.is-empty {
+    background: #f4f6f9;
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-bands li {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-bands li.is-current {
+    background: #fee8ef;
+    outline: 2px solid #c12175
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-bands .is-pos {
+    color: #116b40
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-bands .is-neg {
+    color: #a3262a
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-history li {
+    border: 1px solid #eef2f7;
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-history li span {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-history em {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-check {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .isc-rules-foot {
+    color: #684854
+}
 /* light · select-search.css */
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .ss-panel {
     border: 1px solid #e0ccd3;
@@ -7928,6 +8019,97 @@
     color: #c0b6b9
 }
 :where(:root[data-palette="flor"][data-theme="dark"]) .mr-pager {
+    color: #c8bcc0
+}
+/* dark · igp-score.css */
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-page .igp-filter-controls .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-notice {
+    border: 1px solid #104b35;
+    background: #0b1913;
+    color: #7ccc9b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-source {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-source b {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-table th, :where(:root[data-palette="flor"][data-theme="dark"]) .isc-table td {
+    border-bottom: 1px solid #3c3336;
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-table thead th {
+    color: #c0b6b9;
+    background: #1e1518
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-table small {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-table tr.is-group-start > * {
+    border-top: 2px solid #443339
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-group {
+    background: #1a1215;
+    color: #ed93b7 !important
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-table input {
+    border: 1px solid #47363c
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-gate.is-ok {
+    color: #7ccc9b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-gate.is-fail {
+    color: #ff8a83
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-status.is-hit {
+    background: #031c12;
+    color: #7ccc9b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-status.is-min {
+    background: #201400;
+    color: #eca66b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-status.is-miss {
+    background: #231112;
+    color: #ff8a83
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-status.is-locked {
+    background: #1c1417;
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-status.is-empty {
+    background: #1c1316;
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-bands li {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-bands li.is-current {
+    background: #250f18;
+    outline: 2px solid #c12175
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-bands .is-pos {
+    color: #7ccc9b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-bands .is-neg {
+    color: #ff8a83
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-history li {
+    border: 1px solid #3c3336;
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-history li span {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-history em {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-check {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .isc-rules-foot {
     color: #c8bcc0
 }
 /* dark · select-search.css */

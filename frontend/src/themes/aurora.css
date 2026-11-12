@@ -2807,6 +2807,97 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .mr-pager {
     color: #524d72
 }
+/* light · igp-score.css */
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-page .igp-filter-controls .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-notice {
+    border: 1px solid #b9e4cf;
+    background: #eefaf4;
+    color: #116b40
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-source {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-source b {
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-table th, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-table td {
+    border-bottom: 1px solid #eef2f7;
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-table thead th {
+    color: #5b577a;
+    background: #fbfcfe
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-table small {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-table tr.is-group-start > * {
+    border-top: 2px solid #e9e7f9
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-group {
+    background: #f7f9fc;
+    color: #5331a7 !important
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-table input {
+    border: 1px solid #e3e1f3
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-gate.is-ok {
+    color: #116b40
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-gate.is-fail {
+    color: #a3262a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-status.is-hit {
+    background: #e3f6ec;
+    color: #116b40
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-status.is-min {
+    background: #fff4dd;
+    color: #8a4b00
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-status.is-miss {
+    background: #fdecec;
+    color: #a3262a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-status.is-locked {
+    background: #eef2f7;
+    color: #524d72
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-status.is-empty {
+    background: #f4f6f9;
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-bands li {
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-bands li.is-current {
+    background: #eeebff;
+    outline: 2px solid #734bdf
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-bands .is-pos {
+    color: #116b40
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-bands .is-neg {
+    color: #a3262a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-history li {
+    border: 1px solid #eef2f7;
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-history li span {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-history em {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-check {
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-rules-foot {
+    color: #524d72
+}
 /* light · select-search.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-panel {
     border: 1px solid #d1cfe6;
@@ -7928,6 +8019,97 @@
     color: #b8b7c3
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .mr-pager {
+    color: #bfbecc
+}
+/* dark · igp-score.css */
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-page .igp-filter-controls .primary-button {
+    box-shadow: none
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-notice {
+    border: 1px solid #104b35;
+    background: #0b1913;
+    color: #7ccc9b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-source {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-source b {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-table th, :where(:root[data-palette="aurora"][data-theme="dark"]) .isc-table td {
+    border-bottom: 1px solid #35343f;
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-table thead th {
+    color: #b8b7c3;
+    background: #181721
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-table small {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-table tr.is-group-start > * {
+    border-top: 2px solid #383649
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-group {
+    background: #15141d;
+    color: #b2a5fb !important
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-table input {
+    border: 1px solid #3b384c
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-gate.is-ok {
+    color: #7ccc9b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-gate.is-fail {
+    color: #ff8a83
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-status.is-hit {
+    background: #031c12;
+    color: #7ccc9b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-status.is-min {
+    background: #201400;
+    color: #eca66b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-status.is-miss {
+    background: #231112;
+    color: #ff8a83
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-status.is-locked {
+    background: #16151f;
+    color: #bfbecc
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-status.is-empty {
+    background: #16151f;
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-bands li {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-bands li.is-current {
+    background: #17122d;
+    outline: 2px solid #734bdf
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-bands .is-pos {
+    color: #7ccc9b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-bands .is-neg {
+    color: #ff8a83
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-history li {
+    border: 1px solid #35343f;
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-history li span {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-history em {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-check {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .isc-rules-foot {
     color: #bfbecc
 }
 /* dark · select-search.css */

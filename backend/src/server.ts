@@ -11,7 +11,7 @@ import { activationKeys, findDuplicateCall } from './activation-dedupe.js';
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
-import { calculateIgpMetrics, calculateIgpPlan, normalizeCluster } from './igp.js';
+import { calculateIgpMetrics, calculateIgpPlan, CLUSTER_AREAS, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
@@ -58,6 +58,8 @@ import { backupConfig } from './db-backup.js';
 import { addNightRuns, getNightRouterSettings, listNightRuns, listNightShifts, replaceNightShifts, saveNightRouterSettings } from './store/night-router.js';
 import { askJotaGemini, validateJotaSql } from './jota-h.js';
 import { DUTY_STATUSES } from './duty-status.js';
+import { getIgpRules, importGigaWorkbook, listGigaImports, listGigaOrders, reconcile, saveIgpRules } from './store/giga.js';
+import { scoreIgp } from './igp-score.js';
 import { normalizeOltCode } from './integrations/wuzapi/noc-consolidation.js';
 import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing } from './missing-region.js';
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
@@ -1651,6 +1653,55 @@ app.post('/api/jota-h/:id/avaliacao', auth, requirePermission('dashboard.view'),
 app.get('/api/jota-h/uso', auth, requirePermission('settings.manage'), async (_request, response) => {
   try { return response.json(await jotaUsage()); }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível carregar o uso do Jota H.' }); }
+});
+// Planilha da Giga (12/11/2026): importar o "JH (NN).xlsx", pontuacao do IGP ACESSO, conciliacao e regras.
+app.post('/api/igp/giga', auth, requirePermission('imports.create'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ fileName: z.string().trim().min(1).max(255), contentBase64: z.string().min(1) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie a planilha da Giga (.xlsx).' });
+  try {
+    const buffer = Buffer.from(parsed.data.contentBase64, 'base64');
+    if (!buffer.length || buffer.length > 12 * 1024 * 1024) return response.status(413).json({ message: 'A planilha deve ter ate 12 MB.' });
+    const result = await importGigaWorkbook(buffer, parsed.data.fileName, request.authUser!.name);
+    console.log(`[Giga] ${request.authUser!.name} importou ${parsed.data.fileName}: ${result.import.ordersCount} ordens, ${result.import.matchedCount} achadas, ${result.updatedCalls} chamados atualizados`);
+    return response.json({ ...result, import: { ...result.import, indicators: undefined } });
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel ler a planilha da Giga.' }); }
+});
+const giganMonth = (value: unknown) => (typeof value === 'string' && /^\d{4}-\d{2}$/.test(value) ? value : undefined);
+app.get('/api/igp/pontuacao', auth, requirePermission('dashboard.view'), async (request, response) => {
+  try {
+    const recent = await listGigaImports(undefined, 100);
+    const months = [...new Set(recent.map((item) => item.month))].sort().reverse();
+    const month = giganMonth(request.query.month) || months[0];
+    if (!month) return response.json({ months: [], month: null, imports: [] });
+    const imports = recent.filter((item) => item.month === month);
+    const latest = imports[0];
+    const { rules, updatedAt, updatedBy } = await getIgpRules();
+    const clusters = latest ? Object.keys(latest.indicators).sort((left, right) => (left === latest.mainCluster ? -1 : right === latest.mainCluster ? 1 : left.localeCompare(right, 'pt-BR', { numeric: true }))) : [];
+    const cluster = typeof request.query.cluster === 'string' && clusters.includes(request.query.cluster) ? request.query.cluster : latest?.mainCluster && clusters.includes(latest.mainCluster) ? latest.mainCluster : clusters[0];
+    const score = latest && cluster ? scoreIgp(latest.indicators[cluster], rules) : null;
+    const history = cluster ? imports.filter((item) => item.indicators[cluster]).map((item) => { const s = scoreIgp(item.indicators[cluster], rules); return { importedAt: item.importedAt, closedUntil: item.closedUntil, fileName: item.fileName, total: s.total, band: s.band.band }; }).reverse() : [];
+    // Redes "ao vivo" pelo sistema (todas as ordens finalizadas do mes, nao so as que ja chegaram na planilha).
+    const area = cluster ? CLUSTER_AREAS[normalizeCluster(cluster) ?? ''] : undefined;
+    const live = area ? calculateIgpMetrics(await listCalls(['Finalizado']), month, area).total : null;
+    return response.json({ months, month, clusters, cluster, mainCluster: latest?.mainCluster ?? null, latest: latest ? { fileName: latest.fileName, importedAt: latest.importedAt, importedBy: latest.importedBy, closedUntil: latest.closedUntil, ordersCount: latest.ordersCount, matchedCount: latest.matchedCount } : null, score, history, live, rules, rulesUpdatedAt: updatedAt, rulesUpdatedBy: updatedBy });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular a pontuacao.' }); }
+});
+app.get('/api/igp/conciliacao', auth, requirePermission('dashboard.view'), async (request, response) => {
+  try {
+    const month = giganMonth(request.query.month);
+    const cluster = typeof request.query.cluster === 'string' ? request.query.cluster : 'C.8';
+    if (!month) return response.status(400).json({ message: 'Informe o mes (AAAA-MM).' });
+    const [orders, calls, imports] = await Promise.all([listGigaOrders(month), listCalls(), listGigaImports(month, 1)]);
+    const result = reconcile(orders, calls, cluster, imports[0]?.closedUntil ?? null);
+    return response.json({ month, cluster, both: result.both, closedUntil: result.closedUntil, onlyGigaTotal: result.onlyGiga.length, onlySystemTotal: result.onlySystem.length, timeDiffTotal: result.timeDiffs.length, onlyGiga: result.onlyGiga.slice(0, 100), onlySystem: result.onlySystem.slice(0, 100), timeDiffs: result.timeDiffs.slice(0, 100) });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar a conciliacao.' }); }
+});
+app.put('/api/igp/regras', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const indicator = z.object({ key: z.enum(['outlier', 'prazo', 'mttr', 'eficiencia', 'capexAgenda', 'reparoAgenda', 'qualidadeCapex', 'irr', 'irt', 'visita', 'churn']), label: z.string().trim().min(1).max(80), group: z.string().trim().min(1).max(40), weight: z.number().min(0).max(100), minWeight: z.number().min(0).max(100), target: z.number().min(0).max(1000), minimum: z.number().min(0).max(1000), direction: z.enum(['lower', 'higher']), unit: z.enum(['pct', 'h']), floor: z.number().min(0).max(1000).nullable().optional(), floorLabel: z.string().max(80).optional() });
+  const parsed = z.object({ rules: z.object({ indicators: z.array(indicator).min(1).max(20), bands: z.array(z.object({ band: z.string().trim().min(1).max(3), minPoints: z.number().min(0).max(200), bonus: z.number().min(-1).max(1) })).min(1).max(12), outlierReparoMax: z.number().min(0).max(1), redesGate: z.number().min(0).max(1), applyRedesGate: z.boolean() }) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Regras invalidas.' });
+  try { return response.json(await saveIgpRules(parsed.data.rules, request.authUser!.name)); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar as regras.' }); }
 });
 const maskChat = (chat: string) => (chat.length > 8 ? `${chat.slice(0, 4)}…${chat.slice(-6)}` : '…');
 app.get('/api/integracoes/saude', auth, requirePermission('imports.view'), async (_request, response) => {

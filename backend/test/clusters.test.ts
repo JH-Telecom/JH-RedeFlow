@@ -11,19 +11,21 @@ test('bucket names and labels become cluster codes', () => {
   assert.deepEqual(igpAreaClusters('ABC'), ['C09']);
 });
 
-test('area comes from the OFS cluster first, then from the region', () => {
-  assert.equal(classifyCallArea({ cluster: 'C12', region: 'SAO PAULO' }), 'GRU');
+// Desde 12/11/2026: cluster da planilha da Giga > regiao > balde do OFS (o balde divergia da Giga).
+test('area comes from the Giga cluster, then the region, then the OFS bucket', () => {
+  assert.equal(classifyCallArea({ gigaCluster: 'C12', cluster: 'C08', region: 'SAO PAULO' }), 'GRU');
+  assert.equal(classifyCallArea({ cluster: 'C12', region: 'SAO PAULO' }), 'SP');
   assert.equal(classifyCallArea({ cluster: 'C09', region: 'Nao informada' }), 'ABC');
   assert.equal(classifyCallArea({ region: 'Diadema' }), 'ABC');
   assert.equal(classifyCallArea({ region: 'Suzano' }), 'ALTO_TIETE');
   assert.equal(classifyCallArea({ region: 'Nao informada' }), 'OUTRAS');
 });
 
-test('IGP by area uses the cluster', () => {
+test('IGP by area: OFS bucket only when the region says nothing', () => {
   const call = (id: string, cluster: string | undefined, region: string): Call => ({ id, orderNumber: id, bdesk: '', officeTrack: '', client: '', type: 'NOC ACESSO', reason: '', region, city: '', olt: '', slotPon: '', status: 'Finalizado', openedAt: '2026-11-04T12:00:00Z', executedAt: '2026-11-04T14:00:00Z', notes: '', cluster });
   const calls = [call('a', 'C09', 'Nao informada'), call('b', undefined, 'Diadema'), call('c', 'C08', 'Diadema')];
-  assert.equal(calculateIgpMetrics(calls, '2026-11', 'ABC').total.orders, 2);
-  assert.equal(calculateIgpMetrics(calls, '2026-11', 'SP').total.orders, 1);
+  assert.equal(calculateIgpMetrics(calls, '2026-11', 'ABC').total.orders, 3);
+  assert.equal(calculateIgpMetrics(calls, '2026-11', 'SP').total.orders, 0);
 });
 
 test('cluster export tags the calls in the bucket and teaches the workzone for assigned ones', async () => {

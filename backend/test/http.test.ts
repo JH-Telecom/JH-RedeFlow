@@ -1472,7 +1472,7 @@ test('the end date of a closed call can be corrected without reopening it', asyn
   assert.equal(future.status, 422);
 
   const logs = await (await fetch(`${baseUrl}/api/chamados/${target.id}/logs`, { headers })).json() as { logs?: { field: string; action: string }[] };
-  if (logs.logs) assert.ok(logs.logs.some((log) => log.field === 'executedAt' && log.action === 'Data de finalizacao alterado'));
+  if (logs.logs) assert.ok(logs.logs.some((log) => log.field === 'executedAt' && log.action === 'Data Fim corrigida'));
 });
 
 test('the queue reads the latest observation of many calls in one request', async () => {

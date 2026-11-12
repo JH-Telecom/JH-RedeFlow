@@ -123,8 +123,12 @@ export type Call = {
   executedAt?: string | null;
   result?: string;
   cancellationReason?: string;
-  /** Cluster do OFS (balde CLUSTER_C08...), ex.: "C08". Define a area (SP, ABC, Alto Tiete, GRU). */
+  /** Cluster do OFS (balde CLUSTER_C08...), ex.: "C08". Nao bate com a Giga: so vale quando nao ha cluster da Giga nem regiao conhecida. */
   cluster?: string;
+  /** Da planilha da Giga (Analitico de Redes), quando a ordem ja esta nela: cluster oficial ("C08") e abertura/fechamento usados no IGP. */
+  gigaCluster?: string;
+  gigaOpenedAt?: string;
+  gigaClosedAt?: string;
   /** Fechamento no OFS (formulario "Fechamento"), lido pelo Coletor OFS. */
   closingReason?: string;
   closingSubreason?: string;

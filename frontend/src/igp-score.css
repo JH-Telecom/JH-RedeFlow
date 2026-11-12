@@ -1,0 +1,42 @@
+/* Pontuacao IGP (IgpScorePage) */
+.isc-page .igp-filter-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.isc-page .igp-filter-controls .primary-button { min-height: 40px; box-shadow: none; }
+.isc-notice { margin: 0 0 12px; padding: 10px 12px; border: 1px solid #b9e4cf; border-radius: 8px; background: #eefaf4; color: #116b40; font-size: 13px; }
+.isc-source { margin: 0 0 12px; font-size: 12px; color: #4f5d73; }
+.isc-source b { color: #17233b; }
+.isc-table-wrap { overflow-x: auto; }
+.isc-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.isc-table th, .isc-table td { padding: 9px 10px; border-bottom: 1px solid #eef2f7; text-align: left; vertical-align: top; color: #17233b; }
+.isc-table thead th { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #4f5d73; background: #fbfcfe; white-space: nowrap; }
+.isc-table tbody th { font-weight: 700; }
+.isc-table small { display: block; margin-top: 2px; font-size: 11px; font-weight: 400; color: #4f5d73; }
+.isc-table tr.is-group-start > * { border-top: 2px solid #e3eaf5; }
+.isc-group { background: #f7f9fc; color: #0845ae !important; white-space: nowrap; }
+.isc-table input { width: 90px; padding: 6px 8px; border: 1px solid #dce4ef; border-radius: 6px; font-size: 12px; }
+.isc-gate { display: inline-flex; align-items: flex-start; gap: 4px; font-size: 11px; font-weight: 600; }
+.isc-gate svg { flex: none; margin-top: 1px; }
+.isc-gate.is-ok { color: #116b40; }
+.isc-gate.is-fail { color: #a3262a; }
+.isc-status { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.isc-status.is-hit { background: #e3f6ec; color: #116b40; }
+.isc-status.is-min { background: #fff4dd; color: #8a4b00; }
+.isc-status.is-miss { background: #fdecec; color: #a3262a; }
+.isc-status.is-locked { background: #eef2f7; color: #45536b; }
+.isc-status.is-empty { background: #f4f6f9; color: #4f5d73; }
+.isc-bands { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.isc-bands li { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 8px; font-size: 13px; color: #17233b; }
+.isc-bands li.is-current { background: #e6efff; outline: 2px solid #1264e8; }
+.isc-bands b { font-size: 15px; }
+.isc-bands .is-pos { color: #116b40; font-weight: 700; }
+.isc-bands .is-neg { color: #a3262a; font-weight: 700; }
+.isc-history { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.isc-history li { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border: 1px solid #eef2f7; border-radius: 8px; font-size: 13px; color: #17233b; }
+.isc-history li span { flex: 1; color: #4f5d73; }
+.isc-history em { font-style: normal; color: #4f5d73; }
+.isc-tabs { margin-bottom: 10px; }
+.isc-tabs b { margin-left: 4px; }
+.isc-export { margin-top: 10px; }
+.isc-rules { display: grid; gap: 12px; margin-top: 10px; }
+.isc-check { display: flex !important; align-items: center; gap: 8px; font-size: 13px; color: #17233b; }
+.isc-check input { width: 16px; height: 16px; padding: 0; }
+.isc-rules-foot { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #45536b; }

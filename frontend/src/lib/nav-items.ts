@@ -1,4 +1,4 @@
-import { Activity, Archive, Binoculars, MapPinOff, MoonStar, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Award, Binoculars, MapPinOff, MoonStar, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
 
 // Abas do menu lateral. Usado pelo Shell (menu, rotas, busca Ctrl+K) e pela tela de Cargos (abas visiveis por cargo).
 // fieldOnly: so aparece para o usuario ligado a um tecnico (Meus chamados).
@@ -18,6 +18,7 @@ export const navItems: NavItem[] = [
   { section: "Indicadores", label: "Visão dos supervisores", to: "/visao-supervisores", icon: Binoculars, permission: "dashboard.view" },
   { section: "Indicadores", label: "Painel diário", to: "/painel-diario", icon: CalendarDays, permission: "dashboard.view" },
   { section: "Indicadores", label: "IGP", to: "/igp", icon: Gauge, permission: "dashboard.view" },
+  { section: "Indicadores", label: "Pontuação IGP", to: "/igp/pontuacao", icon: Award, permission: "dashboard.view" },
   { section: "Indicadores", label: "Análise de prazo", to: "/analise-prazo", icon: Hourglass, permission: "dashboard.view" },
   { section: "Indicadores", label: "Relatórios", to: "/relatorios", icon: FileBarChart, permission: "dashboard.view" },
   { section: "Indicadores", label: "Modo TV", to: "/modo-tv", icon: Tv, permission: "dashboard.view" },

@@ -81,6 +81,18 @@ export function clearResponseCache() {
 // Trafego estimado do Supabase (Configuracoes -> Trafego do banco).
 export type SystemStatusLevel = 'ok' | 'warn' | 'down' | 'unknown';
 export type SystemStatus = { status: SystemStatusLevel; checkedAt: string; components: { key: string; label: string; status: SystemStatusLevel; detail: string; checkedAt: string }[] };
+export type IgpRuleIndicator = { key: string; label: string; group: string; weight: number; minWeight: number; target: number; minimum: number; direction: 'lower' | 'higher'; unit: 'pct' | 'h'; floor?: number | null; floorLabel?: string };
+export type IgpRules = { indicators: IgpRuleIndicator[]; bands: { band: string; minPoints: number; bonus: number }[]; outlierReparoMax: number; redesGate: number; applyRedesGate: boolean };
+export type IgpScoredIndicator = { key: string; label: string; group: string; value: number | null; detail: string; parts?: { label: string; value: number | null; detail: string }[]; target: number; minimum: number; direction: 'lower' | 'higher'; unit: 'pct' | 'h'; weight: number; minWeight: number; points: number; status: 'meta' | 'minimo' | 'abaixo' | 'travado' | 'sem-dado'; gate?: { label: string; ok: boolean }; gap: number | null };
+export type IgpScoreData = {
+  months: string[]; month: string | null; clusters: string[]; cluster?: string; mainCluster: string | null;
+  latest: { fileName: string; importedAt: string; importedBy: string | null; closedUntil: string | null; ordersCount: number; matchedCount: number } | null;
+  score: { indicators: IgpScoredIndicator[]; basePoints: number; accelerator: number; total: number; maxPoints: number; band: { band: string; minPoints: number; bonus: number }; scoring: number } | null;
+  history: { importedAt: string; closedUntil: string | null; fileName: string; total: number; band: string }[];
+  live: IgpGroup | null; rules?: IgpRules; rulesUpdatedAt?: string | null; rulesUpdatedBy?: string | null;
+};
+export type GigaOrderRow = { os: string; osOfs: string; origin: string; cluster: string; city: string; openedAt: string | null; closedAt: string | null; tmeHours: number | null; onTime: boolean | null; outlier: boolean | null };
+export type IgpReconciliation = { month: string; cluster: string; both: number; closedUntil: string | null; onlyGigaTotal: number; onlySystemTotal: number; timeDiffTotal: number; onlyGiga: GigaOrderRow[]; onlySystem: { id: string; orderNumber: string; bdesk: string; type: string; region: string; executedAt?: string | null; openedAt: string }[]; timeDiffs: { os: string; callId: string; orderNumber: string; origin: string; gigaClosedAt: string | null; systemClosedAt: string | null; minutes: number }[] };
 export type MissingRegionCall = { id: string; orderNumber: string; status: CallStatus; type: string; client: string; olt: string; slotPon: string; city: string; bairro?: string; address?: string; openedAt: string; technicianName?: string; sameOlt: number };
 export type JotaAnswer =
   | { kind: 'query'; titulo: string; sql: string; explicacao: string; sugestoes: string[]; linhas: Record<string, unknown>[]; colunas: string[]; limite: boolean; logId?: string | null }
@@ -350,6 +362,10 @@ export const api = {
   dbUsage: () => request<DbUsageReport>('/api/configuracoes/banco'),
   supervisorOverview: (filters: { from: string; to: string; region?: string; type?: string }) => request<SupervisorOverview>(`/api/visao-supervisores?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as [string, string][]).toString()}`),
   systemStatus: () => request<SystemStatus>('/api/status'),
+  importGiga: (fileName: string, contentBase64: string) => request<{ import: { fileName: string; month: string; mainCluster: string | null; closedUntil: string | null; ordersCount: number; matchedCount: number }; updatedCalls: number }>('/api/igp/giga', { method: 'POST', body: JSON.stringify({ fileName, contentBase64 }) }),
+  igpScore: (month?: string, cluster?: string) => request<IgpScoreData>(`/api/igp/pontuacao?${new URLSearchParams(Object.entries({ month, cluster }).filter(([, value]) => value) as [string, string][]).toString()}`),
+  igpReconciliation: (month: string, cluster: string) => request<IgpReconciliation>(`/api/igp/conciliacao?month=${encodeURIComponent(month)}&cluster=${encodeURIComponent(cluster)}`),
+  saveIgpRules: (rules: IgpRules) => request<{ rules: IgpRules }>('/api/igp/regras', { method: 'PUT', body: JSON.stringify({ rules }) }),
   missingRegionCalls: (page = 1) => request<{ calls: MissingRegionCall[]; total: number; page: number; pageSize: number; regions: string[] }>(`/api/chamados/sem-regiao?page=${page}`),
   setCallRegion: (id: string, region: string, aplicarOlt: boolean) => request<{ others: number; oltSaved: boolean }>(`/api/chamados/${encodeURIComponent(id)}/regiao`, { method: 'POST', body: JSON.stringify({ region, aplicarOlt }) }),
   jotaH: (pergunta: string, contexto: { pergunta: string; sql?: string }[]) => request<JotaAnswer>('/api/jota-h', { method: 'POST', body: JSON.stringify({ pergunta, contexto }) }),

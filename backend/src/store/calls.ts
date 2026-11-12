@@ -6,6 +6,7 @@ import { classifyCallArea } from "../igp.js";
 import type { Call, CallAuditLog, CallStatus, EditableCallFields, User } from "../types.js";
 import { activations, auditLogs, calls, ensureDemoData, observations, supervisors, technicians } from "./demo-data.js";
 import { captureUnknownOltRequests } from "./settings.js";
+import { MANUAL_END_DATE_ACTION } from "./observations.js";
 
 // Nome do tecnico de apoio: a coluna support_technician_id nao tem chave estrangeira (uma segunda ligacao com
 // technicians deixaria ambiguo o join do tecnico principal), entao o nome vem de um mapa id -> nome (5 min).
@@ -396,13 +397,13 @@ export async function updateCallEndDate(id: string, executedAt: string, actor: U
     const { data, error } = await admin.from('calls').update({ executed_at: executedAt, updated_at: new Date().toISOString() }).eq('id', id).select('id').maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) return undefined;
-    const { error: logError } = await admin.from('call_logs').insert({ call_id: id, user_id: actor.id, action: 'Data de finalizacao alterado', field: 'executedAt', previous_value: previousValue, new_value: executedAt });
+    const { error: logError } = await admin.from('call_logs').insert({ call_id: id, user_id: actor.id, action: MANUAL_END_DATE_ACTION, field: 'executedAt', previous_value: previousValue, new_value: executedAt });
     if (logError) throw new Error(logError.message);
     return getCall(id);
   }
   const updated = { ...current, executedAt };
   calls.set(id, updated);
-  const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: 'Data de finalizacao alterado', field: 'executedAt', previousValue, newValue: executedAt, createdAt: new Date().toISOString() };
+  const log: CallAuditLog = { id: `log-${crypto.randomUUID()}`, callId: id, userId: actor.id, userName: actor.name, action: MANUAL_END_DATE_ACTION, field: 'executedAt', previousValue, newValue: executedAt, createdAt: new Date().toISOString() };
   auditLogs.set(log.id, log);
   return updated;
 }

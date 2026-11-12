@@ -141,7 +141,8 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
     assert.equal(classifyIgpArea(region), 'SP');
   }
   assert.equal(classifyIgpArea('DIADEMA'), 'ABC');
-  for (const region of ['CONQUISTA', 'GUARULHOS 6', 'Nao informada']) {
+  assert.equal(classifyIgpArea('CONQUISTA'), 'ABC'); // planilha da Giga: "Maua/Conquista" e C.9 ABC
+  for (const region of ['GUARULHOS 6', 'Nao informada']) {
     assert.equal(classifyIgpArea(region), 'OUTRAS');
   }
   assert.equal(classifyIgpArea('COTIA'), 'ALTO_TIETE');

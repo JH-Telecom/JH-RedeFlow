@@ -26,6 +26,7 @@ import { PopKeysPage } from "../pages/PopKeysPage";
 import { NightRouterPage } from "../pages/NightRouterPage";
 import { JotaHWidget } from "./JotaHWidget";
 import { MissingRegionPage } from "../pages/MissingRegionPage";
+import { IgpScorePage } from "../pages/IgpScorePage";
 import { DashboardWithDateFilter } from "../pages/DashboardPage";
 import { IGPPage } from "../pages/IgpPage";
 import { SlaAnalysisPage } from "../pages/SlaAnalysisPage";
@@ -354,7 +355,7 @@ export function Shell({
                   <div key={item.to} className={`nav-item-slot${hidden ? " is-hidden" : ""}`} inert={hidden} aria-hidden={hidden || undefined}><div className="nav-item-slot-inner">
                   <NavLink
                     to={item.to}
-                    end={item.to === "/"}
+                    end={item.to === "/" || item.to === "/igp"}
                     onClick={() => setMobileOpen(false)}
                     title={desktopCollapsed ? (count ? `${item.label} (${count})` : item.label) : undefined}
                     className={({ isActive }) => (isActive || (item.to === "/chamados/atendimento" && isCallDetail) ? "nav-item active" : "nav-item")}
@@ -459,6 +460,7 @@ export function Shell({
             <Route path="/historico-alteracoes" element={guard("calls.view_logs", <AuditHistoryPage />)} />
             <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
             <Route path="/chaves" element={guard("calls.view", <PopKeysPage user={user} />)} />
+            <Route path="/igp/pontuacao" element={guard("dashboard.view", <IgpScorePage user={user} />)} />
             <Route path="/sem-regiao" element={guard("calls.view", <MissingRegionPage user={user} />)} />
             <Route path="/roteirizador" element={guard("imports.view", <NightRouterPage user={user} />)} />
             <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />

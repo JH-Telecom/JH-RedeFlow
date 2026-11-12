@@ -5986,3 +5986,39 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - teste novo (NOC TX fora, Acesso dentro, contagem à parte);
   - os testes antigos do IGP foram ajustados para a regra nova;
   - build e preview.
+
+## Planilha da Giga no sistema e Pontuação IGP (2026-11-12)
+- **Pedido**: separar as áreas igual à Giga; o fim dos chamados não batia com o OFS; usar a planilha "JH (NN).xlsx" da Giga para atualizar clusters; criar uma tela igual à aba IGP ACESSO para controlar a pontuação.
+- **Diagnóstico** (bases JH 54 e JH 58, só leitura):
+  - a planilha é acumulada no mês e estável: as ordens repetidas mantêm o cluster e o fechamento;
+  - pela região, o sistema acertava o cluster da Giga em 84% das ordens: Ferraz de Vasconcelos 2 é C.11 e Conquista é C.9, e a região não reconhecia nenhuma das duas;
+  - o cluster lido dos baldes do OFS divergia da Giga;
+  - FIELD: o fim do OFS bate com a Giga (77% até 5 min);
+  - BDESK: a Giga fecha ~20 min antes do fim da atividade no OFS (horário do ticket).
+- **Correções de horário**:
+  - **fim depois da meia-noite** (`finishAfterOpening`, `imports/d0.ts`): o OFS manda a data da atividade e a hora de fim separadas. Fim antes da abertura por menos de 24 h passa para o dia seguinte. Eram 8 chamados em novembro fora do IGP como "fim antes da abertura";
+  - **trava da Data Fim** (`callsWithManualEndDate`): só a correção de verdade trava (ação nova "Data Fim corrigida", ou nos logs antigos uma data trocada por outra). Antes, qualquer mudança de status feita por uma pessoa travava, e 20% dos finalizados de novembro deixavam de receber o horário do OFS.
+- **Regra da área** (`classifyCallArea`): 1) cluster da Giga; 2) região, agora com Ferraz de Vasconcelos 2 → Alto Tietê e Conquista → ABC; 3) balde do OFS só quando a região não diz nada.
+- **Importação** (`giga-workbook.ts`, `store/giga.ts`, `POST /api/igp/giga`, `imports.create`):
+  - lê a aba ANALÍTICO REDES (ordens, cluster, abertura e fechamento oficiais, prazo, outlier) e as abas de campo (Altas, Reparos, IRR, IFI, Visita na agenda, IRT, Cancelamentos, Base de clientes, Eficiências) por cluster;
+  - grava em `giga_orders` e `giga_imports`;
+  - nos chamados encontrados (BDESK ou ordem do OFS), grava `giga_cluster`, `giga_opened_at` e `giga_closed_at`. O IGP passa a usar esses valores quando houver.
+- **Pontuação IGP** (Indicadores › Pontuação IGP, `/igp/pontuacao`, `igp-score.ts`):
+  - mesmas regras da aba IGP ACESSO: pesos, metas, mínimos e condições dos grupos;
+  - Eficiência: cada uma ≥ 75%;
+  - Capex: cada uma ≥ 70%;
+  - Opex: outlier de reparo < 6%;
+  - Qualidade Capex: cada um ≤ 5%;
+  - acelerador Churn;
+  - régua de faixas (A +10% … Z −5%);
+  - a condição do grupo Redes ("realizado ≥ 75%") aparece mas só trava se ligada nas regras, até ser confirmada com a Giga;
+  - a tela traz cartões (pontos, faixa, bônus, indicadores pontuando), tabela por grupo com "faltam X p.p.", régua, evolução a cada planilha, Redes ao vivo pelo sistema, conciliação (só na Giga, só no sistema, fechamento diferente) com CSV e editor de regras (`settings.manage`, tabela `igp_rules`).
+- **Prévia com a JH (58), C.8**: 59 pontos (49 + 10 do acelerador), faixa Z, sem confirmação oficial ainda. MTTR, IFI/IFIME, IRR, IRT e Churn pontuam; Eficiência (ME 64,9%) e Opex (outlier de reparo 6,7%) travam.
+- **Banco** (`supabase/migrations/202611120004_giga_igp.sql`): colunas `giga_*` em `calls` e tabelas `giga_imports`, `giga_orders` e `igp_rules`. RLS ligado e sem políticas.
+- **Validação**:
+  - testes com uma planilha sintética no formato da Giga (leitura, pontuação, condições, cruzamento, conciliação, IGP com horários da Giga) e das duas correções de horário;
+  - testes antigos de área atualizados para a regra nova;
+  - suíte 280/281 (a que falhou é o timeout de ~32 s de sempre, que passa sozinha);
+  - build;
+  - preview com a JH (58) importada no demo;
+  - contraste nos temas claro e escuro.

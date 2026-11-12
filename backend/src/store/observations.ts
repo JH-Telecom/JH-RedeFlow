@@ -171,10 +171,15 @@ export async function listAuditLogs(callId: string): Promise<CallAuditLog[]> {
   return [...auditLogs.values()].filter((item) => item.callId === callId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-// Chamados em que uma pessoa corrigiu a Data Fim na tela do chamado (log "Data de finalizacao alterado" com
-// usuario). A sincronizacao do OFS nao sobrescreve mais essa data: a correcao manual vale. Finalizar pelo
-// sistema grava "Data de execucao alterado" e nao conta aqui (o OFS continua ajustando a data nesses casos).
-const MANUAL_END_DATE_ACTION = 'Data de finalizacao alterado';
+// Chamados em que uma pessoa corrigiu a Data Fim (a coleta do OFS nao sobrescreve mais essa data).
+// Desde 12/11/2026 so conta a correcao de verdade: a tela "Corrigir data de fim" (acao "Data Fim corrigida") ou, nos
+// logs antigos, uma data trocada por OUTRA data. Antes qualquer mudanca de status feita por uma pessoa (reabrir,
+// atribuir) gravava "Data de finalizacao alterado" e travava a data: 20% dos finalizados de novembro ficaram sem a
+// correcao do OFS.
+export const MANUAL_END_DATE_ACTION = 'Data Fim corrigida';
+const LEGACY_END_DATE_ACTION = 'Data de finalizacao alterado';
+export const isManualEndDateLog = (log: { action: string; previousValue?: string | null; newValue?: string | null }) =>
+  log.action === MANUAL_END_DATE_ACTION || (log.action === LEGACY_END_DATE_ACTION && Boolean(log.previousValue?.trim()) && Boolean(log.newValue?.trim()));
 export async function callsWithManualEndDate(callIds: string[]): Promise<Set<string>> {
   const locked = new Set<string>();
   if (!callIds.length) return locked;
@@ -182,15 +187,17 @@ export async function callsWithManualEndDate(callIds: string[]): Promise<Set<str
     const admin = getSupabaseAdmin();
     for (let offset = 0; offset < callIds.length; offset += 200) {
       const chunk = callIds.slice(offset, offset + 200);
-      const { data, error } = await admin.from('call_logs').select('call_id').eq('field', 'executedAt').eq('action', MANUAL_END_DATE_ACTION).not('user_id', 'is', null).in('call_id', chunk);
+      const { data, error } = await admin.from('call_logs').select('call_id, action, previous_value, new_value').eq('field', 'executedAt').in('action', [MANUAL_END_DATE_ACTION, LEGACY_END_DATE_ACTION]).not('user_id', 'is', null).in('call_id', chunk);
       if (error) throw new Error(error.message);
-      for (const row of data || []) locked.add(String((row as { call_id: string }).call_id));
+      for (const row of (data || []) as Array<{ call_id: string; action: string; previous_value: string | null; new_value: string | null }>) {
+        if (isManualEndDateLog({ action: row.action, previousValue: row.previous_value, newValue: row.new_value })) locked.add(String(row.call_id));
+      }
     }
     return locked;
   }
   const wanted = new Set(callIds);
   for (const log of auditLogs.values()) {
-    if (wanted.has(log.callId) && log.field === 'executedAt' && log.action === MANUAL_END_DATE_ACTION && log.userId && !log.userId.startsWith('system')) locked.add(log.callId);
+    if (wanted.has(log.callId) && log.field === 'executedAt' && log.userId && !log.userId.startsWith('system') && isManualEndDateLog(log)) locked.add(log.callId);
   }
   return locked;
 }
