@@ -1,3 +1,4 @@
+import { slaLimits } from "../lib/sla";
 import { useEffect, useState } from "react";
 import { api, type Call, type CallAuditLog } from "../api";
 
@@ -46,7 +47,8 @@ export function CallTimeline({ call }: { call: Call }) {
   const start = segments[0].from;
   const end = segments[segments.length - 1].to;
   const span = end - start;
-  const deadline = start + 6 * 3_600_000;
+  const limits = slaLimits(call.type);
+  const deadline = start + limits.onTimeMinutes * 60_000;
   const closed = ["Finalizado", "Cancelado"].includes(call.status);
   const totals = new Map<string, number>();
   for (const segment of segments) totals.set(segment.label, (totals.get(segment.label) || 0) + (segment.to - segment.from) / 60_000);
@@ -54,7 +56,7 @@ export function CallTimeline({ call }: { call: Call }) {
     <section className="panel ct-panel" aria-label="Linha do tempo do chamado">
       <div className="ct-head">
         <strong>Linha do tempo</strong>
-        <span>{closed ? "Total" : "Até agora"}: <b>{fmt(span / 60_000)}</b>{span > 6 * 3_600_000 ? " · passou do prazo de 6h" : ""}</span>
+        <span>{closed ? "Total" : "Até agora"}: <b>{fmt(span / 60_000)}</b>{span > limits.onTimeMinutes * 60_000 ? ` · passou do prazo de ${limits.label}` : ""}</span>
       </div>
       <div className="ct-bar" role="img" aria-label={segments.map((segment) => `${segment.label}: ${fmt((segment.to - segment.from) / 60_000)}`).join("; ")}>
         {segments.map((segment, index) => <i key={index} className={`is-${segment.tone}`} style={{ flexGrow: segment.to - segment.from }} title={`${segment.label}: ${fmt((segment.to - segment.from) / 60_000)} (${when(segment.from)} → ${when(segment.to)})`} />)}

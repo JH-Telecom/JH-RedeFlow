@@ -1,3 +1,4 @@
+import { slaLimits } from "../lib/sla";
 export function getElapsedMinutes(openedAt: string) {
   return Math.max(0, Math.floor((Date.now() - new Date(openedAt).getTime()) / 60000));
 }
@@ -23,20 +24,22 @@ export const SLA_OUTLIER_AFTER_MINUTES = 9 * 60;
 
 export const SLA_LIMIT_LABEL = "Limite 06:00";
 
-export function getSlaState(elapsedMinutes: number) {
-  return elapsedMinutes > SLA_OUTLIER_AFTER_MINUTES ? "outlier" : elapsedMinutes > SLA_ON_TIME_MAX_MINUTES ? "late" : "on-time";
+// Com o tipo do chamado usa o prazo dele (Links/NOC TX: 15 dias; lib/sla.ts).
+export function getSlaState(elapsedMinutes: number, type?: string) {
+  const limits = slaLimits(type);
+  return elapsedMinutes > limits.outlierMinutes ? "outlier" : elapsedMinutes > limits.onTimeMinutes ? "late" : "on-time";
 }
 
-export function SlaCell({ openedAt }: { openedAt: string }) {
-  const state = getSlaState(getElapsedMinutes(openedAt));
+export function SlaCell({ openedAt, type }: { openedAt: string; type?: string }) {
+  const state = getSlaState(getElapsedMinutes(openedAt), type);
   const label = state === "outlier" ? "Outlier" : state === "late" ? "Fora do prazo" : "No prazo";
   // No tema escuro as variaveis --sla-* (theme-dark-manual.css) clareiam as cores; no claro vale o fallback.
   const color = `var(--sla-${state}, ${state === "outlier" ? "#bd3f45" : state === "late" ? "#a86b00" : "#138a5e"})`;
   return <span className={`sla-cell ${state}`} data-prazo={`${label} - ${SLA_LIMIT_LABEL}`} style={{ color }}><strong style={{ color }}>{label}</strong><small style={{ color }}>{SLA_LIMIT_LABEL}</small></span>;
 }
 
-export function SlaDurationCell({ openedAt }: { openedAt: string }) {
-  const state = getSlaState(getElapsedMinutes(openedAt));
+export function SlaDurationCell({ openedAt, type }: { openedAt: string; type?: string }) {
+  const state = getSlaState(getElapsedMinutes(openedAt), type);
   return <span className={`sla-duration ${state}`}>{formatElapsed(openedAt)}</span>;
 }
 

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileSpreadsheet, Search, X } from "lucide-react";
 import { api, isCallClosed, type Call, type CallListQuery, type CallListResult, type CallStatus, type Role, type User } from "../api";
-import { SLA_ON_TIME_MAX_MINUTES, SLA_OUTLIER_AFTER_MINUTES, TimerCell, formatCallTimestamp, getSlaState } from "../components/call-cells";
+import { TimerCell, formatCallTimestamp, getSlaState } from "../components/call-cells";
+import { slaLimits } from "../lib/sla";
 import { CALLS_PAGE_SIZE, operationalRegions } from "../lib/constants";
 import { shareReportImage, slugFileName, type ReportCell, type ReportColumn, type ReportTone } from "../lib/report-image";
 import { useFitToViewport } from "../hooks/useFitToViewport";
@@ -152,12 +153,14 @@ const shortDateTime = (value: string) => new Date(value).toLocaleString("pt-BR",
 
 // Relogio da regra 6h/9h: tempo grande, barra ate 9h com marca nas 6h e a classificacao.
 // Em aberto conta ate agora; encerrado conta da abertura ate a Data Fim.
-function QueueClock({ openedAt, endedAt, closed = false }: { openedAt: string; endedAt?: string | null; closed?: boolean }) {
+// Links (NOC TX): prazo de 15 dias (lib/sla.ts); a barra vai ate o prazo deles.
+function QueueClock({ openedAt, endedAt, closed = false, type }: { openedAt: string; endedAt?: string | null; closed?: boolean; type?: string }) {
   if (closed && !endedAt) return <span className="muted-cell">Sem Data Fim</span>;
   const minutes = minutesBetween(openedAt, endedAt);
-  const state = getSlaState(minutes) as SlaState;
-  const fill = Math.min(100, (minutes / SLA_OUTLIER_AFTER_MINUTES) * 100);
-  const tick = (SLA_ON_TIME_MAX_MINUTES / SLA_OUTLIER_AFTER_MINUTES) * 100;
+  const state = getSlaState(minutes, type) as SlaState;
+  const limits = slaLimits(type);
+  const fill = Math.min(100, (minutes / limits.outlierMinutes) * 100);
+  const tick = (limits.onTimeMinutes / limits.outlierMinutes) * 100;
   return (
     <div className={`cq-clock is-${state}`} data-prazo={`${formatDuration(minutes)} ${SLA_LABELS[state]}`}>
       <strong>{formatDuration(minutes)}</strong>
@@ -293,7 +296,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     const clip = (text: string, max = 180) => { const flat = text.replace(/\s+/g, " ").trim(); return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat; };
     const rows: ReportCell[][] = currentCalls.map((call) => {
       const minutes = minutesBetween(call.openedAt, closedView ? call.executedAt : undefined);
-      const state = getSlaState(minutes) as SlaState;
+      const state = getSlaState(minutes, call.type) as SlaState;
       const clock: ReportCell = closedView && !call.executedAt
         ? { text: "Sem Data Fim", tone: "muted" }
         : { text: formatDuration(minutes), tone: slaTone(state), sub: `${SLA_LABELS[state]} · desde ${shortDateTime(call.openedAt)}` };
@@ -369,7 +372,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       const spDate = (iso?: string | null) => iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "";
       const rows = all.map((call) => {
         const minutes = minutesBetween(call.openedAt, closedView ? call.executedAt : undefined);
-        const sla = getSlaState(minutes);
+        const sla = getSlaState(minutes, call.type);
         return {
           Ordem: call.orderNumber, BDESK: call.bdesk, "Office Track": call.officeTrack, Tipo: call.type, Motivo: call.reason,
           "Região": call.region, Bairro: call.bairro || "", "Endereço": call.address || "", OLT: call.olt, "Slot/PON": call.slotPon,
@@ -532,10 +535,10 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     setDateRange({ from: "", to: "" });
     setQuery("");
   }
-  const slaTally = closedView ? null : currentCalls.reduce((tally, call) => { tally[getSlaState(minutesBetween(call.openedAt)) as SlaState] += 1; return tally; }, { "on-time": 0, late: 0, outlier: 0 } as Record<SlaState, number>);
+  const slaTally = closedView ? null : currentCalls.reduce((tally, call) => { tally[getSlaState(minutesBetween(call.openedAt), call.type) as SlaState] += 1; return tally; }, { "on-time": 0, late: 0, outlier: 0 } as Record<SlaState, number>);
   const plural = (count: number, one: string, many: string) => `${count.toLocaleString("pt-BR")} ${count === 1 ? one : many}`;
   const description = unassignedOnly ? "Chamados ainda sem técnico." : assignedOnly ? "Chamados com técnico, em andamento." : closedView ? "Chamados finalizados, cancelados ou a baixar." : "Chamados da equipe.";
-  const rowSla = (call: Call) => getSlaState(minutesBetween(call.openedAt, closedView ? call.executedAt : undefined)) as SlaState;
+  const rowSla = (call: Call) => getSlaState(minutesBetween(call.openedAt, closedView ? call.executedAt : undefined), call.type) as SlaState;
   const statusSelect = (call: Call) => (
     <select className={`cq-status is-${call.status.toLowerCase().replace("+", "-mais").replace(" ", "-")}`} value={call.status} onClick={(event) => event.stopPropagation()} onChange={async (event) => { event.stopPropagation(); await updateCallStatus(call, event.target.value as CallStatus); }} aria-label={`Status do chamado ${call.orderNumber}`}>
       {CALL_STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -643,11 +646,11 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
                       {orderCell(call)}{technicianCell(call)}{eventCell(call)}{placeCell(call)}
                       <td data-label="Abertura">{shortDateTime(call.openedAt)}</td>
                       <td data-label="Data Fim">{formatCallTimestamp(call.executedAt)}</td>
-                      <td data-label="Tempo total"><QueueClock openedAt={call.openedAt} endedAt={call.executedAt} closed /></td>
+                      <td data-label="Tempo total"><QueueClock openedAt={call.openedAt} endedAt={call.executedAt} closed type={call.type} /></td>
                       <td data-label="Status">{statusSelect(call)}</td>
                     </> : assignedOnly ? <>
                       {orderCell(call)}{technicianCell(call)}
-                      <td data-label="Na fila"><QueueClock openedAt={call.openedAt} /><small className="table-subtext">desde {shortDateTime(call.openedAt)}</small></td>
+                      <td data-label="Na fila"><QueueClock openedAt={call.openedAt} type={call.type} /><small className="table-subtext">desde {shortDateTime(call.openedAt)}</small></td>
                       {eventCell(call)}{placeCell(call, true)}
                       <td data-label="Última observação" className="cq-observation">{(() => {
                         const latest = latestObservations[call.id];
@@ -660,7 +663,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
                       <td data-label="Status">{statusSelect(call)}<small className="table-subtext">OFS: {call.ofsStatus || "-"}</small></td>
                     </> : <>
                       {orderCell(call)}{showTechnician && technicianCell(call)}
-                      <td data-label="Na fila"><QueueClock openedAt={call.openedAt} /><small className="table-subtext">desde {shortDateTime(call.openedAt)}</small></td>
+                      <td data-label="Na fila"><QueueClock openedAt={call.openedAt} type={call.type} /><small className="table-subtext">desde {shortDateTime(call.openedAt)}</small></td>
                       {eventCell(call)}{placeCell(call)}{oltCell(call)}
                       <td data-label="Status OFS">{call.ofsStatus || <span className="muted-cell">-</span>}</td>
                       <td data-label="Status">{statusSelect(call)}</td>

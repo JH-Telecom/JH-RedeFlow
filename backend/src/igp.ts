@@ -1,3 +1,4 @@
+import { slaLimits } from './sla.js';
 import { toOperationalDate } from './timezone.js';
 import type { Call } from './types.js';
 
@@ -27,8 +28,10 @@ export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC';
 export const SLA_ON_TIME_MAX_HOURS = 6;
 export const SLA_OUTLIER_AFTER_HOURS = 9;
 export type SlaState = 'onTime' | 'late' | 'outlier';
-export function classifySlaHours(hours: number): SlaState {
-  return hours > SLA_OUTLIER_AFTER_HOURS ? 'outlier' : hours > SLA_ON_TIME_MAX_HOURS ? 'late' : 'onTime';
+// Com o tipo, usa o prazo dele (Links/NOC TX: 15 dias). Sem tipo, a regra 6h/9h.
+export function classifySlaHours(hours: number, type?: string): SlaState {
+  const limits = slaLimits(type);
+  return hours > limits.outlierHours ? 'outlier' : hours > limits.onTimeHours ? 'late' : 'onTime';
 }
 type IgpGroupKey = 'access' | 'backbone';
 const altoTieteRegions = new Set([

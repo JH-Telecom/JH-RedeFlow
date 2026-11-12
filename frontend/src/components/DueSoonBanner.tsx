@@ -1,3 +1,4 @@
+import { slaLimits } from "../lib/sla";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -35,7 +36,7 @@ export function DueSoonBanner() {
 
   const windowMinutes = data?.windowMinutes ?? 30;
   const items = (data?.dueSoon ?? [])
-    .map((item) => ({ ...item, left: Math.floor(6 * 60 - (now - Date.parse(item.openedAt)) / 60_000) }))
+    .map((item) => ({ ...item, left: Math.floor(slaLimits(item.type).onTimeMinutes - (now - Date.parse(item.openedAt)) / 60_000) }))
     .filter((item) => item.left > 0 && item.left <= windowMinutes);
   const visible = items.length > 0;
 

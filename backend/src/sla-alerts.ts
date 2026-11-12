@@ -1,5 +1,5 @@
 import type { Call } from './types.js';
-import { DUE_LIMIT_MINUTES } from './due-soon.js';
+import { slaLimits } from './sla.js';
 
 // Aviso antes de estourar o prazo de 6h. No sino: chamados ativos com menos de 2h restantes. No WhatsApp (se
 // configurado): um aviso por chamado quando falta 1h, numa mensagem so com todos os que entraram nessa janela.
@@ -13,7 +13,7 @@ export type NearDeadlineCall = Pick<Call, 'id' | 'orderNumber' | 'type' | 'regio
 export function nearDeadlineCalls(calls: Call[], windowMinutes: number, now = Date.now()): NearDeadlineCall[] {
   return calls
     .filter((call) => ACTIVE.has(call.status))
-    .map((call) => ({ call, left: DUE_LIMIT_MINUTES - (now - Date.parse(call.openedAt)) / 60_000 }))
+    .map((call) => ({ call, left: slaLimits(call.type).onTimeHours * 60 - (now - Date.parse(call.openedAt)) / 60_000 }))
     .filter(({ left }) => Number.isFinite(left) && left > 0 && left <= windowMinutes)
     .sort((a, b) => a.left - b.left)
     .map(({ call, left }) => ({ id: call.id, orderNumber: call.orderNumber, type: call.type, region: call.region, technicianName: call.technicianName, status: call.status, minutesLeft: Math.max(1, Math.floor(left)) }));

@@ -1,3 +1,4 @@
+import { slaLimits } from "../lib/sla";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle2, MapPin, Navigation, RefreshCw, Wrench } from "lucide-react";
 import { api, type FieldCall } from "../api";
@@ -7,7 +8,7 @@ import { ChecklistBox } from "../components/FieldAdmin";
 // "Sai para o local" (Deslocamento), "Cheguei" (Em campo), observacao com foto e "Finalizar" (com o checklist).
 
 const elapsed = (iso: string) => { const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000)); return minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}` : `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`; };
-const tone = (iso: string) => { const minutes = (Date.now() - Date.parse(iso)) / 60_000; return minutes > 540 ? "outlier" : minutes > 360 ? "late" : minutes > 240 ? "soon" : "ok"; };
+const tone = (iso: string, type?: string) => { const minutes = (Date.now() - Date.parse(iso)) / 60_000; const limits = slaLimits(type); return minutes > limits.outlierMinutes ? "outlier" : minutes > limits.onTimeMinutes ? "late" : limits.onTimeMinutes - minutes <= limits.soonMinutes ? "soon" : "ok"; };
 const mapsUrl = (call: FieldCall) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([call.address, call.bairro, call.city].filter(Boolean).join(", "))}`;
 
 async function resizePhoto(file: File) {
@@ -74,10 +75,10 @@ function FieldCard({ call, onChanged }: { call: FieldCall; onChanged: () => Prom
   }, "Chamado finalizado.");
 
   return (
-    <article className={`panel fd-card is-${tone(call.openedAt)}`}>
+    <article className={`panel fd-card is-${tone(call.openedAt, call.type)}`}>
       <header>
         <div><strong>{call.orderNumber}</strong><span>{call.type}{call.reason ? ` · ${call.reason}` : ""}</span></div>
-        <span className={`fd-time is-${tone(call.openedAt)}`}>{elapsed(call.openedAt)}</span>
+        <span className={`fd-time is-${tone(call.openedAt, call.type)}`}>{elapsed(call.openedAt)}</span>
       </header>
       <dl className="fd-info">
         {call.client && <div><dt>Cliente</dt><dd>{call.client}</dd></div>}

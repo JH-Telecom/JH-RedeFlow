@@ -45,7 +45,7 @@ export function summarizeOperationalTrends(scopeCalls: Call[], periodCalls: Call
   const workload = new Map<string, number>();
   for (const call of activeCalls) {
     const openedAt = Date.parse(call.openedAt);
-    if (Number.isFinite(openedAt)) activeSla[classifySlaHours((now - openedAt) / 3_600_000)] += 1;
+    if (Number.isFinite(openedAt)) activeSla[classifySlaHours((now - openedAt) / 3_600_000, call.type)] += 1;
     if (call.technicianName) workload.set(call.technicianName, (workload.get(call.technicianName) || 0) + 1);
   }
   const oldestActive: DashboardActiveCall[] = activeCalls
@@ -61,7 +61,7 @@ export function summarizeOperationalTrends(scopeCalls: Call[], periodCalls: Call
     if (call.status !== 'Finalizado' || !call.executedAt) continue;
     const hours = (Date.parse(call.executedAt) - Date.parse(call.openedAt)) / 3_600_000;
     if (!Number.isFinite(hours) || hours < 0) continue;
-    closedSla[classifySlaHours(hours)] += 1;
+    closedSla[classifySlaHours(hours, call.type)] += 1;
     repairHoursTotal += hours;
     measured += 1;
   }

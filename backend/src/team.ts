@@ -41,7 +41,7 @@ const MIN_FOR_PERCENT = 10;
 
 export function monthHighlights(calls: Call[], technicians: Technician[], supervisors: Supervisor[], month: string): Highlight[] {
   const finished = calls.filter((call) => call.status === 'Finalizado' && call.executedAt && toOperationalDate(call.executedAt).startsWith(month));
-  const onTime = (call: Call) => classifySlaHours((Date.parse(call.executedAt!) - Date.parse(call.openedAt)) / 3_600_000) === 'onTime';
+  const onTime = (call: Call) => classifySlaHours((Date.parse(call.executedAt!) - Date.parse(call.openedAt)) / 3_600_000, call.type) === 'onTime';
   const group = (keyOf: (call: Call) => string | undefined) => {
     const map = new Map<string, { total: number; onTime: number }>();
     for (const call of finished) {

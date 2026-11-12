@@ -1,4 +1,4 @@
-import { DUE_LIMIT_MINUTES } from './due-soon.js';
+import { slaLimits } from './sla.js';
 import { classifySlaHours } from './igp.js';
 import { toOperationalDate } from './timezone.js';
 import type { Call, Technician } from './types.js';
@@ -11,11 +11,13 @@ const elapsedMinutes = (call: Call, now: number) => (now - Date.parse(call.opene
 
 // Situacao do prazo de um chamado ativo: no prazo, vencendo (menos de 2h), fora (6h-9h), outlier (>9h).
 export type QueueState = 'ok' | 'soon' | 'late' | 'outlier';
+// Links (NOC TX): prazo de 15 dias e "vencendo" no ultimo dia (sla.ts).
 export function queueState(call: Call, now = Date.now()): QueueState {
   const minutes = elapsedMinutes(call, now);
-  if (minutes > 9 * 60) return 'outlier';
-  if (minutes > DUE_LIMIT_MINUTES) return 'late';
-  if (DUE_LIMIT_MINUTES - minutes <= 120) return 'soon';
+  const limits = slaLimits(call.type);
+  if (minutes > limits.outlierHours * 60) return 'outlier';
+  if (minutes > limits.onTimeHours * 60) return 'late';
+  if (limits.onTimeHours * 60 - minutes <= limits.soonMinutes) return 'soon';
   return 'ok';
 }
 const STATE_RANK: Record<QueueState, number> = { ok: 0, soon: 1, late: 2, outlier: 3 };
@@ -125,13 +127,14 @@ export function technicianLoad(technicians: Technician[], calls: Call[], now = D
     const mine = calls.filter((call) => call.technicianId === tech.id);
     const active = mine.filter(isActive);
     const finished = mine.filter((call) => call.status === 'Finalizado' && call.executedAt && toOperationalDate(call.executedAt) === today);
-    const hours = finished.map((call) => (Date.parse(call.executedAt!) - Date.parse(call.openedAt)) / 3_600_000).filter((value) => Number.isFinite(value) && value >= 0);
+    const measured = finished.map((call) => ({ type: call.type, value: (Date.parse(call.executedAt!) - Date.parse(call.openedAt)) / 3_600_000 })).filter(({ value }) => Number.isFinite(value) && value >= 0);
+    const hours = measured.map(({ value }) => value);
     const activeCalls = active.map((call) => ({ id: call.id, orderNumber: call.orderNumber, type: call.type, technicianName: call.technicianName, status: call.status, openedAt: call.openedAt, olt: call.olt, state: queueState(call, now), minutes: Math.round(elapsedMinutes(call, now)) })).sort((a, b) => b.minutes - a.minutes);
     const worst = activeCalls.reduce<QueueState | null>((acc, call) => (!acc || STATE_RANK[call.state] > STATE_RANK[acc] ? call.state : acc), null);
     return {
       id: tech.id, name: tech.name, supervisorName: tech.supervisorName, region: tech.region, currentStatus: tech.currentStatus,
       active: active.length, oldestMinutes: activeCalls[0]?.minutes ?? null, worst, activeCalls,
-      finishedToday: finished.length, onTimeToday: hours.filter((value) => classifySlaHours(value) === 'onTime').length,
+      finishedToday: finished.length, onTimeToday: measured.filter(({ type, value }) => classifySlaHours(value, type) === 'onTime').length,
       avgHoursToday: hours.length ? Math.round((hours.reduce((sum, value) => sum + value, 0) / hours.length) * 100) / 100 : null,
       free: active.length === 0,
     };

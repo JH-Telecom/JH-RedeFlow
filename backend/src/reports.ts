@@ -24,15 +24,16 @@ function finishedIn(calls: Call[], from: string, to: string, area: SlaArea): Fin
 export type ProductivityRow = { name: string; detail?: string; finished: number; onTime: number; late: number; outliers: number; onTimePercent: number | null; avgHours: number | null };
 
 function productivityRows(items: Finished[], keyOf: (call: Call) => string, detailOf?: (call: Call) => string | undefined): ProductivityRow[] {
-  const groups = new Map<string, { detail?: string; hours: number[] }>();
+  const groups = new Map<string, { detail?: string; hours: number[]; types: string[] }>();
   for (const { call, hours } of items) {
     const key = keyOf(call);
-    const group = groups.get(key) || { detail: detailOf?.(call), hours: [] };
+    const group = groups.get(key) || { detail: detailOf?.(call), hours: [] as number[], types: [] as string[] };
     group.hours.push(hours);
+    group.types.push(call.type);
     groups.set(key, group);
   }
   return [...groups.entries()].map(([name, group]) => {
-    const states = group.hours.map(classifySlaHours);
+    const states = group.hours.map((value, index) => classifySlaHours(value, group.types[index]));
     const onTime = states.filter((state) => state === 'onTime').length;
     return {
       name, detail: group.detail, finished: group.hours.length, onTime,
@@ -92,7 +93,7 @@ export type PeriodMetrics = { from: string; to: string; opened: number; finished
 function periodMetrics(calls: Call[], from: string, to: string, area: SlaArea): PeriodMetrics {
   const scoped = calls.filter((call) => matchesArea(call, area));
   const items = finishedIn(scoped, from, to, 'ALL');
-  const states = items.map(({ hours }) => classifySlaHours(hours));
+  const states = items.map(({ call, hours }) => classifySlaHours(hours, call.type));
   const onTime = states.filter((state) => state === 'onTime').length;
   const outliers = states.filter((state) => state === 'outlier').length;
   return {

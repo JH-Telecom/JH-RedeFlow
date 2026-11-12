@@ -6040,3 +6040,20 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - teste do IGP misto (Giga até o corte, sistema depois, Backbone fora, por área e sem planilha);
   - no preview com a JH (58), SP em novembro dá **127 ordens, outlier 5,51%, prazo 77,95%, MTTR 3,53 h**, igual ao C.8 da Giga.
 - **Falta**: importar a JH (58) de novo em produção.
+
+## Prazo de 15 dias para Links (NOC TX) (2026-11-12)
+- **Pedido**: NOC TX saiu do IGP porque são **Links**, com até **15 dias** para fazer, não 6h.
+- **Antes**: o sistema inteiro tratava NOC TX com a regra de 6h/9h. Um Link aparecia "fora do prazo / outlier" depois de 6h na fila, no Modo TV, na tela do técnico, na faixa "vencendo", nos avisos do sino e do WhatsApp, nos relatórios e na análise de prazo.
+- **Agora** (`backend/src/sla.ts` e `frontend/src/lib/sla.ts`, a mesma regra nos dois):
+  - Links (NOC TX): prazo de 15 dias da abertura, "vencendo" no último dia e fora do prazo depois de 15 dias (sem faixa de outlier separada);
+  - os demais tipos continuam com 6h (prazo), fora do prazo depois de 6h e outlier depois de 9h.
+- **Onde vale**:
+  - backend: `classifySlaHours(horas, tipo)` (Visão geral, relatórios, destaques, carga do técnico), `queueState` (mapa e carga), `dueSoonCalls` (vencendo), `nearDeadlineCalls` (sino e WhatsApp), análise de prazo e relatório "Finalizados fora do prazo";
+  - frontend: relógio e barra da fila, imagem/Excel da fila, contagem de prazo, faixa "vencendo", Modo TV, Meus chamados e linha do tempo do chamado ("passou do prazo de 15 dias");
+  - o "risco de estourar o prazo" (modelo de 6h) não se aplica a Links e não os usa no histórico;
+  - NOC TX continua fora do IGP.
+- **Validação**:
+  - teste novo (prazo, fila, vencendo e avisos para Link e para NOC ACESSO);
+  - suíte 283/283;
+  - build;
+  - preview.

@@ -12,6 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-12",
     label: "12/11",
     items: [
+      { icon: "list", tag: "Melhoria", title: "Links (NOC TX) com prazo de 15 dias", text: "Chamados NOC TX (Links) agora têm prazo de 15 dias: não aparecem mais como fora do prazo ou outlier depois de 6h na fila, no Modo TV, nos avisos e nos relatórios. Os demais tipos continuam com 6h." },
       { icon: "chart", tag: "Novo", title: "Pontuação IGP e planilha da Giga", text: "Em Indicadores › Pontuação IGP: importe o \"JH (NN).xlsx\" da Giga e veja a pontuação do IGP ACESSO com as mesmas regras dela (pontos, faixa e bonificação), a evolução e a conciliação (ordens só na Giga, só no sistema e com fechamento diferente). O IGP passa a usar o cluster e o fechamento oficiais da Giga.", permission: "dashboard.view" },
       { icon: "wrench", tag: "Correção", title: "Horário de fim dos chamados", text: "Fim depois da meia-noite não volta mais um dia, e a coleta do OFS volta a corrigir o horário de fim dos chamados em que alguém só mudou o status.", permission: "dashboard.view" },
       { icon: "chart", tag: "Melhoria", title: "NOC TX fora do IGP", text: "O IGP agora considera só Acesso (NOC ACESSO e Acionamento FIELD). As ordens NOC TX ficam fora do cálculo e aparecem contadas à parte em \"Ordens consideradas\".", permission: "dashboard.view" },

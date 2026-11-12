@@ -1,11 +1,10 @@
+import { slaLimits } from './sla.js';
 // Analise de prazo (regra 6h/9h) dos chamados finalizados: tecnicos e bairros que mais perdem prazo, horario de
 // abertura que mais perde, media de entrantes e um estudo do periodo noturno (abertos entre 18h e 06h).
 import { classifyCallArea, type IgpArea } from './igp.js';
 import { OPERATIONAL_TIME_ZONE, toOperationalDate } from './timezone.js';
 import type { Call } from './types.js';
 
-const ON_TIME_MAX_HOURS = 6;
-const OUTLIER_AFTER_HOURS = 9;
 export const NIGHT_START_HOUR = 18;
 export const NIGHT_END_HOUR = 6;
 
@@ -72,8 +71,9 @@ function add(accumulator: Accumulator, hours: number, call?: Call) {
     accumulator.executionHours += execution;
     accumulator.withExecution += 1;
   }
-  if (hours > ON_TIME_MAX_HOURS) accumulator.lost += 1;
-  if (hours > OUTLIER_AFTER_HOURS) accumulator.outliers += 1;
+  const limits = slaLimits(call?.type);
+  if (hours > limits.onTimeHours) accumulator.lost += 1;
+  if (hours > limits.outlierHours) accumulator.outliers += 1;
 }
 
 function counters(accumulator: Accumulator): SlaCounters {
@@ -202,7 +202,7 @@ export function calculateSlaAnalysis(calls: Call[], from: string, to: string, ar
   // Estudo noturno: aberto entre 18h e 06h
   const nightItems = finished.filter(({ call }) => isNightHour(localHour(call.openedAt)));
   const dayItems = finished.filter(({ call }) => !isNightHour(localHour(call.openedAt)));
-  const nightLost = nightItems.filter(({ hours: repair }) => repair > ON_TIME_MAX_HOURS);
+  const nightLost = nightItems.filter(({ call, hours: repair }) => repair > slaLimits(call.type).onTimeHours);
   const closing = Array.from({ length: 24 }, () => 0);
   let crossedMorning = 0;
   for (const { call } of nightLost) {
@@ -275,14 +275,14 @@ export function lateFinishedCalls(calls: Call[], from: string, to: string, area:
     .filter((call) => { const date = toOperationalDate(call.executedAt!); return date >= from && date <= to; })
     .filter((call) => area === 'ALL' || classifyCallArea(call) === area)
     .map((call) => ({ call, hours: (Date.parse(call.executedAt!) - Date.parse(call.openedAt)) / 3_600_000 }))
-    .filter(({ hours }) => Number.isFinite(hours) && hours > ON_TIME_MAX_HOURS)
+    .filter(({ call, hours }) => Number.isFinite(hours) && hours > slaLimits(call.type).onTimeHours)
     .sort((left, right) => right.hours - left.hours)
     .map(({ call, hours }) => ({
       id: call.id, orderNumber: call.orderNumber, bdesk: call.bdesk || '', type: call.type || '', reason: call.reason || '',
       area: classifyCallArea(call), cluster: call.cluster, region: call.region || '', bairro: call.bairro || '', olt: call.olt || '',
       technicianName: call.technicianName || '', supervisorName: call.supervisorName || '',
       openedAt: call.openedAt, executedAt: call.executedAt!, hours: Math.round(hours * 100) / 100,
-      state: hours > OUTLIER_AFTER_HOURS ? 'outlier' as const : 'late' as const,
+      state: hours > slaLimits(call.type).outlierHours ? 'outlier' as const : 'late' as const,
       result: call.result || '', closingReason: call.closingReason || '', closingSubreason: call.closingSubreason || '', cableType: call.cableType || '',
     }));
 }

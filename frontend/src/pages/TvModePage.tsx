@@ -1,3 +1,4 @@
+import { slaLimits } from "../lib/sla";
 import { AlertTriangle, ChevronLeft, ChevronRight, Maximize2, Minimize2, Pause, Play, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -17,9 +18,10 @@ const elapsed = (iso: string, now: number) => {
   const hours = Math.floor((minutes % 1440) / 60);
   return days ? `${days}d ${hours}h` : `${hours}h${String(minutes % 60).padStart(2, "0")}`;
 };
-const slaTone = (iso: string, now: number) => {
+const slaTone = (iso: string, now: number, type?: string) => {
   const minutes = (now - Date.parse(iso)) / 60_000;
-  return minutes > 540 ? "is-critical" : minutes > 360 ? "is-warning" : "is-good";
+  const limits = slaLimits(type);
+  return minutes > limits.outlierMinutes ? "is-critical" : minutes > limits.onTimeMinutes ? "is-warning" : "is-good";
 };
 const pct = (value: number | null | undefined) => (value === null || value === undefined ? "–" : `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`);
 
@@ -79,7 +81,7 @@ export function TvModePage() {
     else void document.documentElement.requestFullscreen?.();
   }
 
-  const dueItems = (dueSoon?.dueSoon ?? []).map((item) => ({ ...item, left: Math.floor(360 - (now - Date.parse(item.openedAt)) / 60_000) })).filter((item) => item.left > 0);
+  const dueItems = (dueSoon?.dueSoon ?? []).map((item) => ({ ...item, left: Math.floor(slaLimits(item.type).onTimeMinutes - (now - Date.parse(item.openedAt)) / 60_000) })).filter((item) => item.left > 0);
   const sla = metrics?.activeSla;
   const clock = new Date(now).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const dateText = new Date(now).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
@@ -133,7 +135,7 @@ export function TvModePage() {
           <section className="tv-card tv-oldest"><h2>Chamados ativos mais antigos</h2>
             <table><thead><tr><th>Ordem</th><th>Evento</th><th>Região</th><th>Técnico</th><th>Status</th><th>Na fila</th></tr></thead>
               <tbody>{metrics.oldestActive.slice(0, 10).map((call) => (
-                <tr key={call.id}><td><strong>{call.orderNumber}</strong></td><td>{call.type}</td><td>{call.region}</td><td>{call.technicianName || <span className="tv-muted">sem técnico</span>}</td><td>{call.status}</td><td><b className={slaTone(call.openedAt, now)}>{elapsed(call.openedAt, now)}</b></td></tr>
+                <tr key={call.id}><td><strong>{call.orderNumber}</strong></td><td>{call.type}</td><td>{call.region}</td><td>{call.technicianName || <span className="tv-muted">sem técnico</span>}</td><td>{call.status}</td><td><b className={slaTone(call.openedAt, now, call.type)}>{elapsed(call.openedAt, now)}</b></td></tr>
               ))}{!metrics.oldestActive.length && <tr><td colSpan={6} className="tv-muted">Nenhum chamado ativo.</td></tr>}</tbody>
             </table>
           </section>

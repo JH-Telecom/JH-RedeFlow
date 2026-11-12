@@ -1,3 +1,4 @@
+import { isLinkCall } from './sla.js';
 import { classifySlaHours } from './igp.js';
 import type { Call, Technician } from './types.js';
 
@@ -27,7 +28,7 @@ export function suggestTechnicians(call: Call, technicians: Technician[], calls:
     const inRegion = region ? mine.filter((item) => norm(item.region) === region).length : 0;
     const inBairro = bairro ? mine.filter((item) => norm(item.bairro) === bairro).length : 0;
     const inOlt = olt ? mine.filter((item) => norm(item.olt) === olt).length : 0;
-    const onTime = mine.filter((item) => classifySlaHours(hoursOf(item)) === 'onTime').length;
+    const onTime = mine.filter((item) => classifySlaHours(hoursOf(item), item.type) === 'onTime').length;
     const onTimePct = mine.length >= 5 ? (onTime / mine.length) * 100 : null;
     const reasons: string[] = [];
     let score = active === 0 ? 3 : active === 1 ? 1.5 : active === 2 ? 0 : -1.5 * (active - 2);
@@ -56,6 +57,7 @@ export function buildRiskModel(calls: Call[], now = Date.now()): RiskModel {
   const bump = (rates: Rates, key: string, late: boolean) => { if (!key) return; const entry = rates.get(key) || { late: 0, total: 0 }; entry.total += 1; if (late) entry.late += 1; rates.set(key, entry); };
   let late = 0;
   for (const call of history) {
+    if (isLinkCall(call.type)) continue; // Links (NOC TX) tem prazo de 15 dias: fora do modelo de 6h
     const isLate = hoursOf(call) > 6;
     if (isLate) late += 1;
     bump(model.region, norm(call.region), isLate);
@@ -73,6 +75,7 @@ export type CallRisk = { level: 'baixo' | 'medio' | 'alto'; percent: number; rea
 
 export function callRisk(call: Call, model: RiskModel, now = Date.now()): CallRisk | null {
   if (!ACTIVE.has(call.status) || model.samples < 30) return null;
+  if (isLinkCall(call.type)) return null; // Links (NOC TX): prazo de 15 dias, o risco de 6h nao se aplica
   const elapsed = (now - Date.parse(call.openedAt)) / 60_000;
   if (!Number.isFinite(elapsed) || elapsed >= 360) return null; // ja estourou: nao e mais risco
   const base = clampP(model.global);
