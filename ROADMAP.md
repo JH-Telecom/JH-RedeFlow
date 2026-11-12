@@ -6070,3 +6070,12 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - testes atualizados (NOC TX como Backbone; planilha e IGP misto com Backbone);
   - no preview com a JH (58), SP em novembro: **143 OS (127 Acesso + 16 Backbone), prazo 75,52%, outlier 5,59%, MTTR 3,92 h**, igual à base da Giga.
 - **Falta**: reimportar a JH (58) em produção depois do deploy (a importação guarda os indicadores calculados).
+
+## Jota H: modelos reserva quando a cota do Gemini acaba (2026-11-12)
+- **Relato**: "O Gemini não respondeu (HTTP 429)".
+- **Causa**: cota da chave do Gemini esgotada. No registro de uso, depois de ~20 respostas, todas as 12 perguntas entre 08:56 e 14:26 voltaram 429. A chave é a mesma que lê cada card do WhatsApp, e a cota gratuita é por modelo.
+- **Correção** (`askJotaGemini`, `jotaModels`):
+  - quando o modelo principal responde 429 (ou 404/5xx/sem resposta), o Jota H tenta os modelos reserva, que têm cota própria: `gemini-2.5-flash-lite`, `gemini-2.0-flash` e `gemini-2.0-flash-lite` (ajustável em `JOTA_H_FALLBACK_MODELS`);
+  - se todos estiverem sem cota, a mensagem explica que a cota volta sozinha e que ativar o faturamento da chave no Google AI Studio resolve de vez.
+- **Validação**: teste com o Gemini simulado (principal 429 → reserva responde; todos 429 → mensagem de cota); testes do Jota H 5/5.
+- **Não verificado**: se os modelos reserva têm cota disponível nesta chave; só dá para saber em produção.

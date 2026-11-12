@@ -81,16 +81,32 @@ export function parseJotaAnswer(raw: string): JotaAnswer | null {
 export async function askJotaGemini(question: string, context: JotaContext[] = []): Promise<JotaAnswer> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('O Jota H precisa da chave do Gemini (GEMINI_API_KEY) no servidor.');
-  const model = process.env.JOTA_H_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: buildJotaRequest(question, context) }] }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } }),
-    signal: AbortSignal.timeout(25_000),
-  });
-  if (!response.ok) throw new Error(`O Gemini não respondeu (HTTP ${response.status}). Tente de novo em instantes.`);
-  const payload = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  const answer = parseJotaAnswer(payload.candidates?.[0]?.content?.parts?.[0]?.text || '');
-  if (!answer) throw new Error('O Gemini respondeu num formato que não deu para ler. Tente perguntar de outro jeito.');
-  return answer;
+  const body = JSON.stringify({ contents: [{ parts: [{ text: buildJotaRequest(question, context) }] }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } });
+  // 12/11/2026: a cota gratuita do Gemini e por modelo e a chave e a mesma que le os cards do WhatsApp; quando o modelo
+  // principal estoura (HTTP 429) ou esta fora (5xx), tenta os modelos reserva, que tem cota propria.
+  let lastStatus = 0;
+  for (const model of jotaModels()) {
+    let response: Response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: AbortSignal.timeout(25_000) });
+    } catch { lastStatus = 0; continue; }
+    if (response.ok) {
+      const payload = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+      const answer = parseJotaAnswer(payload.candidates?.[0]?.content?.parts?.[0]?.text || '');
+      if (!answer) throw new Error('O Gemini respondeu num formato que não deu para ler. Tente perguntar de outro jeito.');
+      return answer;
+    }
+    lastStatus = response.status;
+    console.warn(`[Jota H] modelo ${model} respondeu HTTP ${response.status}`);
+    if (response.status !== 429 && response.status !== 404 && response.status < 500) break; // erro da propria chamada: outro modelo nao resolve
+  }
+  if (lastStatus === 429) throw new Error('A cota de uso do Gemini acabou por agora (HTTP 429), inclusive nos modelos reserva. Ela volta sozinha (a diária zera de madrugada). Para não faltar, ative o faturamento da chave no Google AI Studio.');
+  throw new Error(lastStatus ? `O Gemini não respondeu (HTTP ${lastStatus}). Tente de novo em instantes.` : 'Não consegui falar com o Gemini. Tente de novo em instantes.');
+}
+
+// Modelo principal + reservas (JOTA_H_FALLBACK_MODELS, separados por virgula), sem repetir.
+export function jotaModels(env: NodeJS.ProcessEnv = process.env) {
+  const primary = env.JOTA_H_MODEL || env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const fallbacks = (env.JOTA_H_FALLBACK_MODELS ?? 'gemini-2.5-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite').split(',').map((model) => model.trim()).filter(Boolean);
+  return [...new Set([primary, ...fallbacks])];
 }

@@ -59,3 +59,23 @@ test('usage summary counts today, the week, errors, people, thumbs and empty ans
   assert.deepEqual(usage.empty.map((item) => item.question), ['pergunta 3']);
   assert.equal(usage.recentErrors[0].question, 'pergunta 2');
 });
+
+test('falls back to the next Gemini model on 429 and explains when all are out of quota', async () => {
+  const { askJotaGemini, jotaModels } = await import('../src/jota-h.js');
+  assert.deepEqual(jotaModels({ JOTA_H_MODEL: 'a', JOTA_H_FALLBACK_MODELS: 'b, a ,c' }), ['a', 'b', 'c']);
+  const original = { fetch: globalThis.fetch, key: process.env.GEMINI_API_KEY, model: process.env.JOTA_H_MODEL, fallbacks: process.env.JOTA_H_FALLBACK_MODELS };
+  process.env.GEMINI_API_KEY = 'test-key'; process.env.JOTA_H_MODEL = 'principal'; process.env.JOTA_H_FALLBACK_MODELS = 'reserva';
+  const called: string[] = [];
+  const ok = JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"titulo":"T","sql":"SELECT 1","explicacao":"e","sugestoes":[]}' }] } }] });
+  try {
+    globalThis.fetch = (async (url: string) => { const model = String(url).match(/models\/([^:]+):/)![1]; called.push(model); return model === 'principal' ? new Response('{}', { status: 429 }) : new Response(ok, { status: 200 }); }) as typeof fetch;
+    const answer = await askJotaGemini('quantos chamados hoje?');
+    assert.equal(answer.kind, 'query');
+    assert.deepEqual(called, ['principal', 'reserva']);
+    globalThis.fetch = (async () => new Response('{}', { status: 429 })) as typeof fetch;
+    await assert.rejects(() => askJotaGemini('quantos chamados hoje?'), /cota de uso do Gemini acabou/);
+  } finally {
+    globalThis.fetch = original.fetch;
+    for (const [name, value] of [['GEMINI_API_KEY', original.key], ['JOTA_H_MODEL', original.model], ['JOTA_H_FALLBACK_MODELS', original.fallbacks]] as const) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }
+  }
+});
