@@ -5778,3 +5778,19 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - com Mesário, o card fica travado, o interruptor livre (opacidade 1) e nome, cargo e Salvar desativados; desligar e ligar salvaram e mostraram a mensagem;
   - com Administrador, tudo liberado.
 - Chega aos computadores ao atualizar a extensão em Configurações.
+
+## Coleta do OFS: mesma ordem em várias linhas e "Data Fim alterada" falsa (2026-11-11)
+- **Relato**: chamado 611129380560102 "já concluído mas tá como iniciado".
+- **O que era**: a coleta das 15:15 ainda trazia "iniciado". A atividade foi concluída no OFS às 15:42, e a coleta seguinte finalizou o chamado sozinha (Finalizado, OFS "concluído", Data Fim 15:42). Nada travado.
+- **Problema 1, achado no histórico desse chamado**: Status OFS e técnico ficavam **indo e voltando** (14:07 "iniciado → pendente" e troca de técnico; 15:09 o contrário).
+  - A mesma OS aparecia em **duas atividades** do OFS (uma pendente com um técnico, outra iniciada com outro), e valia a **última linha** do arquivo, cuja ordem muda de um export para outro.
+  - **Correção** (`backend/src/imports/d0.ts`): `compareRows` escolhe sempre a linha mais avançada (concluída > em andamento: iniciado, em rota, em deslocamento, em execução > pendente/outros > suspensa, cancelada ou não concluída; empate: maior "ID da Atividade").
+  - Essa linha decide Status OFS, Data Fim e técnico (`technicianAssignmentsFromRows`). As outras só completam o que ela não traz (ex.: endereço).
+- **Problema 2**: a cada coleta, os chamados encerrados ganhavam um log "Data Fim alterada" de `…18:42:00+00:00` para `…15:42:00-03:00`, o **mesmo horário** em outro fuso, comparado como texto. No banco havia **1.971 desses logs em 188 chamados**, desde 04/11. Cada coleta também regravava os chamados sem mudança.
+  - **Correção**: `sameFieldValue` (`backend/src/field-compare.ts`) compara datas (executedAt, openedAt, eventAt, assignedAt) pelo instante.
+  - A coleta (`applyOfsRowsToCalls`) só manda os campos que mudaram de verdade e **não grava** quando nada mudou (menos escrita e tráfego no banco). O log do `updateSupabaseCall` usa a mesma comparação.
+  - Os 1.971 logs já gravados ficam até o usuário decidir apagar.
+- **Validação**:
+  - teste do caso real (pendente + iniciado nas duas ordens dá sempre "iniciado" e o técnico da iniciada, com o endereço completado pela outra; pendente + concluído dá sempre "concluído" com a Data Fim);
+  - teste da comparação de datas;
+  - suíte 264/264.

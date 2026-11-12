@@ -1,4 +1,5 @@
 import { getSupabaseAdmin, isSupabaseConfigured } from "../integrations/supabase/client.js";
+import { sameFieldValue } from '../field-compare.js';
 import { matchD0Rows, technicianAssignmentsFromRows, type D0Row } from "../imports/d0.js";
 import { listTechnicians } from "./teams.js";
 import { toOperationalDate } from "../timezone.js";
@@ -83,9 +84,12 @@ export async function applyOfsRowsToCalls(rows: D0Row[], actorName: string): Pro
     const batch = matches.slice(offset, offset + batchSize);
     const updateResults = await Promise.all(batch.map(async (match) => {
       const current = callsById.get(match.callId);
-      const changed = current && Object.entries(match.fields).some(([field, value]) => String(current[field as keyof Call] ?? '') !== String(value ?? ''));
-      const updated = await updateCall(match.callId, match.fields, actor);
-      return updated && changed ? 1 : 0;
+      // So manda o que mudou de verdade (datas pelo instante). Nada mudou: nem grava (antes cada coleta regravava os
+      // chamados e criava logs "Data Fim alterada" com o mesmo horario em outro fuso).
+      const fields = current ? Object.fromEntries(Object.entries(match.fields).filter(([field, value]) => !sameFieldValue(field, current[field as keyof Call], value))) : match.fields;
+      if (current && !Object.keys(fields).length) return 0;
+      const updated = await updateCall(match.callId, fields, actor);
+      return updated ? 1 : 0;
     }));
     updatedCalls += updateResults.reduce<number>((total, count) => total + count, 0);
   }

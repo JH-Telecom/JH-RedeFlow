@@ -215,3 +215,27 @@ test('OFS Recurso fills the technician, and replaces a different one (OFS prevai
     { callId: 'support', technicianId: 't2', supportTechnicianId: null },
   ]);
 });
+
+// Caso real 11/11/2026 (611129380560102): a mesma ordem em duas atividades do OFS, uma pendente com um tecnico e outra
+// iniciada com outro. Antes valia a ultima linha do arquivo e o Status OFS/tecnico ficavam indo e voltando.
+test('same order on two OFS rows: the most advanced row wins, whatever the file order', () => {
+  const open = { id: 'c-dup', orderNumber: '611129380560102', bdesk: '679702', officeTrack: '611129380560102', client: '', type: 'NOC ACESSO', reason: '', region: '', city: '', olt: '', slotPon: '', status: 'Atribuido' as const, technicianId: 'tA', openedAt: '2026-11-11T12:35:00-03:00', notes: '' };
+  const techs = [
+    { id: 'tA', name: 'Fulano Pendente Silva', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+    { id: 'tB', name: 'Caique da Silva Bento Aguiar', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+  ];
+  const pendente: D0Row = { 'Ordem de Serviço': 'BDESK-611129380560102', 'ID da Atividade': '13543010', 'Status da Atividade': 'pendente', Recurso: 'Fulano Pendente Silva', Endereço: 'RUA JOAO CABRAL DE MELO, 10' };
+  const iniciado: D0Row = { 'Ordem de Serviço': 'BDESK-611129380560102', 'ID da Atividade': '13543015', 'Status da Atividade': 'iniciado', Recurso: 'Caique da Silva Bento Aguiar' };
+  const concluido: D0Row = { ...iniciado, 'Status da Atividade': 'concluído', Data: '11/11/2026', Fim: '15:20' };
+  for (const order of [[pendente, iniciado], [iniciado, pendente]]) {
+    const [match] = matchD0Rows(order, [open]).matches;
+    assert.equal(match.fields.ofsStatus, 'iniciado');
+    assert.equal(match.fields.address, 'RUA JOAO CABRAL DE MELO, 10'); // a outra linha ainda completa o endereco
+    assert.deepEqual(technicianAssignmentsFromRows(order, [open], techs), [{ callId: 'c-dup', technicianId: 'tB' }]);
+  }
+  for (const order of [[pendente, concluido], [concluido, pendente]]) {
+    const [match] = matchD0Rows(order, [open]).matches;
+    assert.equal(match.fields.ofsStatus, 'concluído');
+    assert.equal(match.fields.executedAt, '2026-11-11T15:20:00-03:00');
+  }
+});

@@ -1,4 +1,5 @@
 import { isCallClosed } from '../../call-status.js';
+import { sameFieldValue } from '../../field-compare.js';
 import { activationKeys, findDuplicateCall } from '../../activation-dedupe.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
@@ -496,7 +497,7 @@ export async function updateSupabaseCall(id: string, input: { orderNumber?: stri
   for (const field of Object.keys(input)) {
     const previousValue = String(current[field as keyof Call] ?? '');
     const newValue = String(input[field as keyof typeof input] ?? '');
-    if (previousValue !== newValue) auditRows.push({ call_id: id, user_id: actor.roleId === 'system' ? null : actor.id, action: `${labels[field] || field} alterado`, field, previous_value: previousValue, new_value: newValue });
+    if (!sameFieldValue(field, current[field as keyof Call], input[field as keyof typeof input])) auditRows.push({ call_id: id, user_id: actor.roleId === 'system' ? null : actor.id, action: `${labels[field] || field} alterado`, field, previous_value: previousValue, new_value: newValue });
   }
   if (auditRows.length) {
     const { error: logError } = await getSupabaseAdmin().from('call_logs').insert(auditRows);

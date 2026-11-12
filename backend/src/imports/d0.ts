@@ -96,7 +96,7 @@ export function pickSingleCall<T extends { status: Call['status'] }>(candidates:
 
 export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
   const callKeys = calls.map((call) => ({ call, identifiers: new Set(callIdentifiers(call)) }));
-  const updates = new Map<string, D0CallFields>();
+  const byCall = new Map<string, { call: Call; rows: D0Row[] }>();
   let unmatchedRows = 0;
 
   for (const row of rows) {
@@ -107,9 +107,19 @@ export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
       unmatchedRows += 1;
       continue;
     }
-    const candidate = { call: chosen };
-    const fields = mapFields(row, candidate.call);
-    if (Object.keys(fields).length) updates.set(candidate.call.id, { ...updates.get(candidate.call.id), ...fields });
+    const entry = byCall.get(chosen.id) ?? { call: chosen, rows: [] };
+    entry.rows.push(row);
+    byCall.set(chosen.id, entry);
+  }
+
+  // Mesma ordem em mais de uma linha (ex.: uma atividade pendente com um tecnico e outra iniciada com outro): antes
+  // valia a ULTIMA linha do arquivo, que muda de um export para outro, e o Status OFS/tecnico ficavam indo e voltando
+  // (caso 611129380560102, 11/11/2026). Agora a linha mais avancada (compareRows) e aplicada por ultimo e prevalece;
+  // as outras so completam o que ela nao traz.
+  const updates = new Map<string, D0CallFields>();
+  for (const { call, rows: callRows } of byCall.values()) {
+    const fields = [...callRows].sort(compareRows).reduce<D0CallFields>((merged, row) => ({ ...merged, ...mapFields(row, call) }), {});
+    if (Object.keys(fields).length) updates.set(call.id, fields);
   }
 
   return { matches: [...updates].map(([callId, fields]) => ({ callId, fields })), unmatchedRows };
@@ -161,11 +171,18 @@ function sameShortName(left: string[], right: string[]) {
   return shorter.every((word) => longer.includes(word));
 }
 
-// Prioridade da linha quando a mesma ordem aparece mais de uma vez no export (ex.: uma suspensa e outra pendente).
-const rowWeight = (row: D0Row) => {
+// Prioridade da linha quando a mesma ordem aparece mais de uma vez no export: concluida > em andamento (iniciado,
+// em rota, em deslocamento, em execucao) > pendente/outros > suspensa/cancelada/nao concluida. Empate: a atividade
+// mais nova (maior "ID da Atividade"). Ordem crescente: a ultima e a que vale.
+export const rowWeight = (row: D0Row) => {
   const status = normalize(value(row, 'Status da Atividade', 'Status OFS'));
-  return /^(conclu|finaliz|encerrad|executad)/.test(status) ? 3 : /^(suspens|cancel|nao concl)/.test(status) ? 1 : 2;
+  if (/^(conclu|finaliz|encerrad|executad)/.test(status)) return 4;
+  if (/^(iniciad|em rota|em desloc|em execu|em andamento|em atendimento|a caminho)/.test(status)) return 3;
+  if (/^(suspens|cancel|nao concl)/.test(status)) return 1;
+  return 2;
 };
+const activityId = (row: D0Row) => Number(String(value(row, 'ID da Atividade', 'ID Atividade', 'Atividade')).replace(/\D/g, '')) || 0;
+export const compareRows = (left: D0Row, right: D0Row) => rowWeight(left) - rowWeight(right) || activityId(left) - activityId(right);
 
 // Linha do OFS com Recurso conhecido -> tecnico do OFS no chamado. "Aberto" vira "Atribuido".
 // Desde 11/11/2026 o OFS prevalece: se o chamado ja tem OUTRO tecnico, troca pelo do OFS (pedido do usuario).
@@ -174,7 +191,7 @@ export function technicianAssignmentsFromRows<T extends TechnicianLike>(rows: D0
   const best = new Map<string, { row: D0Row; call: Call }>();
   for (const pair of matchRowsToCalls(rows, calls)) {
     const previous = best.get(pair.call.id);
-    if (!previous || rowWeight(pair.row) >= rowWeight(previous.row)) best.set(pair.call.id, pair);
+    if (!previous || compareRows(pair.row, previous.row) >= 0) best.set(pair.call.id, pair);
   }
   const assignments: Array<{ callId: string; technicianId: string; status?: 'Atribuido'; supportTechnicianId?: null }> = [];
   for (const { row, call } of best.values()) {
