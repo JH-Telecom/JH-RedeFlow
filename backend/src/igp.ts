@@ -18,6 +18,8 @@ export type IgpMetrics = {
   backbone: IgpGroup;
   total: IgpGroup;
   excludedOrders: number;
+  /** Ordens NOC TX do mes: nao entram no IGP (pedido de 12/11/2026). */
+  nocTxOrders: number;
 };
 
 export type IgpArea = 'ALL' | 'SP' | 'GRU' | 'ALTO_TIETE' | 'ABC';
@@ -108,9 +110,11 @@ function finalizeGroup(group: IgpGroup): IgpGroup {
   };
 }
 
+// NOC TX nao entra no IGP (12/11/2026): fica fora do calculo e e contado a parte (nocTxOrders).
+export const isNocTx = (type: string) => /NOC\s*TX/.test(type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase());
 function classifyIgpGroup(type: string): IgpGroupKey | undefined {
   const normalized = type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-  if (normalized.includes('BACKBONE') || normalized.includes('NOC TX')) return 'backbone';
+  if (normalized.includes('BACKBONE')) return 'backbone';
   if (normalized.includes('NOC ACESSO') || normalized.includes('FIELD')) return 'access';
   return undefined;
 }
@@ -136,10 +140,12 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
   const groups = { access: createGroup(), backbone: createGroup() };
   const total = createGroup();
   let excludedOrders = 0;
+  let nocTxOrders = 0;
 
   for (const call of calls) {
     if (call.status !== 'Finalizado' || !call.executedAt || toOperationalDate(call.executedAt).slice(0, 7) !== month) continue;
     if (area !== 'ALL' && classifyCallArea(call) !== area) continue;
+    if (isNocTx(call.type)) { nocTxOrders += 1; continue; }
     const groupKey = classifyIgpGroup(call.type);
     const openedAt = Date.parse(call.openedAt);
     const executedAt = Date.parse(call.executedAt);
@@ -166,6 +172,7 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
     backbone: finalizeGroup(groups.backbone),
     total: finalizeGroup(total),
     excludedOrders,
+    nocTxOrders,
   };
 }
 // ---- "Para bater a meta": quanto falta para cada meta do IGP ----

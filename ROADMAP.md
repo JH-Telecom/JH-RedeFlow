@@ -5967,3 +5967,22 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - "Não informada" fica de fora; esses chamados vão para a fila Sem região;
   - com os dados de hoje são cerca de 39 regiões.
 - **Observação**: grafias diferentes da mesma região aparecem separadas (ex.: "GUAIANASES 2" e "GUAIANAZES 2", "GUARULHOS" e "GUARULHOS 1"). Vale padronizar nos chamados e nas OLTs. O roteirizador compara a região da escala com a do chamado sem diferença de acento ou maiúscula.
+
+## NOC TX fora do IGP (2026-11-12)
+- **Pedido**: "O que for NOC TX não entra no IGP, remove por favor."
+- **Antes**: NOC TX contava como Backbone e entrava no total ponderado. Em novembro eram as 20 "Backbone" das 282 ordens consideradas.
+- **Agora** (`backend/src/igp.ts`):
+  - `isNocTx` tira as ordens NOC TX do cálculo, e elas são contadas à parte em `nocTxOrders`;
+  - o IGP fica com Acesso (NOC ACESSO e Acionamento FIELD); com os dados de hoje, novembro passa a considerar 262 ordens;
+  - vale para tudo que usa `calculateIgpMetrics`: a tela do IGP (cartões, "Para bater a meta", resultado, evolução e histórico mês a mês), o relatório mensal e o relatório diário;
+  - o tipo "Backbone" escrito assim continua sendo reconhecido; hoje não existe nenhum.
+- **Tela**:
+  - o subtítulo diz que NOC TX não entra;
+  - "Ordens consideradas" mostra "N NOC TX fora do IGP";
+  - a coluna Backbone só aparece se houver ordens Backbone;
+  - a metodologia foi atualizada;
+  - no relatório mensal, a NOC TX aparece como fora do IGP.
+- **Validação**:
+  - teste novo (NOC TX fora, Acesso dentro, contagem à parte);
+  - os testes antigos do IGP foram ajustados para a regra nova;
+  - build e preview.

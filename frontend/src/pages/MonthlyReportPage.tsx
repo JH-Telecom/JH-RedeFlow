@@ -72,7 +72,7 @@ export function MonthlyReportPage() {
         <tbody>{areas.map((row) => <tr key={row.area}><td>{row.area}</td><td>{row.igp.total.orders.toLocaleString("pt-BR")}</td><td>{pct(row.igp.total.onTimePercent)}</td><td>{pct(row.igp.total.outlierPercent)}</td><td>{hrs(row.igp.total.mttrHours)}</td></tr>)}
           <tr className="mr-total"><td>Total</td><td>{group.orders.toLocaleString("pt-BR")}</td><td>{pct(group.onTimePercent)}</td><td>{pct(group.outlierPercent)}</td><td>{hrs(group.mttrHours)}</td></tr></tbody>
       </table>
-      <p className="mr-note">Acesso: {total.igp.access.orders} ordens ({pct(total.igp.access.onTimePercent)} no prazo) · Backbone: {total.igp.backbone.orders} ordens ({pct(total.igp.backbone.onTimePercent)} no prazo).{total.igp.excludedOrders ? ` ${total.igp.excludedOrders} ordem(ns) fora do IGP.` : ""}</p>
+      <p className="mr-note">Acesso: {total.igp.access.orders} ordens ({pct(total.igp.access.onTimePercent)} no prazo) {total.igp.backbone.orders ? <> · Backbone: {total.igp.backbone.orders} ordens ({pct(total.igp.backbone.onTimePercent)} no prazo)</> : null}.{total.igp.nocTxOrders ? ` ${total.igp.nocTxOrders} NOC TX fora do IGP.` : ""}{total.igp.excludedOrders ? ` ${total.igp.excludedOrders} ordem(ns) fora do cálculo.` : ""}</p>
 
       <h2>Comparação com o mês anterior</h2>
       <table className="mr-table">

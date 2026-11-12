@@ -182,12 +182,12 @@ export function IGPPage() {
 
   return <div className="dv-dashboard">
     <div className="page-heading dv-heading">
-      <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso e Backbone, ponderado pela quantidade de ordens.</p></div>
+      <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso (NOC ACESSO e Acionamento FIELD), ponderado pela quantidade de ordens. NOC TX não entra no IGP.</p></div>
       <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option><option value="ABC">ABC</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
     </div>
     {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !metrics ? <div className="dv-empty" role="status">Calculando indicadores do mês...</div> : <>
       <div className="dv-kpi-grid">
-        <KpiTile label="Ordens consideradas" value={formatCount(metrics.total.orders)} note={`${metrics.access.orders} Acesso · ${metrics.backbone.orders} Backbone${metrics.excludedOrders ? ` · ${metrics.excludedOrders} fora do cálculo (tipo não reconhecido ou fim antes da abertura)` : ""}`} icon={ClipboardList} />
+        <KpiTile label="Ordens consideradas" value={formatCount(metrics.total.orders)} note={`${metrics.access.orders} Acesso${metrics.backbone.orders ? ` · ${metrics.backbone.orders} Backbone` : ""}${metrics.nocTxOrders ? ` · ${metrics.nocTxOrders} NOC TX fora do IGP` : ""}${metrics.excludedOrders ? ` · ${metrics.excludedOrders} fora do cálculo (tipo não reconhecido ou fim antes da abertura)` : ""}`} icon={ClipboardList} />
         {metricRows.map((row) => {
           const value = metrics.total[row.key];
           const state = getIgpGoalState(value, row.target, row.minimum, row.lowerIsBetter).className as keyof typeof goalTone;
@@ -208,10 +208,10 @@ export function IGPPage() {
       </Panel>}
 
       <Panel kicker={`${monthLabel(month, "long").toUpperCase()} · ${areaLabel.toUpperCase()}`} title="Resultado por rede">
-          {metrics.total.orders === 0 ? <div className="dv-empty">Não há ordens finalizadas e classificáveis neste mês.</div> : <div className="igp-table-wrap"><table className="igp-table"><thead><tr><th>Indicador</th><th>Acesso <small>{metrics.access.orders} OS</small></th><th>Backbone <small>{metrics.backbone.orders} OS</small></th><th>Total ponderado <small>{metrics.total.orders} OS</small></th><th>Meta 100%</th><th>Meta mínima</th><th>Resultado</th></tr></thead><tbody>{metricRows.map((row) => {
+          {metrics.total.orders === 0 ? <div className="dv-empty">Não há ordens finalizadas e classificáveis neste mês.</div> : <div className="igp-table-wrap"><table className="igp-table"><thead><tr><th>Indicador</th><th>Acesso <small>{metrics.access.orders} OS</small></th>{metrics.backbone.orders > 0 && <th>Backbone <small>{metrics.backbone.orders} OS</small></th>}<th>Total ponderado <small>{metrics.total.orders} OS</small></th><th>Meta 100%</th><th>Meta mínima</th><th>Resultado</th></tr></thead><tbody>{metricRows.map((row) => {
             const totalValue = metrics.total[row.key];
             const state = getIgpGoalState(totalValue, row.target, row.minimum, row.lowerIsBetter);
-            return <tr key={row.label}><th scope="row">{row.label}</th><td>{row.format(metrics.access[row.key])}</td><td>{row.format(metrics.backbone[row.key])}</td><td><strong>{row.format(totalValue)}</strong></td><td>{row.format(row.target)}</td><td>{row.format(row.minimum)}</td><td><span className={`igp-goal ${state.className}`}>{state.label}</span></td></tr>;
+            return <tr key={row.label}><th scope="row">{row.label}</th><td>{row.format(metrics.access[row.key])}</td>{metrics.backbone.orders > 0 && <td>{row.format(metrics.backbone[row.key])}</td>}<td><strong>{row.format(totalValue)}</strong></td><td>{row.format(row.target)}</td><td>{row.format(row.minimum)}</td><td><span className={`igp-goal ${state.className}`}>{state.label}</span></td></tr>;
           })}</tbody></table></div>}
       </Panel>
 
@@ -235,7 +235,7 @@ export function IGPPage() {
       </Panel>
       </div>
       <Panel kicker="METODOLOGIA" title="Como o IGP é calculado">
-        <div className="igp-methodology"><strong>Ponderação Acesso × Backbone:</strong> média das duas redes ponderada pela quantidade de OS finalizadas classificáveis no mês. Acesso inclui NOC ACESSO/FIELD; Backbone inclui NOC TX/Backbone. Ordens sem tipo reconhecido: <b>{metrics.excludedOrders}</b>.<br /><span>Prazo: reparo até 6h · Fora do prazo: acima de 6h até 9h · Outlier: reparo acima de 9h · MTTR: Data Fim − Data de Abertura.</span></div>
+        <div className="igp-methodology"><strong>Quais ordens entram:</strong> OS finalizadas no mês de NOC ACESSO e Acionamento FIELD (Acesso). <b>NOC TX não entra no IGP</b>{metrics.nocTxOrders ? <> ({metrics.nocTxOrders} neste mês)</> : null}. Ordens sem tipo reconhecido ou com fim antes da abertura: <b>{metrics.excludedOrders}</b>.<br /><span>Prazo: reparo até 6h · Fora do prazo: acima de 6h até 9h · Outlier: reparo acima de 9h · MTTR: Data Fim − Data de Abertura.</span></div>
       </Panel>
     </>}
   </div>;

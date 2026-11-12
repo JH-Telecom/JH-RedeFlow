@@ -180,13 +180,13 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   assert.equal(metrics.access.outlierPercent, 50);
   assert.equal(metrics.access.onTimePercent, 50);
   assert.equal(metrics.access.mttrHours, 8.5);
-  assert.equal(metrics.backbone.orders, 1);
-  assert.equal(metrics.backbone.outlierPercent, 0);
-  assert.equal(metrics.backbone.onTimePercent, 0);
-  assert.equal(metrics.total.orders, 3);
-  assert.ok(Math.abs(metrics.total.outlierPercent! - 100 / 3) < 1e-10);
-  assert.ok(Math.abs(metrics.total.onTimePercent! - 100 / 3) < 1e-10);
-  assert.equal(metrics.total.mttrHours, 26 / 3);
+  // NOC TX nao entra no IGP desde 12/11/2026: so o Acesso conta e a NOC TX do mes fica em nocTxOrders.
+  assert.equal(metrics.backbone.orders, 0);
+  assert.equal(metrics.nocTxOrders, 1);
+  assert.equal(metrics.total.orders, 2);
+  assert.equal(metrics.total.outlierPercent, 50);
+  assert.equal(metrics.total.onTimePercent, 50);
+  assert.equal(metrics.total.mttrHours, 8.5);
   assert.equal(metrics.excludedOrders, 1);
 
   const guarulhosMetrics = calculateIgpMetrics([
@@ -198,10 +198,10 @@ test('IGP calculates weighted monthly indicators for Access and Backbone', () =>
   assert.equal(guarulhosMetrics.access.orders, 1);
   assert.equal(guarulhosMetrics.backbone.orders, 0);
   const altoTieteMetrics = calculateIgpMetrics([
-    createCall('alto-tiete-call', 'NOC TX', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T04:00:00.000Z', 'MOGI DAS CRUZES'),
+    createCall('alto-tiete-call', 'NOC ACESSO', 'Finalizado', '2026-09-02T00:00:00.000Z', '2026-09-02T04:00:00.000Z', 'MOGI DAS CRUZES'),
   ], '2026-09', 'ALTO_TIETE');
   assert.equal(altoTieteMetrics.total.orders, 1);
-  assert.equal(altoTieteMetrics.backbone.orders, 1);
+  assert.equal(altoTieteMetrics.access.orders, 1);
 });
 
 test('IGP classifies repair time with the 6h prazo and 9h outlier limits', () => {

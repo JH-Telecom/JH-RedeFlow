@@ -12,6 +12,7 @@ export const RELEASES: Release[] = [
     id: "2026-11-12",
     label: "12/11",
     items: [
+      { icon: "chart", tag: "Melhoria", title: "NOC TX fora do IGP", text: "O IGP agora considera só Acesso (NOC ACESSO e Acionamento FIELD). As ordens NOC TX ficam fora do cálculo e aparecem contadas à parte em \"Ordens consideradas\".", permission: "dashboard.view" },
       { icon: "list", tag: "Novo", title: "Fila Sem região", text: "Em Operação › Sem região ficam os chamados com a região \"Não informada\". Escolha a região e salve (vale até para chamado encerrado). Dá para corrigir de uma vez todos os chamados da mesma OLT.", permission: "calls.view" },
       { icon: "user", tag: "Melhoria", title: "Status do dia dos técnicos", text: "Em Técnicos, a coluna Status agora tem os status da escala (Ativo, Folga, Falta, Ativar às 13:00, Interjornada, Atestado, Vindo na base, Ativar às 22:00, Saiu de rota, Frota, Férias) e há uma coluna Obs. Filtre por Ativo e use \"Copiar imagem\" para mandar a atualização no WhatsApp.", permission: "technicians.view" },
       { icon: "sparkles", tag: "Novo", title: "Jota H, o assistente de dados", text: "Clique no robô no canto inferior direito, em qualquer tela, e pergunte em português (\"quantos chamados entraram hoje por região?\"). Ele responde com a tabela, direto do banco e só leitura. A IA só recebe a sua pergunta, nunca os dados. Dá para avaliar cada resposta com 👍 ou 👎.", permission: "dashboard.view" },
