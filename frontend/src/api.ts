@@ -59,7 +59,7 @@ export type SlaAnalysis = {
 };
 export type IgpGoalPlan = { goal: number; met: boolean; streak: number | null; projected: null | { remainingOrders: number; required: number; requiredPercent: number | null; possible: boolean; slack: number | null } };
 export type IgpPlan = { month: string; currentMonth: boolean; elapsedDays: number; daysInMonth: number; orders: number; onTime: { target: IgpGoalPlan; minimum: IgpGoalPlan }; outlier: { target: IgpGoalPlan; minimum: IgpGoalPlan }; mttr: { target: IgpGoalPlan; minimum: IgpGoalPlan } };
-export type IgpMetrics = { month: string; area: IgpArea; access: IgpGroup; backbone: IgpGroup; total: IgpGroup; excludedOrders: number; nocTxOrders?: number };
+export type IgpMetrics = { month: string; area: IgpArea; access: IgpGroup; backbone: IgpGroup; total: IgpGroup; excludedOrders: number; nocTxOrders?: number; source?: { gigaOrders: number; systemOrders: number; closedUntil: string | null; fileName: string | null } };
 export type PublicView = {
   state: 'aguardando' | 'recusado' | 'chamado';
   card: { tipo: string | null; bdesk: string | null; officeTrack: string | null; evento: string | null; afetacao: number | string | null; olt: string | null; placaPon: string | null; enderecos: string[]; recebidoEm: string };

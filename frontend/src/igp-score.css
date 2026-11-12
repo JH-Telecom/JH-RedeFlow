@@ -40,3 +40,4 @@
 .isc-check { display: flex !important; align-items: center; gap: 8px; font-size: 13px; color: #17233b; }
 .isc-check input { width: 16px; height: 16px; padding: 0; }
 .isc-rules-foot { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #45536b; }
+.igp-source { margin: 0 0 12px; padding: 8px 12px; border: 1px solid #c4d6f5; border-radius: 8px; background: #eef4ff; color: #17233b; font-size: 13px; }

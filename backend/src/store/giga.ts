@@ -51,9 +51,9 @@ export async function importGigaWorkbook(buffer: Buffer, fileName: string, actor
     return { import: record, updatedCalls: callUpdates.length };
   }
   const admin = getSupabaseAdmin();
-  const { error: importError } = await admin.from('giga_imports').insert({ id: importId, file_name: fileName, month: record.month, main_cluster: record.mainCluster, closed_until: record.closedUntil, orders_count: record.ordersCount, matched_count: record.matchedCount, indicators: record.indicators, imported_by: actorName, imported_at: importedAt });
-  if (importError) throw new Error(missing(importError.message));
-  const rows = matches.map(({ order, call }) => ({ os: order.os, os_ofs: order.osOfs || null, origin: order.origin, cluster: order.cluster, regional: order.regional, city: order.city, element: order.element, resource: order.resource, opened_at: order.openedAt, closed_at: order.closedAt, tme_hours: order.tmeHours, on_time: order.onTime, outlier: order.outlier, month: order.month, call_id: call?.id ?? null, import_id: importId, updated_at: importedAt }));
+  // Ordem pensada para queda no meio (ex.: o servidor reiniciando durante uma atualizacao): primeiro as ordens e os
+  // chamados, e so no fim o registro da importacao. Sem o registro, o IGP nao usa a planilha; importar de novo completa.
+  const rows = matches.map(({ order, call }) => ({ os: order.os, os_ofs: order.osOfs || null, origin: order.origin, cluster: order.cluster, regional: order.regional, city: order.city, element: order.element, resource: order.resource, opened_at: order.openedAt, closed_at: order.closedAt, tme_hours: order.tmeHours, on_time: order.onTime, outlier: order.outlier, month: order.month, call_id: call?.id ?? null, updated_at: importedAt }));
   for (let offset = 0; offset < rows.length; offset += 500) {
     const { error } = await admin.from('giga_orders').upsert(rows.slice(offset, offset + 500), { onConflict: 'os' });
     if (error) throw new Error(missing(error.message));
@@ -63,6 +63,13 @@ export async function importGigaWorkbook(buffer: Buffer, fileName: string, actor
       const { error } = await admin.from('calls').update({ giga_cluster: update.cluster, giga_opened_at: update.openedAt, giga_closed_at: update.closedAt }).eq('id', update.call.id);
       if (error) throw new Error(missing(error.message));
     }));
+  }
+  const { error: importError } = await admin.from('giga_imports').insert({ id: importId, file_name: fileName, month: record.month, main_cluster: record.mainCluster, closed_until: record.closedUntil, orders_count: record.ordersCount, matched_count: record.matchedCount, indicators: record.indicators, imported_by: actorName, imported_at: importedAt });
+  if (importError) throw new Error(missing(importError.message));
+  const osList = rows.map((row) => row.os);
+  for (let offset = 0; offset < osList.length; offset += 300) {
+    const { error } = await admin.from('giga_orders').update({ import_id: importId }).in('os', osList.slice(offset, offset + 300));
+    if (error) throw new Error(missing(error.message));
   }
   if (callUpdates.length) invalidateCallsSnapshot(true);
   return { import: record, updatedCalls: callUpdates.length };

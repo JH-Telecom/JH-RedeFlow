@@ -2926,6 +2926,11 @@
 :where(:root[data-theme="dark"]) .isc-rules-foot {
     color: #bbc0c9
 }
+:where(:root[data-theme="dark"]) .igp-source {
+    border: 1px solid #2d4064;
+    background: #101622;
+    color: #dfe5ef
+}
 
 /* select-search.css */
 :where(:root[data-theme="dark"]) .ss-panel {

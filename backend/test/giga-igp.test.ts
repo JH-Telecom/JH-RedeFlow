@@ -96,3 +96,28 @@ test('matches orders to calls, uses the Giga cluster/times in the IGP and reconc
   assert.deepEqual(result.onlySystem.map((item) => item.id), ['d']);
   assert.deepEqual(result.timeDiffs.map((item) => [item.os, item.minutes]), [['12600001', -1770], ['671001', 30]]);
 });
+
+test('IGP uses the Giga orders up to the cut and the system after it', async () => {
+  const { calculateIgpWithGiga } = await import('../src/igp.js');
+  const order = (cluster: string, origin: string, closedAt: string, tme: number, onTime: boolean, outlier: boolean, callId: string | null = null) => ({ origin, cluster, closedAt, tmeHours: tme, onTime, outlier, month: '2026-11', callId });
+  const giga = { closedUntil: '2026-11-10T22:00:00-03:00', fileName: 'JH (58).xlsx', orders: [
+    order('C.8', 'BDESK', '2026-11-02T12:00:00-03:00', 2, true, false, 'a'),
+    order('C.8', 'FIELD', '2026-11-03T18:00:00-03:00', 10, false, true),
+    order('C.8', 'BACKBONE', '2026-11-04T17:00:00-03:00', 9, false, false),
+    order('C.12', 'BDESK', '2026-11-05T09:00:00-03:00', 1, true, false),
+  ] };
+  const call = (id: string, executedAt: string, region = 'ITAIM PAULISTA'): Call => ({ id, orderNumber: id, bdesk: '', officeTrack: '', client: '', type: 'NOC ACESSO', reason: '', region, city: '', olt: '', slotPon: '', status: 'Finalizado', openedAt: new Date(Date.parse(executedAt) - 3 * 3_600_000).toISOString(), executedAt, notes: '' });
+  // 'a' ja esta na Giga; 'b' foi antes do corte mas a Giga nao contou (fica de fora); 'c' e depois do corte (entra).
+  const calls = [call('a', '2026-11-02T12:30:00-03:00'), call('b', '2026-11-05T10:00:00-03:00'), call('c', '2026-11-11T10:00:00-03:00')];
+  const sp = calculateIgpWithGiga(calls, '2026-11', 'SP', giga);
+  assert.equal(sp.total.orders, 3); // 2 da Giga (sem backbone) + 1 do sistema depois do corte
+  assert.equal(sp.source.gigaOrders, 2);
+  assert.equal(sp.source.systemOrders, 1);
+  assert.equal(sp.nocTxOrders, 1);
+  assert.equal(sp.total.outliers, 1);
+  assert.equal(sp.total.mttrHours, (2 + 10 + 3) / 3);
+  assert.equal(calculateIgpWithGiga(calls, '2026-11', 'GRU', giga).total.orders, 1);
+  assert.equal(calculateIgpWithGiga(calls, '2026-11', 'ALL', giga).total.orders, 4);
+  // Sem planilha: so o sistema.
+  assert.equal(calculateIgpWithGiga(calls, '2026-11', 'SP', null).total.orders, 3);
+});

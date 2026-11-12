@@ -6028,3 +6028,15 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
 - **Causa**: sem nenhuma planilha da Giga importada, `GET /api/igp/pontuacao` respondia só com `months`, `month` e `imports`, sem `clusters`. A tela lia `clusters.length` e quebrava, ficando em branco. No preview não apareceu porque a planilha tinha sido importada antes.
 - **Correção**: a resposta vazia passa a ter a mesma forma da completa (`clusters`, `latest`, `score`, `history` e `live` vazios, mais as regras), e a tela completa campos que faltarem. Sem planilha, aparece o convite "Importar planilha da Giga".
 - **Validação**: preview sem planilha importada; a tela abre e o console fica sem erros.
+
+## IGP batendo com a Giga e importação à prova de queda (2026-11-12)
+- **Relato**: o IGP de SP em novembro não batia com a Giga (136 ordens, outlier 13,24%, prazo 81,62%, MTTR 5,2 h).
+- **Causa 1, importação interrompida**: a JH (58) foi importada às 11:59, exatamente na troca de versão do servidor (deploy da correção no ar às 11:59:55). O registro da importação foi gravado, mas as ordens e os chamados não (`giga_orders` vazia, nenhum chamado com `giga_cluster`).
+  - **Correção** (`importGigaWorkbook`): grava primeiro as ordens e os chamados e só no fim o registro da importação (`import_id` ligado depois). Se cair no meio, não fica uma importação "feita" pela metade, e importar de novo completa.
+- **Causa 2, período diferente**: mesmo com a planilha, o IGP contava até hoje e incluía ordens que a Giga não contou.
+  - **Correção** (`calculateIgpWithGiga`): com planilha importada no mês, até o corte dela (ex.: 10/11 22:00) valem as ordens da própria Giga, com o cluster, o prazo, o outlier e o TME dela. Depois do corte, completa com as finalizadas do sistema que ela ainda não listou. NOC TX fica fora.
+  - A tela do IGP mostra "Até … pela planilha da Giga: N ordens; depois, pelo sistema: M".
+- **Validação**:
+  - teste do IGP misto (Giga até o corte, sistema depois, Backbone fora, por área e sem planilha);
+  - no preview com a JH (58), SP em novembro dá **127 ordens, outlier 5,51%, prazo 77,95%, MTTR 3,53 h**, igual ao C.8 da Giga.
+- **Falta**: importar a JH (58) de novo em produção.

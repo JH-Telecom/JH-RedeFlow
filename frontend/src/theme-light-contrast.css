@@ -1669,6 +1669,9 @@
 :where(:root:not([data-theme="dark"])) .isc-rules-foot {
     color: #45536b
 }
+:where(:root:not([data-theme="dark"])) .igp-source {
+    color: #17233b
+}
 
 /* select-search.css */
 :where(:root:not([data-theme="dark"])) .ss-search {

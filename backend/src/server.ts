@@ -11,7 +11,7 @@ import { activationKeys, findDuplicateCall } from './activation-dedupe.js';
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
-import { calculateIgpMetrics, calculateIgpPlan, CLUSTER_AREAS, normalizeCluster } from './igp.js';
+import { calculateIgpMetrics, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
@@ -632,7 +632,10 @@ app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), cacheR
   try {
     const scopedQuery = await getScopedCallQuery(request, true);
     const calls = await listCalls('Finalizado', { ...scopedQuery, from, to });
-    const igp = calculateIgpMetrics(calls, parsed.data, parsedArea.data);
+    // Mes com planilha da Giga importada: ate o corte da planilha valem as ordens dela (bate com a Giga).
+    const [gigaImport] = await listGigaImports(parsed.data, 1).catch(() => []);
+    const gigaOrders = gigaImport ? await listGigaOrders(parsed.data).catch(() => []) : [];
+    const igp = calculateIgpWithGiga(calls, parsed.data, parsedArea.data, gigaImport && gigaOrders.length ? { orders: gigaOrders, closedUntil: gigaImport.closedUntil, fileName: gigaImport.fileName } : null);
     return response.json({ igp, plan: calculateIgpPlan(igp.total, parsed.data) });
   } catch (error) {
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular o IGP.' });

@@ -271,3 +271,41 @@ export function calculateIgpPlan(group: IgpGroup, month: string, today = toOpera
     mttr: { target: mttrPlan(group, IGP_GOALS.mttr.target, remaining), minimum: mttrPlan(group, IGP_GOALS.mttr.minimum, remaining) },
   };
 }
+
+// ---- IGP com a planilha da Giga (12/11/2026) ----
+// No periodo que a planilha cobre (ate closedUntil), as ordens e marcacoes sao as da propria Giga (cluster, prazo,
+// outlier e TME), entao o numero bate com o dela. Depois do corte, completa com as finalizadas do sistema que a Giga
+// ainda nao listou. Backbone/NOC TX fica fora (conta em nocTxOrders).
+export type GigaIgpOrder = { origin: string; cluster: string; closedAt: string | null; tmeHours: number | null; onTime: boolean | null; outlier: boolean | null; month: string | null; callId: string | null };
+export type IgpSource = { gigaOrders: number; systemOrders: number; closedUntil: string | null; fileName: string | null };
+export function calculateIgpWithGiga(calls: Call[], month: string, area: IgpArea, giga: { orders: GigaIgpOrder[]; closedUntil: string | null; fileName: string | null } | null): IgpMetrics & { source: IgpSource } {
+  if (!giga || !giga.orders.length || !giga.closedUntil) {
+    const metrics = calculateIgpMetrics(calls, month, area);
+    return { ...metrics, source: { gigaOrders: 0, systemOrders: metrics.total.orders, closedUntil: null, fileName: null } };
+  }
+  const until = Date.parse(giga.closedUntil);
+  const inArea = (cluster: string) => { const mapped = CLUSTER_AREAS[normalizeCluster(cluster) ?? '']; return area === 'ALL' ? Boolean(mapped) : mapped === area; };
+  const access = createGroup();
+  let nocTx = 0;
+  for (const order of giga.orders) {
+    if (order.month !== month || !order.closedAt || Date.parse(order.closedAt) > until || !inArea(order.cluster)) continue;
+    if (order.origin === 'BACKBONE') { nocTx += 1; continue; }
+    access.orders += 1;
+    access.totalRepairHours += order.tmeHours ?? 0;
+    if (order.outlier) access.outliers += 1;
+    if (order.onTime) access.onTime += 1;
+  }
+  const gigaOrders = access.orders;
+  const linked = new Set(giga.orders.map((order) => order.callId).filter(Boolean) as string[]);
+  const after = calls.filter((call) => !linked.has(call.id) && call.executedAt && Date.parse(call.executedAt) > until);
+  const rest = calculateIgpMetrics(after, month, area);
+  for (const key of ['orders', 'outliers', 'onTime', 'totalRepairHours'] as const) access[key] += rest.access[key];
+  const backbone = rest.backbone;
+  const total = createGroup();
+  for (const group of [access, backbone]) for (const key of ['orders', 'outliers', 'onTime', 'totalRepairHours'] as const) total[key] += group[key];
+  return {
+    month, area, access: finalizeGroup(access), backbone: finalizeGroup(backbone), total: finalizeGroup(total),
+    excludedOrders: rest.excludedOrders, nocTxOrders: rest.nocTxOrders + nocTx,
+    source: { gigaOrders, systemOrders: rest.total.orders, closedUntil: giga.closedUntil, fileName: giga.fileName },
+  };
+}

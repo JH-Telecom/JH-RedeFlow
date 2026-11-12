@@ -2898,6 +2898,11 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .isc-rules-foot {
     color: #524d72
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .igp-source {
+    border: 1px solid #d4cefe;
+    background: #f3f2ff;
+    color: #241c42
+}
 /* light · select-search.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ss-panel {
     border: 1px solid #d1cfe6;
@@ -8111,6 +8116,11 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .isc-rules-foot {
     color: #bfbecc
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .igp-source {
+    border: 1px solid #403a61;
+    background: #161325;
+    color: #e4e3f2
 }
 /* dark · select-search.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .ss-panel {
