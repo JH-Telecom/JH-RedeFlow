@@ -5922,3 +5922,21 @@ O Histórico de alterações travava para carregar (2.000 registros de uma vez).
   - build;
   - teste no preview: trocar status, digitar a obs e conferir depois de recarregar;
   - contraste nos temas claro e escuro sem pendências.
+
+## Jota H: robô animado e na cor do tema (2026-11-12)
+- **Pedido**: "Quero que seja animado, e a cor acompanhe os temas" (vídeo de referência: balão branco com um robô que se mexe).
+- **Balão**: círculo claro (no escuro, a superfície escura) com o robô desenhado.
+  - O robô tem antena com bolinha laranja, visor escuro, olhos ciano e sorriso.
+  - Um anel discreto "pulsa" em volta do balão.
+  - Ao passar o mouse, ele acelera o balanço, sorri e aparece "Oi, Nome! Posso ajudar? 👋", com a mãozinha acenando. No celular não aparece.
+- **Animações**:
+  - balança de leve;
+  - pisca;
+  - a antena acende;
+  - sorri de vez em quando.
+  - Respeitam "reduzir movimento" do sistema operacional.
+  - O robô do cabeçalho do painel também é animado.
+- **Cor do tema**: as cores do robô ficam no CSS (`jota-h.css`, classes `jw-bot-*`), e o gerador de temas troca o azul da marca pela cor de cada tema.
+  - Conferido: Padrão, Flor, Aurora, Neon e Ardósia, claro e escuro. A cabeça fica `#1264e8` no Padrão claro, `#c12175` na Flor, `#734bdf` na Aurora…
+  - No cabeçalho (fundo na cor do tema) o robô fica claro, também no escuro, com ajuste em `theme-dark-manual.css`.
+- **Validação**: build e preview (cores calculadas em cada tema e as animações rodando).

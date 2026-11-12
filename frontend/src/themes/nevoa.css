@@ -2527,12 +2527,49 @@
 }
 /* light · jota-h.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-launcher {
-    background: linear-gradient(145deg, #9d3ab9, #732489);
-    color: #ffffff;
-    box-shadow: 0 10px 26px #73248959
+    border: 1px solid #efe6f2;
+    background: #fff;
+    box-shadow: 0 10px 28px #2e1b342e, 0 0 0 0 #9d3ab940
 }
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-launcher:hover {
-    box-shadow: 0 14px 30px #7324896b
+    box-shadow: 0 14px 32px #2e1b343d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-launcher:focus-visible {
+    outline: 3px solid #9d3ab9
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-hello {
+    border: 1px solid #efe6f2;
+    background: #fff;
+    color: #2e1b34;
+    box-shadow: 0 8px 22px #2e1b3424
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-bot-head {
+    fill: #9d3ab9
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-bot-ear, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-bot-stem {
+    fill: #732489
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-bot-visor {
+    fill: #33123d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-bot-eye {
+    fill: #5ee0ff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-bot-mouth {
+    fill: none;
+    stroke: #5ee0ff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-bot-ball {
+    fill: #f5a524
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-head .jw-bot-head {
+    fill: #fff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-head .jw-bot-ear, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-head .jw-bot-stem {
+    fill: #f2dff8
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-head .jw-bot-visor {
+    fill: #732489
 }
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-panel {
     border: 1px solid #ebdcf0;
@@ -7562,12 +7599,49 @@
 }
 /* dark · jota-h.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-launcher {
-    background: linear-gradient(145deg, #9d3ab9, #732489);
-    color: #ffffff;
-    box-shadow: 0 10px 26px #994ab080
+    border: 1px solid #3e3441;
+    background: #1f1a20;
+    box-shadow: 0 10px 28px #00000065, 0 0 0 0 #a03dbc66
 }
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-launcher:hover {
-    box-shadow: 0 14px 30px #994ab080
+    box-shadow: 0 14px 32px #00000086
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-launcher:focus-visible {
+    outline: 3px solid #9d3ab9
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-hello {
+    border: 1px solid #3e3441;
+    background: #1f1a20;
+    color: #e9e1ec;
+    box-shadow: 0 8px 22px #0000004f
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-bot-head {
+    fill: #a946c5
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-bot-ear, :where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-bot-stem {
+    fill: #a253b9
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-bot-visor {
+    fill: #8f6b9b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-bot-eye {
+    fill: #4cd1ef
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-bot-mouth {
+    fill: none;
+    stroke: #4cd1ef
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-bot-ball {
+    fill: #f5a524
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-head .jw-bot-head {
+    fill: #342d36
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-head .jw-bot-ear, :where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-head .jw-bot-stem {
+    fill: #46304c
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-head .jw-bot-visor {
+    fill: #a253b9
 }
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-panel {
     border: 1px solid #45344b;
@@ -10107,4 +10181,10 @@
 }
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .notification-browser {
     color: #bdb6bf
+}
+:root[data-palette="nevoa"][data-theme="dark"] .jw-head .jw-bot-ear, :root[data-palette="nevoa"][data-theme="dark"] .jw-head .jw-bot-stem {
+    fill: #f2dff8
+}
+:root[data-palette="nevoa"][data-theme="dark"] .jw-head .jw-bot-visor {
+    fill: #33123d
 }

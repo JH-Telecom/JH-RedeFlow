@@ -34,3 +34,8 @@
 :where(:root[data-theme="dark"]) .ra-search { color: #b5b9c1; }
 /* Sino: aviso de notificacoes do navegador (o gerador escurecia o texto para #7f8082). */
 :where(:root[data-theme="dark"]) .notification-browser { color: #b5b9c1; }
+
+/* Jota H: no cabecalho (fundo na cor do tema) o robo continua claro tambem no escuro */
+:root[data-theme="dark"] .jw-head .jw-bot-head { fill: #fff; }
+:root[data-theme="dark"] .jw-head .jw-bot-ear, :root[data-theme="dark"] .jw-head .jw-bot-stem { fill: #dbe7ff; }
+:root[data-theme="dark"] .jw-head .jw-bot-visor { fill: #0b1f4d; }

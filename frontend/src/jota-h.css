@@ -1,7 +1,46 @@
 /* Jota H: assistente flutuante (JotaHWidget) */
-.jw-launcher { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: grid; place-items: center; width: 56px; height: 56px; padding: 0; border-radius: 50%; background: linear-gradient(145deg, #1264e8, #0845ae); color: #fff; box-shadow: 0 10px 26px #0845ae59; transition: transform .18s ease, box-shadow .18s ease; }
-.jw-launcher:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 14px 30px #0845ae6b; }
-.jw-launcher.is-open { transform: scale(.94); }
+/* Balao: circulo claro com o robo na cor do tema (o gerador de temas troca o azul #1264e8/#0845ae pela cor de cada
+   tema e o escuro troca o branco pela superficie escura). */
+.jw-launcher-wrap { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: flex; align-items: center; gap: 10px; }
+.jw-launcher { display: grid; place-items: center; width: 60px; height: 60px; padding: 0; border: 1px solid #e3eaf5; border-radius: 50%; background: #fff; box-shadow: 0 10px 28px #17233b2e, 0 0 0 0 #1264e840; transition: transform .2s ease, box-shadow .2s ease; animation: jw-ring 3.2s ease-out infinite; }
+.jw-launcher:hover { transform: translateY(-3px) scale(1.06); box-shadow: 0 14px 32px #17233b3d; }
+.jw-launcher.is-open { transform: scale(.94); animation: none; }
+.jw-launcher:focus-visible { outline: 3px solid #1264e8; outline-offset: 3px; }
+@keyframes jw-ring { 0%, 70% { box-shadow: 0 10px 28px #17233b2e, 0 0 0 0 #1264e840; } 100% { box-shadow: 0 10px 28px #17233b2e, 0 0 0 12px #1264e800; } }
+/* "Oi! Posso ajudar? 👋" aparece ao passar o mouse no balao */
+.jw-hello { order: -1; padding: 8px 12px; border: 1px solid #e3eaf5; border-radius: 12px 12px 4px 12px; background: #fff; color: #17233b; font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 8px 22px #17233b24; opacity: 0; transform: translateX(8px) scale(.96); transform-origin: right center; pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+.jw-launcher-wrap:hover .jw-hello, .jw-launcher-wrap:focus-within .jw-hello { opacity: 1; transform: none; }
+.jw-wave { display: inline-block; transform-origin: 70% 70%; }
+.jw-launcher-wrap:hover .jw-wave { animation: jw-wave 1s ease-in-out 2; }
+@keyframes jw-wave { 0%, 100% { transform: rotate(0); } 20%, 60% { transform: rotate(18deg); } 40%, 80% { transform: rotate(-10deg); } }
+
+/* Robo: cores (seguem o tema) */
+.jw-bot { display: block; overflow: visible; }
+.jw-bot-head { fill: #1264e8; }
+.jw-bot-ear, .jw-bot-stem { fill: #0845ae; }
+.jw-bot-visor { fill: #0b1f4d; }
+.jw-bot-eye { fill: #5ee0ff; }
+.jw-bot-mouth { fill: none; stroke: #5ee0ff; stroke-width: 1.3; stroke-linecap: round; opacity: 0; transition: opacity .2s ease; }
+.jw-bot-ball { fill: #f5a524; }
+/* no cabecalho (fundo da cor do tema) o robo fica claro */
+.jw-head .jw-bot-head { fill: #fff; }
+.jw-head .jw-bot-ear, .jw-head .jw-bot-stem { fill: #dbe7ff; }
+.jw-head .jw-bot-visor { fill: #0845ae; }
+/* Robo: animacoes (balancar, piscar, antena acesa, sorriso) */
+.jw-bot.is-animated .jw-bot-body { transform-box: view-box; transform-origin: 16px 28px; animation: jw-bob 3.6s ease-in-out infinite; }
+.jw-bot.is-animated .jw-bot-eyes { transform-box: fill-box; transform-origin: center; animation: jw-blink 4.4s infinite; }
+.jw-bot.is-animated .jw-bot-ball { transform-box: fill-box; transform-origin: center; animation: jw-glow 1.8s ease-in-out infinite; }
+.jw-bot.is-animated .jw-bot-mouth { animation: jw-smile 7s ease-in-out infinite; }
+.jw-launcher:hover .jw-bot-mouth, .jw-launcher.is-open .jw-bot-mouth, .jw-head .jw-bot-mouth { animation: none; opacity: 1; }
+.jw-launcher:hover .jw-bot-body { animation-duration: 1.2s; }
+@keyframes jw-bob { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-1.4px) rotate(-6deg); } 50% { transform: translateY(0) rotate(0); } 75% { transform: translateY(-1.4px) rotate(6deg); } }
+@keyframes jw-blink { 0%, 90%, 100% { transform: scaleY(1); } 93%, 95% { transform: scaleY(.12); } }
+@keyframes jw-glow { 0%, 100% { transform: scale(1); fill: #f5a524; } 50% { transform: scale(1.25); fill: #ffd166; } }
+@keyframes jw-smile { 0%, 35%, 70%, 100% { opacity: 0; } 45%, 60% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .jw-launcher, .jw-bot.is-animated .jw-bot-body, .jw-bot.is-animated .jw-bot-eyes, .jw-bot.is-animated .jw-bot-ball, .jw-bot.is-animated .jw-bot-mouth, .jw-launcher-wrap:hover .jw-wave { animation: none; }
+  .jw-bot-mouth { opacity: 1; }
+}
 /* toasts do canto sobem para nao ficar em cima do balao */
 body.has-jota-h .act-toast, body.has-jota-h .image-toast { bottom: 88px; }
 
@@ -90,6 +129,7 @@ body.has-jota-h .act-toast, body.has-jota-h .image-toast { bottom: 88px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 560px) {
-  .jw-launcher { right: 16px; bottom: 16px; }
+  .jw-launcher-wrap { right: 16px; bottom: 16px; }
+  .jw-hello { display: none; }
   .jw-panel, .jw-panel.is-expanded { right: 8px; left: 8px; bottom: 80px; width: auto; height: calc(100vh - 100px); }
 }

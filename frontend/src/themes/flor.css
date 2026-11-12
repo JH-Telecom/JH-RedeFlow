@@ -2527,12 +2527,49 @@
 }
 /* light · jota-h.css */
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-launcher {
-    background: linear-gradient(145deg, #c12175, #8e0b54);
-    color: #ffffff;
-    box-shadow: 0 10px 26px #8e0b5459
+    border: 1px solid #f4e5ea;
+    background: #fff;
+    box-shadow: 0 10px 28px #3718252e, 0 0 0 0 #c1217540
 }
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-launcher:hover {
-    box-shadow: 0 14px 30px #8e0b546b
+    box-shadow: 0 14px 32px #3718253d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-launcher:focus-visible {
+    outline: 3px solid #c12175
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-hello {
+    border: 1px solid #f4e5ea;
+    background: #fff;
+    color: #371825;
+    box-shadow: 0 8px 22px #37182524
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-bot-head {
+    fill: #c12175
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-bot-ear, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-bot-stem {
+    fill: #8e0b54
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-bot-visor {
+    fill: #400b25
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-bot-eye {
+    fill: #5ee0ff
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-bot-mouth {
+    fill: none;
+    stroke: #5ee0ff
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-bot-ball {
+    fill: #f5a524
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-head .jw-bot-head {
+    fill: #fff
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-head .jw-bot-ear, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-head .jw-bot-stem {
+    fill: #fddde8
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-head .jw-bot-visor {
+    fill: #8e0b54
 }
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .jw-panel {
     border: 1px solid #f5dae3;
@@ -7562,12 +7599,49 @@
 }
 /* dark · jota-h.css */
 :where(:root[data-palette="flor"][data-theme="dark"]) .jw-launcher {
-    background: linear-gradient(145deg, #c12175, #8e0b54);
-    color: #ffffff;
-    box-shadow: 0 10px 26px #b83c7680
+    border: 1px solid #443339;
+    background: #21191c;
+    box-shadow: 0 10px 28px #00000065, 0 0 0 0 #c4267866
 }
 :where(:root[data-palette="flor"][data-theme="dark"]) .jw-launcher:hover {
-    box-shadow: 0 14px 30px #b83c7680
+    box-shadow: 0 14px 32px #00000086
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-launcher:focus-visible {
+    outline: 3px solid #c12175
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-hello {
+    border: 1px solid #443339;
+    background: #21191c;
+    color: #eee0e5;
+    box-shadow: 0 8px 22px #0000004f
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-bot-head {
+    fill: #ce3180
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-bot-ear, :where(:root[data-palette="flor"][data-theme="dark"]) .jw-bot-stem {
+    fill: #c2457f
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-bot-visor {
+    fill: #a2657d
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-bot-eye {
+    fill: #4cd1ef
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-bot-mouth {
+    fill: none;
+    stroke: #4cd1ef
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-bot-ball {
+    fill: #f5a524
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-head .jw-bot-head {
+    fill: #372d30
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-head .jw-bot-ear, :where(:root[data-palette="flor"][data-theme="dark"]) .jw-head .jw-bot-stem {
+    fill: #502d3b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .jw-head .jw-bot-visor {
+    fill: #c2457f
 }
 :where(:root[data-palette="flor"][data-theme="dark"]) .jw-panel {
     border: 1px solid #4e323d;
@@ -10107,4 +10181,10 @@
 }
 :where(:root[data-palette="flor"][data-theme="dark"]) .notification-browser {
     color: #c0b6b9
+}
+:root[data-palette="flor"][data-theme="dark"] .jw-head .jw-bot-ear, :root[data-palette="flor"][data-theme="dark"] .jw-head .jw-bot-stem {
+    fill: #fddde8
+}
+:root[data-palette="flor"][data-theme="dark"] .jw-head .jw-bot-visor {
+    fill: #400b25
 }

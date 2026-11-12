@@ -2527,12 +2527,49 @@
 }
 /* light · jota-h.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-launcher {
-    background: linear-gradient(145deg, #734bdf, #5331a7);
-    color: #ffffff;
-    box-shadow: 0 10px 26px #5331a759
+    border: 1px solid #e9e7f9;
+    background: #fff;
+    box-shadow: 0 10px 28px #241c422e, 0 0 0 0 #734bdf40
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-launcher:hover {
-    box-shadow: 0 14px 30px #5331a76b
+    box-shadow: 0 14px 32px #241c423d
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-launcher:focus-visible {
+    outline: 3px solid #734bdf
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-hello {
+    border: 1px solid #e9e7f9;
+    background: #fff;
+    color: #241c42;
+    box-shadow: 0 8px 22px #241c4224
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-bot-head {
+    fill: #734bdf
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-bot-ear, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-bot-stem {
+    fill: #5331a7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-bot-visor {
+    fill: #24184a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-bot-eye {
+    fill: #5ee0ff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-bot-mouth {
+    fill: none;
+    stroke: #5ee0ff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-bot-ball {
+    fill: #f5a524
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-head .jw-bot-head {
+    fill: #fff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-head .jw-bot-ear, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-head .jw-bot-stem {
+    fill: #e5e2ff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-head .jw-bot-visor {
+    fill: #5331a7
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-panel {
     border: 1px solid #e1defc;
@@ -7562,12 +7599,49 @@
 }
 /* dark · jota-h.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .jw-launcher {
-    background: linear-gradient(145deg, #734bdf, #5331a7);
-    color: #ffffff;
-    box-shadow: 0 10px 26px #7458d080
+    border: 1px solid #383649;
+    background: #1b1a24;
+    box-shadow: 0 10px 28px #00000065, 0 0 0 0 #764ee266
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .jw-launcher:hover {
-    box-shadow: 0 14px 30px #7458d080
+    box-shadow: 0 14px 32px #00000086
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-launcher:focus-visible {
+    outline: 3px solid #734bdf
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-hello {
+    border: 1px solid #383649;
+    background: #1b1a24;
+    color: #e4e3f2;
+    box-shadow: 0 8px 22px #0000004f
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-bot-head {
+    fill: #7e57ec
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-bot-ear, :where(:root[data-palette="aurora"][data-theme="dark"]) .jw-bot-stem {
+    fill: #7c61da
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-bot-visor {
+    fill: #7a71ab
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-bot-eye {
+    fill: #4cd1ef
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-bot-mouth {
+    fill: none;
+    stroke: #4cd1ef
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-bot-ball {
+    fill: #f5a524
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-head .jw-bot-head {
+    fill: #302e3a
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-head .jw-bot-ear, :where(:root[data-palette="aurora"][data-theme="dark"]) .jw-head .jw-bot-stem {
+    fill: #39325b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .jw-head .jw-bot-visor {
+    fill: #7c61da
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .jw-panel {
     border: 1px solid #3b3657;
@@ -10107,4 +10181,10 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .notification-browser {
     color: #b8b7c3
+}
+:root[data-palette="aurora"][data-theme="dark"] .jw-head .jw-bot-ear, :root[data-palette="aurora"][data-theme="dark"] .jw-head .jw-bot-stem {
+    fill: #e5e2ff
+}
+:root[data-palette="aurora"][data-theme="dark"] .jw-head .jw-bot-visor {
+    fill: #24184a
 }

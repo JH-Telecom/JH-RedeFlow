@@ -44,16 +44,24 @@ function downloadCsv(answer: QueryAnswer) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function BotFace({ size = 20 }: { size?: number }) {
+// Robo do Jota H. As cores ficam no CSS (jota-h.css), para acompanhar o tema escolhido; as animacoes (balancar,
+// piscar, antena acesa, sorriso) tambem. `animated` liga o movimento (balao e cabecalho).
+function BotFace({ size = 20, animated = false }: { size?: number; animated?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="11" y="1.5" width="2" height="3" rx="1" fill="currentColor" />
-      <rect x="3.5" y="5" width="17" height="14" rx="5" fill="currentColor" />
-      <rect x="6" y="8.5" width="12" height="7" rx="3.5" fill="#0b1f4d" />
-      <circle cx="9.5" cy="12" r="1.6" fill="#5ee0ff" />
-      <circle cx="14.5" cy="12" r="1.6" fill="#5ee0ff" />
-      <rect x="1.5" y="10" width="2" height="4" rx="1" fill="currentColor" />
-      <rect x="20.5" y="10" width="2" height="4" rx="1" fill="currentColor" />
+    <svg className={`jw-bot${animated ? " is-animated" : ""}`} width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <g className="jw-bot-body">
+        <rect className="jw-bot-stem" x="15.2" y="3.5" width="1.6" height="5" rx="0.8" />
+        <circle className="jw-bot-ball" cx="16" cy="3.4" r="2.3" />
+        <rect className="jw-bot-ear" x="2.6" y="13.5" width="3.2" height="7" rx="1.6" />
+        <rect className="jw-bot-ear" x="26.2" y="13.5" width="3.2" height="7" rx="1.6" />
+        <rect className="jw-bot-head" x="5" y="8" width="22" height="19" rx="7.5" />
+        <rect className="jw-bot-visor" x="8.5" y="12.2" width="15" height="10" rx="5" />
+        <g className="jw-bot-eyes">
+          <circle className="jw-bot-eye" cx="12.8" cy="16.6" r="1.9" />
+          <circle className="jw-bot-eye" cx="19.2" cy="16.6" r="1.9" />
+        </g>
+        <path className="jw-bot-mouth" d="M13.6 19.5 Q16 21.6 18.4 19.5" />
+      </g>
     </svg>
   );
 }
@@ -200,7 +208,7 @@ export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSe
       {open && (
         <div className={`jw-panel${expanded ? " is-expanded" : ""}`} role="dialog" aria-modal="false" aria-labelledby="jw-title">
           <header className="jw-head">
-            <span className="jw-head-avatar"><BotFace size={22} /></span>
+            <span className="jw-head-avatar"><BotFace size={26} animated /></span>
             <div className="jw-head-text">
               <strong id="jw-title">Jota H</strong>
               <small><i aria-hidden="true" /> assistente da operação · IA</small>
@@ -293,9 +301,12 @@ export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSe
           <p className="jw-foot"><Lock size={12} aria-hidden="true" /> A IA só monta a conta — os dados da operação não saem do sistema</p>
         </div>
       )}
-      <button ref={launcherRef} type="button" className={`jw-launcher${open ? " is-open" : ""}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? "Fechar o Jota H" : "Abrir o Jota H, assistente da operação"} title="Jota H">
-        <BotFace size={30} />
-      </button>
+      <div className={`jw-launcher-wrap${open ? " is-open" : ""}`}>
+        {!open && <span className="jw-hello" aria-hidden="true">Oi{firstName ? `, ${firstName}` : ""}! Posso ajudar? <span className="jw-wave">👋</span></span>}
+        <button ref={launcherRef} type="button" className={`jw-launcher${open ? " is-open" : ""}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? "Fechar o Jota H" : "Abrir o Jota H, assistente da operação"}>
+          <BotFace size={40} animated />
+        </button>
+      </div>
     </>
   );
 }

@@ -1464,8 +1464,8 @@
 }
 
 /* jota-h.css */
-:where(:root:not([data-theme="dark"])) .jw-launcher {
-    color: #ffffff
+:where(:root:not([data-theme="dark"])) .jw-hello {
+    color: #17233b
 }
 :where(:root:not([data-theme="dark"])) .jw-head {
     color: #ffffff

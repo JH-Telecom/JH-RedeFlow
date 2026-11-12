@@ -2553,12 +2553,49 @@
 
 /* jota-h.css */
 :where(:root[data-theme="dark"]) .jw-launcher {
-    background: linear-gradient(145deg, #1264e8, #0845ae);
-    color: #ffffff;
-    box-shadow: 0 10px 26px #306bd780
+    border: 1px solid #313945;
+    background: #181c22;
+    box-shadow: 0 10px 28px #00000065, 0 0 0 0 #1667eb66
 }
 :where(:root[data-theme="dark"]) .jw-launcher:hover {
-    box-shadow: 0 14px 30px #306bd780
+    box-shadow: 0 14px 32px #00000086
+}
+:where(:root[data-theme="dark"]) .jw-launcher:focus-visible {
+    outline: 3px solid #1264e8
+}
+:where(:root[data-theme="dark"]) .jw-hello {
+    border: 1px solid #313945;
+    background: #181c22;
+    color: #dfe5ef;
+    box-shadow: 0 8px 22px #0000004f
+}
+:where(:root[data-theme="dark"]) .jw-bot-head {
+    fill: #2170f5
+}
+:where(:root[data-theme="dark"]) .jw-bot-ear, :where(:root[data-theme="dark"]) .jw-bot-stem {
+    fill: #3974e1
+}
+:where(:root[data-theme="dark"]) .jw-bot-visor {
+    fill: #5f7aaf
+}
+:where(:root[data-theme="dark"]) .jw-bot-eye {
+    fill: #4cd1ef
+}
+:where(:root[data-theme="dark"]) .jw-bot-mouth {
+    fill: none;
+    stroke: #4cd1ef
+}
+:where(:root[data-theme="dark"]) .jw-bot-ball {
+    fill: #f5a524
+}
+:where(:root[data-theme="dark"]) .jw-head .jw-bot-head {
+    fill: #2c3038
+}
+:where(:root[data-theme="dark"]) .jw-head .jw-bot-ear, :where(:root[data-theme="dark"]) .jw-head .jw-bot-stem {
+    fill: #2d3954
+}
+:where(:root[data-theme="dark"]) .jw-head .jw-bot-visor {
+    fill: #3974e1
 }
 :where(:root[data-theme="dark"]) .jw-panel {
     border: 1px solid #2f3c51;
