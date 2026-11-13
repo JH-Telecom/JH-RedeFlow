@@ -2303,6 +2303,208 @@
     border-color: #413744;
     color: #e9e1ec
 }
+/* light · network.css */
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-hint {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-ok {
+    color: #116b40
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-file {
+    border: 1px solid var(--line);
+    border-left: 4px solid #1caa76;
+    background: #fff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-file.is-bad {
+    border-left-color: #c44848
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-file strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-file span {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-progress {
+    color: #732489
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-error {
+    color: #a3262a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-table th {
+    color: #67556c;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-table td {
+    color: #4e3a55;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-table td strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-table tr.is-off td {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .net-table small {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-counts {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-counts b {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-chip {
+    border: 1px solid #e9e0ec;
+    background: #f7f9fc;
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-chip.is-on {
+    background: #fff;
+    color: #2e1b34;
+    border-color: #dfcce6
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-chip i, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-row i, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-tag i {
+    box-shadow: 0 0 0 1px #20112533
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-chip b {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-chip:focus-visible, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-filters label {
+    color: #5e4a64
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-filters input, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-filters select {
+    border: 1px solid #e9e0ec;
+    background: #fff;
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-layers {
+    border: 1px solid #e9e0ec
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-layers legend {
+    color: #5e4a64
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-filters label.netmap-check {
+    color: #4e3a55
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-pons {
+    color: #5e4a64
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-hint {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-ok {
+    color: #116b40
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-error {
+    color: #a3262a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-map {
+    border: 1px solid var(--line);
+    background: #e8edf4
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-notice {
+    background: #2e1b34;
+    color: #ffffff;
+    box-shadow: 0 6px 16px #2e1b3433
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-notice.is-quiet {
+    background: #fff;
+    color: #4e3a55;
+    border: 1px solid #e9e0ec
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-notice.is-error {
+    background: #fff1f1;
+    color: #a3262a;
+    border: 1px solid #ffd4d4
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-panel-toggle {
+    box-shadow: 0 4px 12px #2e1b341f
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-cluster {
+    background: #732489;
+    color: #ffffff;
+    border: 3px solid #ffffffcc;
+    box-shadow: 0 2px 8px #2e1b3455
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-card {
+    border: 1px solid var(--line);
+    background: #fff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-card-head strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-muted {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-summary {
+    color: #4e3a55
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-summary b {
+    color: #a3262a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-summary b + b, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-summary b:last-child {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-row {
+    background: #fff;
+    border: 1px solid transparent;
+    color: #4e3a55
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-row:hover {
+    background: #f3f6fa
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-row.is-active {
+    background: #f9f0fc;
+    border-color: #ead0f2
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-row-main strong {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-row-main small {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-imprecise {
+    color: #8a5300
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-tag {
+    background: #f7f9fc;
+    border: 1px solid #e9e0ec;
+    color: #4e3a55
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-tag.is-problema {
+    color: #a3262a;
+    background: #fff1f1;
+    border-color: #ffd4d4
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-tag.is-atencao {
+    color: #8a5300;
+    background: #fff7e6;
+    border-color: #fbe0b0
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-tag.is-ok {
+    color: #116b40;
+    background: #ecfaf3;
+    border-color: #bfe9d3
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-dl dt {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-dl dd {
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-dl small {
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-estimate {
+    background: #f1f5fa;
+    color: #67556c
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .netmap-near > small {
+    color: #5e4a64
+}
 /* light · status-page.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .st-page {
     background: #f4f6fa;
@@ -7521,6 +7723,208 @@
     background: #1f1a20;
     border-color: #413744;
     color: #e9e1ec
+}
+/* dark · network.css */
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-hint {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-ok {
+    color: #7ccc9b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-file {
+    border: 1px solid var(--line);
+    border-left: 4px solid #1caa76;
+    background: #1f1a20
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-file.is-bad {
+    border-left-color: #c44848
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-file strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-file span {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-progress {
+    color: #d29be3
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-error {
+    color: #ff8a83
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-table th {
+    color: #bdb6bf;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-table td {
+    color: #d0c9d2;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-table td strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-table tr.is-off td {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .net-table small {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-counts {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-counts b {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-chip {
+    border: 1px solid #413744;
+    background: #181319;
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-chip.is-on {
+    background: #1f1a20;
+    color: #e9e1ec;
+    border-color: #4e3755
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-chip i, :where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-row i, :where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-tag i {
+    box-shadow: 0 0 0 1px #00000070
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-chip b {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-chip:focus-visible, :where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-filters label {
+    color: #c4bdc6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-filters input, :where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-filters select {
+    border: 1px solid #413744;
+    background: #1f1a20;
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-layers {
+    border: 1px solid #413744
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-layers legend {
+    color: #c4bdc6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-filters label.netmap-check {
+    color: #d0c9d2
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-pons {
+    color: #c4bdc6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-hint {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-ok {
+    color: #7ccc9b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-error {
+    color: #ff8a83
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-map {
+    border: 1px solid var(--line);
+    background: #1b161c
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-notice {
+    background: #2e1b34;
+    color: #ffffff;
+    box-shadow: 0 6px 16px #00000070
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-notice.is-quiet {
+    background: #1f1a20;
+    color: #d0c9d2;
+    border: 1px solid #413744
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-notice.is-error {
+    background: #201212;
+    color: #ff8a83;
+    border: 1px solid #5b2c2f
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-panel-toggle {
+    box-shadow: 0 4px 12px #00000044
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-cluster {
+    background: #732489;
+    color: #ffffff;
+    border: 3px solid #342d36cc;
+    box-shadow: 0 2px 8px #00000099
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-card {
+    border: 1px solid var(--line);
+    background: #1f1a20
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-card-head strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-muted {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-summary {
+    color: #d0c9d2
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-summary b {
+    color: #ff8a83
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-summary b + b, :where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-summary b:last-child {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-row {
+    background: #1f1a20;
+    border: 1px solid transparent;
+    color: #d0c9d2
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-row:hover {
+    background: #19141b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-row.is-active {
+    background: #1c121f;
+    border-color: #4d3355
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-row-main strong {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-row-main small {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-imprecise {
+    color: #e6a968
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-tag {
+    background: #181319;
+    border: 1px solid #413744;
+    color: #d0c9d2
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-tag.is-problema {
+    color: #ff8a83;
+    background: #201212;
+    border-color: #5b2c2f
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-tag.is-atencao {
+    color: #e6a968;
+    background: #1b1200;
+    border-color: #4d3603
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-tag.is-ok {
+    color: #7ccc9b;
+    background: #091a13;
+    border-color: #104932
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-dl dt {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-dl dd {
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-dl small {
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-estimate {
+    background: #19141b;
+    color: #bdb6bf
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .netmap-near > small {
+    color: #c4bdc6
 }
 /* dark · status-page.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .st-page {

@@ -64,6 +64,9 @@ import { normalizeOltCode } from './integrations/wuzapi/noc-consolidation.js';
 import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing } from './missing-region.js';
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
 import { isNightWindow, nightStartIso, pickNightOrders } from './night-router.js';
+import { listNetworkArea, listNetworkSources, listPopOlts, saveNetworkBatch, savePopOlt } from './store/network.js';
+import { enqueuePons, pendingPons, ponView, savePonReading } from './store/network-clients.js';
+import { normalizeOlt, normalizePonlink, ponsFromCall } from './network.js';
 import { addPopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
@@ -775,6 +778,75 @@ app.post('/api/chaves', auth, requirePermission('settings.manage'), async (reque
   try { return response.status(201).json({ key: await addPopKey(parsed.data.pop) }); }
   catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel cadastrar o POP.' }); }
 });
+// Mapa da rede: ver (network.view) e importar/editar POP -> OLT (network.manage). Nunca guarda nome/endereco de assinante.
+app.get('/api/rede/area', auth, requirePermission('network.view'), async (request: AuthRequest, response) => {
+  const num = (min: number, max: number) => z.string().trim().min(1).pipe(z.coerce.number().min(min).max(max));
+  const parsed = z.object({ minLat: num(-90, 90), minLng: num(-180, 180), maxLat: num(-90, 90), maxLng: num(-180, 180), zoom: num(0, 24).optional() }).safeParse(request.query);
+  if (!parsed.success) return response.status(400).json({ message: 'Area do mapa invalida.' });
+  const { zoom = 15, ...box } = parsed.data;
+  if (box.maxLat < box.minLat || box.maxLng < box.minLng || box.maxLat - box.minLat > 0.5 || box.maxLng - box.minLng > 0.5) return response.status(400).json({ message: 'Aproxime o mapa.' });
+  try { return response.json(await listNetworkArea(box, zoom)); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar a rede.' }); }
+});
+app.get('/api/rede/pon', auth, requirePermission('network.view'), async (request, response) => {
+  const parsed = z.object({ olt: z.string().trim().min(1).max(120), ponlink: z.string().trim().min(1).max(40) }).safeParse(request.query);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe a OLT e a PON.' });
+  try { return response.json(await ponView(parsed.data.olt, parsed.data.ponlink)); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar a PON.' }); }
+});
+app.post('/api/rede/pon/solicitar', auth, requirePermission('network.view'), async (request: AuthRequest, response) => {
+  const parsed = z.union([
+    z.object({ callId: z.string().trim().min(1).max(80) }),
+    z.object({ olt: z.string().trim().min(1).max(120), ponlink: z.string().trim().min(1).max(40) }),
+  ]).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe a OLT e a PON ou o chamado.' });
+  try {
+    let pons: Array<{ olt: string; ponlink: string }>;
+    let callId: string | undefined;
+    if ('callId' in parsed.data) {
+      const call = await getCall(parsed.data.callId, await getScopedCallQuery(request, false));
+      if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+      pons = ponsFromCall(call.olt || '', call.slotPon || '');
+      if (!pons.length) return response.status(422).json({ message: 'Este chamado nao tem OLT e slot/PON.' });
+      callId = call.id;
+    } else {
+      const olt = normalizeOlt(parsed.data.olt);
+      const ponlink = normalizePonlink(parsed.data.ponlink);
+      if (!olt || !ponlink) return response.status(400).json({ message: 'OLT ou PON invalida.' });
+      pons = [{ olt, ponlink }];
+    }
+    const result = await enqueuePons(pons, request.authUser!.name, callId);
+    return response.json({ ...result, pons });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel pedir a PON.' }); }
+});
+app.post('/api/rede/importacao', auth, requirePermission('network.manage'), async (request: AuthRequest, response) => {
+  const lat = z.number().min(-90).max(90);
+  const lng = z.number().min(-180).max(180);
+  const parsed = z.object({
+    fileName: z.string().trim().min(1).max(255),
+    sha256: z.string().trim().min(1).max(128),
+    first: z.boolean(),
+    elements: z.array(z.object({ kind: z.enum(['pop', 'cto', 'ceo', 'outro']), code: z.string().max(120).nullable(), name: z.string().max(255), projectCode: z.string().max(120).nullable(), pop: z.string().max(120).nullable(), fh: z.string().max(120).nullable(), lat, lng })).max(2000),
+    cables: z.array(z.object({ name: z.string().max(255), color: z.string().max(20).nullable(), points: z.array(z.tuple([z.number(), z.number()])).max(5000) })).max(2000),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Lote de importacao da rede invalido.' });
+  try { return response.json(await saveNetworkBatch(parsed.data, request.authUser!.name)); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel importar a rede.' }); }
+});
+app.get('/api/rede/fontes', auth, requirePermission('network.manage'), async (_request, response) => {
+  try { return response.json({ sources: await listNetworkSources() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel listar os arquivos.' }); }
+});
+app.get('/api/rede/pop-olt', auth, requirePermission('network.view'), async (_request, response) => {
+  try { return response.json({ popOlts: await listPopOlts() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel listar POP e OLT.' }); }
+});
+app.put('/api/rede/pop-olt', auth, requirePermission('network.manage'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ pop: z.string().trim().min(1).max(120), olt: z.string().trim().min(1).max(120), active: z.boolean(), note: z.string().trim().max(500).nullish() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe POP, OLT e se esta ativo.' });
+  try { return response.json({ popOlt: await savePopOlt({ ...parsed.data, note: parsed.data.note ?? null }, request.authUser!.name) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar POP e OLT.' }); }
+});
 app.post('/api/chaves/:id/retirada', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
   const parsed = z.object({
     holderName: z.string().trim().min(2).max(120),
@@ -1470,6 +1542,42 @@ app.post('/api/integrations/autoisp/sn', async (request, response) => {
     const result = await saveAutoIspSerial(parsed.data.callId, parsed.data.contract, parsed.data.rows);
     return result.ok ? response.json(result) : response.status(422).json(result);
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o SN.' }); }
+});
+// PONs da rede: a extensao pega a fila, le cada PON no AutoISP (so GET) e devolve so contrato, serial, int6, OLT, ponlink, sinal, status, ultimo contato e lat/lng.
+app.get('/api/integrations/autoisp/pons-pendentes', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  try { return response.json({ itens: await pendingPons() }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel listar as PONs pendentes.' }); }
+});
+app.post('/api/integrations/autoisp/pon', async (request, response) => {
+  const identity = await ofsCollectorIdentity(request);
+  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
+  // .strict(): nome, endereco e qualquer outro campo fora desta lista sao recusados (privacidade).
+  const client = z.object({
+    contract: z.string().trim().min(1).max(20),
+    serial: z.string().trim().max(40).nullable(),
+    int6: z.string().trim().max(20).nullable(),
+    olt: z.string().trim().max(120),
+    ponlink: z.string().trim().max(40),
+    signalRx: z.number().finite().nullable(),
+    onuStatus: z.string().trim().max(40).nullable(),
+    lastInform: z.string().trim().max(40).nullable(),
+    lat: z.number().finite().nullable(),
+    lng: z.number().finite().nullable(),
+    readAt: z.string().trim().max(40),
+  }).strict();
+  const parsed = z.object({
+    requestId: z.string().trim().max(80).optional(),
+    olt: z.string().trim().min(1).max(120),
+    ponlink: z.string().trim().min(1).max(40),
+    found: z.number().int().min(0).max(100000),
+    error: z.string().trim().max(500).nullish(),
+    clients: z.array(client).max(100),
+  }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Dados da PON invalidos.' });
+  try { return response.json(await savePonReading(parsed.data, identity.label || 'Coletor')); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar a PON.' }); }
 });
 app.get('/api/integrations/ofs/fechamentos/pendentes', async (request, response) => {
   const identity = await ofsCollectorIdentity(request);
@@ -2282,7 +2390,10 @@ app.post('/api/importacoes/:id/confirmar', auth, requirePermission('imports.crea
 });
 
 
-app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));
+app.use((error: Error & { type?: string; status?: number }, _request: Request, response: Response, _next: NextFunction) => {
+  if (error.type === 'entity.too.large' || error.status === 413) return response.status(413).json({ message: 'Envio grande demais: divida em lotes menores.' });
+  return response.status(500).json({ message: error.message || 'Erro interno.' });
+});
 async function startServer() {
   try { await listOltRegionMappings(); }
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }

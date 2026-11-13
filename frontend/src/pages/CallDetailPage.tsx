@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, Download, FileText, Paperclip, X } from "lucide-react";
+import { ChevronRight, Download, FileText, Map as MapIcon, Paperclip, X } from "lucide-react";
 import { api, CLOSED_CALL_STATUSES, isCallClosed, type Call, type CallAuditLog, type CallObservation, type CallStatus, type RepeatHistory, type Technician } from "../api";
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { DetailItem, EditableDetailItem } from "../components/ui";
@@ -108,14 +108,18 @@ export function CallDetailBase() {
   const [cancelReason, setCancelReason] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
   const [canDeleteCall, setCanDeleteCall] = useState(false);
+  const [canViewNetwork, setCanViewNetwork] = useState(false);
+  const [openingMap, setOpeningMap] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {
     try {
       const raw = localStorage.getItem("jh-redeflow-session");
       const session = raw ? JSON.parse(raw) : null;
       setCanDeleteCall(Boolean(session?.user?.role?.permissions?.includes("calls.delete")));
+      setCanViewNetwork(Boolean(session?.user?.role?.permissions?.includes("network.view")));
     } catch {
       setCanDeleteCall(false);
+      setCanViewNetwork(false);
     }
   }, []);
   useEffect(() => {
@@ -201,6 +205,25 @@ export function CallDetailBase() {
       setSaving(false);
     }
   }
+  // Pede a leitura das PON da massiva ao AutoISP (extensao Rede) e abre o mapa da rede nelas.
+  async function openOnMap() {
+    if (!call) return;
+    const current = call;
+    setOpeningMap(true);
+    setMessage("");
+    try {
+      const data = await api.requestPon({ callId: current.id });
+      const first = data.pons[0];
+      if (!first) { setMessage("Nenhuma PON válida encontrada neste chamado."); return; }
+      const params = new URLSearchParams({ olt: first.olt, ponlink: first.ponlink, pons: data.pons.map((pon) => pon.ponlink).join(","), call: current.id });
+      navigate(`/rede?${params.toString()}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível abrir o mapa da rede.");
+    } finally {
+      setOpeningMap(false);
+    }
+  }
+  const dirtyPon = olt !== call.olt || slotPon !== call.slotPon;
   const closedNow = isCallClosed(call);
   const showFinish = status === "Finalizado" && !closedNow;
   const showCancel = status === "Cancelado" && !closedNow;
@@ -247,6 +270,11 @@ export function CallDetailBase() {
             <EditableDetailItem label="Endereço" value={address} onChange={setAddress} />
             <EditableDetailItem label="OLT" value={olt} onChange={setOlt} />
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
+            {canViewNetwork && call.olt.trim() && call.slotPon.trim() && (
+              <div className="detail-item"><span>Rede</span>
+                <button type="button" className="secondary-button compact" onClick={() => void openOnMap()} disabled={openingMap || dirtyPon} title={dirtyPon ? "Salve o chamado para usar a OLT/PON alterada" : undefined}><MapIcon size={15} /> {openingMap ? "Abrindo..." : "Ver no mapa"}</button>
+              </div>
+            )}
             <SerialNumberItem callId={call.id} />
             <label className="detail-item editable-detail-item"><span>Abertura</span><input type="datetime-local" value={openedAt} onChange={(event) => setOpenedAt(event.target.value)} required /></label>
             {call.eventAt && <DetailItem label="Data/Hora do evento" value={new Date(call.eventAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })} />}

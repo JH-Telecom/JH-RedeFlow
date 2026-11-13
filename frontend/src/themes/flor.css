@@ -2303,6 +2303,208 @@
     border-color: #47363c;
     color: #eee0e5
 }
+/* light · network.css */
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-hint {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-ok {
+    color: #116b40
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-file {
+    border: 1px solid var(--line);
+    border-left: 4px solid #1caa76;
+    background: #fff
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-file.is-bad {
+    border-left-color: #c44848
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-file strong {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-file span {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-progress {
+    color: #8e0b54
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-error {
+    color: #a3262a
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-table th {
+    color: #71525d;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-table td {
+    color: #593744;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-table td strong {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-table tr.is-off td {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .net-table small {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-counts {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-counts b {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-chip {
+    border: 1px solid #eedee4;
+    background: #f7f9fc;
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-chip.is-on {
+    background: #fff;
+    color: #371825;
+    border-color: #ebc9d5
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-chip i, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-row i, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-tag i {
+    box-shadow: 0 0 0 1px #270e1933
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-chip b {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-chip:focus-visible, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-filters label {
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-filters input, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-filters select {
+    border: 1px solid #eedee4;
+    background: #fff;
+    color: var(--ink)
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-layers {
+    border: 1px solid #eedee4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-layers legend {
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-filters label.netmap-check {
+    color: #593744
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-pons {
+    color: #684854
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-hint {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-ok {
+    color: #116b40
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-error {
+    color: #a3262a
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-map {
+    border: 1px solid var(--line);
+    background: #e8edf4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-notice {
+    background: #371825;
+    color: #ffffff;
+    box-shadow: 0 6px 16px #37182533
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-notice.is-quiet {
+    background: #fff;
+    color: #593744;
+    border: 1px solid #eedee4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-notice.is-error {
+    background: #fff1f1;
+    color: #a3262a;
+    border: 1px solid #ffd4d4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-panel-toggle {
+    box-shadow: 0 4px 12px #3718251f
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-cluster {
+    background: #8e0b54;
+    color: #ffffff;
+    border: 3px solid #ffffffcc;
+    box-shadow: 0 2px 8px #37182555
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-card {
+    border: 1px solid var(--line);
+    background: #fff
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-card-head strong {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-muted {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-summary {
+    color: #593744
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-summary b {
+    color: #a3262a
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-summary b + b, :where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-summary b:last-child {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-row {
+    background: #fff;
+    border: 1px solid transparent;
+    color: #593744
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-row:hover {
+    background: #f3f6fa
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-row.is-active {
+    background: #feeff4;
+    border-color: #f8cddc
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-row-main strong {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-row-main small {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-imprecise {
+    color: #8a5300
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-tag {
+    background: #f7f9fc;
+    border: 1px solid #eedee4;
+    color: #593744
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-tag.is-problema {
+    color: #a3262a;
+    background: #fff1f1;
+    border-color: #ffd4d4
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-tag.is-atencao {
+    color: #8a5300;
+    background: #fff7e6;
+    border-color: #fbe0b0
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-tag.is-ok {
+    color: #116b40;
+    background: #ecfaf3;
+    border-color: #bfe9d3
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-dl dt {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-dl dd {
+    color: #371825
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-dl small {
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-estimate {
+    background: #f1f5fa;
+    color: #71525d
+}
+:where(:root[data-palette="flor"]:not([data-theme="dark"])) .netmap-near > small {
+    color: #684854
+}
 /* light · status-page.css */
 :where(:root[data-palette="flor"]:not([data-theme="dark"])) .st-page {
     background: #f4f6fa;
@@ -7521,6 +7723,208 @@
     background: #21191c;
     border-color: #47363c;
     color: #eee0e5
+}
+/* dark · network.css */
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-hint {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-ok {
+    color: #7ccc9b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-file {
+    border: 1px solid var(--line);
+    border-left: 4px solid #1caa76;
+    background: #21191c
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-file.is-bad {
+    border-left-color: #c44848
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-file strong {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-file span {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-progress {
+    color: #ed93b7
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-error {
+    color: #ff8a83
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-table th {
+    color: #c0b6b9;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-table td {
+    color: #d5c8cc;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-table td strong {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-table tr.is-off td {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .net-table small {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-counts {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-counts b {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-chip {
+    border: 1px solid #47363c;
+    background: #1a1215;
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-chip.is-on {
+    background: #21191c;
+    color: #eee0e5;
+    border-color: #593443
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-chip i, :where(:root[data-palette="flor"][data-theme="dark"]) .netmap-row i, :where(:root[data-palette="flor"][data-theme="dark"]) .netmap-tag i {
+    box-shadow: 0 0 0 1px #00000070
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-chip b {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-chip:focus-visible, :where(:root[data-palette="flor"][data-theme="dark"]) .netmap-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-filters label {
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-filters input, :where(:root[data-palette="flor"][data-theme="dark"]) .netmap-filters select {
+    border: 1px solid #47363c;
+    background: #21191c;
+    color: var(--ink)
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-layers {
+    border: 1px solid #47363c
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-layers legend {
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-filters label.netmap-check {
+    color: #d5c8cc
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-pons {
+    color: #c8bcc0
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-hint {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-ok {
+    color: #7ccc9b
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-error {
+    color: #ff8a83
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-map {
+    border: 1px solid var(--line);
+    background: #1d1518
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-notice {
+    background: #371825;
+    color: #ffffff;
+    box-shadow: 0 6px 16px #00000070
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-notice.is-quiet {
+    background: #21191c;
+    color: #d5c8cc;
+    border: 1px solid #47363c
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-notice.is-error {
+    background: #201212;
+    color: #ff8a83;
+    border: 1px solid #5b2c2f
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-panel-toggle {
+    box-shadow: 0 4px 12px #00000044
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-cluster {
+    background: #8e0b54;
+    color: #ffffff;
+    border: 3px solid #372d30cc;
+    box-shadow: 0 2px 8px #00000099
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-card {
+    border: 1px solid var(--line);
+    background: #21191c
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-card-head strong {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-muted {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-summary {
+    color: #d5c8cc
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-summary b {
+    color: #ff8a83
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-summary b + b, :where(:root[data-palette="flor"][data-theme="dark"]) .netmap-summary b:last-child {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-row {
+    background: #21191c;
+    border: 1px solid transparent;
+    color: #d5c8cc
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-row:hover {
+    background: #1c1316
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-row.is-active {
+    background: #211117;
+    border-color: #593040
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-row-main strong {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-row-main small {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-imprecise {
+    color: #e6a968
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-tag {
+    background: #1a1215;
+    border: 1px solid #47363c;
+    color: #d5c8cc
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-tag.is-problema {
+    color: #ff8a83;
+    background: #201212;
+    border-color: #5b2c2f
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-tag.is-atencao {
+    color: #e6a968;
+    background: #1b1200;
+    border-color: #4d3603
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-tag.is-ok {
+    color: #7ccc9b;
+    background: #091a13;
+    border-color: #104932
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-dl dt {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-dl dd {
+    color: #eee0e5
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-dl small {
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-estimate {
+    background: #1c1316;
+    color: #c0b6b9
+}
+:where(:root[data-palette="flor"][data-theme="dark"]) .netmap-near > small {
+    color: #c8bcc0
 }
 /* dark · status-page.css */
 :where(:root[data-palette="flor"][data-theme="dark"]) .st-page {

@@ -1,4 +1,5 @@
 const isVercelDeployment = import.meta.env.PROD && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
+import type { NetCable, NetElement } from './lib/network-kml';
 const API_URL = (isVercelDeployment ? '' : import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
 export type Permission = { code: string; description: string };
 export type Role = { id: string; name: string; description: string; permissions: string[]; hiddenTabs?: string[] };
@@ -120,11 +121,26 @@ export type DbUsageReport = {
   daily: { day: string; bytes: number; requests: number }[]; topTargets: { name: string; bytes: number; requests: number }[];
 };
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export type NetworkSource = { fileName: string; elements: number; cables: number; importedBy: string; importedAt: string };
+export type PopOlt = { pop: string; olt: string; active: boolean; note: string | null; confirmedBy: string | null; updatedAt: string };
+// Mapa da rede: area visivel (elementos/clusters/cabos) e clientes de uma PON lidos do AutoISP.
+export type NetworkKind = 'pop' | 'cto' | 'ceo' | 'outro';
+export type NetworkSituation = 'problema' | 'atencao' | 'ok' | 'sem';
+export type NetworkElementRow = { id: string; kind: NetworkKind; code: string | null; name: string; projectCode: string | null; pop: string | null; fh: string | null; lat: number; lng: number; sourceFile: string };
+export type NetworkCableRow = { id: string; name: string; color: string | null; points: [number, number][]; sourceFile: string }; // pontos [lng, lat]
+export type NetworkArea = { elements: NetworkElementRow[]; clusters: { lat: number; lng: number; count: number }[]; cables: NetworkCableRow[] };
+export type NetworkBox = { minLat: number; minLng: number; maxLat: number; maxLng: number };
+export type PonClient = { contract: string; serial: string | null; int6: string | null; olt: string; ponlink: string; signalRx: number | null; onuStatus: string | null; lastInform: string | null; lat: number | null; lng: number | null; readAt: string; situation: NetworkSituation; precise: boolean; nearestCto: { code: string | null; meters: number } | null };
+export type PonView = { clients: PonClient[]; request: { requestedAt: string; doneAt: string | null; error: string | null } | null; summary: { total: number; problema: number; atencao: number; ok: number; sem: number } };
+export type PonRequestResult = { queued: number; skippedRecent: number; pons: { olt: string; ponlink: string }[] };
+
+// noCache: respostas grandes e que mudam a cada movimento (mapa da rede) ficam fora do cache por ETag.
+async function request<T>(path: string, init: RequestInit = {}, options: { noCache?: boolean } = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
   const isRead = !init.method || init.method.toUpperCase() === 'GET';
+  const useCache = isRead && !options.noCache;
   const cacheKey = `${token ? token.slice(-16) : 'anon'}|${path}`;
-  const cached = isRead ? responseCache.get(cacheKey) : undefined;
+  const cached = useCache ? responseCache.get(cacheKey) : undefined;
   const response = await fetch(`${API_URL}${path}`, { ...init, ...(isRead ? { cache: 'no-store' as RequestCache } : {}), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(cached ? { 'If-None-Match': cached.etag } : {}), ...init.headers } });
   if (response.status === 304 && cached) {
     responseCache.delete(cacheKey);
@@ -151,11 +167,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const fallbackMessage = `A API respondeu com ${response.status}${response.statusText ? ` ${response.statusText}` : ''}.`;
-    const error = new Error(payload.message || fallbackMessage) as Error & { missing?: string[] };
+    const error = new Error(payload.message || fallbackMessage) as Error & { missing?: string[]; status?: number };
+    error.status = response.status;
     error.missing = payload.missing;
     throw error;
   }
-  const etag = isRead ? response.headers.get('ETag') : null;
+  const etag = useCache ? response.headers.get('ETag') : null;
   if (etag) {
     responseCache.delete(cacheKey);
     responseCache.set(cacheKey, { etag, payload });
@@ -374,6 +391,13 @@ export const api = {
   nightRouter: () => request<NightRouterData>('/api/roteirizador'),
   saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
   saveNightShifts: (shifts: NightShift[]) => request<{ shifts: NightShift[] }>('/api/roteirizador/escala', { method: 'PUT', body: JSON.stringify({ shifts }) }),
+  networkImportBatch: (data: { fileName: string; sha256: string; first: boolean; elements: NetElement[]; cables: NetCable[] }) => request<{ elements: number; cables: number }>('/api/rede/importacao', { method: 'POST', body: JSON.stringify(data) }),
+  networkSources: () => request<{ sources: NetworkSource[] }>('/api/rede/fontes'),
+  popOlts: () => request<{ popOlts: PopOlt[] }>('/api/rede/pop-olt'),
+  savePopOlt: (data: { pop: string; olt: string; active: boolean; note?: string | null }) => request<{ popOlt: PopOlt }>('/api/rede/pop-olt', { method: 'PUT', body: JSON.stringify(data) }),
+  networkArea: (box: NetworkBox, zoom: number, signal?: AbortSignal) => request<NetworkArea>(`/api/rede/area?${new URLSearchParams({ minLat: String(box.minLat), minLng: String(box.minLng), maxLat: String(box.maxLat), maxLng: String(box.maxLng), zoom: String(zoom) })}`, { signal }, { noCache: true }),
+  networkPon: (olt: string, ponlink: string) => request<PonView>(`/api/rede/pon?${new URLSearchParams({ olt, ponlink })}`, {}, { noCache: true }),
+  requestPon: (data: { olt: string; ponlink: string } | { callId: string }) => request<PonRequestResult>('/api/rede/pon/solicitar', { method: 'POST', body: JSON.stringify(data) }),
   popKeys: () => request<{ keys: PopKey[] }>('/api/chaves'),
   addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),
   takePopKey: (id: string, data: { holderName: string; holderKind: 'Tecnico' | 'Supervisor' | 'Outro'; holderId: string | null; notes: string | null; photo: string | null; takenAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/retirada`, { method: 'POST', body: JSON.stringify(data) }),
