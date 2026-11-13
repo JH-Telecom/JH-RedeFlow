@@ -21,7 +21,7 @@ ALTER TABLE public.network_elements ENABLE ROW LEVEL SECURITY;
 -- Clusters de CTO/CEO calculados no banco (zoom baixo do mapa): uma celula por grade de `grid` graus.
 CREATE OR REPLACE FUNCTION public.network_clusters(min_lat double precision, min_lng double precision, max_lat double precision, max_lng double precision, grid double precision)
 RETURNS TABLE(lat double precision, lng double precision, count bigint)
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = '' AS $$
   SELECT avg(e.lat), avg(e.lng), count(*)
   FROM public.network_elements e
   WHERE e.kind IN ('cto', 'ceo') AND e.lat BETWEEN min_lat AND max_lat AND e.lng BETWEEN min_lng AND max_lng

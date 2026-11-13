@@ -16,6 +16,7 @@ const INITIAL_ZOOM = 12;
 const MAX_SPAN = 0.5; // o backend recusa caixas maiores que 0,5 grau
 const HIGHLIGHT_METERS = 150;
 const POLL_MS = 20_000;
+const STALE_REQUEST_MS = 10 * 60_000; // pedido aberto ha mais de 10 min: a extensao nao esta lendo, para de consultar
 const OTHER_OLT = "__outra__";
 
 type Layers = { cables: boolean; elements: boolean; pops: boolean; clients: boolean };
@@ -23,17 +24,20 @@ type Box = { minLat: number; minLng: number; maxLat: number; maxLng: number };
 type MapLayers = { cables: L.LayerGroup; elements: L.LayerGroup; clusters: L.LayerGroup; clients: L.LayerGroup; selection: L.LayerGroup; cableRenderer: L.Canvas; elementRenderer: L.Canvas; clientRenderer: L.Canvas };
 
 const normalize = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-const oltKey = (text: string) => text.toUpperCase().replace(/\s+/g, "");
+// Mesma forma canonica do backend (normalizeOlt): sem rotulo "OLT:", OLT- vira VIP- e sem "-0" final.
+const oltKey = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().replace(/^OLT\s*:\s*|^OLT\s+/i, "").replace(/\s+/g, "").toUpperCase().replace(/^OLT-/, "VIP-").replace(/-0$/, "");
 const messageOf = (err: unknown, fallback: string) => (err instanceof Error && err.message ? err.message : fallback);
 
-// Aceita "0/4/10", "4/10" e "04/10"; devolve slot e PON sem zeros a esquerda.
-function parsePonlink(text: string | null | undefined): { slot: string; pon: string } | null {
+// Aceita "1/4/10", "4/10" e "04/10"; devolve frame, slot e PON sem zeros a esquerda. O frame recebido e mantido;
+// "0" so quando a entrada tem 2 partes (slot/PON).
+type PonParts = { frame: string; slot: string; pon: string };
+function parsePonlink(text: string | null | undefined): PonParts | null {
   const parts = String(text || "").split("/").map((part) => part.trim()).filter(Boolean);
-  const tail = parts.length === 3 ? parts.slice(1) : parts.length === 2 ? parts : null;
-  if (!tail || !tail.every((part) => /^\d{1,3}$/.test(part))) return null;
-  return { slot: String(Number(tail[0])), pon: String(Number(tail[1])) };
+  if ((parts.length !== 2 && parts.length !== 3) || !parts.every((part) => /^\d{1,3}$/.test(part))) return null;
+  const [frame, slot, pon] = (parts.length === 3 ? parts : ["0", ...parts]).map((part) => String(Number(part)));
+  return { frame, slot, pon };
 }
-const toPonlink = (slot: string, pon: string) => (/^\d{1,2}$/.test(slot.trim()) && /^\d{1,3}$/.test(pon.trim()) ? `0/${Number(slot)}/${Number(pon)}` : null);
+const toPonlink = (frame: string, slot: string, pon: string) => (/^\d{1,3}$/.test(frame.trim()) && /^\d{1,2}$/.test(slot.trim()) && /^\d{1,3}$/.test(pon.trim()) ? `${Number(frame)}/${Number(slot)}/${Number(pon)}` : null);
 
 function meters(aLat: number, aLng: number, bLat: number, bLng: number) {
   const rad = Math.PI / 180;
@@ -73,7 +77,7 @@ export function NetworkMapPage() {
   const callId = params.get("call") || "";
   const [initial] = useState(() => parsePonlink(params.get("ponlink")));
   const ponsList = useMemo(() => {
-    const list = String(params.get("pons") || "").split(",").map((item) => parsePonlink(item)).filter((item): item is { slot: string; pon: string } => Boolean(item)).map((item) => `0/${item.slot}/${item.pon}`);
+    const list = String(params.get("pons") || "").split(",").map((item) => parsePonlink(item)).filter((item): item is PonParts => Boolean(item)).map((item) => `${item.frame}/${item.slot}/${item.pon}`);
     return [...new Set(list)];
   }, [params]);
 
@@ -81,6 +85,7 @@ export function NetworkMapPage() {
   const [pop, setPop] = useState("");
   const [olt, setOlt] = useState(() => params.get("olt")?.trim() || "");
   const [typingOlt, setTypingOlt] = useState(false);
+  const [frame, setFrame] = useState(initial?.frame ?? "0");
   const [slot, setSlot] = useState(initial?.slot ?? "");
   const [pon, setPon] = useState(initial?.pon ?? "");
   const [ctoCode, setCtoCode] = useState("");
@@ -105,7 +110,7 @@ export function NetworkMapPage() {
   const ponSeq = useRef(0);
   const fittedKey = useRef<string | null>(null);
 
-  const ponlink = toPonlink(slot, pon);
+  const ponlink = toPonlink(frame, slot, pon);
   const ponKey = olt.trim() && ponlink ? `${olt.trim()}|${ponlink}` : null;
   const activePon = useMemo(() => (ponKey ? { olt: ponKey.split("|")[0], ponlink: ponKey.split("|")[1] } : null), [ponKey]);
 
@@ -139,7 +144,7 @@ export function NetworkMapPage() {
   }
   function choosePonlink(value: string) {
     const parsed = parsePonlink(value);
-    if (parsed) { setSlot(parsed.slot); setPon(parsed.pon); }
+    if (parsed) { setFrame(parsed.frame); setSlot(parsed.slot); setPon(parsed.pon); }
   }
 
   // ---- URL acompanha a PON escolhida (para copiar o link) ----
@@ -175,9 +180,10 @@ export function NetworkMapPage() {
     return () => { window.clearTimeout(timer); ponSeq.current += 1; };
   }, [activePon, loadPon]);
 
-  // Pedido na fila: confere de novo ate a extensao terminar a leitura.
+  // Pedido na fila: confere de novo ate a extensao terminar a leitura (ou ate 10 min sem resposta).
   useEffect(() => {
     if (!activePon || !ponData?.request || ponData.request.doneAt) return;
+    if (Date.now() - Date.parse(ponData.request.requestedAt) > STALE_REQUEST_MS) return;
     const timer = window.setTimeout(() => void loadPon(activePon, true), POLL_MS);
     return () => window.clearTimeout(timer);
   }, [activePon, ponData, loadPon]);
@@ -366,6 +372,7 @@ export function NetworkMapPage() {
   const shownClients = precise.filter((client) => visible[client.situation]).length;
   const lastRead = useMemo(() => (ponData?.clients ?? []).reduce<string | null>((latest, client) => (!latest || client.readAt > latest ? client.readAt : latest), null), [ponData]);
   const request = ponData?.request ?? null;
+  const staleRequest = Boolean(request && !request.doneAt && Date.now() - Date.parse(request.requestedAt) > STALE_REQUEST_MS);
 
   return (
     <div className="netmap-page">
@@ -464,6 +471,7 @@ export function NetworkMapPage() {
           {!activePon && <span className="netmap-hint">Escolha a OLT, o slot e a PON.</span>}
         </div>
         {queueMsg && <p className={queueMsg.kind === "error" ? "netmap-error" : "netmap-ok"} role={queueMsg.kind === "error" ? "alert" : "status"}>{queueMsg.text}</p>}
+        {staleRequest && <p className="netmap-error" role="alert">A extensão Rede ainda não leu esta PON. Abra o AutoISP (auto.alloha.com) logado no Chrome com a extensão Rede.</p>}
         {request?.error && <p className="netmap-error" role="alert">Última leitura com erro: {request.error}</p>}
         {ponError && <p className="netmap-error" role="alert">{ponError}</p>}
       </section>
@@ -474,6 +482,7 @@ export function NetworkMapPage() {
           {areaState === "zoom" && <div className="netmap-notice" role="status">Aproxime o mapa para ver a rede</div>}
           {areaState === "loading" && <div className="netmap-notice is-quiet" role="status">Carregando a rede...</div>}
           {areaState === "error" && <div className="netmap-notice is-error" role="alert">{areaError}</div>}
+          {areaState === "idle" && area?.truncated && <div className="netmap-notice" role="status">Aproxime o mapa para ver tudo</div>}
           <button type="button" className="secondary-button compact netmap-panel-toggle" onClick={() => setPanelOpen((open) => !open)} aria-expanded={panelOpen}>
             {panelOpen ? <PanelRightClose size={15} aria-hidden="true" /> : <PanelRightOpen size={15} aria-hidden="true" />} {panelOpen ? "Ocultar painel" : "Mostrar painel"}
           </button>

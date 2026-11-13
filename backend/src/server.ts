@@ -1556,7 +1556,7 @@ app.post('/api/integrations/autoisp/pon', async (request, response) => {
   // .strict(): nome, endereco e qualquer outro campo fora desta lista sao recusados (privacidade).
   const client = z.object({
     contract: z.string().trim().min(1).max(20),
-    serial: z.string().trim().max(40).nullable(),
+    serial: z.string().trim().max(60).nullable(), // igual ao limite da extensao (textoCurto 60)
     int6: z.string().trim().max(20).nullable(),
     olt: z.string().trim().max(120),
     ponlink: z.string().trim().max(40),
