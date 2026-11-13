@@ -111,8 +111,10 @@ function fakeEnv(postStatuses: number[]) {
   sandbox.autenticacao = async () => ({ headers: { authorization: 'x' } });
   sandbox.API_BASE = 'https://api.test';
   sandbox.CACHE_OLTS_REDE = { lista: [], quando: 0 };
+  // 1.12.0: a aba do AutoISP vem do grupo "Rede · automação" (grupo-automacao.js) e todo script passa por executarNoGrupo.
+  sandbox.abaAutoIspPronta = async () => { queries += 1; await gate; return { aba: { id: 5 } }; };
+  sandbox.executarNoGrupo = (detalhes: unknown) => sandbox.chrome.scripting.executeScript(detalhes);
   sandbox.chrome = {
-    tabs: { query: async () => { queries += 1; await gate; return [{ id: 5 }]; } },
     storage: { local: { set: async () => {} } },
     scripting: {
       executeScript: async ({ args }: { args: [string, string] }) => {

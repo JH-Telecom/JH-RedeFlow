@@ -38,9 +38,13 @@ async function roteirizar(automatico) {
   } catch (e) { return registrarRota({ ok: false, erro: `Sem conexão com o RedeFlow (${e?.message || e})` }); }
   const ordens = Array.isArray(lista.ordens) ? lista.ordens : [];
   if (!lista.ativo || !ordens.length) return registrarRota({ ok: true, ativo: Boolean(lista.ativo), janela: Boolean(lista.janela), itens: [] });
+  // 1.12.0: so a aba "ofs" do grupo Rede · automação (abre la se faltar), nunca uma aba do OFS de quem usa.
   const aba = await abaDoOfs();
-  if (!aba) return registrarRota({ ok: false, erro: "Nenhuma aba do OFS aberta (abra o Console de Alocação e faça login)" });
+  if (!aba) return registrarRota({ ok: false, erro: motivoAbaGrupo });
   // A coleta (export) usa a mesma aba: espera ela terminar e segura a aba enquanto move.
+  if (!(await esperarCapturaLivre(120_000))) return registrarRota({ ok: false, erro: "A aba do OFS ficou ocupada com a coleta; fica para o próximo ciclo" });
+  // Aba recem-aberta ou no login: espera o OFS responder (mesma checagem da coleta).
+  if (!(await ofsPronto(aba.id))) return registrarRota({ ok: false, erro: motivoAbaFixada });
   if (!(await esperarCapturaLivre(120_000))) return registrarRota({ ok: false, erro: "A aba do OFS ficou ocupada com a coleta; fica para o próximo ciclo" });
   await chrome.storage.local.set({ roteando: Date.now() + 12 * 60_000 });
   const itens = [];
@@ -49,7 +53,7 @@ async function roteirizar(automatico) {
     for (const o of ordens) {
       let res;
       try {
-        const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId: aba.id }, world: "MAIN", func: roteirizarNaPagina, args: [{ os: o.os, tecnico: o.tecnico, simular: Boolean(lista.teste) }] });
+        const [{ result } = {}] = await executarNoGrupo({ target: { tabId: aba.id }, world: "MAIN", func: roteirizarNaPagina, args: [{ os: o.os, tecnico: o.tecnico, simular: Boolean(lista.teste) }] });
         res = result || { ok: false, erro: "A aba do OFS não respondeu" };
       } catch (e) { res = { ok: false, erro: e?.message || String(e) }; }
       const resultado = res.pular ? "Pulada" : !res.ok ? "Erro" : lista.teste ? "Teste" : "Movida";

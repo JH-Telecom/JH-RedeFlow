@@ -30,7 +30,6 @@ async function relatar(tipo, registro) {
     });
   } catch (_) { /* relato e opcional */ }
 }
-const OFS_MATCH = "https://alloha.fs.ocs.oraclecloud.com/*";
 const ALARME_HOJE = "rf-coleta-hoje";
 const ALARME_ONTEM = "rf-coleta-dia-anterior";
 const ALARME_FECH = "rf-fechamentos";
@@ -222,13 +221,13 @@ function acaoNaPagina({ alvo, alocacaoId, exportar, abrirConsole }) {
   }
 
   async function fluxo() {
-    // Aba fixada (clusters/fechamentos) pode estar numa atividade: volta para o Console de Alocacao.
+    // Aba do grupo (1.12.0) pode estar numa atividade ou na tela inicial: volta para o Console de Alocacao.
     if (abrirConsole && !document.querySelector(".edt-item")) {
       const link = linkConsole();
-      if (!link) return { ok: false, erro: "Não achei o Console de Alocação na aba fixada do OFS" };
+      if (!link) return { ok: false, erro: "Não achei o Console de Alocação na aba do OFS do grupo Rede · automação" };
       link.click();
       for (let i = 0; i < 40 && !document.querySelector(".edt-item"); i += 1) await esperar(500);
-      if (!document.querySelector(".edt-item")) return { ok: false, erro: "O Console de Alocação não abriu na aba fixada" };
+      if (!document.querySelector(".edt-item")) return { ok: false, erro: "O Console de Alocação não abriu na aba do OFS do grupo Rede · automação" };
       await esperar(1500);
     }
     const data = await irParaData();
@@ -259,15 +258,16 @@ function acaoNaPagina({ alvo, alocacaoId, exportar, abrirConsole }) {
   return fluxo();
 }
 
+// 1.12.0: exportacao e roteirizador usam so a aba "ofs" do grupo Rede · automação (grupo-automacao.js), nunca uma
+// aba do OFS de quem usa. Sem aba no grupo, abre uma la. null se nao deu para abrir (motivo em motivoAbaGrupo).
+let motivoAbaGrupo = "";
 async function abaDoOfs() {
-  // A aba fixada dos fechamentos nao entra na exportacao.
-  const { abaFechamento } = await chrome.storage.local.get("abaFechamento");
-  const abas = (await chrome.tabs.query({ url: OFS_MATCH })).filter((aba) => aba.id !== abaFechamento);
-  return abas.find((aba) => aba.active) || abas[0] || null;
+  try { return await abaDoGrupo("ofs"); }
+  catch (e) { motivoAbaGrupo = `Não consegui abrir o OFS no grupo Rede · automação (${e?.message || e})`; return null; }
 }
 
 async function rodarNaPagina(tabId, args) {
-  const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: acaoNaPagina, args: [args] });
+  const [{ result } = {}] = await executarNoGrupo({ target: { tabId }, func: acaoNaPagina, args: [args] });
   return result || { ok: false, erro: "A aba do OFS não respondeu" };
 }
 
@@ -276,19 +276,29 @@ async function rodarNaPagina(tabId, args) {
 async function exportarDia(data, automatico, cluster) {
   const cfg = await config();
   if (!(await autenticacao())) return cluster ? { ok: false, erro: "Sem login" } : registrar({ ok: false, data, automatico, erro: "Entre com seu usuário do JH RedeFlow no popup" });
-  const aba = cluster ? await abaDeFechamento() : await abaDoOfs();
-  if (!aba) return registrar({ ok: false, data, automatico, erro: "Nenhuma aba do OFS aberta (abra o Console de Alocação e faça login)" });
   const { captura } = await chrome.storage.local.get("captura");
   if (captura && Date.now() < captura.ate) return { ok: false, erro: `Já há uma exportação em andamento (${diaBR(captura.data)})` };
   // 1.10.0: o roteirizador da madrugada usa a mesma aba do OFS; enquanto ele move, a coleta fica para o proximo ciclo.
   const { roteando } = await chrome.storage.local.get("roteando");
   if (!cluster && roteando && Date.now() < roteando) return registrar({ ok: false, data, automatico, erro: "O roteirizador está movendo ordens nesta aba do OFS; a coleta fica para o próximo ciclo" });
+  const aba = cluster ? await abaDeFechamento() : await abaDoOfs();
+  if (!aba) return cluster ? { ok: false, erro: motivoAbaGrupo } : registrar({ ok: false, data, automatico, erro: motivoAbaGrupo });
+  // 1.12.0: a aba do grupo pode ter acabado de abrir ou estar no login: espera o OFS responder antes de segurar a captura.
+  if (!cluster && !(await ofsPronto(aba.id))) return registrar({ ok: false, data, automatico, erro: motivoAbaFixada });
+  if (!cluster) {
+    // A espera acima pode levar minutos: confere de novo se outra exportacao ou o roteirizador pegou a aba.
+    const { captura: outra, roteando: rota } = await chrome.storage.local.get(["captura", "roteando"]);
+    if (outra && Date.now() < outra.ate) return { ok: false, erro: `Já há uma exportação em andamento (${diaBR(outra.data)})` };
+    if (rota && Date.now() < rota) return registrar({ ok: false, data, automatico, erro: "O roteirizador está movendo ordens nesta aba do OFS; a coleta fica para o próximo ciclo" });
+  }
   await chrome.storage.local.set({ captura: { ate: Date.now() + JANELA_CAPTURA_MS, data, tabId: aba.id, automatico, balde: cluster?.nome } });
   if (!cluster) atualizarSelo();
   let res;
   try {
     if (cluster && !(await ofsPronto(aba.id))) throw new Error(motivoAbaFixada);
-    res = await rodarNaPagina(aba.id, { alvo: data, alocacaoId: cluster ? cluster.id : cfg.alocacaoId.trim(), exportar: true, abrirConsole: Boolean(cluster) });
+    // Marca os blobs criados NESTA aba: so o CSV dela e capturado (um export manual em outra aba baixa normal).
+    if (!(await instalarEspiaoBlob(aba.id))) throw new Error("Não consegui preparar a captura na aba do OFS do grupo Rede · automação");
+    res = await rodarNaPagina(aba.id, { alvo: data, alocacaoId: cluster ? cluster.id : cfg.alocacaoId.trim(), exportar: true, abrirConsole: true });
   } catch (e) { res = { ok: false, erro: e?.message || String(e) }; }
   if (!res.ok) {
     await chrome.storage.local.remove("captura");
@@ -307,7 +317,7 @@ async function voltarParaHoje(tabId, dataExportada) {
 }
 
 async function lerBlobNaAba(tabId, url) {
-  const [{ result } = {}] = await chrome.scripting.executeScript({
+  const [{ result } = {}] = await executarNoGrupo({
     target: { tabId },
     func: async (blobUrl) => { try { return await (await fetch(blobUrl)).text(); } catch (_) { return null; } },
     args: [url],
@@ -315,17 +325,38 @@ async function lerBlobNaAba(tabId, url) {
   return result;
 }
 
+// 1.12.0: roda no mundo da pagina da aba do grupo antes do export. Guarda as URLs blob: criadas por ESTA aba, para o
+// onCreated so pegar o CSV que ela gerou. Autocontida; instala uma vez por pagina.
+function espiaoBlobNaPagina() {
+  if (!window.__rfBlobUrls) {
+    window.__rfBlobUrls = [];
+    const criar = URL.createObjectURL;
+    URL.createObjectURL = function () {
+      const url = criar.apply(this, arguments);
+      try { window.__rfBlobUrls.push(String(url)); if (window.__rfBlobUrls.length > 30) window.__rfBlobUrls.shift(); } catch (_) { /* ignora */ }
+      return url;
+    };
+  }
+  return true;
+}
+async function instalarEspiaoBlob(tabId) {
+  try { const [{ result } = {}] = await executarNoGrupo({ target: { tabId }, world: "MAIN", func: espiaoBlobNaPagina }); return result === true; } catch (_) { return false; }
+}
+async function blobsDaAbaDoGrupo(tabId) {
+  try { const [{ result } = {}] = await executarNoGrupo({ target: { tabId }, world: "MAIN", func: () => (Array.isArray(window.__rfBlobUrls) ? window.__rfBlobUrls.slice() : []) }); return Array.isArray(result) ? result : []; } catch (_) { return []; }
+}
+
+// So pega o download que a aba do grupo gerou (URL blob: criada nela durante a captura). Qualquer outro download,
+// inclusive um export manual do OFS feito em outra aba no mesmo minuto, segue normal e nunca e cancelado.
 chrome.downloads.onCreated.addListener(async (item) => {
   const { captura } = await chrome.storage.local.get("captura");
-  if (!captura || Date.now() > captura.ate) return; // nao fomos nos que pedimos: deixa o Chrome baixar normal
-  const doOfs = (u) => String(u || "").includes("alloha.fs.ocs.oraclecloud.com");
-  if (!doOfs(item.url) && !doOfs(item.referrer) && !String(item.url || "").startsWith("blob:https://alloha.fs.ocs.oraclecloud.com")) return;
+  if (!podeSerDaCaptura(item, captura, Date.now())) return; // nao fomos nos que pedimos: deixa o Chrome baixar normal
+  if (!downloadDaExportacaoDoGrupo(item, captura, Date.now(), await blobsDaAbaDoGrupo(captura.tabId))) return;
   await chrome.storage.local.remove("captura");
-  chrome.downloads.cancel(item.id).catch(() => {});
+  // O blob baixa rapido: se o cancelamento chegar tarde, apaga o arquivo que a propria extensao pediu.
+  chrome.downloads.cancel(item.id).catch(() => chrome.downloads.removeFile(item.id).catch(() => {}).then(() => chrome.downloads.erase({ id: item.id })).catch(() => {}));
   let csv = null;
-  try {
-    csv = item.url.startsWith("blob:") ? await lerBlobNaAba(captura.tabId, item.url) : await (await fetch(item.url, { credentials: "include" })).text();
-  } catch (_) { /* tratado abaixo */ }
+  try { csv = await lerBlobNaAba(captura.tabId, item.url); } catch (_) { /* tratado abaixo */ }
   if (captura.balde) {
     // Balde de cluster: so marca o cluster das ordens (nao mexe no Painel nem no "Último envio").
     const res = csv ? await enviarCluster(csv, captura.balde) : { ok: false, erro: "Não consegui ler o CSV exportado" };
@@ -348,7 +379,7 @@ async function conferirCapturaVencida() {
 }
 
 // ---------- fechamentos (Motivo, Submotivo e Tipo do Cabo do formulario "Fechamento") ----------
-// Nao vem no CSV. Numa aba propria do OFS (fixada, em segundo plano), pesquisa cada ordem, abre a atividade
+// Nao vem no CSV. Numa aba propria do OFS (no grupo Rede · automação, em segundo plano), pesquisa cada ordem, abre a atividade
 // concluida e le as propriedades 725 (Motivo de Fechamento), 916 (Submotivo) e 1062 (Tipo do Cabo). So leitura.
 
 // Roda no mundo da pagina (precisa do $app do OFS). Autocontida.
@@ -397,26 +428,36 @@ async function lerFechamentoNaPagina(ordem) {
   return { ordem, aid: String(p.aid), motivo: rotulo(725, p["725"]), submotivo: rotulo(916, p["916"]), tipoCabo: rotulo(1062, p["1062"]) };
 }
 
+// 1.12.0: a antiga aba fixada virou a aba "fechamento" do grupo Rede · automação. Aba fixada nao entra em grupo no
+// Chrome, entao ela fica sem fixar, dentro do grupo recolhido, com autoDiscardable:false (ofsPronto). Continua separada
+// da aba "ofs" da exportacao: fechamentos (fechRodando) e exportacao (captura) rodam ao mesmo tempo sem se esperar.
+// null se nao deu para abrir (motivo em motivoAbaGrupo).
 async function abaDeFechamento() {
-  const { abaFechamento } = await chrome.storage.local.get("abaFechamento");
-  if (abaFechamento) {
-    try { const aba = await chrome.tabs.get(abaFechamento); if (String(aba?.url || aba?.pendingUrl || "").startsWith(OFS_ORIGEM)) return aba; } catch (_) { /* aba fechada */ }
-  }
-  const aba = await chrome.tabs.create({ url: OFS_ORIGEM, active: false, pinned: true });
-  await chrome.storage.local.set({ abaFechamento: aba.id });
-  return aba;
+  try { return await abaDoGrupo("fechamento"); }
+  catch (e) { motivoAbaGrupo = `Não consegui abrir o OFS no grupo Rede · automação (${e?.message || e})`; return null; }
 }
 
 // "ok" | "login" (OFS mostrando a tela de login) | "timeout"
 async function esperarOfs(tabId, ms) {
   const fim = Date.now() + ms;
   let estado = "timeout";
+  let visto = "";
+  let seguidas = 0;
   while (Date.now() < fim) {
+    if (!(await abaNoGrupo(tabId))) return "fora";
     try {
-      const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, world: "MAIN", func: () => (typeof $app !== "undefined" && document.querySelector("input.global-search-bar-input-button") ? "ok" : document.querySelector('input[type="password"]') ? "login" : "carregando") });
+      const [{ result } = {}] = await executarNoGrupo({ target: { tabId }, world: "MAIN", func: () => (typeof $app !== "undefined" && document.querySelector("input.global-search-bar-input-button") ? "ok" : document.querySelector('input[type="password"]') ? "login" : "carregando") });
       if (result === "ok") return "ok";
-      if (result === "login") estado = "login";
-    } catch (_) { /* ainda carregando ou aba dormindo */ }
+      visto = result === "login" ? "login" : "";
+    } catch (_) {
+      // Fora do site do OFS (ex.: tela de login/SSO de outro dominio, sem permissao de script): conta como login.
+      visto = "";
+      try { const aba = await chrome.tabs.get(tabId); const url = String(aba?.url || ""); if (aba?.status === "complete" && url && !url.startsWith(OFS_ORIGEM)) visto = "login"; } catch (_) { /* aba fechada */ }
+    }
+    // Login visto duas vezes seguidas: avisa logo, sem esperar o tempo todo.
+    seguidas = visto === "login" ? seguidas + 1 : 0;
+    if (seguidas >= 2) return "login";
+    if (visto === "login") estado = "login";
     await new Promise((r) => setTimeout(r, 2000));
   }
   return estado;
@@ -425,6 +466,7 @@ async function esperarOfs(tabId, ms) {
 // A leitura de fechamentos deixa a aba fixada aberta numa atividade. Para exportar os clusters ela precisa estar no
 // Console de Alocacao: recarrega a tela inicial do OFS (que abre o Console) e espera o OFS responder.
 async function abaFixadaNoInicio(tabId) {
+  if (!(await abaNoGrupo(tabId))) { motivoAbaFixada = MSG_FORA_DO_GRUPO; return false; }
   try { await chrome.tabs.update(tabId, { url: OFS_ORIGEM, autoDiscardable: false }); } catch (_) { return false; }
   await new Promise((r) => setTimeout(r, 3000));
   return ofsPronto(tabId);
@@ -434,14 +476,16 @@ async function abaFixadaNoInicio(tabId) {
 // impede o descarte, acorda a aba se estiver dormindo e, se nao responder, recarrega uma vez antes de desistir.
 let motivoAbaFixada = "";
 async function ofsPronto(tabId) {
+  // 1.12.0: so mexe (acordar, recarregar) em aba do grupo Rede · automação.
+  if (!(await abaNoGrupo(tabId))) { motivoAbaFixada = MSG_FORA_DO_GRUPO; return false; }
   try { await chrome.tabs.update(tabId, { autoDiscardable: false }); } catch (_) { /* aba fechada */ }
   try { const aba = await chrome.tabs.get(tabId); if (aba.discarded) await chrome.tabs.reload(tabId); } catch (_) { /* aba fechada */ }
   let estado = await esperarOfs(tabId, 45_000);
-  if (estado === "timeout") {
+  if (estado === "timeout" && (await abaNoGrupo(tabId))) {
     try { await chrome.tabs.reload(tabId); } catch (_) { /* aba fechada */ }
     estado = await esperarOfs(tabId, 90_000);
   }
-  motivoAbaFixada = estado === "login" ? "O OFS pediu login na aba fixada: abra a aba fixada do OFS e entre de novo" : "O OFS não carregou na aba fixada (recarreguei e não voltou)";
+  motivoAbaFixada = estado === "login" ? msgLoginNoGrupo("ofs") : estado === "fora" ? MSG_FORA_DO_GRUPO : "O OFS não carregou na aba do grupo Rede · automação (recarreguei e não voltou)";
   return estado === "ok";
 }
 
@@ -473,6 +517,7 @@ async function coletarFechamentos(automatico) {
     if (!fila.length) return registrarFechamento({ ok: true, lidos: 0, atualizados: 0, finalizados, pendentes: ordens.length });
 
     const aba = await abaDeFechamento();
+    if (!aba) return registrarFechamento({ ok: false, erro: motivoAbaGrupo });
     if (!(await ofsPronto(aba.id))) return registrarFechamento({ ok: false, erro: motivoAbaFixada });
     const itens = [];
     // Ordens que nao trouxeram fechamento, com o motivo, para mostrar no popup.
@@ -481,7 +526,7 @@ async function coletarFechamentos(automatico) {
     let erros = 0;
     for (const ordem of fila) {
       let res;
-      try { [{ result: res } = {}] = await chrome.scripting.executeScript({ target: { tabId: aba.id }, world: "MAIN", func: lerFechamentoNaPagina, args: [ordem] }); }
+      try { [{ result: res } = {}] = await executarNoGrupo({ target: { tabId: aba.id }, world: "MAIN", func: lerFechamentoNaPagina, args: [ordem] }); }
       catch (e) { res = { ordem, erro: e?.message || String(e) }; }
       fechTentativas[ordem] = Date.now();
       if (res?.motivo || res?.submotivo || res?.tipoCabo) itens.push({ ordem, motivo: res.motivo, submotivo: res.submotivo, tipoCabo: res.tipoCabo });
@@ -557,11 +602,12 @@ async function coletarClusters(automatico) {
   };
   if (!(await autenticacao())) return registrarClusters({ ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" });
   const { fechRodando } = await chrome.storage.local.get("fechRodando");
-  if (fechRodando && Date.now() < fechRodando) return { ok: false, erro: "A aba fixada do OFS está ocupada; fica para o próximo ciclo" };
+  if (fechRodando && Date.now() < fechRodando) return { ok: false, erro: "A aba de fechamentos do OFS (grupo Rede · automação) está ocupada; fica para o próximo ciclo" };
   await chrome.storage.local.set({ fechRodando: Date.now() + 10 * 60_000 });
   const resultados = [];
   try {
     const aba = await abaDeFechamento();
+    if (!aba) return registrarClusters({ ok: false, erro: motivoAbaGrupo });
     if (!(await abaFixadaNoInicio(aba.id))) return registrarClusters({ ok: false, erro: motivoAbaFixada });
     for (const cluster of CLUSTERS) {
       if (!(await esperarCapturaLivre(120_000))) { resultados.push({ balde: cluster.nome, ok: false, erro: "Outra exportação não terminou" }); continue; }
@@ -610,23 +656,26 @@ async function agendar() {
 
 // ---------- SN da ONU pelo AutoISP ----------
 // Chamados em aberto sem SN (o FIELD ja traz no card): pega um contrato do card, procura no AutoISP e manda o SN.
-// Usa a aba do AutoISP que ja esta aberta e logada (a busca roda dentro dela, com o login de quem usa).
-// Sem aba do AutoISP aberta, nao faz nada. Manda so SN, OLT e contrato (nada de nome ou endereco do assinante).
+// 1.12.0: usa so a aba do AutoISP do grupo Rede · automação (aberta aqui, em segundo plano, so quando ha pendentes;
+// a busca roda dentro dela, com o login feito ali). Nunca usa a aba do AutoISP de quem usa.
+// Manda so SN, OLT e contrato (nada de nome ou endereco do assinante).
 async function buscarSnAutoIsp() {
   const auth = await autenticacao();
   if (!auth) return { ok: false, erro: "Entre com seu usuário do JH RedeFlow no popup" };
-  const [aba] = await chrome.tabs.query({ url: "https://auto.alloha.com/*" });
-  if (!aba) return { ok: false, erro: "Abra o AutoISP (auto.alloha.com) logado neste Chrome" };
   const r = await fetch(SN_PENDENTES_URL, { headers: auth.headers });
   const corpo = await r.json().catch(() => ({}));
   if (!r.ok) return { ok: false, erro: corpo?.message || `HTTP ${r.status}` };
   const itens = Array.isArray(corpo.itens) ? corpo.itens : [];
+  if (!itens.length) { const vazio = { quando: Date.now(), ok: true, pendentes: 0, achados: 0, semSn: 0 }; await chrome.storage.local.set({ ultimoSn: vazio }); return vazio; }
+  const pronta = await abaAutoIspPronta();
+  if (pronta.erro) { const falha = { quando: Date.now(), ok: false, erro: pronta.erro, pendentes: itens.length }; await chrome.storage.local.set({ ultimoSn: falha }); return falha; }
+  const aba = pronta.aba;
   let achados = 0;
   let semSn = 0;
   for (const item of itens) {
     let salvo = false;
     for (const contrato of (item.contracts || []).slice(0, 3)) {
-      const [{ result } = {}] = await chrome.scripting.executeScript({
+      const [{ result } = {}] = await executarNoGrupo({
         target: { tabId: aba.id },
         args: [contrato],
         func: async (c) => {
@@ -668,7 +717,8 @@ chrome.storage.onChanged.addListener((mudancas, area) => {
   if (area === "sync" && Object.keys(mudancas).some((chave) => chave in PADRAO)) agendar();
   if (area === "local" && mudancas.sessao) atualizarSelo();
 });
-chrome.runtime.onInstalled.addListener(() => agendar());
+// 1.12.0: a antiga aba fixada dos fechamentos (fora do grupo) deixa de ser usada; so esquece o id dela.
+chrome.runtime.onInstalled.addListener(() => { chrome.storage.local.remove("abaFechamento"); agendar(); });
 chrome.runtime.onStartup.addListener(() => agendar());
 // O Chrome pode apagar alarmes ao atualizar a extensao: recria se sumiram quando o service worker acorda.
 chrome.alarms.get(ALARME_HOJE).then((alarme) => { if (!alarme) agendar(); });
@@ -752,6 +802,8 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.tipo === "recarregarExtensao") setTimeout(() => chrome.runtime.reload(), 300);
 });
 
+// 1.12.0: grupo de abas "Rede · automação" (a automacao so usa abas dele).
+importScripts("grupo-automacao.js");
 // 1.10.0: roteirizador da madrugada (00h-06h), no fim porque usa as constantes e funcoes deste arquivo.
 importScripts("roteirizador.js");
 // 1.11.0: le no AutoISP os clientes das PONs das massivas (mapa da rede).
