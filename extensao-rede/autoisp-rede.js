@@ -1,4 +1,4 @@
-// Mapa da rede (1.11.0): le no AutoISP (auto.alloha.com) os clientes das PONs das massivas e manda ao RedeFlow.
+// Mapa da rede (1.11.1): le no AutoISP (auto.alloha.com) os clientes das PONs das massivas e manda ao RedeFlow.
 // Script classico carregado com importScripts() pelo background.js (usa autenticacao() e API_BASE de la).
 // Manda so contrato, serial, int6, OLT, ponlink, sinal, status, ultimo contato e lat/lng: nunca nome, endereco ou documento.
 // So GET no AutoISP, sempre dentro da aba dele (login de quem usa), no maximo 3 consultas ao mesmo tempo.
@@ -40,18 +40,22 @@ function normalizaOlts(j) {
   }).filter(function (o) { return o && o.hostname; });
 }
 
-// Nome igual (sem espaco/maiuscula); senao, parte do nome so vale se casar exatamente 1 OLT.
+// Nome da OLT sem o prefixo VIP-/OLT- e sem o "-0" final: o AutoISP chama de OLT-GZ1-... a OLT que o RedeFlow chama de VIP-GZ1-...
+function chaveOlt(nome) {
+  return normalizaNomeOlt(nome).replace(/^(VIP|OLT)-/, "").replace(/-0$/, "");
+}
+
+// So nome igual (na forma acima) e de exatamente 1 OLT: parte do nome nunca vale (OLTs parecidas nao podem trocar de lugar).
 function acharOlt(lista, nome) {
-  var alvo = normalizaNomeOlt(nome);
+  var alvo = chaveOlt(nome);
   if (!alvo || !Array.isArray(lista)) return null;
-  var exata = lista.filter(function (o) { return normalizaNomeOlt(o.hostname) === alvo; });
-  if (exata.length === 1) return { id: exata[0].id, hostname: exata[0].hostname };
-  var partes = String(nome).toUpperCase().split(/[^0-9A-Z]+/).filter(Boolean);
-  var parcial = lista.filter(function (o) {
-    var h = normalizaNomeOlt(o.hostname);
-    return h.indexOf(alvo) >= 0 || alvo.indexOf(h) >= 0 || (partes.length > 1 && partes.every(function (x) { return h.indexOf(x) >= 0; }));
-  });
-  return parcial.length === 1 ? { id: parcial[0].id, hostname: parcial[0].hostname } : null;
+  var iguais = lista.filter(function (o) { return o && chaveOlt(o.hostname) === alvo; });
+  return iguais.length === 1 ? { id: iguais[0].id, hostname: iguais[0].hostname } : null;
+}
+
+// Corpo de um POST so de erro: fecha o pedido quando o servidor recusou a leitura (4xx), para a PON nao ficar pendente para sempre.
+function corpoErroEnvio(pedido, found, status) {
+  return { requestId: pedido.id, olt: pedido.olt, ponlink: pedido.ponlink, found: found, error: "Resposta recusada pelo servidor (HTTP " + status + ")", clients: [] };
 }
 
 function textoCurto(v, max) {
@@ -177,7 +181,15 @@ async function lerUmaPon(abaId, olts, pedido) {
   return { found: linhas.length, clients: m.clients, error: m.error };
 }
 
-async function lerPonsPendentes() {
+// Trava: alarme e botao do popup nao rodam a leitura duas vezes ao mesmo tempo (quem chega no meio recebe a mesma rodada).
+var LEITURA_PON_EM_ANDAMENTO = null;
+function lerPonsPendentes() {
+  if (LEITURA_PON_EM_ANDAMENTO) return LEITURA_PON_EM_ANDAMENTO;
+  LEITURA_PON_EM_ANDAMENTO = lerPonsPendentesAgora().finally(function () { LEITURA_PON_EM_ANDAMENTO = null; });
+  return LEITURA_PON_EM_ANDAMENTO;
+}
+
+async function lerPonsPendentesAgora() {
   var registro = { quando: Date.now(), pedidos: 0, lidos: 0, erros: [] };
   try {
     var abas = await chrome.tabs.query({ url: "https://auto.alloha.com/*" });
@@ -199,10 +211,20 @@ async function lerPonsPendentes() {
       var rotulo = pedido.olt + " " + pedido.ponlink;
       var lido = await lerUmaPon(aba.id, oltsRes.lista, pedido);
       var corpoEnvio = { requestId: pedido.id, olt: pedido.olt, ponlink: pedido.ponlink, found: lido.found, error: lido.error || null, clients: lido.clients };
+      var urlPon = apiBaseRede() + "/api/integrations/autoisp/pon";
+      var cabecalhos = Object.assign({ "Content-Type": "application/json" }, auth.headers);
       try {
-        var envio = await fetch(apiBaseRede() + "/api/integrations/autoisp/pon", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, auth.headers), body: JSON.stringify(corpoEnvio) });
+        var envio = await fetch(urlPon, { method: "POST", headers: cabecalhos, body: JSON.stringify(corpoEnvio) });
         if (envio.ok) registro.lidos += 1;
-        else { var e = await envio.json().catch(function () { return {}; }); registro.erros.push(rotulo + ": " + ((e && e.message) || "HTTP " + envio.status)); }
+        else {
+          var e = await envio.json().catch(function () { return {}; });
+          registro.erros.push(rotulo + ": " + ((e && e.message) || "HTTP " + envio.status));
+          // 4xx: o servidor nunca vai aceitar esta leitura; manda so o erro para fechar o pedido (5xx fica para a proxima rodada).
+          if (envio.status >= 400 && envio.status < 500) {
+            await fetch(urlPon, { method: "POST", headers: cabecalhos, body: JSON.stringify(corpoErroEnvio(pedido, lido.found, envio.status)) })
+              .catch(function (err2) { registro.erros.push(rotulo + ": " + String((err2 && err2.message) || err2)); });
+          }
+        }
       } catch (err) { registro.erros.push(rotulo + ": " + String((err && err.message) || err)); }
       if (lido.error) registro.erros.push(rotulo + ": " + lido.error);
     }

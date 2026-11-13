@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JH RedeFlow – Coletor OFS",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "description": "Exporta as atividades do OFS e envia ao JH RedeFlow. Lê no AutoISP os clientes das PONs das massivas, sem nome nem endereço. No WhatsApp Web: identifica quem enviou cada mensagem, temas, privacidade, agendar mensagem e respostas rápidas.",
   "permissions": [
     "storage",

@@ -14,6 +14,17 @@ test('network rules: normalizeOlt', () => {
   assert.equal(normalizeOlt('vip gru'), 'VIPGRU');
 });
 
+test('network rules: normalizeOlt e a forma canonica (OLT- vira VIP-, sem rotulo e sem -0 final)', () => {
+  const canonical = 'VIP-GZ1-SPO-OHW-01';
+  for (const value of ['VIP-GZ1-SPO-OHW-01', 'OLT-GZ1-SPO-OHW-01', 'olt-gz1-spo-ohw-01', 'OLT: VIP-GZ1-SPO-OHW-01', 'OLT VIP-GZ1-SPO-OHW-01', 'olt:olt-gz1-spo-ohw-01', 'VIP-GZ1-SPO-OHW-01-0', 'OLT-GZ1-SPO-OHW-01-0', ' vip-gz1-spo-ohw-01 ']) {
+    assert.equal(normalizeOlt(value), canonical, value);
+  }
+  assert.equal(normalizeOlt('VIP-GZ1-SPO-OHW-010'), 'VIP-GZ1-SPO-OHW-010');
+  assert.equal(normalizeOlt('VIP-GZ1-SPO-OHW-02'), 'VIP-GZ1-SPO-OHW-02');
+  assert.equal(normalizeOlt(''), '');
+  assert.deepEqual(ponsFromCall('OLT-GZ1-SPO-OHW-01', '04/10'), [{ olt: canonical, ponlink: '0/4/10' }]);
+});
+
 test('network rules: normalizePonlink', () => {
   assert.equal(normalizePonlink('04/10'), '0/4/10');
   assert.equal(normalizePonlink('0/4/10'), '0/4/10');

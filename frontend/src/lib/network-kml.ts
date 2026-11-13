@@ -104,6 +104,22 @@ export function simplifyLine(points: [number, number][], toleranceMeters = 2): [
   return points.filter((_, i) => keep[i]);
 }
 
+// O servidor aceita no maximo 5000 pontos por cabo: o que passar disso (ja simplificado) vira pedacos.
+// Pedacos vizinhos repetem o ponto da emenda, para o desenho nao ter buraco.
+export const MAX_CABLE_POINTS = 5000;
+export function splitLine(points: [number, number][], max = MAX_CABLE_POINTS): [number, number][][] {
+  if (points.length <= max) return [points];
+  const out: [number, number][][] = [];
+  for (let start = 0; start < points.length - 1; start += max - 1) out.push(points.slice(start, start + max));
+  return out;
+}
+
+// So o primeiro token com digito e que nao seja so a palavra do tipo vira codigo ("CTO 12" nao tem codigo).
+const TYPE_WORD = /^(M?CTOI?|CTI|CEO|CES|POP)$/i;
+function codeFrom(token: string): string | null {
+  return /\d/.test(token) &&!TYPE_WORD.test(token) ? token : null;
+}
+
 // KML usa aabbggrr; devolve #rrggbb.
 function kmlColorToCss(c: string): string | null {
   const m = /^\s*([0-9a-f]{8})\s*$/i.exec(c);
@@ -176,7 +192,7 @@ export function parseKml(text: string): ParsedKml {
       const projectCode = projectCodeFrom(rawName, description);
       const { pop, fh } = splitProjectCode(projectCode);
       const first = rawName.split(/[\s​]+/).find((t) => t.length > 0) ?? '';
-      const code = kind === 'cto' || kind === 'ceo' ? first || null : null;
+      const code = kind === 'cto' || kind === 'ceo' ? codeFrom(first) : null;
       for (const [lng, lat] of points) elements.push({ kind, code, name, projectCode, pop, fh, lat, lng });
     }
 
@@ -188,7 +204,7 @@ export function parseKml(text: string): ParsedKml {
         const ref = tagText(body, 'styleUrl').trim().replace(/^#/, '');
         if (ref) color = styles.get(ref) ?? null;
       }
-      for (const pts of lines) cables.push({ name, color, points: pts });
+      for (const pts of lines) for (const part of splitLine(simplifyLine(pts))) cables.push({ name, color, points: part });
     }
   }
   return { elements, cables };
@@ -225,7 +241,7 @@ async function readFirstKmlFromZip(data: ArrayBuffer): Promise<Uint8Array | { sk
     const localOffset = view.getUint32(p + 42, true);
     const entryName = decoder.decode(bytes.subarray(p + 46, p + 46 + nameLen));
     p += 46 + nameLen + extraLen + commentLen;
-    if (!/\.kml$/i.test(entryName)) continue;
+    if (!/\.kml$/i.test(entryName) || /(^|\/)__MACOSX\//i.test(entryName)) continue; // __MACOSX/._x.kml e lixo do Mac
     if (localOffset + 30 > bytes.length || view.getUint32(localOffset, true) !== 0x04034b50) return { skipped: EMPTY };
     const start = localOffset + 30 + view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);
     const raw = bytes.subarray(start, start + compSize);
