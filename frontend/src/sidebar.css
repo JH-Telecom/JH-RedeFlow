@@ -76,6 +76,7 @@
 .nav-section { display: grid; gap: 2px; }
 .nav-section-title { padding: 0 12px 4px; color: #a1acbb; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .sidebar .nav-item { height: 36px; }
+.sidebar .nav-item svg, .sidebar .help-link svg { flex-shrink: 0; }
 .nav-item:hover { background: #f5f8fc; color: #45536b; }
 .nav-item.active:hover { background: #edf4ff; color: var(--blue); }
 .nav-item:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
@@ -88,7 +89,11 @@
 @media (min-width: 901px) {
   .sidebar.collapsed .nav-section-title { display: none; }
   .sidebar.collapsed .nav-section + .nav-section { border-top: 1px solid var(--line); padding-top: 12px; }
-  .sidebar.collapsed .nav-item { position: relative; }
+  .sidebar.collapsed .nav-item { position: relative; padding: 0; }
+  /* Menu recolhido: a barra de rolagem do nav tomava parte dos 76px e o padding de 12px espremia o icone (ficava
+     com menos de 9px). Sem barra visivel (a rolagem continua), sem padding lateral e icone sem encolher. */
+  .sidebar.collapsed nav { scrollbar-width: none; }
+  .sidebar.collapsed nav::-webkit-scrollbar { display: none; }
   .sidebar.collapsed .nav-count { position: absolute; top: 2px; right: 6px; min-width: 16px; height: 16px; font-size: 9px; }
 }
 
