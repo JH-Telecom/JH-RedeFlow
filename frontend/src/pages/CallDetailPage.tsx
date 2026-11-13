@@ -207,7 +207,8 @@ export function CallDetailBase() {
   }
   // Pede a leitura das PON da massiva ao AutoISP (extensao Rede) e abre o mapa da rede nelas.
   async function openOnMap() {
-    const current = call!;
+    if (!call) return;
+    const current = call;
     setOpeningMap(true);
     setMessage("");
     try {
@@ -222,6 +223,7 @@ export function CallDetailBase() {
       setOpeningMap(false);
     }
   }
+  const dirtyPon = olt !== call.olt || slotPon !== call.slotPon;
   const closedNow = isCallClosed(call);
   const showFinish = status === "Finalizado" && !closedNow;
   const showCancel = status === "Cancelado" && !closedNow;
@@ -270,7 +272,7 @@ export function CallDetailBase() {
             <EditableDetailItem label="Slot/PON" value={slotPon} onChange={setSlotPon} />
             {canViewNetwork && call.olt.trim() && call.slotPon.trim() && (
               <div className="detail-item"><span>Rede</span>
-                <button type="button" className="secondary-button compact" onClick={() => void openOnMap()} disabled={openingMap}><MapIcon size={15} /> {openingMap ? "Abrindo..." : "Ver no mapa"}</button>
+                <button type="button" className="secondary-button compact" onClick={() => void openOnMap()} disabled={openingMap || dirtyPon} title={dirtyPon ? "Salve o chamado para usar a OLT/PON alterada" : undefined}><MapIcon size={15} /> {openingMap ? "Abrindo..." : "Ver no mapa"}</button>
               </div>
             )}
             <SerialNumberItem callId={call.id} />
