@@ -1,0 +1,38 @@
+/* Importacao da rede (NetworkImportPage) */
+.net-page { display: grid; gap: 16px; }
+.net-panel { display: grid; gap: 14px; }
+.net-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.net-pick { cursor: pointer; position: relative; }
+.net-file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; padding: 0; }
+.net-hint { font-size: 12px; color: #4f5d73; }
+.net-ok { margin: 0; font-size: 13px; color: #116b40; font-weight: 600; }
+.net-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.net-file { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid #1caa76; border-radius: 8px; background: #fff; }
+.net-file.is-bad { border-left-color: #c44848; }
+.net-file strong { font-size: 13px; color: #17233b; }
+.net-file span { font-size: 12px; color: #4f5d73; }
+.net-progress { font-size: 12px; font-style: normal; color: #0845ae; font-weight: 600; }
+.net-error { font-size: 12px; font-style: normal; color: #a3262a; font-weight: 600; }
+.net-table-wrap { overflow-x: auto; }
+.net-table { width: 100%; border-collapse: collapse; text-align: left; }
+.net-table th { font-size: 11px; color: #4f5d73; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.net-table td { font-size: 13px; color: #34435c; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.net-table td strong { color: #17233b; }
+.net-table tr.is-off td { color: #4f5d73; }
+.net-table small { font-size: 12px; color: #4f5d73; }
+.net-add { display: grid; grid-template-columns: 1fr 1fr 1.6fr auto; gap: 8px; }
+.net-add input, .net-note input { padding: 9px 11px; }
+.net-note { display: flex; gap: 8px; align-items: center; }
+.net-note input { flex: 1; min-width: 160px; }
+.net-toggle { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; }
+.net-toggle input { width: auto; }
+@media (max-width: 720px) { .net-add { grid-template-columns: 1fr; } }
+
+:where(:root[data-theme="dark"]) .net-file { background: #181c22; border-color: #2c333e; }
+:where(:root[data-theme="dark"]) .net-file strong, :where(:root[data-theme="dark"]) .net-table td strong { color: #dfe5ef; }
+:where(:root[data-theme="dark"]) .net-file span, :where(:root[data-theme="dark"]) .net-hint, :where(:root[data-theme="dark"]) .net-table th, :where(:root[data-theme="dark"]) .net-table small, :where(:root[data-theme="dark"]) .net-table tr.is-off td { color: #aab4c3; }
+:where(:root[data-theme="dark"]) .net-table td { color: #c9d1de; border-color: #2c333e; }
+:where(:root[data-theme="dark"]) .net-table th { border-color: #2c333e; }
+:where(:root[data-theme="dark"]) .net-ok { color: #5fd49b; }
+:where(:root[data-theme="dark"]) .net-progress { color: #8ab8ff; }
+:where(:root[data-theme="dark"]) .net-error { color: #ff8e92; }

@@ -23,6 +23,7 @@ import { CallDetailRoute } from "../pages/CallDetailPage";
 import { CallsPage, SupervisorOrdersPage } from "../pages/CallsPage";
 import { SupervisorOverviewPage } from "../pages/SupervisorOverviewPage";
 import { PopKeysPage } from "../pages/PopKeysPage";
+import { NetworkImportPage } from "../pages/NetworkImportPage";
 import { NightRouterPage } from "../pages/NightRouterPage";
 import { JotaHWidget } from "./JotaHWidget";
 import { MissingRegionPage } from "../pages/MissingRegionPage";
@@ -459,6 +460,7 @@ export function Shell({
             <Route path="/cargos" element={guard("roles.view", <RolesPage currentRoleId={user.roleId} />)} />
             <Route path="/historico-alteracoes" element={guard("calls.view_logs", <AuditHistoryPage />)} />
             <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
+            <Route path="/rede/importar" element={guard("network.manage", <NetworkImportPage />)} />
             <Route path="/chaves" element={guard("calls.view", <PopKeysPage user={user} />)} />
             <Route path="/igp/pontuacao" element={guard("dashboard.view", <IgpScorePage user={user} />)} />
             <Route path="/sem-regiao" element={guard("calls.view", <MissingRegionPage user={user} />)} />

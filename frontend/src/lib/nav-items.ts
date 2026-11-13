@@ -1,4 +1,4 @@
-import { Activity, Archive, Award, Binoculars, MapPinOff, MoonStar, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Award, Binoculars, MapPinOff, MoonStar, HeartPulse, KeyRound, Smartphone, History, Map as MapIcon, UsersRound, BellRing, CalendarDays, ClipboardCheck, Contact, FileBarChart, Gauge, HardHat, Hourglass, Inbox, Network, LayoutDashboard, Repeat2, Settings, ShieldCheck, Tv, Upload, UserCog, Users, Wrench, type LucideIcon } from "lucide-react";
 
 // Abas do menu lateral. Usado pelo Shell (menu, rotas, busca Ctrl+K) e pela tela de Cargos (abas visiveis por cargo).
 // fieldOnly: so aparece para o usuario ligado a um tecnico (Meus chamados).
@@ -29,6 +29,7 @@ export const navItems: NavItem[] = [
   { section: "Equipes", label: "Pessoas", to: "/pessoas", icon: Contact, permission: "" },
   { section: "Administração", label: "Status do sistema", to: "/status", icon: HeartPulse, permission: "" },
   { section: "Administração", label: "Chaves dos POPs", to: "/chaves", icon: KeyRound, permission: "calls.view" },
+  { section: "Administração", label: "Rede (KMZ)", to: "/rede/importar", icon: Network, permission: "network.manage" },
   { section: "Administração", label: "Importações", to: "/importacoes", icon: Upload, permission: "imports.view" },
   { section: "Administração", label: "Histórico de alterações", to: "/historico-alteracoes", icon: History, permission: "calls.view_logs" },
   { section: "Administração", label: "Integração OFS", to: "/integracao-ofs", icon: Activity, permission: "imports.view" },

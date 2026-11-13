@@ -1,4 +1,5 @@
 const isVercelDeployment = import.meta.env.PROD && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
+import type { NetCable, NetElement } from './lib/network-kml';
 const API_URL = (isVercelDeployment ? '' : import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
 export type Permission = { code: string; description: string };
 export type Role = { id: string; name: string; description: string; permissions: string[]; hiddenTabs?: string[] };
@@ -120,6 +121,9 @@ export type DbUsageReport = {
   daily: { day: string; bytes: number; requests: number }[]; topTargets: { name: string; bytes: number; requests: number }[];
 };
 
+export type NetworkSource = { fileName: string; elements: number; cables: number; importedBy: string; importedAt: string };
+export type PopOlt = { pop: string; olt: string; active: boolean; note: string | null; confirmedBy: string | null; updatedAt: string };
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
   const isRead = !init.method || init.method.toUpperCase() === 'GET';
@@ -151,7 +155,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!response.ok) {
     const fallbackMessage = `A API respondeu com ${response.status}${response.statusText ? ` ${response.statusText}` : ''}.`;
-    const error = new Error(payload.message || fallbackMessage) as Error & { missing?: string[] };
+    const error = new Error(payload.message || fallbackMessage) as Error & { missing?: string[]; status?: number };
+    error.status = response.status;
     error.missing = payload.missing;
     throw error;
   }
@@ -374,6 +379,10 @@ export const api = {
   nightRouter: () => request<NightRouterData>('/api/roteirizador'),
   saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
   saveNightShifts: (shifts: NightShift[]) => request<{ shifts: NightShift[] }>('/api/roteirizador/escala', { method: 'PUT', body: JSON.stringify({ shifts }) }),
+  networkImportBatch: (data: { fileName: string; sha256: string; first: boolean; elements: NetElement[]; cables: NetCable[] }) => request<{ elements: number; cables: number }>('/api/rede/importacao', { method: 'POST', body: JSON.stringify(data) }),
+  networkSources: () => request<{ sources: NetworkSource[] }>('/api/rede/fontes'),
+  popOlts: () => request<{ popOlts: PopOlt[] }>('/api/rede/pop-olt'),
+  savePopOlt: (data: { pop: string; olt: string; active: boolean; note?: string | null }) => request<{ popOlt: PopOlt }>('/api/rede/pop-olt', { method: 'PUT', body: JSON.stringify(data) }),
   popKeys: () => request<{ keys: PopKey[] }>('/api/chaves'),
   addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),
   takePopKey: (id: string, data: { holderName: string; holderKind: 'Tecnico' | 'Supervisor' | 'Outro'; holderId: string | null; notes: string | null; photo: string | null; takenAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/retirada`, { method: 'POST', body: JSON.stringify(data) }),
