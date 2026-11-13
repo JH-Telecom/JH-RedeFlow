@@ -62,6 +62,17 @@ O que dependia do site do JH Agendamentos aberto fica desligado na Rede: painel 
 lista e a faixa de mensagens prontas de agendamento. Se a extensão JH Agendamentos também estiver com o WhatsApp ligado,
 deixe ligado em uma só (as duas desenham no mesmo lugar).
 
+## Mapa da rede: clientes da PON no AutoISP (v1.11)
+
+- A cada ciclo de fechamentos (e no botão de atualizar), pergunta ao RedeFlow quais PONs de massivas estão na fila
+  (`GET /api/integrations/autoisp/pons-pendentes`).
+- Para cada PON, usa a **aba do AutoISP já aberta e logada** (auto.alloha.com): acha a OLT, busca a PON e abre o
+  detalhe de até 100 clientes, 3 por vez. Só faz GET; não usa "Atualizar sinal".
+- Envia só contrato, serial, int6, OLT, ponlink, sinal, status, último contato e lat/lng
+  (`POST /api/integrations/autoisp/pon`). **Nunca nome, endereço ou documento.**
+- Sem a aba do AutoISP aberta, não faz nada e registra "Abra o AutoISP (auto.alloha.com) logado neste Chrome".
+  Se a conta não enxerga a OLT, a fila mostra o erro com o nome da OLT.
+
 ## Instalação
 
 1. Publicar o pacote (`extensao-rede`, compactado com `manifest.json` na raiz) na Chrome Web Store, ou, para teste,
