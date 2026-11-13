@@ -29,7 +29,7 @@ test('network store: first true em A.kml nao apaga elementos de B.kml', async ()
 
 test('network store: CTO que passou para outro arquivo sobrevive ao first true do arquivo antigo', async () => {
   await saveNetworkBatch(batch('A.kml', [cto('X', -23.5, -46.5)]), 'ana');
-  await saveNetworkBatch(batch('B.kml', [cto('X', -23.5, -46.5)], [], false));
+  await saveNetworkBatch(batch('B.kml', [cto('X', -23.5, -46.5)], [], false), 'ana');
   await saveNetworkBatch(batch('A.kml', [cto('Y', -23.7, -46.7)]), 'ana');
   const area = await listNetworkArea(BIG, 16);
   const x = area.elements.find((e) => e.code === 'X');
@@ -65,9 +65,14 @@ test('network store: zoom 12 agrupa 30 CTOs proximas em 1 cluster e mantem POPs 
   assert.equal(area.clusters.length, 1);
   assert.equal(area.clusters[0].count, 30);
   assert.deepEqual(area.elements.map((e) => e.kind), ['pop']);
+  const outro: NetElement = { kind: 'outro', code: 'O1', name: 'outro', projectCode: null, pop: null, fh: null, lat: -23.5003, lng: -46.5003 };
+  await saveNetworkBatch(batch('B.kml', [outro]), 'ana');
+  const withOutro = await listNetworkArea(BIG, 12);
+  assert.deepEqual(withOutro.elements.map((e) => e.kind), ['pop']);
+  assert.equal(withOutro.clusters.reduce((sum, c) => sum + c.count, 0), 30);
   const near = await listNetworkArea(BIG, 15);
   assert.equal(near.clusters.length, 0);
-  assert.equal(near.elements.length, 31);
+  assert.equal(near.elements.length, 32);
 });
 
 test('network store: cabo que cruza a caixa sem ponto dentro dela e devolvido', async () => {

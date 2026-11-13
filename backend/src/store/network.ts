@@ -16,7 +16,6 @@ const CLUSTER_ZOOM = 15; // abaixo disso CTOs/CEOs viram clusters
 const CLUSTER_GRID = 0.005; // graus
 const MAX_ELEMENTS = 5000;
 const MAX_CABLES = 3000;
-const MAX_CLUSTER_SOURCE = 100_000; // linhas lidas so com lat/lng para agrupar
 const CHUNK = 500;
 const PAGE = 1000; // limite do Supabase por requisicao
 const MISSING = 'As tabelas do mapa ainda nao existem no banco (falta a migracao network_map).';
@@ -35,7 +34,7 @@ export function resetNetworkMemory() {
 }
 
 function fail(error: { message: string }): never {
-  throw new Error(/network_(elements|cables|sources|pop_olts)/.test(error.message) ? MISSING : error.message);
+  throw new Error(/network_(elements|cables|sources|pop_olts|clusters)/.test(error.message) ? MISSING : error.message);
 }
 function chunks<T>(items: T[], size = CHUNK) {
   const out: T[][] = [];
@@ -89,15 +88,14 @@ export async function saveNetworkBatch(input: NetworkBatch, by: string): Promise
     const deletedCables = await admin.from('network_cables').delete().eq('source_file', input.fileName);
     if (deletedCables.error) fail(deletedCables.error);
   }
-  // O indice unico de code e parcial (where code is not null), que o upsert do PostgREST nao infere:
-  // apaga os codigos que ja existem (venham de onde vierem) e insere de novo com este arquivo como dono.
-  const codes = elements.map((element) => element.code).filter(Boolean) as string[];
-  for (const part of chunks(codes)) {
-    const { error } = await admin.from('network_elements').delete().in('code', part);
+  const toRow = (element: NetElement) => ({ kind: element.kind, code: element.code, name: element.name, project_code: element.projectCode, pop: element.pop, fh: element.fh, lat: element.lat, lng: element.lng, source_file: input.fileName, imported_at: now });
+  // Codigo ja existente (de qualquer arquivo) e sobrescrito, inclusive source_file: o arquivo mais recente passa a ser o dono.
+  for (const part of chunks(elements.filter((element) => element.code))) {
+    const { error } = await admin.from('network_elements').upsert(part.map(toRow), { onConflict: 'code' });
     if (error) fail(error);
   }
-  for (const part of chunks(elements)) {
-    const { error } = await admin.from('network_elements').insert(part.map((element) => ({ kind: element.kind, code: element.code, name: element.name, project_code: element.projectCode, pop: element.pop, fh: element.fh, lat: element.lat, lng: element.lng, source_file: input.fileName, imported_at: now })));
+  for (const part of chunks(elements.filter((element) => !element.code))) {
+    const { error } = await admin.from('network_elements').insert(part.map(toRow));
     if (error) fail(error);
   }
   for (const part of chunks(cables)) {
@@ -155,7 +153,7 @@ export async function listNetworkArea(box: NetworkBox, zoom: number): Promise<{ 
   if (!isSupabaseConfigured()) {
     const inside = [...memoryElements.values()].filter((row) => inBox(row.lat, row.lng, box));
     const elements = (grouped ? inside.filter((row) => row.kind === 'pop') : inside).slice(0, MAX_ELEMENTS);
-    const clusters = grouped ? clusterize(inside.filter((row) => row.kind !== 'pop')) : [];
+    const clusters = grouped ? clusterize(inside.filter((row) => row.kind === 'cto' || row.kind === 'ceo')) : [];
     const cables = [...memoryCables.values()].filter((row) => { const b = cableBox(row.points); return b.minLat <= box.maxLat && b.maxLat >= box.minLat && b.minLng <= box.maxLng && b.maxLng >= box.minLng; }).slice(0, MAX_CABLES);
     return { elements, clusters, cables };
   }
@@ -167,8 +165,9 @@ export async function listNetworkArea(box: NetworkBox, zoom: number): Promise<{ 
   });
   let clusters: Array<{ lat: number; lng: number; count: number }> = [];
   if (grouped) {
-    const points = await paged<{ lat: number; lng: number }>(MAX_CLUSTER_SOURCE, (from, to) => admin.from('network_elements').select('lat, lng').neq('kind', 'pop').gte('lat', box.minLat).lte('lat', box.maxLat).gte('lng', box.minLng).lte('lng', box.maxLng).order('id').range(from, to));
-    clusters = clusterize(points);
+    const { data, error } = await admin.rpc('network_clusters', { min_lat: box.minLat, min_lng: box.minLng, max_lat: box.maxLat, max_lng: box.maxLng, grid: CLUSTER_GRID });
+    if (error) fail(error);
+    clusters = ((data || []) as Array<{ lat: number; lng: number; count: number | string }>).map((row) => ({ lat: row.lat, lng: row.lng, count: Number(row.count) }));
   }
   const cableRows = await paged<CableDbRow>(MAX_CABLES, (from, to) => admin.from('network_cables').select('id, name, color, points, source_file').lte('min_lat', box.maxLat).gte('max_lat', box.minLat).lte('min_lng', box.maxLng).gte('max_lng', box.minLng).order('id').range(from, to));
   return { elements: elementRows.map(mapElement), clusters, cables: cableRows.map(mapCable) };

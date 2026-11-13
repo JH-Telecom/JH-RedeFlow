@@ -13,10 +13,22 @@ CREATE TABLE IF NOT EXISTS public.network_elements (
   source_file text NOT NULL,
   imported_at timestamptz DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS network_elements_code_uidx ON public.network_elements(code) WHERE code IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS network_elements_code_uidx ON public.network_elements(code);
 CREATE INDEX IF NOT EXISTS network_elements_lat_lng_idx ON public.network_elements(lat, lng);
 CREATE INDEX IF NOT EXISTS network_elements_source_file_idx ON public.network_elements(source_file);
 ALTER TABLE public.network_elements ENABLE ROW LEVEL SECURITY;
+
+-- Clusters de CTO/CEO calculados no banco (zoom baixo do mapa): uma celula por grade de `grid` graus.
+CREATE OR REPLACE FUNCTION public.network_clusters(min_lat double precision, min_lng double precision, max_lat double precision, max_lng double precision, grid double precision)
+RETURNS TABLE(lat double precision, lng double precision, count bigint)
+LANGUAGE sql STABLE AS $$
+  SELECT avg(e.lat), avg(e.lng), count(*)
+  FROM public.network_elements e
+  WHERE e.kind IN ('cto', 'ceo') AND e.lat BETWEEN min_lat AND max_lat AND e.lng BETWEEN min_lng AND max_lng
+  GROUP BY floor(e.lat / grid), floor(e.lng / grid)
+$$;
+REVOKE ALL ON FUNCTION public.network_clusters(double precision, double precision, double precision, double precision, double precision) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.network_clusters(double precision, double precision, double precision, double precision, double precision) TO service_role;
 
 CREATE TABLE IF NOT EXISTS public.network_cables (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
