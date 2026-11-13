@@ -1730,3 +1730,21 @@ test('refused activations history: list with who refused, accept later, call get
   const after = await (await fetch(`${baseUrl}/api/acionamentos?status=Recusado`, { headers: admin })).json() as { activations: Array<{ id: string }> };
   assert.ok(!after.activations.some((activation) => activation.id === received.activationId));
 });
+
+test('night router config accepts and persists the single night technician', async () => {
+  const token = (await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'admin@jhtelecom.com', password: 'RedeFlow@2026' }) })).json() as { token: string }).token;
+  const admin = { 'content-type': 'application/json', authorization: `Bearer ${token}` };
+  const put = (body: unknown) => fetch(`${baseUrl}/api/roteirizador/config`, { method: 'PUT', headers: admin, body: JSON.stringify(body) });
+  const initial = await (await fetch(`${baseUrl}/api/roteirizador`, { headers: admin })).json() as { settings: { singleTechnicianId: string | null } };
+  assert.equal(initial.settings.singleTechnicianId, null);
+  const saved = await put({ enabled: true, testMode: true, singleTechnicianId: 'tech-pedro' });
+  assert.equal(saved.status, 200);
+  assert.equal((await saved.json() as { settings: { singleTechnicianId: string | null } }).settings.singleTechnicianId, 'tech-pedro');
+  const read = await (await fetch(`${baseUrl}/api/roteirizador`, { headers: admin })).json() as { settings: { singleTechnicianId: string | null; enabled: boolean } };
+  assert.equal(read.settings.singleTechnicianId, 'tech-pedro');
+  // Sem o campo: mantem o tecnico unico (o liga/desliga nao apaga a escolha).
+  assert.equal((await (await put({ enabled: false, testMode: true })).json() as { settings: { singleTechnicianId: string | null } }).settings.singleTechnicianId, 'tech-pedro');
+  assert.equal((await put({ enabled: true, testMode: true, singleTechnicianId: 'nao-existe' })).status, 422);
+  assert.equal((await put({ enabled: true, testMode: true, singleTechnicianId: 42 })).status, 400);
+  assert.equal((await (await put({ enabled: true, testMode: true, singleTechnicianId: null })).json() as { settings: { singleTechnicianId: string | null } }).settings.singleTechnicianId, null);
+});
