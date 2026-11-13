@@ -68,3 +68,14 @@ test('autoisp-rede: limparDetalhe tolera detalhe vazio', () => {
   assert.equal(c.serial, null);
   assert.equal(c.onuStatus, null);
 });
+
+test('autoisp-rede: montarClientes nao envia cliente cujo detalhe falhou', () => {
+  const linhas = [{ erp_id: '1', gpon_client_id: 11 }, { erp_id: '2', gpon_client_id: 22 }, { erp_id: '3', gpon_client_id: 33 }];
+  const detalhes = [{ json: { gpon_client: { onu_status: { rx_power: -20, status: 'ok' } }, coordinates: { client: { lat: -23.9, lng: -46.3 } } } }, { erro: 'AutoISP HTTP 500' }, undefined];
+  const r = plain(sandbox.montarClientes(linhas, detalhes, 'OLT-1', '0/4/10'));
+  assert.equal(r.clients.length, 1);
+  assert.equal(r.clients[0].contract, '1');
+  assert.equal(r.clients[0].olt, 'OLT-1');
+  assert.equal(r.error, '2 cliente(s) sem detalhe no AutoISP');
+  assert.equal(plain(sandbox.montarClientes(linhas.slice(0, 1), [detalhes[0]], 'O', 'p')).error, null);
+});

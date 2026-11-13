@@ -64,7 +64,7 @@ deixe ligado em uma só (as duas desenham no mesmo lugar).
 
 ## Mapa da rede: clientes da PON no AutoISP (v1.11)
 
-- A cada ciclo de fechamentos (e no botão de atualizar), pergunta ao RedeFlow quais PONs de massivas estão na fila
+- No alarme periódico de fechamentos da extensão (e pela mensagem `lerPon`), pergunta ao RedeFlow quais PONs de massivas estão na fila
   (`GET /api/integrations/autoisp/pons-pendentes`).
 - Para cada PON, usa a **aba do AutoISP já aberta e logada** (auto.alloha.com): acha a OLT, busca a PON e abre o
   detalhe de até 100 clientes, 3 por vez. Só faz GET; não usa "Atualizar sinal".

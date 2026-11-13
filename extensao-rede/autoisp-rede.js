@@ -88,20 +88,47 @@ function limparDetalhe(json, linhaBusca) {
 }
 
 // GET dentro da aba do AutoISP (func serializada: nao enxerga nada deste arquivo, so os args).
-async function pegarNoAutoIsp(abaId, url) {
+// modo "busca" e "detalhe": a aba devolve so os campos do mapa (nome, endereco e documento nunca saem da pagina).
+async function pegarNoAutoIsp(abaId, url, modo) {
   var r = await chrome.scripting.executeScript({
     target: { tabId: abaId },
-    args: [url],
-    func: async (u) => {
+    args: [url, modo || "olts"],
+    func: async (u, m) => {
       try {
         const resposta = await fetch(u, { method: "GET", headers: { accept: "application/json" }, credentials: "include" });
         if (!resposta.ok) return { erro: "AutoISP HTTP " + resposta.status };
-        return { json: await resposta.json() };
-      } catch (e) { return { erro: String((e && e.message) || e) }; }
+        let j;
+        try { j = await resposta.json(); } catch (e) { return { erro: "AutoISP respondeu fora do formato (sessao expirada?)" }; }
+        if (m === "busca") {
+          return { json: (Array.isArray(j) ? j : []).map((x) => (x ? { erp_id: x.erp_id, serial_number: x.serial_number, short_serial_number: x.short_serial_number, gpon_client_id: x.gpon_client_id, olt_hostname: x.olt_hostname, ponlink: x.ponlink } : null)) };
+        }
+        if (m === "detalhe") {
+          const g = (j && j.gpon_client) || {};
+          const st = g.onu_status || {};
+          const co = (j && j.coordinates && j.coordinates.client) || {};
+          return { json: { gpon_client: { onu_status: { rx_power: st.rx_power, status: st.status }, acs_last_inform: g.acs_last_inform }, coordinates: { client: { lat: co.lat, lng: co.lng } } } };
+        }
+        return { json: j };
+      } catch (e) { return { erro: "Falha ao consultar o AutoISP" }; }
     },
-  }).catch(function (e) { return [{ result: { erro: String((e && e.message) || e) } }]; });
+  }).catch(function () { return [{ result: { erro: "Falha ao consultar o AutoISP" } }]; });
   var res = r && r[0] && r[0].result;
   return res || { erro: "Sem resposta da aba do AutoISP" };
+}
+
+// Junta os resultados dos detalhes: detalhe que falhou NAO vira cliente (nao sobrescreve uma leitura boa no RedeFlow).
+function montarClientes(linhas, detalhes, olt, ponlink) {
+  var clients = [];
+  var falhas = 0;
+  for (var i = 0; i < linhas.length; i++) {
+    var d = detalhes[i];
+    if (!d || d.erro) { falhas += 1; continue; }
+    var c = limparDetalhe(d.json, linhas[i]);
+    c.olt = c.olt || olt;
+    c.ponlink = c.ponlink || ponlink;
+    clients.push(c);
+  }
+  return { clients: clients, error: falhas ? falhas + " cliente(s) sem detalhe no AutoISP" : null };
 }
 
 async function oltsDoAutoIsp(abaId) {
@@ -137,54 +164,53 @@ async function lerUmaPon(abaId, olts, pedido) {
   var ultimoErro = null;
   var variantes = variantesPon(pedido.ponlink);
   for (var v = 0; v < variantes.length; v++) {
-    var busca = await pegarNoAutoIsp(abaId, urlBuscaPon(olt.id, variantes[v]));
+    var busca = await pegarNoAutoIsp(abaId, urlBuscaPon(olt.id, variantes[v]), "busca");
     if (busca.erro) { ultimoErro = busca.erro; continue; }
     if (Array.isArray(busca.json) && busca.json.length) { linhas = busca.json; break; }
   }
   if (!linhas.length) return { found: 0, clients: [], error: ultimoErro };
   var amostra = linhas.filter(function (l) { return l && /^\d{1,12}$/.test(String(l.gpon_client_id)) && textoCurto(l.erp_id, 20); }).slice(0, 100);
-  var falhas = 0;
-  var clients = await emFilaRede(amostra.map(function (linha) {
-    return async function () {
-      var d = await pegarNoAutoIsp(abaId, "/gpon_clients/" + String(linha.gpon_client_id) + "/detailed_info");
-      var c;
-      if (d.erro) { falhas += 1; c = limparDetalhe({}, linha); } else c = limparDetalhe(d.json, linha);
-      c.olt = c.olt || olt.hostname;
-      c.ponlink = c.ponlink || variantes[0];
-      return c;
-    };
+  var detalhes = await emFilaRede(amostra.map(function (linha) {
+    return function () { return pegarNoAutoIsp(abaId, "/gpon_clients/" + String(linha.gpon_client_id) + "/detailed_info", "detalhe"); };
   }), 3);
-  return { found: linhas.length, clients: clients, error: falhas ? falhas + " cliente(s) sem detalhe no AutoISP" : null };
+  var m = montarClientes(amostra, detalhes, olt.hostname, variantes[0]);
+  return { found: linhas.length, clients: m.clients, error: m.error };
 }
 
 async function lerPonsPendentes() {
   var registro = { quando: Date.now(), pedidos: 0, lidos: 0, erros: [] };
-  var guardar = async function () { await chrome.storage.local.set({ ultimaPon: registro }); return registro; };
-  var abas = await chrome.tabs.query({ url: "https://auto.alloha.com/*" });
-  var aba = abas[0];
-  if (!aba) { registro.erros.push(MSG_SEM_ABA_AUTOISP); return guardar(); }
-  var auth = await autenticacao();
-  if (!auth) { registro.erros.push("Entre com seu usuário do JH RedeFlow no popup"); return guardar(); }
-  var r = await fetch(apiBaseRede() + "/api/integrations/autoisp/pons-pendentes", { headers: auth.headers });
-  var corpo = await r.json().catch(function () { return {}; });
-  if (!r.ok) { registro.erros.push((corpo && corpo.message) || "HTTP " + r.status); return guardar(); }
-  var itens = Array.isArray(corpo.itens) ? corpo.itens : [];
-  registro.pedidos = itens.length;
-  if (!itens.length) return guardar();
-  var oltsRes = await oltsDoAutoIsp(aba.id);
-  for (var i = 0; i < itens.length; i++) {
-    var pedido = itens[i];
-    var rotulo = pedido.olt + " " + pedido.ponlink;
-    var lido = oltsRes.erro
-      ? { found: 0, clients: [], error: oltsRes.erro }
-      : await lerUmaPon(aba.id, oltsRes.lista, pedido);
-    var corpoEnvio = { requestId: pedido.id, olt: pedido.olt, ponlink: pedido.ponlink, found: lido.found, error: lido.error || null, clients: lido.clients };
-    try {
-      var envio = await fetch(apiBaseRede() + "/api/integrations/autoisp/pon", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, auth.headers), body: JSON.stringify(corpoEnvio) });
-      if (envio.ok) registro.lidos += 1;
-      else { var e = await envio.json().catch(function () { return {}; }); registro.erros.push(rotulo + ": " + ((e && e.message) || "HTTP " + envio.status)); }
-    } catch (err) { registro.erros.push(rotulo + ": " + String((err && err.message) || err)); }
-    if (lido.error) registro.erros.push(rotulo + ": " + lido.error);
+  try {
+    var abas = await chrome.tabs.query({ url: "https://auto.alloha.com/*" });
+    var aba = abas[0];
+    if (!aba) { registro.erros.push(MSG_SEM_ABA_AUTOISP); return registro; }
+    var auth = await autenticacao();
+    if (!auth) { registro.erros.push("Entre com seu usuário do JH RedeFlow no popup"); return registro; }
+    var r = await fetch(apiBaseRede() + "/api/integrations/autoisp/pons-pendentes", { headers: auth.headers });
+    var corpo = await r.json().catch(function () { return {}; });
+    if (!r.ok) { registro.erros.push((corpo && corpo.message) || "HTTP " + r.status); return registro; }
+    var itens = Array.isArray(corpo.itens) ? corpo.itens : [];
+    registro.pedidos = itens.length;
+    if (!itens.length) return registro;
+    var oltsRes = await oltsDoAutoIsp(aba.id);
+    // Sem a lista de OLTs (sessao vencida etc.) os pedidos ficam pendentes: nada e enviado.
+    if (oltsRes.erro || !oltsRes.lista.length) { registro.erros.push("Lista de OLTs do AutoISP indisponivel: " + (oltsRes.erro || "vazia")); return registro; }
+    for (var i = 0; i < itens.length; i++) {
+      var pedido = itens[i];
+      var rotulo = pedido.olt + " " + pedido.ponlink;
+      var lido = await lerUmaPon(aba.id, oltsRes.lista, pedido);
+      var corpoEnvio = { requestId: pedido.id, olt: pedido.olt, ponlink: pedido.ponlink, found: lido.found, error: lido.error || null, clients: lido.clients };
+      try {
+        var envio = await fetch(apiBaseRede() + "/api/integrations/autoisp/pon", { method: "POST", headers: Object.assign({ "Content-Type": "application/json" }, auth.headers), body: JSON.stringify(corpoEnvio) });
+        if (envio.ok) registro.lidos += 1;
+        else { var e = await envio.json().catch(function () { return {}; }); registro.erros.push(rotulo + ": " + ((e && e.message) || "HTTP " + envio.status)); }
+      } catch (err) { registro.erros.push(rotulo + ": " + String((err && err.message) || err)); }
+      if (lido.error) registro.erros.push(rotulo + ": " + lido.error);
+    }
+    return registro;
+  } catch (err) {
+    registro.erros.push(String((err && err.message) || err));
+    return registro;
+  } finally {
+    await chrome.storage.local.set({ ultimaPon: registro }).catch(function () {});
   }
-  return guardar();
 }
