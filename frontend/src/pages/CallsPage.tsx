@@ -287,11 +287,12 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       { label: "Status", width: 170 },
       { label: "Observação", width: 340 },
     ];
-    // Ultima observacao de cada chamado da pagina (texto, autor e hora); sem observacao, o campo de notas do chamado.
-    const lastObservations = new Map<string, { text: string; who: string; at: string }>();
+    // Ultima observacao de cada chamado da pagina (so o texto: sem autor e hora, pedido de 13/11/2026); sem observacao,
+    // o campo de notas do chamado.
+    const lastObservations = new Map<string, string>();
     try {
       const found = (await api.latestObservations(currentCalls.map((call) => call.id), { teamScope: teamScoped })).observations;
-      for (const [callId, item] of Object.entries(found)) lastObservations.set(callId, { text: item.text, who: item.userName, at: item.createdAt });
+      for (const [callId, item] of Object.entries(found)) lastObservations.set(callId, item.text);
     } catch { /* sem permissao ou falha: cai nas notas do chamado */ }
     const clip = (text: string, max = 180) => { const flat = text.replace(/\s+/g, " ").trim(); return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat; };
     const rows: ReportCell[][] = currentCalls.map((call) => {
@@ -309,8 +310,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         { text: call.status, tone: statusTone(call.status), sub: call.ofsStatus ? `OFS: ${call.ofsStatus}` : undefined },
         (() => {
           const latest = lastObservations.get(call.id);
-          if (latest) return { text: clip(latest.text), sub: `${latest.who} · ${shortDateTime(latest.at)}` };
-          return call.notes?.trim() ? { text: clip(call.notes), sub: "Notas do chamado" } : { text: "–", sub: "Sem observação" };
+          if (latest) return { text: clip(latest) };
+          return call.notes?.trim() ? { text: clip(call.notes) } : { text: "–" };
         })(),
       ];
     });
