@@ -101,7 +101,7 @@ export type JotaAnswer =
   | { kind: 'refused'; titulo: string; explicacao: string; sql?: string; logId?: string | null }
   | { kind: 'error'; titulo: string; explicacao: string; sql?: string; sugestoes?: string[]; logId?: string | null };
 export type JotaUsage = { today: number; week: number; errors: number; errorRate: number; people: number; thumbsUp: number; thumbsDown: number; byDay: { day: string; total: number; errors: number }[]; byPerson: { name: string; today: number; week: number; errors: number }[]; recentErrors: { at: string; name: string; question: string; error: string }[]; empty: { at: string; name: string; question: string }[] };
-export type NightRouterSettings = { enabled: boolean; testMode: boolean; updatedAt: string | null; updatedBy: string | null };
+export type NightRouterSettings = { enabled: boolean; testMode: boolean; singleTechnicianId: string | null; updatedAt: string | null; updatedBy: string | null };
 export type NightShift = { region: string; weekday: number; technicianId: string };
 export type NightRun = { id: string; callId: string | null; orderNumber: string; region: string; technicianId: string | null; technicianName: string; result: 'Movida' | 'Teste' | 'Erro' | 'Pulada'; message: string; testMode: boolean; createdAt: string };
 export type NightRouterData = { settings: NightRouterSettings; shifts: NightShift[]; runs: NightRun[]; regions: string[]; technicians: Array<{ id: string; name: string; region: string }>; janela: boolean; semTecnico: number };
@@ -393,7 +393,7 @@ export const api = {
   jotaFeedback: (logId: string, util: boolean) => request<{ ok: boolean }>(`/api/jota-h/${encodeURIComponent(logId)}/avaliacao`, { method: 'POST', body: JSON.stringify({ util }) }),
   jotaUsage: () => request<JotaUsage>('/api/jota-h/uso'),
   nightRouter: () => request<NightRouterData>('/api/roteirizador'),
-  saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
+  saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean; singleTechnicianId?: string | null }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
   saveNightShifts: (shifts: NightShift[]) => request<{ shifts: NightShift[] }>('/api/roteirizador/escala', { method: 'PUT', body: JSON.stringify({ shifts }) }),
   networkImportBatch: (data: { fileName: string; sha256: string; first: boolean; elements: NetElement[]; cables: NetCable[] }) => request<{ elements: number; cables: number }>('/api/rede/importacao', { method: 'POST', body: JSON.stringify(data) }),
   networkSources: () => request<{ sources: NetworkSource[] }>('/api/rede/fontes'),

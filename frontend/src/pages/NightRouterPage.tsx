@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Copy, Eraser, MoonStar, Save } from "lucide-react";
 import { api, type NightRouterData, type NightShift, type Role, type User } from "../api";
 
-// Roteirizador da madrugada: das 00h as 06h a extensao do PC da coleta move no OFS os chamados sem tecnico para o
-// tecnico de plantao da regiao. Aqui: liga/desliga, modo teste, escala de plantao e o que o robo fez.
+// Roteirizador da madrugada: das 22h as 06h a extensao do PC da coleta move no OFS os chamados sem tecnico (acionados
+// desde as 22h) para o tecnico unico da madrugada, se escolhido, ou para o tecnico de plantao da regiao. Os acionamentos
+// pendentes que chegam nesse horario sao aceitos pelo sistema. Aqui: liga/desliga, modo teste, tecnico unico, escala e
+// o que o robo fez.
 // Ver: quem ve a Integracao OFS. Mudar: quem gerencia as configuracoes.
 const DAYS = [1, 2, 3, 4, 5, 6, 0];
 const DAY_LABEL: Record<number, string> = { 0: "Dom", 1: "Seg", 2: "Ter", 3: "Qua", 4: "Qui", 5: "Sex", 6: "Sáb" };
@@ -34,13 +36,14 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
   const technicianName = useMemo(() => new Map((data?.technicians ?? []).map((tech) => [tech.id, tech.name])), [data]);
   const filled = Object.values(grid).filter(Boolean).length;
 
-  async function saveSettings(change: Partial<{ enabled: boolean; testMode: boolean }>) {
+  async function saveSettings(change: Partial<{ enabled: boolean; testMode: boolean; singleTechnicianId: string | null }>) {
     if (!data) return;
     setSaving(true); setNotice("");
     try {
       const { settings } = await api.saveNightRouterSettings({ enabled: data.settings.enabled, testMode: data.settings.testMode, ...change });
       setData({ ...data, settings });
-      setNotice(settings.enabled ? (settings.testMode ? "Ligado em modo teste: nada é movido no OFS." : "Ligado: das 00h às 06h as ordens serão movidas no OFS.") : "Desligado.");
+      if ("singleTechnicianId" in change) setNotice(settings.singleTechnicianId ? `Técnico único da madrugada: ${technicianName.get(settings.singleTechnicianId) ?? "salvo"}. Todos os chamados vão para ele.` : "Sem técnico único: vale a escala por região.");
+      else setNotice(settings.enabled ? (settings.testMode ? "Ligado em modo teste: nada é movido no OFS e nenhum acionamento é aceito." : "Ligado: das 22h às 06h os acionamentos são aceitos e as ordens são movidas no OFS.") : "Desligado.");
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível salvar."); }
     finally { setSaving(false); }
   }
@@ -66,6 +69,7 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
   const clearRow = (region: string) => { setGrid((current) => ({ ...current, ...Object.fromEntries(DAYS.map((day) => [cellKey(region, day), ""])) })); setDirty(true); };
 
   const settings = data?.settings;
+  const singleId = settings?.singleTechnicianId ?? "";
   const state = !settings?.enabled ? "Desligado" : settings.testMode ? "Ligado · modo teste" : "Ligado";
   return (
     <div className="nr-page">
@@ -73,7 +77,7 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
         <div>
           <span className="section-kicker">ADMINISTRAÇÃO</span>
           <h1>Roteirizador da madrugada</h1>
-          <p>Das 00:00 às 06:00, quando os mesários não estão, a extensão do computador da coleta move no OFS os chamados sem técnico para o técnico de plantão da região.</p>
+          <p>Das 22:00 às 06:00, quando os mesários não estão, o sistema aceita os acionamentos que chegam e a extensão do computador da coleta move no OFS os chamados sem técnico para o técnico único da madrugada (se escolhido) ou para o técnico de plantão da região.</p>
         </div>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
@@ -85,16 +89,28 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
               <span className="nr-status-icon" aria-hidden="true"><MoonStar size={22} /></span>
               <div>
                 <strong className={`nr-state ${settings?.enabled ? (settings.testMode ? "is-test" : "is-on") : "is-off"}`}>{state}</strong>
-                <small>{data.janela ? "Agora é madrugada: o robô está na janela de trabalho." : "Fora da janela (00h–06h): o robô só move de madrugada."} · {data.semTecnico} chamado(s) sem técnico agora · escala com {filled} plantão(ões).</small>
+                <small>{data.janela ? "Agora é madrugada: o robô está na janela de trabalho." : "Fora da janela (22h–06h): o robô só trabalha de madrugada."} · {data.semTecnico} chamado(s) sem técnico agora · escala com {filled} plantão(ões).</small>
                 {settings?.updatedBy && <small>Última mudança: {settings.updatedBy}{settings.updatedAt ? `, ${dateTime(settings.updatedAt)}` : ""}.</small>}
               </div>
             </div>
             <div className="nr-switches">
               <label className="nr-switch"><input type="checkbox" checked={Boolean(settings?.enabled)} disabled={!canManage || saving} onChange={(event) => void saveSettings({ enabled: event.target.checked })} /> Ligado</label>
-              <label className="nr-switch"><input type="checkbox" checked={Boolean(settings?.testMode)} disabled={!canManage || saving} onChange={(event) => void saveSettings({ testMode: event.target.checked })} /> Modo teste (faz tudo no OFS e clica Ignorar, sem mover)</label>
+              <label className="nr-switch"><input type="checkbox" checked={Boolean(settings?.testMode)} disabled={!canManage || saving} onChange={(event) => void saveSettings({ testMode: event.target.checked })} /> Modo teste (faz tudo no OFS e clica Ignorar, sem mover; não aceita acionamentos)</label>
+            </div>
+            <div className="nr-single">
+              <label htmlFor="nr-single-tech" className="nr-switch">Técnico único da madrugada</label>
+              {canManage ? (
+                <select id="nr-single-tech" value={singleId} disabled={saving} onChange={(event) => void saveSettings({ singleTechnicianId: event.target.value || null })}>
+                  <option value="">Nenhum (usar a escala por região)</option>
+                  {singleId && !technicianName.has(singleId) && <option value={singleId}>Técnico indisponível (usa a escala)</option>}
+                  {data.technicians.map((tech) => <option key={tech.id} value={tech.id}>{tech.name}</option>)}
+                </select>
+              ) : <strong>{singleId ? technicianName.get(singleId) ?? "Técnico indisponível (usa a escala)" : "Nenhum (usa a escala por região)"}</strong>}
+              <small className="nr-muted">Escolhido, recebe <b>todos</b> os chamados da madrugada, de qualquer região e tipo (NOC ACESSO, NOC TX, Backbone, Field…), e a escala abaixo é ignorada. Se ele for desligado ou deixar de ser técnico, volta a valer a escala.</small>
             </div>
             <ul className="nr-rules">
-              <li>Só entram chamados abertos, atribuídos ou atrelados <b>sem técnico</b>, com o OFS pendente, de uma região com plantão na madrugada.</li>
+              <li>Só entram chamados <b>acionados a partir das 22h</b> desta madrugada, abertos, atribuídos ou atrelados <b>sem técnico</b> e com o OFS pendente (de uma região com plantão, se não houver técnico único). O que chegou antes das 22h fica com os mesários.</li>
+              <li>Acionamentos pendentes recebidos das 22h às 06h são <b>aceitos pelo sistema</b> (“Roteirizador da madrugada”); card repetido é ligado ao chamado que já existe. Os recebidos antes das 22h continuam esperando o aceite manual. No modo teste nada é aceito.</li>
               <li>No OFS, o robô só move a OS <b>pendente de hoje</b> que está num balde (CLUSTER_ ou BKI_). Se já estiver com uma pessoa, ele não mexe e registra como pulada.</li>
               <li>Motivo usado: “Reordenação de Prioridade - BackOffice”. A ordem fica na posição em que o OFS colocar e o chamado já recebe o técnico aqui.</li>
               <li>Precisa da extensão <b>1.10.0</b> no computador da coleta, com o OFS aberto e logado a noite toda. No popup, aba OFS, “Rodar agora” testa fora do horário (só no modo teste).</li>
@@ -103,7 +119,7 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
 
           <section className="panel nr-grid-panel" aria-label="Escala de plantão">
             <div className="nr-grid-head">
-              <div><h2>Escala de plantão</h2><p className="nr-muted">Técnico de cada região em cada madrugada. “Seg” = de domingo para segunda (00h–06h de segunda).</p></div>
+              <div><h2>Escala de plantão</h2><p className="nr-muted">Técnico de cada região em cada madrugada. “Seg” = de domingo para segunda (22h de domingo às 06h de segunda).{singleId && technicianName.has(singleId) ? " Ignorada enquanto houver técnico único." : ""}</p></div>
               {canManage && <button type="button" className="primary-button compact" onClick={() => void saveGrid()} disabled={!dirty || saving}><Save size={15} aria-hidden="true" />{saving ? "Salvando…" : "Salvar escala"}</button>}
             </div>
             {!data.regions.length ? <p className="nr-muted">Nenhuma região cadastrada ainda.</p> : (
