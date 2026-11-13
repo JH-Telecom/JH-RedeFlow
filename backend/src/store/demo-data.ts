@@ -30,6 +30,8 @@ export const permissionDescriptions: Record<PermissionCode, string> = {
   'activations.decide': 'Aceitar ou recusar acionamentos',
   'imports.view': 'Visualizar importacoes',
   'imports.create': 'Criar e confirmar importacoes',
+  'network.view': 'Ver o mapa da rede',
+  'network.manage': 'Importar a rede e editar POP → OLT',
   'settings.manage': 'Gerenciar configuracoes'
 };
 
@@ -39,7 +41,7 @@ export const now = new Date().toISOString();
 
 export const adminRole: Role = { id: 'role-admin', name: 'Administrador', description: 'Acesso administrativo da plataforma', permissions: allPermissions };
 
-export const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.reopen', 'calls.view_logs', 'calls.add_observation', 'activations.view', 'activations.decide', 'imports.view', 'imports.create', 'technicians.view', 'supervisors.view'] };
+export const operatorRole: Role = { id: 'role-operator', name: 'Operador', description: 'Operacao de chamados e remanejamentos', permissions: ['dashboard.view', 'calls.view', 'calls.create', 'calls.edit', 'calls.assign', 'calls.finish', 'calls.cancel', 'calls.reopen', 'calls.view_logs', 'calls.add_observation', 'activations.view', 'activations.decide', 'imports.view', 'imports.create', 'technicians.view', 'supervisors.view', 'network.view', 'network.manage'] };
 
 export const supervisorRole: Role = { id: 'role-supervisor', name: 'Supervisor', description: 'Visao restrita da propria equipe', permissions: ['dashboard.view', 'calls.view', 'technicians.view', 'supervisors.view'] };
 
