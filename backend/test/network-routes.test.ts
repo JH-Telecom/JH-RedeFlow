@@ -111,3 +111,13 @@ test('rede: importacao, fontes e POP para OLT exigem network.manage', async () =
   const view = await fetch(`${baseUrl}/api/rede/pon?olt=VIP-SMP-SPO-ONK-01&ponlink=4/9`, { headers: admin });
   assert.equal(view.status, 200);
 });
+
+test('rede: importacao acima de 15 MB responde 413 e area com valor vazio responde 400', async () => {
+  const admin = await login('admin@jhtelecom.com');
+  const huge = JSON.stringify({ fileName: 'x.kmz', sha256: 'a', first: true, elements: [], cables: [], pad: 'x'.repeat(15 * 1024 * 1024 + 1024) });
+  const response = await fetch(`${baseUrl}/api/rede/importacao`, { method: 'POST', headers: admin, body: huge });
+  assert.equal(response.status, 413);
+  assert.equal((await response.json() as { message: string }).message, 'Envio grande demais: divida em lotes menores.');
+  const empty = await fetch(`${baseUrl}/api/rede/area?minLat=&minLng=-46.7&maxLat=-23.5&maxLng=-46.6`, { headers: admin });
+  assert.equal(empty.status, 400);
+});

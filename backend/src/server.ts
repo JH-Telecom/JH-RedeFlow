@@ -779,10 +779,11 @@ app.post('/api/chaves', auth, requirePermission('settings.manage'), async (reque
   catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel cadastrar o POP.' }); }
 });
 // Mapa da rede: ver (network.view) e importar/editar POP -> OLT (network.manage). Nunca guarda nome/endereco de assinante.
-app.get('/api/rede/area', auth, requirePermission('network.view'), async (request, response) => {
-  const parsed = z.object({ minLat: z.coerce.number().min(-90).max(90), minLng: z.coerce.number().min(-180).max(180), maxLat: z.coerce.number().min(-90).max(90), maxLng: z.coerce.number().min(-180).max(180), zoom: z.coerce.number().min(0).max(24).default(15) }).safeParse(request.query);
+app.get('/api/rede/area', auth, requirePermission('network.view'), async (request: AuthRequest, response) => {
+  const num = (min: number, max: number) => z.string().trim().min(1).pipe(z.coerce.number().min(min).max(max));
+  const parsed = z.object({ minLat: num(-90, 90), minLng: num(-180, 180), maxLat: num(-90, 90), maxLng: num(-180, 180), zoom: num(0, 24).optional() }).safeParse(request.query);
   if (!parsed.success) return response.status(400).json({ message: 'Area do mapa invalida.' });
-  const { zoom, ...box } = parsed.data;
+  const { zoom = 15, ...box } = parsed.data;
   if (box.maxLat < box.minLat || box.maxLng < box.minLng || box.maxLat - box.minLat > 0.5 || box.maxLng - box.minLng > 0.5) return response.status(400).json({ message: 'Aproxime o mapa.' });
   try { return response.json(await listNetworkArea(box, zoom)); }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar a rede.' }); }
@@ -803,7 +804,7 @@ app.post('/api/rede/pon/solicitar', auth, requirePermission('network.view'), asy
     let pons: Array<{ olt: string; ponlink: string }>;
     let callId: string | undefined;
     if ('callId' in parsed.data) {
-      const call = await getCall(parsed.data.callId);
+      const call = await getCall(parsed.data.callId, await getScopedCallQuery(request, false));
       if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
       pons = ponsFromCall(call.olt || '', call.slotPon || '');
       if (!pons.length) return response.status(422).json({ message: 'Este chamado nao tem OLT e slot/PON.' });
@@ -826,7 +827,7 @@ app.post('/api/rede/importacao', auth, requirePermission('network.manage'), asyn
     sha256: z.string().trim().min(1).max(128),
     first: z.boolean(),
     elements: z.array(z.object({ kind: z.enum(['pop', 'cto', 'ceo', 'outro']), code: z.string().max(120).nullable(), name: z.string().max(255), projectCode: z.string().max(120).nullable(), pop: z.string().max(120).nullable(), fh: z.string().max(120).nullable(), lat, lng })).max(2000),
-    cables: z.array(z.object({ name: z.string().max(255), color: z.string().max(20).nullable(), points: z.array(z.tuple([z.number(), z.number()])).max(20000) })).max(2000),
+    cables: z.array(z.object({ name: z.string().max(255), color: z.string().max(20).nullable(), points: z.array(z.tuple([z.number(), z.number()])).max(5000) })).max(2000),
   }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Lote de importacao da rede invalido.' });
   try { return response.json(await saveNetworkBatch(parsed.data, request.authUser!.name)); }
@@ -2389,7 +2390,10 @@ app.post('/api/importacoes/:id/confirmar', auth, requirePermission('imports.crea
 });
 
 
-app.use((error: Error, _request: Request, response: Response, _next: NextFunction) => response.status(500).json({ message: error.message || 'Erro interno.' }));
+app.use((error: Error & { type?: string; status?: number }, _request: Request, response: Response, _next: NextFunction) => {
+  if (error.type === 'entity.too.large' || error.status === 413) return response.status(413).json({ message: 'Envio grande demais: divida em lotes menores.' });
+  return response.status(500).json({ message: error.message || 'Erro interno.' });
+});
 async function startServer() {
   try { await listOltRegionMappings(); }
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }
