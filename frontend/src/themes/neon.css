@@ -2347,6 +2347,164 @@
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .net-table small {
     color: #56597b
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-counts {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-counts b {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-chip {
+    border: 1px solid #e0e2f4;
+    background: #f7f9fc;
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-chip.is-on {
+    background: #fff;
+    color: #1e1e43;
+    border-color: #ccd1f7
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-chip i, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-row i, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-tag i {
+    box-shadow: 0 0 0 1px #13143033
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-chip b {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-chip:focus-visible, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-filters label {
+    color: #4c4f74
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-filters input, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-filters select {
+    border: 1px solid #e0e2f4;
+    background: #fff;
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-layers {
+    border: 1px solid #e0e2f4
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-layers legend {
+    color: #4c4f74
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-filters label.netmap-check {
+    color: #3c3e65
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-pons {
+    color: #4c4f74
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-hint {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-ok {
+    color: #116b40
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-error {
+    color: #a3262a
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-map {
+    border: 1px solid var(--line);
+    background: #e8edf4
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-notice {
+    background: #1e1e43;
+    color: #ffffff;
+    box-shadow: 0 6px 16px #1e1e4333
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-notice.is-quiet {
+    background: #fff;
+    color: #3c3e65;
+    border: 1px solid #e0e2f4
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-notice.is-error {
+    background: #fff1f1;
+    color: #a3262a;
+    border: 1px solid #ffd4d4
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-panel-toggle {
+    box-shadow: 0 4px 12px #1e1e431f
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-cluster {
+    background: #432fba;
+    color: #ffffff;
+    border: 3px solid #ffffffcc;
+    box-shadow: 0 2px 8px #1e1e4355
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-card {
+    border: 1px solid var(--line);
+    background: #fff
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-card-head strong {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-muted {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-summary {
+    color: #3c3e65
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-summary b {
+    color: #a3262a
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-summary b + b, :where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-summary b:last-child {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-row {
+    background: #fff;
+    border: 1px solid transparent;
+    color: #3c3e65
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-row:hover {
+    background: #f3f6fa
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-row.is-active {
+    background: #f0f2ff;
+    border-color: #d1d7ff
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-row-main strong {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-row-main small {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-imprecise {
+    color: #8a5300
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-tag {
+    background: #f7f9fc;
+    border: 1px solid #e0e2f4;
+    color: #3c3e65
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-tag.is-problema {
+    color: #a3262a;
+    background: #fff1f1;
+    border-color: #ffd4d4
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-tag.is-atencao {
+    color: #8a5300;
+    background: #fff7e6;
+    border-color: #fbe0b0
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-tag.is-ok {
+    color: #116b40;
+    background: #ecfaf3;
+    border-color: #bfe9d3
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-dl dt {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-dl dd {
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-dl small {
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-estimate {
+    background: #f1f5fa;
+    color: #56597b
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .netmap-near > small {
+    color: #4c4f74
+}
 /* light · status-page.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .st-page {
     background: #f4f6fa;
@@ -7609,6 +7767,164 @@
 }
 :where(:root[data-palette="neon"][data-theme="dark"]) .net-table small {
     color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-counts {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-counts b {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-chip {
+    border: 1px solid #38394d;
+    background: #13141d;
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-chip.is-on {
+    background: #1a1b24;
+    color: #e1e3f3;
+    border-color: #3a3c67
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-chip i, :where(:root[data-palette="neon"][data-theme="dark"]) .netmap-row i, :where(:root[data-palette="neon"][data-theme="dark"]) .netmap-tag i {
+    box-shadow: 0 0 0 1px #00000070
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-chip b {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-chip:focus-visible, :where(:root[data-palette="neon"][data-theme="dark"]) .netmap-row:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-filters label {
+    color: #bdbfcc
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-filters input, :where(:root[data-palette="neon"][data-theme="dark"]) .netmap-filters select {
+    border: 1px solid #38394d;
+    background: #1a1b24;
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-layers {
+    border: 1px solid #38394d
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-layers legend {
+    color: #bdbfcc
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-filters label.netmap-check {
+    color: #c9cad9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-pons {
+    color: #bdbfcc
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-hint {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-ok {
+    color: #7ccc9b
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-error {
+    color: #ff8a83
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-map {
+    border: 1px solid var(--line);
+    background: #161720
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-notice {
+    background: #1e1e43;
+    color: #ffffff;
+    box-shadow: 0 6px 16px #00000070
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-notice.is-quiet {
+    background: #1a1b24;
+    color: #c9cad9;
+    border: 1px solid #38394d
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-notice.is-error {
+    background: #201212;
+    color: #ff8a83;
+    border: 1px solid #5b2c2f
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-panel-toggle {
+    box-shadow: 0 4px 12px #00000044
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-cluster {
+    background: #432fba;
+    color: #ffffff;
+    border: 3px solid #2e2f3bcc;
+    box-shadow: 0 2px 8px #00000099
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-card {
+    border: 1px solid var(--line);
+    background: #1a1b24
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-card-head strong {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-muted {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-summary {
+    color: #c9cad9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-summary b {
+    color: #ff8a83
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-summary b + b, :where(:root[data-palette="neon"][data-theme="dark"]) .netmap-summary b:last-child {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-row {
+    background: #1a1b24;
+    border: 1px solid transparent;
+    color: #c9cad9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-row:hover {
+    background: #14151f
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-row.is-active {
+    background: #131526;
+    border-color: #373967
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-row-main strong {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-row-main small {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-imprecise {
+    color: #e6a968
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-tag {
+    background: #13141d;
+    border: 1px solid #38394d;
+    color: #c9cad9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-tag.is-problema {
+    color: #ff8a83;
+    background: #201212;
+    border-color: #5b2c2f
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-tag.is-atencao {
+    color: #e6a968;
+    background: #1b1200;
+    border-color: #4d3603
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-tag.is-ok {
+    color: #7ccc9b;
+    background: #091a13;
+    border-color: #104932
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-dl dt {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-dl dd {
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-dl small {
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-estimate {
+    background: #14151f;
+    color: #b6b8c4
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .netmap-near > small {
+    color: #bdbfcc
 }
 /* dark · status-page.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .st-page {

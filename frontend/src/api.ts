@@ -123,6 +123,16 @@ export type DbUsageReport = {
 
 export type NetworkSource = { fileName: string; elements: number; cables: number; importedBy: string; importedAt: string };
 export type PopOlt = { pop: string; olt: string; active: boolean; note: string | null; confirmedBy: string | null; updatedAt: string };
+// Mapa da rede: area visivel (elementos/clusters/cabos) e clientes de uma PON lidos do AutoISP.
+export type NetworkKind = 'pop' | 'cto' | 'ceo' | 'outro';
+export type NetworkSituation = 'problema' | 'atencao' | 'ok' | 'sem';
+export type NetworkElementRow = { id: string; kind: NetworkKind; code: string | null; name: string; projectCode: string | null; pop: string | null; fh: string | null; lat: number; lng: number; sourceFile: string };
+export type NetworkCableRow = { id: string; name: string; color: string | null; points: [number, number][]; sourceFile: string }; // pontos [lng, lat]
+export type NetworkArea = { elements: NetworkElementRow[]; clusters: { lat: number; lng: number; count: number }[]; cables: NetworkCableRow[] };
+export type NetworkBox = { minLat: number; minLng: number; maxLat: number; maxLng: number };
+export type PonClient = { contract: string; serial: string | null; int6: string | null; olt: string; ponlink: string; signalRx: number | null; onuStatus: string | null; lastInform: string | null; lat: number | null; lng: number | null; readAt: string; situation: NetworkSituation; precise: boolean; nearestCto: { code: string | null; meters: number } | null };
+export type PonView = { clients: PonClient[]; request: { requestedAt: string; doneAt: string | null; error: string | null } | null; summary: { total: number; problema: number; atencao: number; ok: number; sem: number } };
+export type PonRequestResult = { queued: number; skippedRecent: number; pons: { olt: string; ponlink: string }[] };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
@@ -383,6 +393,9 @@ export const api = {
   networkSources: () => request<{ sources: NetworkSource[] }>('/api/rede/fontes'),
   popOlts: () => request<{ popOlts: PopOlt[] }>('/api/rede/pop-olt'),
   savePopOlt: (data: { pop: string; olt: string; active: boolean; note?: string | null }) => request<{ popOlt: PopOlt }>('/api/rede/pop-olt', { method: 'PUT', body: JSON.stringify(data) }),
+  networkArea: (box: NetworkBox, zoom: number, signal?: AbortSignal) => request<NetworkArea>(`/api/rede/area?${new URLSearchParams({ minLat: String(box.minLat), minLng: String(box.minLng), maxLat: String(box.maxLat), maxLng: String(box.maxLng), zoom: String(zoom) })}`, { signal }),
+  networkPon: (olt: string, ponlink: string) => request<PonView>(`/api/rede/pon?${new URLSearchParams({ olt, ponlink })}`),
+  requestPon: (data: { olt: string; ponlink: string } | { callId: string }) => request<PonRequestResult>('/api/rede/pon/solicitar', { method: 'POST', body: JSON.stringify(data) }),
   popKeys: () => request<{ keys: PopKey[] }>('/api/chaves'),
   addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),
   takePopKey: (id: string, data: { holderName: string; holderKind: 'Tecnico' | 'Supervisor' | 'Outro'; holderId: string | null; notes: string | null; photo: string | null; takenAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/retirada`, { method: 'POST', body: JSON.stringify(data) }),

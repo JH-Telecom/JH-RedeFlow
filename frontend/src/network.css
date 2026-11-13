@@ -27,3 +27,92 @@
 .net-toggle { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; font-weight: 600; }
 .net-toggle input { width: auto; }
 @media (max-width: 720px) { .net-add { grid-template-columns: 1fr; } }
+
+/* Mapa da rede (NetworkMapPage + NetworkSidePanel) */
+.netmap-page { display: grid; gap: 14px; min-width: 0; }
+.netmap-page > .page-heading { margin-bottom: 4px; gap: 12px; }
+.netmap-page > .page-heading a.secondary-button { text-decoration: none; }
+.netmap-top { display: grid; gap: 12px; padding: 16px; }
+.netmap-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.netmap-counts { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #4f5d73; }
+.netmap-counts b { color: #17233b; font-size: 14px; }
+.netmap-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.netmap-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid #dce4ef; background: #f7f9fc; color: #4f5d73; font-size: 12px; font-weight: 600; text-decoration: line-through; }
+.netmap-chip.is-on { background: #fff; color: #17233b; border-color: #c5d5ed; text-decoration: none; }
+.netmap-chip i, .netmap-row i, .netmap-tag i { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px #0f172a33; }
+.netmap-chip:not(.is-on) i { opacity: .45; }
+.netmap-chip b { color: #17233b; }
+.netmap-chip:focus-visible, .netmap-row:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.netmap-filters-toggle { display: none; }
+.netmap-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.netmap-filters label { gap: 5px; font-size: 12px; color: #45536b; min-width: 150px; flex: 1 1 150px; }
+.netmap-filters label.netmap-short { min-width: 70px; flex: 0 1 80px; }
+.netmap-filters input, .netmap-filters select { height: 36px; padding: 0 10px; border: 1px solid #dce4ef; border-radius: 7px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; width: 100%; }
+.netmap-layers { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; border: 1px solid #dce4ef; border-radius: 7px; padding: 4px 10px 6px; margin: 0; flex: 2 1 300px; }
+.netmap-layers legend { font-size: 11px; color: #45536b; font-weight: 600; padding: 0 4px; }
+.netmap-filters label.netmap-check { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; min-width: 0; flex: 0 0 auto; font-weight: 600; color: #34435c; }
+.netmap-filters .netmap-check input { width: 16px; height: 16px; padding: 0; }
+.netmap-pons { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; font-weight: 600; color: #45536b; }
+.netmap-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.netmap-refresh { min-height: 38px; }
+.netmap-hint { font-size: 12px; color: #4f5d73; }
+.netmap-ok { margin: 0; font-size: 13px; color: #116b40; font-weight: 600; }
+.netmap-error { margin: 0; font-size: 13px; color: #a3262a; font-weight: 600; }
+.netmap-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+.netmap-body.is-panel-closed { grid-template-columns: minmax(0, 1fr); }
+.netmap-map-wrap { position: relative; isolation: isolate; z-index: 0; min-width: 0; }
+.netmap-map { height: calc(100vh - 330px); min-height: 440px; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: #e8edf4; }
+.netmap-notice { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; padding: 8px 14px; border-radius: 999px; background: #17233b; color: #fff; font-size: 12px; font-weight: 700; box-shadow: 0 6px 16px #17233b33; pointer-events: none; white-space: nowrap; }
+.netmap-notice.is-quiet { background: #fff; color: #34435c; border: 1px solid #dce4ef; }
+.netmap-notice.is-error { background: #fff1f1; color: #a3262a; border: 1px solid #ffd4d4; white-space: normal; max-width: 80%; }
+.netmap-panel-toggle { position: absolute; top: 10px; right: 10px; z-index: 1000; box-shadow: 0 4px 12px #17233b1f; }
+.netmap-cluster { display: grid; place-items: center; border-radius: 50%; background: #0845ae; color: #fff; border: 3px solid #ffffffcc; box-shadow: 0 2px 8px #17233b55; font-size: 12px; font-weight: 800; }
+.netmap-panel { display: grid; gap: 12px; align-content: start; max-height: calc(100vh - 330px); min-height: 440px; overflow-y: auto; }
+.netmap-card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.netmap-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.netmap-card-head strong { font-size: 14px; color: #17233b; overflow-wrap: anywhere; }
+.netmap-muted { margin: 0; font-size: 12px; color: #4f5d73; }
+.netmap-summary { margin: 0; font-size: 13px; color: #34435c; }
+.netmap-summary b { color: #a3262a; }
+.netmap-summary b + b, .netmap-summary b:last-child { color: #17233b; }
+.netmap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.netmap-row { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 7px; background: #fff; border: 1px solid transparent; text-align: left; color: #34435c; }
+.netmap-row i { margin-top: 4px; }
+.netmap-row:hover { background: #f3f6fa; }
+.netmap-row.is-active { background: #edf4ff; border-color: #c8dcfb; }
+.netmap-row-main { display: grid; gap: 2px; min-width: 0; }
+.netmap-row-main strong { font-size: 13px; color: #17233b; }
+.netmap-row-main small { font-size: 12px; color: #4f5d73; }
+.netmap-imprecise { display: inline-flex; align-items: center; gap: 4px; margin: 0; font-size: 11px; font-style: normal; font-weight: 600; color: #8a5300; }
+.netmap-tag { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #f7f9fc; border: 1px solid #dce4ef; color: #34435c; }
+.netmap-tag.is-problema { color: #a3262a; background: #fff1f1; border-color: #ffd4d4; }
+.netmap-tag.is-atencao { color: #8a5300; background: #fff7e6; border-color: #fbe0b0; }
+.netmap-tag.is-ok { color: #116b40; background: #ecfaf3; border-color: #bfe9d3; }
+.netmap-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; margin: 0; font-size: 13px; }
+.netmap-dl dt { color: #4f5d73; font-weight: 600; }
+.netmap-dl dd { margin: 0; color: #17233b; overflow-wrap: anywhere; }
+.netmap-dl small { color: #4f5d73; font-size: 12px; }
+.netmap-estimate { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 5px; background: #f1f5fa; color: #4f5d73; font-size: 11px; font-weight: 600; }
+.netmap-link { justify-self: start; text-decoration: none; }
+.netmap-near { display: grid; gap: 6px; }
+.netmap-near > small { font-size: 12px; color: #45536b; font-weight: 600; }
+.netmap-panel .list-pager { flex-wrap: wrap; gap: 8px; }
+@media (max-width: 1100px) {
+  .netmap-body { grid-template-columns: minmax(0, 1fr) 300px; }
+}
+@media (max-width: 900px) {
+  .netmap-body, .netmap-body.is-panel-closed { grid-template-columns: minmax(0, 1fr); }
+  .netmap-panel { max-height: none; min-height: 0; overflow: visible; }
+  .netmap-map { height: 60vh; min-height: 340px; }
+}
+@media (max-width: 760px) {
+  .netmap-filters-toggle { display: inline-flex; }
+  .netmap-filters { display: none; }
+  .netmap-filters.is-open { display: flex; }
+  .netmap-chips { margin-left: 0; }
+  .netmap-filters label { flex-basis: 100%; }
+  .netmap-filters label.netmap-short { flex: 1 1 40%; }
+  .netmap-layers { flex-basis: 100%; }
+  .netmap-refresh { width: 100%; }
+  .netmap-notice { white-space: normal; max-width: 80%; text-align: center; }
+}

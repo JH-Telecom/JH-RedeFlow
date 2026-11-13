@@ -1352,6 +1352,111 @@
 :where(:root:not([data-theme="dark"])) .net-table small {
     color: #4f5d73
 }
+:where(:root:not([data-theme="dark"])) .netmap-counts {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-counts b {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .netmap-chip {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-chip.is-on {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .netmap-chip b {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .netmap-filters label {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .netmap-filters input, :where(:root:not([data-theme="dark"])) .netmap-filters select {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .netmap-layers legend {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .netmap-filters label.netmap-check {
+    color: #34435c
+}
+:where(:root:not([data-theme="dark"])) .netmap-pons {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .netmap-hint {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-ok {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .netmap-error {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .netmap-notice {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .netmap-notice.is-quiet {
+    color: #34435c
+}
+:where(:root:not([data-theme="dark"])) .netmap-notice.is-error {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .netmap-cluster {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .netmap-card-head strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .netmap-muted {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-summary {
+    color: #34435c
+}
+:where(:root:not([data-theme="dark"])) .netmap-summary b {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .netmap-summary b + b, :where(:root:not([data-theme="dark"])) .netmap-summary b:last-child {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .netmap-row {
+    color: #34435c
+}
+:where(:root:not([data-theme="dark"])) .netmap-row-main strong {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .netmap-row-main small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-imprecise {
+    color: #8a5300
+}
+:where(:root:not([data-theme="dark"])) .netmap-tag {
+    color: #34435c
+}
+:where(:root:not([data-theme="dark"])) .netmap-tag.is-problema {
+    color: #a3262a
+}
+:where(:root:not([data-theme="dark"])) .netmap-tag.is-atencao {
+    color: #8a5300
+}
+:where(:root:not([data-theme="dark"])) .netmap-tag.is-ok {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .netmap-dl dt {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-dl dd {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .netmap-dl small {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-estimate {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .netmap-near > small {
+    color: #45536b
+}
 
 /* status-page.css */
 :where(:root:not([data-theme="dark"])) .st-page {
