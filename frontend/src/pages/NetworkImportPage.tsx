@@ -6,7 +6,7 @@ import { parseKml, readNetworkFile, toBatches, type NetCable, type NetElement } 
 
 // Importacao dos KMZ/KML da rede e tabela POP -> OLT. Exige a permissao network.manage.
 type Row = {
-  id: string; fileName: string; data: ArrayBuffer | null; skipped: string | null;
+  id: string; fileName: string; sha256: string; skipped: string | null;
   elements: NetElement[]; cables: NetCable[];
   state: "pronto" | "enviando" | "enviado" | "erro"; progress: string; error: string;
 };
@@ -31,7 +31,6 @@ async function sendBatch(payload: Payload, depth = 0): Promise<void> {
       if (!((err as { status?: number }).status === 413 && total > 1 && depth < MAX_SPLIT_DEPTH)) throw err;
     }
   }
-  if (total <= 1 || depth >= MAX_SPLIT_DEPTH) throw new Error("Envio grande demais: divida em lotes menores.");
   const { elements, cables } = payload;
   const useElements = elements.length > 1 || cables.length === 0;
   const cut = Math.ceil((useElements ? elements.length : cables.length) / 2);
@@ -65,12 +64,12 @@ export function NetworkImportPage() {
     setReading(true); setMessage("");
     const next: Row[] = [];
     for (const file of Array.from(files)) {
-      const base: Row = { id: `${file.name}-${file.size}-${next.length}-${Date.now()}`, fileName: file.name, data: null, skipped: null, elements: [], cables: [], state: "pronto", progress: "", error: "" };
+      const base: Row = { id: `${file.name}-${file.size}-${next.length}-${Date.now()}`, fileName: file.name, sha256: "", skipped: null, elements: [], cables: [], state: "pronto", progress: "", error: "" };
       try {
         const data = await file.arrayBuffer();
         const read = await readNetworkFile(file.name, data);
         if ("skipped" in read) next.push({ ...base, skipped: read.skipped });
-        else { const parsed = parseKml(read.text); next.push({ ...base, data, elements: parsed.elements, cables: parsed.cables }); }
+        else { const parsed = parseKml(read.text); next.push({ ...base, sha256: await sha256Hex(data), elements: parsed.elements, cables: parsed.cables }); }
       } catch (err) { next.push({ ...base, skipped: err instanceof Error ? err.message : "erro ao ler o arquivo" }); }
     }
     setRows(next); setReading(false);
@@ -82,11 +81,11 @@ export function NetworkImportPage() {
 
   async function importAll() {
     setSending(true); setMessage("");
-    let done = 0;
+    let done = 0; let failed = 0;
     for (const row of importable) {
       try {
         update(row.id, { state: "enviando", progress: "Preparando...", error: "" });
-        const sha256 = await sha256Hex(row.data!);
+        const sha256 = row.sha256;
         const elementBatches = toBatches(row.elements);
         const cableBatches = toBatches(row.cables);
         const total = elementBatches.length + cableBatches.length;
@@ -101,10 +100,10 @@ export function NetworkImportPage() {
           first = false; sent += 1; update(row.id, { progress: `Enviando lote ${sent} de ${total}` });
         }
         update(row.id, { state: "enviado", progress: "Importado" }); done += 1;
-      } catch (err) { update(row.id, { state: "erro", progress: "", error: err instanceof Error ? err.message : "Falha no envio." }); }
+      } catch (err) { failed += 1; const reason = err instanceof Error ? err.message : "erro desconhecido"; update(row.id, { state: "erro", progress: "", error: `Falha no envio: ${reason}. Os dados anteriores de "${row.fileName}" podem ter sido apagados e o arquivo está incompleto — importe de novo.` }); }
     }
     setSending(false);
-    setMessage(done ? `${done} arquivo(s) importado(s).` : "Nenhum arquivo foi importado.");
+    setMessage(`${done} importado(s), ${failed} com erro.`);
     void loadLists();
   }
 

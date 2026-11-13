@@ -2371,32 +2371,6 @@
 :where(:root[data-theme="dark"]) .net-table small {
     color: #b5b9c1
 }
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-file {
-    background: #181c22;
-    border-color: #2c333e
-}
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-file strong, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table td strong {
-    color: #dfe5ef
-}
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-file span, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-hint, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table th, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table small, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table tr.is-off td {
-    color: #7f8286
-}
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table td {
-    color: #c9d1de;
-    border-color: #2c333e
-}
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table th {
-    border-color: #2c333e
-}
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-ok {
-    color: #6de1a7
-}
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-progress {
-    color: #96c5ff
-}
-:where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .net-error {
-    color: #ff9b9e
-}
 
 /* status-page.css */
 :where(:root[data-theme="dark"]) .st-page {

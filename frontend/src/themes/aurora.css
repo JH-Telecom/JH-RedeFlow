@@ -2347,32 +2347,6 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .net-table small {
     color: #5b577a
 }
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-file {
-    background: #1b1a24;
-    border-color: #323041
-}
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-file strong, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-table td strong {
-    color: #e4e3f2
-}
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-file span, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-hint, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-table th, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-table small, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-table tr.is-off td {
-    color: #68667c
-}
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-table td {
-    color: #686678;
-    border-color: #323041
-}
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-table th {
-    border-color: #323041
-}
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-ok {
-    color: #007947
-}
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-progress {
-    color: #63569f
-}
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .net-error {
-    color: #a23b44
-}
 /* light · status-page.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .st-page {
     background: #f4f6fa;
@@ -7635,32 +7609,6 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .net-table small {
     color: #b8b7c3
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-file {
-    background: #1b1a24;
-    border-color: #323041
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-file strong, :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table td strong {
-    color: #e4e3f2
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-file span, :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-hint, :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table th, :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table small, :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table tr.is-off td {
-    color: #7f8286
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table td {
-    color: #d0cee2;
-    border-color: #323041
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-table th {
-    border-color: #323041
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-ok {
-    color: #6de1a7
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-progress {
-    color: #c0b7fc
-}
-:where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .net-error {
-    color: #ff9b9e
 }
 /* dark · status-page.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .st-page {
