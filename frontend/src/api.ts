@@ -134,11 +134,13 @@ export type PonClient = { contract: string; serial: string | null; int6: string 
 export type PonView = { clients: PonClient[]; request: { requestedAt: string; doneAt: string | null; error: string | null } | null; summary: { total: number; problema: number; atencao: number; ok: number; sem: number } };
 export type PonRequestResult = { queued: number; skippedRecent: number; pons: { olt: string; ponlink: string }[] };
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+// noCache: respostas grandes e que mudam a cada movimento (mapa da rede) ficam fora do cache por ETag.
+async function request<T>(path: string, init: RequestInit = {}, options: { noCache?: boolean } = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
   const isRead = !init.method || init.method.toUpperCase() === 'GET';
+  const useCache = isRead && !options.noCache;
   const cacheKey = `${token ? token.slice(-16) : 'anon'}|${path}`;
-  const cached = isRead ? responseCache.get(cacheKey) : undefined;
+  const cached = useCache ? responseCache.get(cacheKey) : undefined;
   const response = await fetch(`${API_URL}${path}`, { ...init, ...(isRead ? { cache: 'no-store' as RequestCache } : {}), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(cached ? { 'If-None-Match': cached.etag } : {}), ...init.headers } });
   if (response.status === 304 && cached) {
     responseCache.delete(cacheKey);
@@ -170,7 +172,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     error.missing = payload.missing;
     throw error;
   }
-  const etag = isRead ? response.headers.get('ETag') : null;
+  const etag = useCache ? response.headers.get('ETag') : null;
   if (etag) {
     responseCache.delete(cacheKey);
     responseCache.set(cacheKey, { etag, payload });
@@ -393,8 +395,8 @@ export const api = {
   networkSources: () => request<{ sources: NetworkSource[] }>('/api/rede/fontes'),
   popOlts: () => request<{ popOlts: PopOlt[] }>('/api/rede/pop-olt'),
   savePopOlt: (data: { pop: string; olt: string; active: boolean; note?: string | null }) => request<{ popOlt: PopOlt }>('/api/rede/pop-olt', { method: 'PUT', body: JSON.stringify(data) }),
-  networkArea: (box: NetworkBox, zoom: number, signal?: AbortSignal) => request<NetworkArea>(`/api/rede/area?${new URLSearchParams({ minLat: String(box.minLat), minLng: String(box.minLng), maxLat: String(box.maxLat), maxLng: String(box.maxLng), zoom: String(zoom) })}`, { signal }),
-  networkPon: (olt: string, ponlink: string) => request<PonView>(`/api/rede/pon?${new URLSearchParams({ olt, ponlink })}`),
+  networkArea: (box: NetworkBox, zoom: number, signal?: AbortSignal) => request<NetworkArea>(`/api/rede/area?${new URLSearchParams({ minLat: String(box.minLat), minLng: String(box.minLng), maxLat: String(box.maxLat), maxLng: String(box.maxLng), zoom: String(zoom) })}`, { signal }, { noCache: true }),
+  networkPon: (olt: string, ponlink: string) => request<PonView>(`/api/rede/pon?${new URLSearchParams({ olt, ponlink })}`, {}, { noCache: true }),
   requestPon: (data: { olt: string; ponlink: string } | { callId: string }) => request<PonRequestResult>('/api/rede/pon/solicitar', { method: 'POST', body: JSON.stringify(data) }),
   popKeys: () => request<{ keys: PopKey[] }>('/api/chaves'),
   addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),

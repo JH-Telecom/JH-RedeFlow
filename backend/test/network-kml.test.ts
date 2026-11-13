@@ -157,3 +157,14 @@ test('toBatches', () => {
   assert.deepEqual(sizes, [2000, 2000, 500]);
   assert.deepEqual(toBatches([1, 2, 3], 2), [[1, 2], [3]]);
 });
+
+test('parseKml: double-encoded <img onerror> in a name never comes out as a tag', () => {
+  const evil = '&amp;lt;img src=x onerror=alert(1)&amp;gt;CTO-01';
+  const r = parseKml(`<kml><Placemark><name>${evil}</name><description>&amp;lt;b onmouseover=x&amp;gt;d&amp;lt;/b&amp;gt;</description><Point><coordinates>-46.5,-23.5,0</coordinates></Point></Placemark><Placemark><name>${evil}</name><LineString><coordinates>-46.5,-23.5,0 -46.4,-23.4,0</coordinates></LineString></Placemark></kml>`);
+  const names = [...r.elements.map((e) => e.name), ...r.cables.map((c) => c.name)];
+  assert.ok(names.length >= 2);
+  for (const name of names) {
+    assert.doesNotMatch(name, /<[a-z!/]/i);
+    assert.ok(name.includes('CTO-01'));
+  }
+});

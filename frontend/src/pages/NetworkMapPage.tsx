@@ -51,6 +51,20 @@ function cableBox(cable: NetworkCableRow): Box | null {
   }
   return { minLat, minLng, maxLat, maxLng };
 }
+// Tooltip com texto puro (textContent): nomes vem dos KMZ e o Leaflet poe tooltip de string como HTML.
+function textTip(text: string): HTMLElement {
+  const span = document.createElement("span");
+  span.textContent = text;
+  return span;
+}
+// Tooltip criado so no primeiro mouseover: milhares de elementos nao pagam o custo antes da hora.
+function lazyTip<T extends L.Layer>(layer: T, text: string, options?: L.TooltipOptions): T {
+  layer.once("mouseover", (event) => {
+    layer.bindTooltip(textTip(text), options);
+    layer.openTooltip((event as L.LeafletMouseEvent).latlng);
+  });
+  return layer;
+}
 const intersects = (a: Box, b: Box) => a.minLat <= b.maxLat && a.maxLat >= b.minLat && a.minLng <= b.maxLng && a.maxLng >= b.minLng;
 const inside = (box: Box, lat: number, lng: number) => lat >= box.minLat && lat <= box.maxLat && lng >= box.minLng && lng <= box.maxLng;
 
@@ -152,12 +166,13 @@ export function NetworkMapPage() {
   }, []);
 
   useEffect(() => {
+    ponSeq.current += 1; // resposta (ou consulta periodica) da PON anterior que ainda chegar e descartada
     setPonData(null); setPonError(""); setQueueMsg(null);
     setSelection((current) => (current?.type === "client" ? null : current));
-    if (!activePon) { ponSeq.current += 1; setPonLoading(false); return; }
+    if (!activePon) { setPonLoading(false); return; }
     setPonLoading(true);
     const timer = window.setTimeout(() => void loadPon(activePon), 400);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); ponSeq.current += 1; };
   }, [activePon, loadPon]);
 
   // Pedido na fila: confere de novo ate a extensao terminar a leitura.
@@ -228,7 +243,6 @@ export function NetworkMapPage() {
       window.clearTimeout(timer);
       controller?.abort();
       observer.disconnect();
-      map.off();
       map.remove();
       mapRef.current = null;
       layersRef.current = null;
@@ -270,7 +284,13 @@ export function NetworkMapPage() {
     map.fitBounds(L.latLngBounds(precise.map((client) => [client.lat, client.lng] as L.LatLngTuple)), { padding: [40, 40], maxZoom: 17 });
   }, [ponKey, precise]);
 
-  const codeFilter = normalize(ctoCode);
+  // Codigo da CTO com atraso de 200 ms: digitar nao redesenha todas as camadas a cada tecla.
+  const [codeQuery, setCodeQuery] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCodeQuery(ctoCode), 200);
+    return () => window.clearTimeout(timer);
+  }, [ctoCode]);
+  const codeFilter = normalize(codeQuery);
   const selectElement = useCallback((element: NetworkArea["elements"][number]) => setSelection({ type: "element", element }), []);
 
   // Cabos, CTOs/CEOs/POPs e clusters da area visivel.
@@ -284,15 +304,15 @@ export function NetworkMapPage() {
       for (const cable of area.cables) {
         if (cable.points.length < 2) continue;
         const strong = highlight.cables.has(cable.id);
-        L.polyline(cable.points.map(([lng, lat]) => [lat, lng] as L.LatLngTuple), { renderer: groups.cableRenderer, color: cable.color || CABLE_FALLBACK_COLOR, weight: strong ? 5 : 2, opacity: strong ? 1 : 0.85 })
-          .bindTooltip(cable.name || "Cabo", { sticky: true })
-          .addTo(groups.cables);
+        // So os cabos destacados recebem mouse (tooltip); os demais sao so desenho.
+        const line = L.polyline(cable.points.map(([lng, lat]) => [lat, lng] as L.LatLngTuple), { renderer: groups.cableRenderer, color: cable.color || CABLE_FALLBACK_COLOR, weight: strong ? 5 : 2, opacity: strong ? 1 : 0.85, interactive: strong });
+        (strong ? lazyTip(line, cable.name || "Cabo", { sticky: true }) : line).addTo(groups.cables);
       }
     }
     if (layers.elements) {
       for (const cluster of area.clusters) {
         const size = cluster.count >= 1000 ? 46 : cluster.count >= 100 ? 38 : 30;
-        L.marker([cluster.lat, cluster.lng], { icon: L.divIcon({ className: "netmap-cluster", html: `<span>${cluster.count.toLocaleString("pt-BR")}</span>`, iconSize: [size, size] }), keyboard: false, title: `${cluster.count} CTOs/CEOs — aproxime para ver` })
+        L.marker([cluster.lat, cluster.lng], { icon: L.divIcon({ className: "netmap-cluster", html: `<span>${(Number(cluster.count) || 0).toLocaleString("pt-BR")}</span>`, iconSize: [size, size] }), keyboard: false, title: `${cluster.count} CTOs/CEOs — aproxime para ver` })
           .on("click", () => map.setView([cluster.lat, cluster.lng], Math.max(map.getZoom() + 2, 15)))
           .addTo(groups.clusters);
       }
@@ -304,8 +324,7 @@ export function NetworkMapPage() {
       if (codeFilter && item.kind !== "pop" && !matches) continue;
       const strong = highlight.ctos.has(item.id) || matches;
       const radius = item.kind === "pop" ? 8 : strong ? 8 : item.kind === "outro" ? 3 : 5;
-      L.circleMarker([item.lat, item.lng], { renderer: groups.elementRenderer, radius, color: strong ? "#111827" : "#ffffff", weight: strong ? 3 : 1.5, fillColor: ELEMENT_COLORS[item.kind], fillOpacity: 0.95 })
-        .bindTooltip(item.code || item.name || "Elemento")
+      lazyTip(L.circleMarker([item.lat, item.lng], { renderer: groups.elementRenderer, radius, color: strong ? "#111827" : "#ffffff", weight: strong ? 3 : 1.5, fillColor: ELEMENT_COLORS[item.kind], fillOpacity: 0.95 }), item.code || item.name || "Elemento")
         .on("click", () => selectElement(item))
         .addTo(groups.elements);
     }
@@ -320,7 +339,7 @@ export function NetworkMapPage() {
     for (const client of precise) {
       if (!visible[client.situation]) continue;
       L.circleMarker([client.lat, client.lng], { renderer: groups.clientRenderer, radius: 7, color: "#0f172a", weight: 1.5, fillColor: SITUATION_COLORS[client.situation], fillOpacity: 0.95 })
-        .bindTooltip(`${client.contract} · ${SITUATION_LABELS[client.situation]}`)
+        .bindTooltip(textTip(`${client.contract} · ${SITUATION_LABELS[client.situation]}`))
         .on("click", () => setSelection({ type: "client", client }))
         .addTo(groups.clients);
     }

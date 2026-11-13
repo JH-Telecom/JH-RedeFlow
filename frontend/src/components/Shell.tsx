@@ -296,7 +296,10 @@ export function Shell({
     activations: activationCount,
   };
   const visibleItems = navItems.filter((item) => canAccess(item.permission) && (!item.fieldOnly || fieldTech) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to));
-  const currentTabHidden = Boolean(currentItem && isTabHidden(hiddenTabs, currentItem.to));
+  // Bloqueia a rota se a aba dela OU qualquer aba "acima" estiver oculta (ocultar /igp tambem bloqueia /igp/pontuacao).
+  const currentTabHidden = location.pathname === "/"
+    ? Boolean(currentItem && isTabHidden(hiddenTabs, currentItem.to))
+    : navItems.some((item) => item.to !== "/" && (location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)) && isTabHidden(hiddenTabs, item.to));
   const sections = [...new Set(visibleItems.map((item) => item.section))];
   useEffect(() => {
     document.title = `${title} · JH Telecom - Rede`;

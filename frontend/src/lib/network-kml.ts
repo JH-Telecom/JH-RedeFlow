@@ -40,10 +40,13 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
-// Remove CDATA, tags HTML e entidades de um trecho de texto do KML.
+// Remove CDATA, tags HTML e entidades de um trecho de texto do KML. Descricoes vem com HTML codificado
+// (as vezes duas vezes): decodifica e tira as tags a cada passo, e as tags sao tiradas DEPOIS da ultima
+// decodificacao, para "&amp;lt;img onerror=...&amp;gt;" nunca virar marcacao de verdade.
+const stripTags = (s: string) => s.replace(/<[^>]*>/g, ' ');
 function plainText(raw: string): string {
   const unwrapped = raw.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
-  return decodeEntities(decodeEntities(unwrapped).replace(/<[^>]*>/g, ' '));
+  return stripTags(decodeEntities(stripTags(decodeEntities(unwrapped))));
 }
 
 export function projectCodeFrom(name: string, description: string): string | null {
@@ -153,7 +156,7 @@ export function parseKml(text: string): ParsedKml {
 
   for (const pm of src.matchAll(/<Placemark\b[^>]*>([\s\S]*?)<\/Placemark>/gi)) {
     const body = pm[1];
-    const rawName = decodeEntities(plainText(tagText(body, 'name'))).trim();
+    const rawName = plainText(tagText(body, 'name')).trim(); // sem decodificar de novo: plainText ja tirou as tags
     const name = rawName.replace(ZERO_WIDTH, '').trim();
     const description = tagText(body, 'description');
 
