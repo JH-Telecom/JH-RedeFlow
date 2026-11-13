@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Bell, Chrome, ChartColumn, Database, List, MessageCircle, ShieldCheck, Sparkles, UserRound, Wrench, X } from "lucide-react";
+import { Bell, Chrome, ChartColumn, Database, List, Map as MapIcon, MessageCircle, ShieldCheck, Sparkles, UserRound, Wrench, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { LATEST_RELEASE_ID, RELEASES, type Release, type ReleaseIcon, type ReleaseItem } from "../releases";
 
@@ -7,7 +7,7 @@ import { LATEST_RELEASE_ID, RELEASES, type Release, type ReleaseIcon, type Relea
 // novo em Meu perfil > Novidades.
 // Desde 11/11/2026 guarda CADA novidade vista (versao + titulo), nao so a versao: varias entregas no mesmo dia entram
 // na mesma versao, e antes quem ja tinha visto a versao do dia nao via os itens acrescentados depois.
-const ICONS: Record<ReleaseIcon, typeof Bell> = { sparkles: Sparkles, bell: Bell, list: List, chrome: Chrome, database: Database, whatsapp: MessageCircle, chart: ChartColumn, user: UserRound, shield: ShieldCheck, wrench: Wrench };
+const ICONS: Record<ReleaseIcon, typeof Bell> = { sparkles: Sparkles, bell: Bell, list: List, chrome: Chrome, database: Database, whatsapp: MessageCircle, chart: ChartColumn, user: UserRound, shield: ShieldCheck, wrench: Wrench, map: MapIcon };
 const legacySeenKey = (userId: string) => `jh-novidades-vistas:${userId}`; // formato antigo: id da ultima versao vista
 const itemsSeenKey = (userId: string) => `jh-novidades-itens:${userId}`;
 const itemKey = (release: Release, item: ReleaseItem) => `${release.id}|${item.title}`;
