@@ -296,6 +296,8 @@ async function exportarDia(data, automatico, cluster) {
   let res;
   try {
     if (cluster && !(await ofsPronto(aba.id))) throw new Error(motivoAbaFixada);
+    // Marca os blobs criados NESTA aba: so o CSV dela e capturado (um export manual em outra aba baixa normal).
+    if (!(await instalarEspiaoBlob(aba.id))) throw new Error("Não consegui preparar a captura na aba do OFS do grupo Rede · automação");
     res = await rodarNaPagina(aba.id, { alvo: data, alocacaoId: cluster ? cluster.id : cfg.alocacaoId.trim(), exportar: true, abrirConsole: true });
   } catch (e) { res = { ok: false, erro: e?.message || String(e) }; }
   if (!res.ok) {
@@ -323,17 +325,38 @@ async function lerBlobNaAba(tabId, url) {
   return result;
 }
 
+// 1.12.0: roda no mundo da pagina da aba do grupo antes do export. Guarda as URLs blob: criadas por ESTA aba, para o
+// onCreated so pegar o CSV que ela gerou. Autocontida; instala uma vez por pagina.
+function espiaoBlobNaPagina() {
+  if (!window.__rfBlobUrls) {
+    window.__rfBlobUrls = [];
+    const criar = URL.createObjectURL;
+    URL.createObjectURL = function () {
+      const url = criar.apply(this, arguments);
+      try { window.__rfBlobUrls.push(String(url)); if (window.__rfBlobUrls.length > 30) window.__rfBlobUrls.shift(); } catch (_) { /* ignora */ }
+      return url;
+    };
+  }
+  return true;
+}
+async function instalarEspiaoBlob(tabId) {
+  try { const [{ result } = {}] = await executarNoGrupo({ target: { tabId }, world: "MAIN", func: espiaoBlobNaPagina }); return result === true; } catch (_) { return false; }
+}
+async function blobsDaAbaDoGrupo(tabId) {
+  try { const [{ result } = {}] = await executarNoGrupo({ target: { tabId }, world: "MAIN", func: () => (Array.isArray(window.__rfBlobUrls) ? window.__rfBlobUrls.slice() : []) }); return Array.isArray(result) ? result : []; } catch (_) { return []; }
+}
+
+// So pega o download que a aba do grupo gerou (URL blob: criada nela durante a captura). Qualquer outro download,
+// inclusive um export manual do OFS feito em outra aba no mesmo minuto, segue normal e nunca e cancelado.
 chrome.downloads.onCreated.addListener(async (item) => {
   const { captura } = await chrome.storage.local.get("captura");
-  if (!captura || Date.now() > captura.ate) return; // nao fomos nos que pedimos: deixa o Chrome baixar normal
-  const doOfs = (u) => String(u || "").includes("alloha.fs.ocs.oraclecloud.com");
-  if (!doOfs(item.url) && !doOfs(item.referrer) && !String(item.url || "").startsWith("blob:https://alloha.fs.ocs.oraclecloud.com")) return;
+  if (!podeSerDaCaptura(item, captura, Date.now())) return; // nao fomos nos que pedimos: deixa o Chrome baixar normal
+  if (!downloadDaExportacaoDoGrupo(item, captura, Date.now(), await blobsDaAbaDoGrupo(captura.tabId))) return;
   await chrome.storage.local.remove("captura");
-  chrome.downloads.cancel(item.id).catch(() => {});
+  // O blob baixa rapido: se o cancelamento chegar tarde, apaga o arquivo que a propria extensao pediu.
+  chrome.downloads.cancel(item.id).catch(() => chrome.downloads.removeFile(item.id).catch(() => {}).then(() => chrome.downloads.erase({ id: item.id })).catch(() => {}));
   let csv = null;
-  try {
-    csv = item.url.startsWith("blob:") ? await lerBlobNaAba(captura.tabId, item.url) : await (await fetch(item.url, { credentials: "include" })).text();
-  } catch (_) { /* tratado abaixo */ }
+  try { csv = await lerBlobNaAba(captura.tabId, item.url); } catch (_) { /* tratado abaixo */ }
   if (captura.balde) {
     // Balde de cluster: so marca o cluster das ordens (nao mexe no Painel nem no "Último envio").
     const res = csv ? await enviarCluster(csv, captura.balde) : { ok: false, erro: "Não consegui ler o CSV exportado" };
@@ -418,16 +441,23 @@ async function abaDeFechamento() {
 async function esperarOfs(tabId, ms) {
   const fim = Date.now() + ms;
   let estado = "timeout";
+  let visto = "";
+  let seguidas = 0;
   while (Date.now() < fim) {
     if (!(await abaNoGrupo(tabId))) return "fora";
     try {
       const [{ result } = {}] = await executarNoGrupo({ target: { tabId }, world: "MAIN", func: () => (typeof $app !== "undefined" && document.querySelector("input.global-search-bar-input-button") ? "ok" : document.querySelector('input[type="password"]') ? "login" : "carregando") });
       if (result === "ok") return "ok";
-      if (result === "login") estado = "login";
+      visto = result === "login" ? "login" : "";
     } catch (_) {
       // Fora do site do OFS (ex.: tela de login/SSO de outro dominio, sem permissao de script): conta como login.
-      try { const aba = await chrome.tabs.get(tabId); const url = String(aba?.url || ""); if (aba?.status === "complete" && url && !url.startsWith(OFS_ORIGEM)) estado = "login"; } catch (_) { /* aba fechada */ }
+      visto = "";
+      try { const aba = await chrome.tabs.get(tabId); const url = String(aba?.url || ""); if (aba?.status === "complete" && url && !url.startsWith(OFS_ORIGEM)) visto = "login"; } catch (_) { /* aba fechada */ }
     }
+    // Login visto duas vezes seguidas: avisa logo, sem esperar o tempo todo.
+    seguidas = visto === "login" ? seguidas + 1 : 0;
+    if (seguidas >= 2) return "login";
+    if (visto === "login") estado = "login";
     await new Promise((r) => setTimeout(r, 2000));
   }
   return estado;

@@ -26,11 +26,12 @@ function urlDaAba(aba) {
 
 // ---------- decisoes puras (testadas em backend/test/extension-grupo-automacao.test.ts) ----------
 
-// Grupo da automacao entre os grupos abertos: o id guardado; senao (o Chrome troca os ids ao reabrir) o de titulo igual.
+// Grupo da automacao entre os grupos abertos: o id guardado, se o titulo ainda for exatamente o do grupo; senao
+// (o Chrome troca os ids ao reabrir) o de titulo igual. Grupo renomeado pelo usuario deixa de ser da automacao.
 function acharGrupoAutomacao(grupos, idGuardado) {
   var lista = Array.isArray(grupos) ? grupos : [];
   if (idGuardado != null) {
-    for (var i = 0; i < lista.length; i++) if (lista[i] && lista[i].id === idGuardado) return lista[i];
+    for (var i = 0; i < lista.length; i++) if (lista[i] && lista[i].id === idGuardado && lista[i].title === GRUPO_TITULO) return lista[i];
   }
   for (var j = 0; j < lista.length; j++) if (lista[j] && lista[j].title === GRUPO_TITULO) return lista[j];
   return null;
@@ -50,6 +51,21 @@ function escolherAbaDoGrupo(tipo, abas, groupId, guardadas) {
   var deOutros = Object.keys(g).filter(function (k) { return k !== tipo; }).map(function (k) { return g[k]; });
   var livre = doGrupo.find(function (a) { return urlDaAba(a).indexOf(t.origem) === 0 && deOutros.indexOf(a.id) < 0; });
   return livre ? { acao: "usar", tabId: livre.id } : { acao: "criar" };
+}
+
+var BLOB_OFS = "blob:https://alloha.fs.ocs.oraclecloud.com/";
+
+// Filtro rapido do chrome.downloads.onCreated: ha captura valida e o download e um blob: do OFS?
+function podeSerDaCaptura(item, captura, agora) {
+  if (!captura || captura.tabId == null || !(agora <= captura.ate)) return false;
+  return String((item && item.url) || "").indexOf(BLOB_OFS) === 0;
+}
+
+// O download e o CSV que a aba do grupo gerou? So se a URL blob: foi criada nessa aba (lista blobsDaAba, lida
+// nela pelo espiao de URL.createObjectURL). Download de outra aba (export manual do usuario) nunca e capturado.
+function downloadDaExportacaoDoGrupo(item, captura, agora, blobsDaAba) {
+  if (!podeSerDaCaptura(item, captura, agora)) return false;
+  return Array.isArray(blobsDaAba) && blobsDaAba.indexOf(String(item.url)) >= 0;
 }
 
 // ---------- Chrome ----------

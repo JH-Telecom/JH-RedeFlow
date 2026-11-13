@@ -98,8 +98,8 @@ test('grupo-automacao: AutoISP so usa aba do grupo e no site do AutoISP', () => 
 
 test('grupo-automacao: acharGrupoAutomacao pelo id guardado ou pelo titulo', () => {
   const { s } = carregar();
-  const grupos = [{ id: 1, title: 'Outro' }, { id: 2, title: 'Rede · automação' }];
-  assert.equal(s.acharGrupoAutomacao(grupos, 1).id, 1);
+  const grupos = [{ id: 1, title: 'Outro' }, { id: 2, title: 'Rede · automação' }, { id: 3, title: 'Rede · automação' }];
+  assert.equal(s.acharGrupoAutomacao(grupos, 3).id, 3); // id guardado com o titulo certo vence o primeiro de mesmo titulo
   assert.equal(s.acharGrupoAutomacao(grupos, 99).id, 2); // id antigo (Chrome reaberto): acha pelo titulo
   assert.equal(s.acharGrupoAutomacao([{ id: 1, title: 'Outro' }], 99), null);
 });
@@ -172,4 +172,30 @@ test('grupo-automacao: AutoISP no login vira mensagem pedindo login na aba do gr
   });
   assert.deepEqual(plain(await s.abaAutoIspPronta()), { erro: 'Faça login na aba do grupo Rede · automação (AutoISP)' });
   assert.equal(s.msgLoginNoGrupo('ofs'), 'Faça login na aba do grupo Rede · automação (OFS)');
+});
+
+test('grupo-automacao: grupo guardado que foi renomeado deixa de ser da automacao', () => {
+  const { s } = carregar();
+  assert.equal(s.acharGrupoAutomacao([{ id: 1, title: 'Minhas abas' }], 1), null);
+  assert.equal(s.acharGrupoAutomacao([{ id: 1, title: 'Minhas abas' }, { id: 2, title: 'Rede · automação' }], 1).id, 2);
+});
+
+test('grupo-automacao: download que nao veio da aba do grupo e deixado em paz', () => {
+  const { s } = carregar();
+  const agora = 1_000;
+  const captura = { ate: agora + 90_000, tabId: 2, data: '2026-11-13' };
+  const nosso = { url: 'blob:https://alloha.fs.ocs.oraclecloud.com/abc' };
+  const doUsuario = { url: 'blob:https://alloha.fs.ocs.oraclecloud.com/xyz' };
+  // Blob criado na aba do grupo durante a captura: e nosso.
+  assert.equal(s.downloadDaExportacaoDoGrupo(nosso, captura, agora, [nosso.url]), true);
+  // Export manual do usuario em outra aba (blob que a aba do grupo nao criou): nao e capturado.
+  assert.equal(s.downloadDaExportacaoDoGrupo(doUsuario, captura, agora, [nosso.url]), false);
+  assert.equal(s.downloadDaExportacaoDoGrupo(doUsuario, captura, agora, []), false);
+  // Sem captura, captura vencida ou download que nao e blob: do OFS: nunca.
+  assert.equal(s.downloadDaExportacaoDoGrupo(nosso, null, agora, [nosso.url]), false);
+  assert.equal(s.downloadDaExportacaoDoGrupo(nosso, { ...captura, ate: agora - 1 }, agora, [nosso.url]), false);
+  const http = { url: 'https://alloha.fs.ocs.oraclecloud.com/export.csv', referrer: 'https://alloha.fs.ocs.oraclecloud.com/' };
+  assert.equal(s.podeSerDaCaptura(http, captura, agora), false);
+  assert.equal(s.downloadDaExportacaoDoGrupo(http, captura, agora, [http.url]), false);
+  assert.equal(s.podeSerDaCaptura(nosso, captura, agora), true);
 });

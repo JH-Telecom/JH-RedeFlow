@@ -20,10 +20,14 @@ numa aba fora do grupo.
     ela fica sem fixar, dentro do grupo);
   - **AutoISP**, só quando há SN ou PON de massiva para ler.
 - **Deixe o grupo quieto**: não feche nem tire abas dele. Se uma aba sair do grupo, a extensão para de usá-la e abre
-  outra no grupo na próxima rodada. Se o grupo sumir (janela fechada), ela recria na última janela usada.
+  outra no grupo na próxima rodada. Se o grupo sumir (janela fechada) ou for renomeado, ela recria um na última janela usada.
+- **Não arraste suas abas para dentro do grupo**: qualquer aba do OFS ou do AutoISP que estiver no grupo pode ser usada,
+  recarregada e navegada pela automação. Mantenha suas próprias abas fora dele.
+- **Seus downloads ficam com você**: a extensão só captura o CSV gerado pela aba do grupo. Um export que você fizer no
+  seu Console de Alocação, mesmo durante a coleta automática, baixa normalmente.
 - **Login**: quando o popup mostrar "Faça login na aba do grupo Rede · automação (OFS)" ou "(AutoISP)", expanda o
   grupo, entre na aba indicada e faça login ali. Depois pode recolher o grupo de novo.
-- A aba fixada antiga do OFS (versões até 1.11) não é mais usada; pode fechar.
+- A aba fixada antiga do OFS (versões até 1.11) não é mais usada (fica fora do grupo e a extensão não mexe nela): pode fechá-la.
 
 ## O que ela faz
 
@@ -31,7 +35,7 @@ numa aba fora do grupo.
 - **Dia anterior:** exporta todo dia no horário escolhido (padrão 07:00) e devolve a tela do OFS para hoje.
 - **Qualquer dia dos últimos 31:** botão no popup.
 - **Envio manual:** se o automático falhar, exporte no OFS e selecione o CSV no popup.
-- Só captura o download que ela mesma pediu (janela de 90 s); exportações feitas à mão no OFS baixam normalmente.
+- Só captura o download que a aba do grupo gerou (janela de 90 s); exportações feitas à mão no OFS baixam normalmente.
 - Avisa por notificação depois de 3 falhas seguidas e mostra o histórico dos últimos envios.
 - **Fechamentos (v1.2):** a cada 10 minutos (pode ser 30 min ou desligado), pergunta ao RedeFlow quais chamados já
   terminaram e ainda estão sem o fechamento do OFS (`GET /api/integrations/ofs/fechamentos/pendentes`). Entram os
