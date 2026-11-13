@@ -128,7 +128,8 @@ test('parseKml', () => {
   assert.equal(cto.lng, -46.5);
   assert.equal(r.elements[1].kind, 'ceo');
   assert.equal(r.cables[0].color, '#ff0000');
-  assert.deepEqual(r.cables[0].points, [[-46.5, -23.5], [-46.4, -23.4], [-46.3, -23.3]]);
+  assert.deepEqual(r.cables[0].points, [[-46.5, -23.5], [-46.3, -23.3]]); // ponto do meio alinhado sai na simplificacao
+  assert.equal(cto.code, 'CTO-GR1-0249');
 });
 
 test('parseKml: placemark with point and line emits both; no style gives null color', () => {
@@ -167,4 +168,41 @@ test('parseKml: double-encoded <img onerror> in a name never comes out as a tag'
     assert.doesNotMatch(name, /<[a-z!/]/i);
     assert.ok(name.includes('CTO-01'));
   }
+});
+
+test('parseKml: cabos sao simplificados', () => {
+  const coords = Array.from({ length: 101 }, (_, i) => `${-46.5 + i * 0.0001},${-23.5 + (i % 2) * 0.0000001},0`).join(' ');
+  const r = parseKml(`<kml><Placemark><name>Reto</name><LineString><coordinates>${coords}</coordinates></LineString></Placemark></kml>`);
+  assert.equal(r.cables.length, 1);
+  assert.equal(r.cables[0].points.length, 2);
+});
+
+test('parseKml: cabo com mais de 5000 pontos depois de simplificar vira pedacos de ate 5000, mesmo nome e cor', () => {
+  // zigue-zague de ~11 m: nenhum ponto cai na simplificacao (tolerancia 2 m)
+  const total = 12001;
+  const coords = Array.from({ length: total }, (_, i) => `${-46.5 + i * 0.0001},${-23.5 + (i % 2) * 0.0001},0`).join(' ');
+  const r = parseKml(`<kml><Style id="s"><LineStyle><color>ff00ff00</color></LineStyle></Style><Placemark><name>Tronco</name><styleUrl>#s</styleUrl><LineString><coordinates>${coords}</coordinates></LineString></Placemark></kml>`);
+  assert.ok(r.cables.length >= 3);
+  for (const cable of r.cables) {
+    assert.ok(cable.points.length <= 5000 && cable.points.length >= 2);
+    assert.equal(cable.name, 'Tronco');
+    assert.equal(cable.color, '#00ff00');
+  }
+  for (let i = 1; i < r.cables.length; i += 1) assert.deepEqual(r.cables[i].points[0], r.cables[i - 1].points.at(-1)); // sem buraco entre os pedacos
+  const distinct = new Set(r.cables.flatMap((c) => c.points.map((p) => p.join(','))));
+  assert.equal(distinct.size, total);
+});
+
+test('parseKml: code so quando o primeiro token tem digito e nao e so o tipo', () => {
+  const pm = (name: string) => `<Placemark><name>${name}</name><Point><coordinates>-46.5,-23.5,0</coordinates></Point></Placemark>`;
+  const r = parseKml(`<kml>${pm('CTO 12')}${pm('CTO-GR1-0249')}${pm('CEO ABC')}${pm('CEO-12 rua x')}${pm('CTOI')}</kml>`);
+  assert.deepEqual(r.elements.map((e) => e.code), [null, 'CTO-GR1-0249', null, 'CEO-12', null]);
+});
+
+test('readNetworkFile ignora entradas __MACOSX/', async () => {
+  const zip = makeZip([{ name: '__MACOSX/._doc.kml', data: Buffer.from('lixo do mac') }, { name: 'doc.kml', data: Buffer.from(KML) }]);
+  const r = await readNetworkFile('a.kmz', zip);
+  assert.ok('text' in r && r.text === KML);
+  const onlyMac = makeZip([{ name: '__MACOSX/._doc.kml', data: Buffer.from('lixo') }]);
+  assert.deepEqual(await readNetworkFile('a.kmz', onlyMac), { skipped: 'zip sem arquivo .kml' });
 });
