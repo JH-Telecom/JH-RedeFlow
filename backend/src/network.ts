@@ -17,8 +17,15 @@ export function situationOf(status: string | null | undefined): Situation {
   return 'sem'; // desconhecido nunca vira "desconectado"
 }
 
+// Forma canonica unica da OLT: o AutoISP as vezes chama de OLT-GZ1-... a mesma OLT que o NOC/chamado chama de VIP-GZ1-...
+// Maiusculas, sem acento/espacos, sem o rotulo "OLT:"/"OLT " no inicio, OLT- vira VIP- e sem o "-0" final.
 export function normalizeOlt(value: string): string {
-  return String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '').toUpperCase();
+  return String(value || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .trim().replace(/^OLT\s*:\s*|^OLT\s+/i, '')
+    .replace(/\s+/g, '').toUpperCase()
+    .replace(/^OLT-/, 'VIP-')
+    .replace(/-0$/, '');
 }
 
 // '04/10' (slot/pon), '4/10' e '0/4/10' (frame/slot/pon) viram '0/4/10', sem zeros a esquerda.
