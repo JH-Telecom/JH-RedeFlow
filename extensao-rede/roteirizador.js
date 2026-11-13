@@ -1,6 +1,7 @@
-/* Roteirizador da madrugada (1.10.0, 12/11/2026). Das 00:00 as 06:00 (Sao Paulo), a cada 15 min, pergunta ao RedeFlow
-   quais ordens mover (chamados sem tecnico -> tecnico de plantao da regiao) e move cada uma na aba do OFS, pelo mesmo
-   caminho do "Mover" da extensao JH Telecom 2.1.1: busca a OS pendente de hoje -> Mover -> tecnico -> Continuar ->
+/* Roteirizador da madrugada (1.10.0, 12/11/2026; 1.12.1: janela 22:00-06:00). Das 22:00 as 06:00 (Sao Paulo), a cada
+   15 min, pergunta ao RedeFlow quais ordens mover (chamados sem tecnico -> tecnico unico da madrugada ou tecnico de
+   plantao da regiao) e move cada uma na aba do OFS, pelo mesmo caminho do "Mover" da extensao JH Telecom 2.1.1: busca a
+   OS pendente de hoje (de 00h as 06h tambem a de ontem, aberta entre 22h e 24h) -> Mover -> tecnico -> Continuar ->
    "Reordenacao de Prioridade - BackOffice" -> Mover -> confere pela pesquisa que ficou com o tecnico.
    Nunca chuta: so move ordem PENDENTE que esta num balde (CLUSTER_/BKI_); com uma pessoa, so registra e pula.
    Modo teste (ligado por padrao na tela Roteirizador): faz tudo ate escolher o tecnico e clica Ignorar. */
@@ -10,7 +11,16 @@ const ROTA_RESULTADO_URL = `${API_BASE}/api/integrations/ofs/roteirizador/result
 const ALARME_ROTA = "rf-roteirizador";
 const ROTA_MIN = 15;
 const fmtHoraSP = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", hour: "2-digit", hourCycle: "h23" });
-const madrugadaSP = () => { const h = Number(fmtHoraSP.format(new Date())) % 24; return h >= 0 && h < 6; };
+const fmtDataSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" });
+function horaSP(agora = new Date()) { return Number(fmtHoraSP.format(agora)) % 24; }
+// Madrugada = 22:00 ate 05:59 (Sao Paulo), atravessando a meia-noite.
+function madrugadaSP(agora = new Date()) { const h = horaSP(agora); return h >= 22 || h < 6; }
+// Datas (par_date do OFS, AAAA-MM-DD em Sao Paulo, nunca o fuso do PC) aceitas na busca da OS: hoje; de 00h as 06h
+// tambem ontem, porque a ordem acionada entre 22h e 24h fica com a data da vespera no OFS.
+function datasOfsAceitas(agora = new Date()) {
+  const hoje = fmtDataSP.format(agora);
+  return horaSP(agora) < 6 ? [hoje, fmtDataSP.format(new Date(agora.getTime() - 86_400_000))] : [hoje];
+}
 
 chrome.alarms.get(ALARME_ROTA).then((a) => { if (!a) chrome.alarms.create(ALARME_ROTA, { periodInMinutes: ROTA_MIN, delayInMinutes: 3 }); });
 chrome.alarms.onAlarm.addListener((alarme) => { if (alarme.name === ALARME_ROTA) void roteirizar(true); });
@@ -53,7 +63,7 @@ async function roteirizar(automatico) {
     for (const o of ordens) {
       let res;
       try {
-        const [{ result } = {}] = await executarNoGrupo({ target: { tabId: aba.id }, world: "MAIN", func: roteirizarNaPagina, args: [{ os: o.os, tecnico: o.tecnico, simular: Boolean(lista.teste) }] });
+        const [{ result } = {}] = await executarNoGrupo({ target: { tabId: aba.id }, world: "MAIN", func: roteirizarNaPagina, args: [{ os: o.os, tecnico: o.tecnico, simular: Boolean(lista.teste), datas: datasOfsAceitas() }] });
         res = result || { ok: false, erro: "A aba do OFS não respondeu" };
       } catch (e) { res = { ok: false, erro: e?.message || String(e) }; }
       const resultado = res.pular ? "Pulada" : !res.ok ? "Erro" : lista.teste ? "Teste" : "Movida";
@@ -78,6 +88,8 @@ async function roteirizarNaPagina(p) {
   const clicar = (el) => { ["pointerdown", "mousedown", "pointerup", "mouseup", "click"].forEach((t) => el.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window }))); };
   const vis = (e) => e && e.offsetParent !== null;
   const d = new Date(), hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Datas aceitas calculadas no service worker em horario de Sao Paulo (datasOfsAceitas); sem elas, so hoje.
+  const datas = Array.isArray(p.datas) && p.datas.length ? p.datas.map(String) : [hoje];
   const os = String(p.os || "").replace(/\D/g, "");
   if (!os || !p.tecnico) return { ok: false, erro: "OS ou técnico não informado" };
   const ko = window.require && window.require("knockout");
@@ -117,7 +129,7 @@ async function roteirizarNaPagina(p) {
     return true;
   };
   const stDe = (it) => { try { const dd = ko.dataFor(it), pr = dd && (dd._properties || dd); const v = pr && (pr.astatus ?? pr.status); return String(typeof v === "function" ? v() : v || "").toLowerCase(); } catch (_) { return ""; } };
-  const candidatas = () => [...document.querySelectorAll(".global-search-found-item")].filter((it) => it.querySelector(".activity-icon")?.getAttribute("par_date") === hoje && (it.querySelector(".activity-title")?.textContent || "").includes(`|${os}|`));
+  const candidatas = () => [...document.querySelectorAll(".global-search-found-item")].filter((it) => datas.includes(it.querySelector(".activity-icon")?.getAttribute("par_date")) && (it.querySelector(".activity-title")?.textContent || "").includes(`|${os}|`));
   const BALDE_GERAL = "9001";
   const voltarConsole = async () => {
     try {
@@ -133,12 +145,12 @@ async function roteirizarNaPagina(p) {
     } catch (_) {}
   };
 
-  // 1) pesquisa e abre a OS PENDENTE de hoje
+  // 1) pesquisa e abre a OS PENDENTE de hoje (ou de ontem, de madrugada)
   const achouBusca = await buscar();
   if (achouBusca === false) return { ok: false, erro: "A barra de busca do OFS não abriu (a aba está logada?)" };
   if (!achouBusca) return { ok: false, erro: "A busca do OFS não trouxe resultado" };
   let cand = candidatas();
-  if (!cand.length) return { pular: `Não achei a OS ${os} de hoje no OFS` };
+  if (!cand.length) return { pular: `Não achei a OS ${os} de ${datas.length > 1 ? "hoje nem de ontem" : "hoje"} no OFS` };
   const st0 = cand.map(stDe);
   if (st0.some(Boolean)) {
     cand = cand.filter((_, i) => !st0[i] || st0[i] === "pending").sort((a, b) => (stDe(b) === "pending") - (stDe(a) === "pending"));

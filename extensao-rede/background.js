@@ -804,7 +804,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
 // 1.12.0: grupo de abas "Rede · automação" (a automacao so usa abas dele).
 importScripts("grupo-automacao.js");
-// 1.10.0: roteirizador da madrugada (00h-06h), no fim porque usa as constantes e funcoes deste arquivo.
+// 1.10.0: roteirizador da madrugada (22h-06h desde 1.12.1), no fim porque usa as constantes e funcoes deste arquivo.
 importScripts("roteirizador.js");
 // 1.11.0: le no AutoISP os clientes das PONs das massivas (mapa da rede).
 importScripts("autoisp-rede.js");

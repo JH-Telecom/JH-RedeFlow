@@ -113,7 +113,7 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
               <li>Acionamentos pendentes recebidos das 22h às 06h são <b>aceitos pelo sistema</b> (“Roteirizador da madrugada”); card repetido é ligado ao chamado que já existe. Os recebidos antes das 22h continuam esperando o aceite manual. No modo teste nada é aceito.</li>
               <li>No OFS, o robô só move a OS <b>pendente de hoje</b> que está num balde (CLUSTER_ ou BKI_). Se já estiver com uma pessoa, ele não mexe e registra como pulada.</li>
               <li>Motivo usado: “Reordenação de Prioridade - BackOffice”. A ordem fica na posição em que o OFS colocar e o chamado já recebe o técnico aqui.</li>
-              <li>Precisa da extensão <b>1.10.0</b> no computador da coleta, com o OFS aberto e logado a noite toda. No popup, aba OFS, “Rodar agora” testa fora do horário (só no modo teste).</li>
+              <li>Precisa da extensão <b>1.12.1</b> no computador da coleta, com o OFS aberto e logado a noite toda. No popup, aba OFS, “Rodar agora” testa fora do horário (só no modo teste).</li>
             </ul>
           </section>
 
