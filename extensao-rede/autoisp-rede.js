@@ -1,9 +1,8 @@
 // Mapa da rede (1.11.1): le no AutoISP (auto.alloha.com) os clientes das PONs das massivas e manda ao RedeFlow.
 // Script classico carregado com importScripts() pelo background.js (usa autenticacao() e API_BASE de la).
 // Manda so contrato, serial, int6, OLT, ponlink, sinal, status, ultimo contato e lat/lng: nunca nome, endereco ou documento.
-// So GET no AutoISP, sempre dentro da aba dele (login de quem usa), no maximo 3 consultas ao mesmo tempo.
-
-var MSG_SEM_ABA_AUTOISP = "Abra o AutoISP (auto.alloha.com) logado neste Chrome";
+// So GET no AutoISP, sempre dentro da aba dele no grupo "Rede · automação" (1.12.0, grupo-automacao.js; login feito
+// ali), no maximo 3 consultas ao mesmo tempo. A aba do AutoISP de quem usa nunca e tocada.
 var CACHE_OLTS_REDE = { lista: [], quando: 0 };
 
 function apiBaseRede() {
@@ -94,7 +93,7 @@ function limparDetalhe(json, linhaBusca) {
 // GET dentro da aba do AutoISP (func serializada: nao enxerga nada deste arquivo, so os args).
 // modo "busca" e "detalhe": a aba devolve so os campos do mapa (nome, endereco e documento nunca saem da pagina).
 async function pegarNoAutoIsp(abaId, url, modo) {
-  var r = await chrome.scripting.executeScript({
+  var r = await executarNoGrupo({
     target: { tabId: abaId },
     args: [url, modo || "olts"],
     func: async (u, m) => {
@@ -192,9 +191,6 @@ function lerPonsPendentes() {
 async function lerPonsPendentesAgora() {
   var registro = { quando: Date.now(), pedidos: 0, lidos: 0, erros: [] };
   try {
-    var abas = await chrome.tabs.query({ url: "https://auto.alloha.com/*" });
-    var aba = abas[0];
-    if (!aba) { registro.erros.push(MSG_SEM_ABA_AUTOISP); return registro; }
     var auth = await autenticacao();
     if (!auth) { registro.erros.push("Entre com seu usuário do JH RedeFlow no popup"); return registro; }
     var r = await fetch(apiBaseRede() + "/api/integrations/autoisp/pons-pendentes", { headers: auth.headers });
@@ -203,6 +199,10 @@ async function lerPonsPendentesAgora() {
     var itens = Array.isArray(corpo.itens) ? corpo.itens : [];
     registro.pedidos = itens.length;
     if (!itens.length) return registro;
+    // So abre (ou usa) a aba do AutoISP do grupo quando ha PON na fila.
+    var pronta = await abaAutoIspPronta();
+    if (pronta.erro) { registro.erros.push(pronta.erro); return registro; }
+    var aba = pronta.aba;
     var oltsRes = await oltsDoAutoIsp(aba.id);
     // Sem a lista de OLTs (sessao vencida etc.) os pedidos ficam pendentes: nada e enviado.
     if (oltsRes.erro || !oltsRes.lista.length) { registro.erros.push("Lista de OLTs do AutoISP indisponivel: " + (oltsRes.erro || "vazia")); return registro; }

@@ -471,7 +471,7 @@ export function NetworkMapPage() {
           {!activePon && <span className="netmap-hint">Escolha a OLT, o slot e a PON.</span>}
         </div>
         {queueMsg && <p className={queueMsg.kind === "error" ? "netmap-error" : "netmap-ok"} role={queueMsg.kind === "error" ? "alert" : "status"}>{queueMsg.text}</p>}
-        {staleRequest && <p className="netmap-error" role="alert">A extensão Rede ainda não leu esta PON. Abra o AutoISP (auto.alloha.com) logado no Chrome com a extensão Rede.</p>}
+        {staleRequest && <p className="netmap-error" role="alert">A extensão Rede ainda não leu esta PON. Confira se a extensão Rede está no Chrome e faça login no AutoISP na aba do grupo "Rede · automação" (a extensão abre essa aba sozinha).</p>}
         {request?.error && <p className="netmap-error" role="alert">Última leitura com erro: {request.error}</p>}
         {ponError && <p className="netmap-error" role="alert">{ponError}</p>}
       </section>
