@@ -1649,6 +1649,12 @@
 :where(:root:not([data-theme="dark"])) .jw-icon:hover:not(:disabled), :where(:root:not([data-theme="dark"])) .jw-icon[aria-pressed="true"] {
     color: #0845ae
 }
+:where(:root:not([data-theme="dark"])) .jw-copy {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .jw-copy:hover {
+    color: #0845ae
+}
 :where(:root:not([data-theme="dark"])) .jw-rate {
     color: #4f5d73
 }

@@ -9,9 +9,9 @@
 @keyframes jw-ring { 0%, 70% { box-shadow: 0 10px 28px #17233b2e, 0 0 0 0 #1264e840; } 100% { box-shadow: 0 10px 28px #17233b2e, 0 0 0 12px #1264e800; } }
 /* "Oi! Posso ajudar? 👋" aparece ao passar o mouse no balao */
 .jw-hello { order: -1; padding: 8px 12px; border: 1px solid #e3eaf5; border-radius: 12px 12px 4px 12px; background: #fff; color: #17233b; font-size: 13px; font-weight: 600; white-space: nowrap; box-shadow: 0 8px 22px #17233b24; opacity: 0; transform: translateX(8px) scale(.96); transform-origin: right center; pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
-.jw-launcher-wrap:hover .jw-hello, .jw-launcher-wrap:focus-within .jw-hello { opacity: 1; transform: none; }
+.jw-launcher-wrap:hover .jw-hello, .jw-launcher-wrap:focus-within .jw-hello, .jw-launcher-wrap.is-greeting .jw-hello { opacity: 1; transform: none; }
 .jw-wave { display: inline-block; transform-origin: 70% 70%; }
-.jw-launcher-wrap:hover .jw-wave { animation: jw-wave 1s ease-in-out 2; }
+.jw-launcher-wrap:hover .jw-wave, .jw-launcher-wrap.is-greeting .jw-wave { animation: jw-wave 1s ease-in-out 2; }
 @keyframes jw-wave { 0%, 100% { transform: rotate(0); } 20%, 60% { transform: rotate(18deg); } 40%, 80% { transform: rotate(-10deg); } }
 
 /* Robo: cores (seguem o tema) */
@@ -37,17 +37,34 @@
 @keyframes jw-blink { 0%, 90%, 100% { transform: scaleY(1); } 93%, 95% { transform: scaleY(.12); } }
 @keyframes jw-glow { 0%, 100% { transform: scale(1); fill: #f5a524; } 50% { transform: scale(1.25); fill: #ffd166; } }
 @keyframes jw-smile { 0%, 35%, 70%, 100% { opacity: 0; } 45%, 60% { opacity: 1; } }
+/* "pensando" (resposta a caminho): olhos olham para os lados e a antena pisca mais rapido */
+.jw-bot.is-animated.is-thinking .jw-bot-look { transform-box: view-box; animation: jw-glance 1.6s ease-in-out infinite; }
+.jw-bot.is-animated.is-thinking .jw-bot-ball { animation-duration: .55s; }
+@keyframes jw-glance { 0%, 100% { transform: translateX(0); } 15%, 40% { transform: translateX(-1.6px); } 60%, 85% { transform: translateX(1.6px); } }
+/* resposta chegou: pulinho com sorriso largo (uma vez, so no cabecalho) */
+.jw-bot.is-animated.is-happy .jw-bot-hop { transform-box: view-box; transform-origin: 16px 28px; animation: jw-hop .7s ease-out; }
+.jw-bot.is-animated.is-happy .jw-bot-mouth { transform-box: fill-box; transform-origin: center top; opacity: 1; animation: jw-grin .9s ease-out; }
+@keyframes jw-hop { 0%, 100% { transform: none; } 18% { transform: translateY(0) scale(1.06, .92); } 45% { transform: translateY(-3.2px) scale(.97, 1.04); } 70% { transform: translateY(0) scale(1.04, .96); } }
+@keyframes jw-grin { 0%, 100% { transform: none; } 25%, 70% { transform: scale(1.35, 1.7); } }
 @media (prefers-reduced-motion: reduce) {
-  .jw-launcher, .jw-bot.is-animated .jw-bot-body, .jw-bot.is-animated .jw-bot-eyes, .jw-bot.is-animated .jw-bot-ball, .jw-bot.is-animated .jw-bot-mouth, .jw-launcher-wrap:hover .jw-wave { animation: none; }
+  .jw-launcher, .jw-bot.is-animated .jw-bot-body, .jw-bot.is-animated .jw-bot-eyes, .jw-bot.is-animated .jw-bot-ball, .jw-bot.is-animated .jw-bot-mouth, .jw-launcher-wrap:hover .jw-wave, .jw-launcher-wrap.is-greeting .jw-wave, .jw-bot.is-animated.is-thinking .jw-bot-look, .jw-bot.is-animated.is-happy .jw-bot-hop, .jw-bot.is-animated.is-happy .jw-bot-mouth { animation: none; }
   .jw-bot-mouth { opacity: 1; }
 }
 /* toasts do canto sobem para nao ficar em cima do balao */
 body.has-jota-h .act-toast, body.has-jota-h .image-toast { bottom: 88px; }
 
-.jw-panel { position: fixed; right: 20px; bottom: 88px; z-index: 61; display: flex; flex-direction: column; width: min(420px, calc(100vw - 32px)); height: min(620px, calc(100vh - 112px)); overflow: hidden; border: 1px solid #d7e3f6; border-radius: 16px; background: #fff; box-shadow: 0 24px 60px #17233b38; animation: jw-in .2s ease-out; }
+.jw-panel { position: fixed; right: 20px; bottom: 88px; z-index: 61; display: flex; flex-direction: column; width: min(420px, calc(100vw - 32px)); height: min(620px, calc(100vh - 112px)); overflow: hidden; border: 1px solid #d7e3f6; border-radius: 16px; background: #fff; box-shadow: 0 24px 60px #17233b38; transform-origin: calc(100% - 30px) calc(100% + 38px); animation: jw-in .2s cubic-bezier(.2, .9, .3, 1.12); }
 .jw-panel.is-expanded { width: min(920px, calc(100vw - 40px)); height: calc(100vh - 112px); }
-@keyframes jw-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .jw-panel, .jw-launcher { animation: none; transition: none; } }
+/* abre "saindo" do balao (transform-origin no centro dele) e volta para ele ao fechar */
+.jw-panel.is-closing { pointer-events: none; animation: jw-out .18s ease-in forwards; }
+@keyframes jw-in { from { opacity: 0; transform: scale(.25); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes jw-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.25); } }
+/* mensagens novas entram deslizando de leve */
+.jw-row > .jw-bubble { animation: jw-msg .22s ease-out; }
+.jw-user { animation: jw-msg-user .22s ease-out; }
+@keyframes jw-msg { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes jw-msg-user { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .jw-panel, .jw-panel.is-closing, .jw-launcher, .jw-row > .jw-bubble, .jw-user { animation: none; transition: none; } }
 
 .jw-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 14px; background: linear-gradient(120deg, #1264e8, #0845ae); color: #fff; }
 .jw-head-avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: #ffffff26; color: #fff; }
@@ -82,7 +99,10 @@ body.has-jota-h .act-toast, body.has-jota-h .image-toast { bottom: 88px; }
 .jw-icon { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border-radius: 6px; background: transparent; color: #45536b; }
 .jw-icon:hover:not(:disabled), .jw-icon[aria-pressed="true"] { background: #e3edff; color: #0845ae; }
 .jw-icon:disabled { opacity: .4; cursor: default; }
-.jw-rate { display: flex; align-items: center; gap: 2px; font-size: 12px; color: #4f5d73; }
+.jw-answer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.jw-copy { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px; border-radius: 6px; background: transparent; color: #45536b; font-size: 12px; font-weight: 600; }
+.jw-copy:hover { background: #e3edff; color: #0845ae; }
+.jw-rate { display: flex; align-items: center; gap: 2px; margin-left: auto; font-size: 12px; color: #4f5d73; }
 .jw-rate span { margin-right: 4px; }
 .jw-table-wrap { max-height: 320px; overflow: auto; border: 1px solid #e3eaf5; border-radius: 8px; background: #fff; }
 .jw-panel.is-expanded .jw-table-wrap { max-height: none; }
@@ -131,5 +151,5 @@ body.has-jota-h .act-toast, body.has-jota-h .image-toast { bottom: 88px; }
 @media (max-width: 560px) {
   .jw-launcher-wrap { right: 16px; bottom: 16px; }
   .jw-hello { display: none; }
-  .jw-panel, .jw-panel.is-expanded { right: 8px; left: 8px; bottom: 80px; width: auto; height: calc(100vh - 100px); }
+  .jw-panel, .jw-panel.is-expanded { right: 8px; left: 8px; bottom: 80px; width: auto; height: calc(100vh - 100px); transform-origin: calc(100% - 38px) calc(100% + 34px); }
 }
