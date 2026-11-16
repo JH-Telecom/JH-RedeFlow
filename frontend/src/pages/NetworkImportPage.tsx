@@ -11,7 +11,7 @@ type Row = {
   state: "pronto" | "enviando" | "enviado" | "erro"; progress: string; error: string;
 };
 type Payload = { fileName: string; sha256: string; first: boolean; elements: NetElement[]; cables: NetCable[] };
-const MAX_BATCH_BYTES = 8_000_000;
+const MAX_BATCH_BYTES = 3_500_000; // abaixo do limite de corpo do proxy da Vercel (~4,5 MB)
 const MAX_SPLIT_DEPTH = 10;
 const count = (items: NetElement[], kind: NetElement["kind"]) => items.filter((item) => item.kind === kind).length;
 const dateTime = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -21,7 +21,7 @@ async function sha256Hex(data: ArrayBuffer) {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-// Divide o lote se o JSON passar de ~8 MB; se o servidor ainda responder 413, divide ao meio e tenta de novo.
+// Divide o lote se o JSON passar de ~3,5 MB; se o servidor ainda responder 413, divide ao meio e tenta de novo.
 async function sendBatch(payload: Payload, depth = 0): Promise<void> {
   const total = payload.elements.length + payload.cables.length;
   const tooBig = total > 1 && JSON.stringify(payload).length > MAX_BATCH_BYTES;

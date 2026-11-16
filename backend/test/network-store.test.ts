@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
-import { listNetworkArea, listNetworkSources, listPopOlts, resetNetworkMemory, saveNetworkBatch, savePopOlt, type NetCable, type NetElement } from '../src/store/network.js';
+import { listCtosInBox, listNetworkArea, listNetworkSources, listPopOlts, resetNetworkMemory, saveNetworkBatch, savePopOlt, type NetCable, type NetElement } from '../src/store/network.js';
 
 const cto = (code: string | null, lat: number, lng: number, extra: Partial<NetElement> = {}): NetElement => ({ kind: 'cto', code, name: code || 'sem codigo', projectCode: null, pop: null, fh: null, lat, lng, ...extra });
 const cable = (name: string, points: Array<[number, number]>): NetCable => ({ name, color: null, points });
@@ -91,4 +91,31 @@ test('network store: POP para OLT exige motivo ao desativar', async () => {
   assert.equal(off.confirmedBy, 'bia');
   const list = await listPopOlts();
   assert.equal(list.length, 1);
+});
+
+test('network store: abaixo do zoom 14 nao manda cabos', async () => {
+  await saveNetworkBatch(batch('A.kml', [cto('C1', -23.5, -46.5)], [cable('c', [[-46.5, -23.5], [-46.4, -23.4]])]), 'ana');
+  assert.equal((await listNetworkArea(BIG, 13)).cables.length, 0);
+  assert.equal((await listNetworkArea(BIG, 14)).cables.length, 1);
+  assert.equal((await listNetworkArea(BIG, 14)).truncated, false);
+});
+
+test('network store: truncated quando atinge 5000 elementos ou 3000 cabos', async () => {
+  const many = Array.from({ length: 5001 }, (_, i) => cto(`T${i}`, -23.5 + i * 0.00001, -46.5));
+  await saveNetworkBatch(batch('A.kml', many), 'ana');
+  const area = await listNetworkArea(BIG, 16);
+  assert.equal(area.elements.length, 5000);
+  assert.equal(area.truncated, true);
+  resetNetworkMemory();
+  const cables = Array.from({ length: 3000 }, (_, i) => cable(`c${i}`, [[-46.5, -23.5], [-46.4, -23.4 + i * 0.00001]]));
+  await saveNetworkBatch(batch('B.kml', [], cables), 'ana');
+  const withCables = await listNetworkArea(BIG, 16);
+  assert.equal(withCables.cables.length, 3000);
+  assert.equal(withCables.truncated, true);
+});
+
+test('network store: listCtosInBox devolve so CTOs (code, lat, lng) dentro da caixa', async () => {
+  await saveNetworkBatch(batch('A.kml', [cto('C1', -23.5, -46.5), cto('FORA', -22, -45), cto('E1', -23.5, -46.5, { kind: 'ceo' }), cto('P1', -23.5, -46.5, { kind: 'pop' })]), 'ana');
+  const ctos = await listCtosInBox({ minLat: -23.6, minLng: -46.6, maxLat: -23.4, maxLng: -46.4 });
+  assert.deepEqual(ctos, [{ code: 'C1', lat: -23.5, lng: -46.5 }]);
 });

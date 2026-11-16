@@ -2851,6 +2851,14 @@
     background: #f5e7fa;
     color: #732489
 }
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-copy {
+    background: transparent;
+    color: #5e4a64
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-copy:hover {
+    background: #f5e7fa;
+    color: #732489
+}
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jw-rate {
     color: #67556c
 }
@@ -8269,6 +8277,14 @@
     color: #c4bdc6
 }
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-icon:hover:not(:disabled), :where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-icon[aria-pressed="true"] {
+    background: #201025;
+    color: #d29be3
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-copy {
+    background: transparent;
+    color: #c4bdc6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jw-copy:hover {
     background: #201025;
     color: #d29be3
 }

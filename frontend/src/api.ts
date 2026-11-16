@@ -101,7 +101,7 @@ export type JotaAnswer =
   | { kind: 'refused'; titulo: string; explicacao: string; sql?: string; logId?: string | null }
   | { kind: 'error'; titulo: string; explicacao: string; sql?: string; sugestoes?: string[]; logId?: string | null };
 export type JotaUsage = { today: number; week: number; errors: number; errorRate: number; people: number; thumbsUp: number; thumbsDown: number; byDay: { day: string; total: number; errors: number }[]; byPerson: { name: string; today: number; week: number; errors: number }[]; recentErrors: { at: string; name: string; question: string; error: string }[]; empty: { at: string; name: string; question: string }[] };
-export type NightRouterSettings = { enabled: boolean; testMode: boolean; updatedAt: string | null; updatedBy: string | null };
+export type NightRouterSettings = { enabled: boolean; testMode: boolean; singleTechnicianId: string | null; updatedAt: string | null; updatedBy: string | null };
 export type NightShift = { region: string; weekday: number; technicianId: string };
 export type NightRun = { id: string; callId: string | null; orderNumber: string; region: string; technicianId: string | null; technicianName: string; result: 'Movida' | 'Teste' | 'Erro' | 'Pulada'; message: string; testMode: boolean; createdAt: string };
 export type NightRouterData = { settings: NightRouterSettings; shifts: NightShift[]; runs: NightRun[]; regions: string[]; technicians: Array<{ id: string; name: string; region: string }>; janela: boolean; semTecnico: number };
@@ -128,10 +128,10 @@ export type NetworkKind = 'pop' | 'cto' | 'ceo' | 'outro';
 export type NetworkSituation = 'problema' | 'atencao' | 'ok' | 'sem';
 export type NetworkElementRow = { id: string; kind: NetworkKind; code: string | null; name: string; projectCode: string | null; pop: string | null; fh: string | null; lat: number; lng: number; sourceFile: string };
 export type NetworkCableRow = { id: string; name: string; color: string | null; points: [number, number][]; sourceFile: string }; // pontos [lng, lat]
-export type NetworkArea = { elements: NetworkElementRow[]; clusters: { lat: number; lng: number; count: number }[]; cables: NetworkCableRow[] };
+export type NetworkArea = { elements: NetworkElementRow[]; clusters: { lat: number; lng: number; count: number }[]; cables: NetworkCableRow[]; truncated?: boolean };
 export type NetworkBox = { minLat: number; minLng: number; maxLat: number; maxLng: number };
 export type PonClient = { contract: string; serial: string | null; int6: string | null; olt: string; ponlink: string; signalRx: number | null; onuStatus: string | null; lastInform: string | null; lat: number | null; lng: number | null; readAt: string; situation: NetworkSituation; precise: boolean; nearestCto: { code: string | null; meters: number } | null };
-export type PonView = { clients: PonClient[]; request: { requestedAt: string; doneAt: string | null; error: string | null } | null; summary: { total: number; problema: number; atencao: number; ok: number; sem: number } };
+export type PonView = { clients: PonClient[]; request: { requestedAt: string; doneAt: string | null; error: string | null; found: number | null; read: number | null } | null; summary: { total: number; problema: number; atencao: number; ok: number; sem: number } };
 export type PonRequestResult = { queued: number; skippedRecent: number; pons: { olt: string; ponlink: string }[] };
 
 // noCache: respostas grandes e que mudam a cada movimento (mapa da rede) ficam fora do cache por ETag.
@@ -151,22 +151,26 @@ async function request<T>(path: string, init: RequestInit = {}, options: { noCac
   const rawText = await response.text();
   let payload: any = {};
 
+  const fallbackMessage = `A API respondeu com ${response.status}${response.statusText ? ` ${response.statusText}` : ''}.`;
+  // Erro fora do formato JSON (ex.: 413 do proxy da Vercel): o erro leva o status, para quem chamou decidir (dividir o lote etc.).
+  const failWithStatus = (message: string): never => { throw Object.assign(new Error(message), { status: response.status }); };
   if (rawText) {
     const contentType = response.headers.get('content-type') || '';
     const looksLikeJson = contentType.includes('application/json') || rawText.trim().startsWith('{') || rawText.trim().startsWith('[');
     if (!looksLikeJson) {
+      if (!response.ok) failWithStatus(fallbackMessage);
       throw new Error('A API respondeu com HTML em vez de JSON. Verifique se a variavel VITE_API_URL aponta para o backend correto.');
     }
 
     try {
       payload = JSON.parse(rawText);
     } catch {
+      if (!response.ok) failWithStatus(fallbackMessage);
       throw new Error('A API respondeu com um corpo invalido. Verifique a URL do backend e o CORS.');
     }
   }
 
   if (!response.ok) {
-    const fallbackMessage = `A API respondeu com ${response.status}${response.statusText ? ` ${response.statusText}` : ''}.`;
     const error = new Error(payload.message || fallbackMessage) as Error & { missing?: string[]; status?: number };
     error.status = response.status;
     error.missing = payload.missing;
@@ -389,7 +393,7 @@ export const api = {
   jotaFeedback: (logId: string, util: boolean) => request<{ ok: boolean }>(`/api/jota-h/${encodeURIComponent(logId)}/avaliacao`, { method: 'POST', body: JSON.stringify({ util }) }),
   jotaUsage: () => request<JotaUsage>('/api/jota-h/uso'),
   nightRouter: () => request<NightRouterData>('/api/roteirizador'),
-  saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
+  saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean; singleTechnicianId?: string | null }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
   saveNightShifts: (shifts: NightShift[]) => request<{ shifts: NightShift[] }>('/api/roteirizador/escala', { method: 'PUT', body: JSON.stringify({ shifts }) }),
   networkImportBatch: (data: { fileName: string; sha256: string; first: boolean; elements: NetElement[]; cables: NetCable[] }) => request<{ elements: number; cables: number }>('/api/rede/importacao', { method: 'POST', body: JSON.stringify(data) }),
   networkSources: () => request<{ sources: NetworkSource[] }>('/api/rede/fontes'),

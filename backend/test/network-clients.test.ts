@@ -53,3 +53,50 @@ test('network clients: erro na leitura fica no pedido', async () => {
   assert.equal((await pendingPons()).length, 0);
   assert.equal((await ponView(OLT, '0/4/10')).request?.error, 'falhou');
 });
+
+test('network clients: OLT- e VIP- da mesma OLT sao a mesma PON', async () => {
+  await enqueuePons([{ olt: 'OLT-GZ1-SPO-OHW-01', ponlink: '0/4/10' }], 'ana');
+  assert.equal((await pendingPons())[0].olt, 'VIP-GZ1-SPO-OHW-01');
+  await savePonReading({ olt: 'OLT-GZ1-SPO-OHW-01', ponlink: '4/10', clients: [client('1', 'OK', -23.5, -46.5, { olt: 'OLT-GZ1-SPO-OHW-01' })], found: 1 }, 'ext');
+  assert.equal((await pendingPons()).length, 0);
+  const view = await ponView('VIP-GZ1-SPO-OHW-01', '0/4/10');
+  assert.equal(view.clients.length, 1);
+  assert.equal(view.clients[0].olt, 'VIP-GZ1-SPO-OHW-01');
+});
+
+test('network clients: pedido expoe found e read', async () => {
+  await enqueuePons([{ olt: OLT, ponlink: '0/4/10' }], 'ana');
+  let view = await ponView(OLT, '0/4/10');
+  assert.equal(view.request?.found, null);
+  assert.equal(view.request?.read, null);
+  await savePonReading({ olt: OLT, ponlink: '0/4/10', clients: [client('1', 'OK', -23.5, -46.5), client('2', 'OK', -23.5, -46.5)], found: 5 }, 'ext');
+  view = await ponView(OLT, '0/4/10');
+  assert.equal(view.request?.found, 5);
+  assert.equal(view.request?.read, 2);
+});
+
+test('network clients: readAt no futuro vindo da extensao fica limitado a agora', async () => {
+  const before = Date.now();
+  await savePonReading({ olt: OLT, ponlink: '0/4/10', clients: [client('1', 'OK', -23.5, -46.5, { readAt: '2099-01-01T00:00:00.000Z' })], found: 1 }, 'ext');
+  const readAt = Date.parse((await ponView(OLT, '0/4/10')).clients[0].readAt);
+  assert.ok(readAt >= before && readAt <= Date.now());
+  const past = '2026-01-01T00:00:00.000Z';
+  await savePonReading({ olt: OLT, ponlink: '0/4/10', clients: [client('1', 'OK', -23.5, -46.5, { readAt: past })], found: 1 }, 'ext');
+  assert.equal((await ponView(OLT, '0/4/10')).clients[0].readAt, past);
+});
+
+test('network clients: clientes espalhados em mais de 0,1 grau ficam sem CTO mais proxima', async () => {
+  await saveNetworkBatch({ fileName: 'a.kml', sha256: 'x', first: true, elements: [{ kind: 'cto', code: 'CTO-1', name: 'CTO-1', projectCode: null, pop: null, fh: null, lat: -23.5001, lng: -46.5 }], cables: [] }, 'ana');
+  await savePonReading({ olt: OLT, ponlink: '0/4/10', clients: [client('1', 'OK', -23.5, -46.5), client('2', 'OK', -23.7, -46.5)], found: 2 }, 'ext');
+  const view = await ponView(OLT, '0/4/10');
+  assert.ok(view.clients.every((c) => c.nearestCto === null));
+});
+
+test('network clients: ponView usa so CTOs (CEO nao e CTO mais proxima)', async () => {
+  await saveNetworkBatch({ fileName: 'a.kml', sha256: 'x', first: true, elements: [
+    { kind: 'ceo', code: 'CEO-1', name: 'CEO-1', projectCode: null, pop: null, fh: null, lat: -23.5, lng: -46.5 },
+    { kind: 'cto', code: 'CTO-2', name: 'CTO-2', projectCode: null, pop: null, fh: null, lat: -23.501, lng: -46.5 },
+  ], cables: [] }, 'ana');
+  await savePonReading({ olt: OLT, ponlink: '0/4/10', clients: [client('1', 'OK', -23.5, -46.5)], found: 1 }, 'ext');
+  assert.equal((await ponView(OLT, '0/4/10')).clients[0].nearestCto?.code, 'CTO-2');
+});

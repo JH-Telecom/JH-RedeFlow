@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { getSupabaseAdmin, isSupabaseConfigured } from '../integrations/supabase/client.js';
 import { RECENT_READING_MINUTES, markImprecise, nearestCto, normalizeOlt, normalizePonlink, situationOf, type Situation } from '../network.js';
-import { listNetworkArea } from './network.js';
+import { listCtosInBox } from './network.js';
 
 // Clientes lidos nas OLTs (so contrato, serial, int6, OLT, ponlink, sinal, status, ultimo contato, lat/lng; nunca nome/endereco/documento)
 // e fila de leitura de PON. Sem Supabase fica em memoria; com Supabase, em network_clients e network_pon_requests.
 export type NetClient = { contract: string; serial: string | null; int6: string | null; olt: string; ponlink: string; signalRx: number | null; onuStatus: string | null; lastInform: string | null; lat: number | null; lng: number | null; readAt: string };
-export type PonRequestInfo = { requestedAt: string; doneAt: string | null; error: string | null };
+export type PonRequestInfo = { requestedAt: string; doneAt: string | null; error: string | null; found: number | null; read: number | null };
 export type PonClientView = NetClient & { situation: Situation; precise: boolean; nearestCto: { code: string | null; meters: number } | null };
 export type PonViewResult = { clients: PonClientView[]; request: PonRequestInfo | null; summary: { total: number; problema: number; atencao: number; ok: number; sem: number } };
 export type PonReadingInput = { requestId?: string; olt: string; ponlink: string; clients: NetClient[]; found: number; error?: string | null };
@@ -15,6 +15,7 @@ type MemoryRequest = { id: string; olt: string; ponlink: string; callId: string 
 
 const MAX_CLIENTS = 1000; // uma PON tem no maximo ~128 clientes
 const CTO_BOX_PAD = 0.01; // graus em volta dos clientes para procurar CTO
+const CTO_BOX_MAX = 0.1; // caixa maior que isso (clientes espalhados demais) fica sem CTO mais proxima
 const MISSING = 'As tabelas do mapa ainda nao existem no banco (falta a migracao network_map).';
 
 const memoryClients = new Map<string, NetClient>();
@@ -47,7 +48,9 @@ const text = (value: unknown) => (typeof value === 'string' && value.trim() ? va
 function cleanClient(input: NetClient, olt: string, ponlink: string, fallbackReadAt: string): NetClient {
   const contract = String(input.contract ?? '').trim();
   if (!contract) throw new Error('Cliente sem contrato.');
-  const readAt = typeof input.readAt === 'string' && !Number.isNaN(Date.parse(input.readAt)) ? input.readAt : fallbackReadAt;
+  // readAt vem do relogio do Chrome: data no futuro vira "agora" (nao pode parecer leitura recente para sempre).
+  const parsed = typeof input.readAt === 'string' ? Date.parse(input.readAt) : NaN;
+  const readAt = Number.isNaN(parsed) || parsed > Date.parse(fallbackReadAt) ? fallbackReadAt : input.readAt;
   return { contract, serial: text(input.serial), int6: text(input.int6), olt, ponlink, signalRx: num(input.signalRx), onuStatus: text(input.onuStatus), lastInform: text(input.lastInform), lat: num(input.lat), lng: num(input.lng), readAt };
 }
 
@@ -139,12 +142,12 @@ async function loadClients(olt: string, ponlink: string): Promise<NetClient[]> {
 async function latestRequest(olt: string, ponlink: string): Promise<PonRequestInfo | null> {
   if (!isSupabaseConfigured()) {
     const latest = [...memoryRequests.values()].filter((row) => row.olt === olt && row.ponlink === ponlink).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))[0];
-    return latest ? { requestedAt: latest.requestedAt, doneAt: latest.doneAt, error: latest.error } : null;
+    return latest ? { requestedAt: latest.requestedAt, doneAt: latest.doneAt, error: latest.error, found: latest.found, read: latest.read } : null;
   }
-  const { data, error } = await getSupabaseAdmin().from('network_pon_requests').select('requested_at, done_at, error').eq('olt', olt).eq('ponlink', ponlink).order('requested_at', { ascending: false }).limit(1);
+  const { data, error } = await getSupabaseAdmin().from('network_pon_requests').select('requested_at, done_at, error, found, read').eq('olt', olt).eq('ponlink', ponlink).order('requested_at', { ascending: false }).limit(1);
   if (error) fail(error);
   const row = (data || [])[0];
-  return row ? { requestedAt: row.requested_at as string, doneAt: (row.done_at as string | null) ?? null, error: (row.error as string | null) ?? null } : null;
+  return row ? { requestedAt: row.requested_at as string, doneAt: (row.done_at as string | null) ?? null, error: (row.error as string | null) ?? null, found: (row.found as number | null) ?? null, read: (row.read as number | null) ?? null } : null;
 }
 
 export async function ponView(oltInput: string, ponlinkInput: string): Promise<PonViewResult> {
@@ -157,8 +160,7 @@ export async function ponView(oltInput: string, ponlinkInput: string): Promise<P
     const lats = precisePoints.map((p) => p.lat);
     const lngs = precisePoints.map((p) => p.lng);
     const box = { minLat: Math.min(...lats) - CTO_BOX_PAD, maxLat: Math.max(...lats) + CTO_BOX_PAD, minLng: Math.min(...lngs) - CTO_BOX_PAD, maxLng: Math.max(...lngs) + CTO_BOX_PAD };
-    const area = await listNetworkArea(box, 16);
-    ctos = area.elements.filter((element) => element.kind === 'cto').map((element) => ({ code: element.code, lat: element.lat, lng: element.lng }));
+    if (box.maxLat - box.minLat <= CTO_BOX_MAX && box.maxLng - box.minLng <= CTO_BOX_MAX) ctos = await listCtosInBox(box);
   }
   const summary = { total: marked.length, problema: 0, atencao: 0, ok: 0, sem: 0 };
   const view = marked.map((item): PonClientView => {

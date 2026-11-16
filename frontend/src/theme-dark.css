@@ -2878,6 +2878,14 @@
     background: #0d172b;
     color: #7cb6ff
 }
+:where(:root[data-theme="dark"]) .jw-copy {
+    background: transparent;
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .jw-copy:hover {
+    background: #0d172b;
+    color: #7cb6ff
+}
 :where(:root[data-theme="dark"]) .jw-rate {
     color: #b5b9c1
 }

@@ -46,6 +46,10 @@ export function NetworkSidePanel({ pon, ponLabel, loading, visible, selection, o
     .sort((a, b) => sortRank(a.situation) - sortRank(b.situation) || (a.signalRx ?? 0) - (b.signalRx ?? 0) || a.contract.localeCompare(b.contract, "pt-BR")), [pon, visible]);
   const paged = usePaged(sorted, `${ponLabel}|${Object.values(visible).join()}`);
   const summary = pon?.summary;
+  // Ultima leitura terminada: diz quando a PON veio vazia (sem erro) e quando nem todos os clientes foram lidos.
+  const lastRead = pon?.request?.doneAt ? pon.request : null;
+  const foundNone = Boolean(lastRead && lastRead.found === 0 && !lastRead.error);
+  const partial = lastRead && lastRead.found !== null && lastRead.read !== null && lastRead.read < lastRead.found ? lastRead : null;
 
   return (
     <aside className="netmap-panel" aria-label="Detalhes do mapa">
@@ -66,7 +70,9 @@ export function NetworkSidePanel({ pon, ponLabel, loading, visible, selection, o
         {ponLabel && pon && summary && (
           <p className="netmap-summary"><b>{summary.problema.toLocaleString("pt-BR")}</b> de <b>{summary.total.toLocaleString("pt-BR")}</b> clientes da PON com problema</p>
         )}
-        {ponLabel && pon && pon.clients.length === 0 && <p className="netmap-muted">Nenhum cliente lido para esta PON ainda. Use “Atualizar clientes desta PON”.</p>}
+        {ponLabel && pon && foundNone && <p className="netmap-muted">Nenhum cliente encontrado nesta PON</p>}
+        {ponLabel && pon && partial && <p className="netmap-muted">{partial.read!.toLocaleString("pt-BR")} de {partial.found!.toLocaleString("pt-BR")} lidos</p>}
+        {ponLabel && pon && pon.clients.length === 0 && !foundNone && <p className="netmap-muted">Nenhum cliente lido para esta PON ainda. Use “Atualizar clientes desta PON”.</p>}
         {ponLabel && pon && pon.clients.length > 0 && sorted.length === 0 && <p className="netmap-muted">Nenhum cliente nas situações ligadas.</p>}
         {sorted.length > 0 && (
           <ul className="netmap-list">

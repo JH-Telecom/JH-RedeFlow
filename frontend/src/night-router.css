@@ -15,6 +15,8 @@
 .nr-switches { display: flex; flex-wrap: wrap; gap: 10px 24px; }
 .nr-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #17233b; cursor: pointer; }
 .nr-switch input { width: 18px; height: 18px; padding: 0; accent-color: #1264e8; }
+.nr-single { display: grid; gap: 6px; max-width: 560px; }
+.nr-single select { width: 100%; }
 .nr-rules { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13px; color: #45536b; line-height: 1.5; }
 .nr-grid-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .nr-grid-head > div { display: grid; gap: 4px; }

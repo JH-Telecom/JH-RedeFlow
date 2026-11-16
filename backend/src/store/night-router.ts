@@ -6,20 +6,33 @@ import type { NightRun, NightRunResult, NightRouterSettings, NightShift } from '
 // historico do que o robo fez. So o backend (service_role) le e grava.
 const missing = (message: string) => /night_router/.test(message) ? 'As tabelas do roteirizador ainda nao existem no banco (falta a migracao night_router).' : message;
 
-const memory = { settings: { enabled: false, testMode: true, updatedAt: null, updatedBy: null } as NightRouterSettings, shifts: [] as NightShift[], runs: [] as NightRun[] };
+const memory = { settings: { enabled: false, testMode: true, singleTechnicianId: null, updatedAt: null, updatedBy: null } as NightRouterSettings, shifts: [] as NightShift[], runs: [] as NightRun[] };
+
+// Coluna single_technician_id (migracao 202611130003): enquanto nao existir no banco, o roteirizador segue funcionando
+// com a escala por regiao (le sem ela) e so salvar um tecnico unico avisa que falta a migracao.
+const missingSingleColumn = (message: string) => /single_technician_id/.test(message);
+type SettingsRow = { enabled: boolean; test_mode: boolean; single_technician_id?: string | null; updated_at: string | null; updated_by: string | null };
 
 export async function getNightRouterSettings(): Promise<NightRouterSettings> {
   if (!isSupabaseConfigured()) return { ...memory.settings };
-  const { data, error } = await getSupabaseAdmin().from('night_router_settings').select('enabled, test_mode, updated_at, updated_by').eq('id', 1).maybeSingle();
+  const admin = getSupabaseAdmin();
+  let { data, error } = await admin.from('night_router_settings').select('enabled, test_mode, single_technician_id, updated_at, updated_by').eq('id', 1).maybeSingle<SettingsRow>();
+  if (error && missingSingleColumn(error.message)) ({ data, error } = await admin.from('night_router_settings').select('enabled, test_mode, updated_at, updated_by').eq('id', 1).maybeSingle<SettingsRow>());
   if (error) throw new Error(missing(error.message));
-  return { enabled: Boolean(data?.enabled), testMode: data ? Boolean(data.test_mode) : true, updatedAt: data?.updated_at ?? null, updatedBy: data?.updated_by ?? null };
+  return { enabled: Boolean(data?.enabled), testMode: data ? Boolean(data.test_mode) : true, singleTechnicianId: data?.single_technician_id ?? null, updatedAt: data?.updated_at ?? null, updatedBy: data?.updated_by ?? null };
 }
 
-export async function saveNightRouterSettings(input: { enabled: boolean; testMode: boolean }, actorName: string): Promise<NightRouterSettings> {
+// singleTechnicianId: undefined mantem o atual; null limpa (volta para a escala por regiao).
+export async function saveNightRouterSettings(input: { enabled: boolean; testMode: boolean; singleTechnicianId?: string | null }, actorName: string): Promise<NightRouterSettings> {
   const updatedAt = new Date().toISOString();
-  if (!isSupabaseConfigured()) { memory.settings = { ...input, updatedAt, updatedBy: actorName }; return { ...memory.settings }; }
-  const { error } = await getSupabaseAdmin().from('night_router_settings').upsert({ id: 1, enabled: input.enabled, test_mode: input.testMode, updated_at: updatedAt, updated_by: actorName });
-  if (error) throw new Error(missing(error.message));
+  if (!isSupabaseConfigured()) {
+    memory.settings = { enabled: input.enabled, testMode: input.testMode, singleTechnicianId: input.singleTechnicianId === undefined ? memory.settings.singleTechnicianId : input.singleTechnicianId, updatedAt, updatedBy: actorName };
+    return { ...memory.settings };
+  }
+  const row: Record<string, unknown> = { id: 1, enabled: input.enabled, test_mode: input.testMode, updated_at: updatedAt, updated_by: actorName };
+  if (input.singleTechnicianId !== undefined) row.single_technician_id = input.singleTechnicianId;
+  const { error } = await getSupabaseAdmin().from('night_router_settings').upsert(row);
+  if (error) throw new Error(missingSingleColumn(error.message) ? 'Falta a migracao do tecnico unico da madrugada (202611130003_night_router_single_technician).' : missing(error.message));
   return getNightRouterSettings();
 }
 

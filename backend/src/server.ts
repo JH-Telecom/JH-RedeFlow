@@ -63,7 +63,8 @@ import { scoreIgp } from './igp-score.js';
 import { normalizeOltCode } from './integrations/wuzapi/noc-consolidation.js';
 import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing } from './missing-region.js';
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
-import { isNightWindow, nightStartIso, pickNightOrders } from './night-router.js';
+import { isNightWindow, nightStartIso, pickNightOrders, singleNightTechnician } from './night-router.js';
+import { sweepNightActivations } from './night-auto-accept.js';
 import { listNetworkArea, listNetworkSources, listPopOlts, saveNetworkBatch, savePopOlt } from './store/network.js';
 import { enqueuePons, pendingPons, ponView, savePonReading } from './store/network-clients.js';
 import { normalizeOlt, normalizePonlink, ponsFromCall } from './network.js';
@@ -1556,7 +1557,7 @@ app.post('/api/integrations/autoisp/pon', async (request, response) => {
   // .strict(): nome, endereco e qualquer outro campo fora desta lista sao recusados (privacidade).
   const client = z.object({
     contract: z.string().trim().min(1).max(20),
-    serial: z.string().trim().max(40).nullable(),
+    serial: z.string().trim().max(60).nullable(), // igual ao limite da extensao (textoCurto 60)
     int6: z.string().trim().max(20).nullable(),
     olt: z.string().trim().max(120),
     ponlink: z.string().trim().max(40),
@@ -1624,8 +1625,10 @@ app.post('/api/integrations/ofs/relato', async (request, response) => {
   await recordIntegrationEvent(tipo, ok, summary, { stage: 'extension', by: identity.label, versao, falhas, orderErrors: errors });
   return response.json({ ok: true });
 });
-// Roteirizador da madrugada (ver night-router.ts). A extensao pergunta a cada 15 min o que mover; fora das 00h-06h,
-// desligado ou sem escala, a lista vem vazia. Depois manda o resultado de cada ordem.
+// Roteirizador da madrugada (ver night-router.ts). A extensao pergunta a cada 15 min o que mover; fora das 22h-06h,
+// desligado ou sem escala/tecnico unico, a lista vem vazia. Depois manda o resultado de cada ordem.
+// Antes de escolher as ordens, aceita sozinho os acionamentos pendentes desta madrugada (ver night-auto-accept.ts),
+// para o chamado recem-criado ja ir no mesmo ciclo. No modo teste so conta (`aceitariamos`).
 app.get('/api/integrations/ofs/roteirizador/pendentes', async (request, response) => {
   const identity = await ofsCollectorIdentity(request);
   if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
@@ -1634,9 +1637,13 @@ app.get('/api/integrations/ofs/roteirizador/pendentes', async (request, response
     const janela = isNightWindow();
     // "Rodar agora" no popup (forcar=1): fora da madrugada so vale no modo teste, que nao move nada.
     const forced = request.query.forcar === '1' && settings.testMode;
-    if (!settings.enabled || (!janela && !forced)) return response.json({ ativo: settings.enabled, teste: settings.testMode, janela, ordens: [] });
+    if (!settings.enabled || (!janela && !forced)) return response.json({ ativo: settings.enabled, teste: settings.testMode, janela, ordens: [], aceitos: 0, aceitariamos: 0 });
+    const sweep = await sweepNightActivations(settings, Date.now(), {}, identity.label).catch((error) => {
+      console.warn(`[Roteirizador] aceite automatico falhou: ${error instanceof Error ? error.message : error}`);
+      return { aceitos: 0, aceitariamos: 0 };
+    });
     const [calls, shifts, technicians, runs] = await Promise.all([listCalls(['Aberto', 'Atribuido', 'Atrelado']), listNightShifts(), listTechnicians(), listNightRuns({ since: nightStartIso(), limit: 500 })]);
-    return response.json({ ativo: true, teste: settings.testMode, janela, ordens: pickNightOrders(calls, shifts, technicians, runs, Date.now(), forced) });
+    return response.json({ ativo: true, teste: settings.testMode, janela, ordens: pickNightOrders(calls, shifts, technicians, runs, Date.now(), forced, settings.singleTechnicianId), aceitos: sweep.aceitos, aceitariamos: sweep.aceitariamos });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar a lista do roteirizador.' }); }
 });
 app.post('/api/integrations/ofs/roteirizador/resultado', async (request, response) => {
@@ -1685,9 +1692,14 @@ app.get('/api/roteirizador', auth, requirePermission('imports.view'), async (_re
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o roteirizador.' }); }
 });
 app.put('/api/roteirizador/config', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
-  const parsed = z.object({ enabled: z.boolean(), testMode: z.boolean() }).safeParse(request.body);
+  const parsed = z.object({ enabled: z.boolean(), testMode: z.boolean(), singleTechnicianId: z.string().trim().max(100).nullable().optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Configuracao invalida.' });
-  try { return response.json({ settings: await saveNightRouterSettings(parsed.data, request.authUser!.name) }); }
+  try {
+    // Tecnico unico da madrugada: "" ou null limpa (volta para a escala); preenchido tem de ser um tecnico ativo.
+    const singleTechnicianId = parsed.data.singleTechnicianId === undefined ? undefined : parsed.data.singleTechnicianId || null;
+    if (singleTechnicianId && !singleNightTechnician(await listTechnicians(), singleTechnicianId)) return response.status(422).json({ message: 'O tecnico unico da madrugada precisa ser um tecnico ativo (nao auxiliar, nao demitido).' });
+    return response.json({ settings: await saveNightRouterSettings({ ...parsed.data, singleTechnicianId }, request.authUser!.name) });
+  }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar.' }); }
 });
 app.put('/api/roteirizador/escala', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
@@ -2150,6 +2162,8 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
     groupLog(`acionamento registrado ${activation.id} (${analysis.tipo_card || 'sem tipo'}, BDESK ${analysis.bdesk || '-'})`);
     void sendOltNotice(activation.id, withCardFallback(analysis, legacyData), operationalText);
     if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
+    // Madrugada (22h-06h) com o roteirizador ligado e fora do modo teste: aceita ja, sem esperar a extensao.
+    if (isNightWindow()) void getNightRouterSettings().then((settings) => sweepNightActivations(settings)).catch((error) => console.warn(`[Roteirizador] aceite automatico falhou: ${error instanceof Error ? error.message : error}`));
     return response.status(202).json({ activationId: activation.id, status: activation.status });
   } catch (error) {
     console.error('[WuzAPI] falha ao registrar acionamento:', error);

@@ -121,3 +121,21 @@ test('rede: importacao acima de 15 MB responde 413 e area com valor vazio respon
   const empty = await fetch(`${baseUrl}/api/rede/area?minLat=&minLng=-46.7&maxLat=-23.5&maxLng=-46.6`, { headers: admin });
   assert.equal(empty.status, 400);
 });
+
+test('rede: a extensao pode mandar serial de ate 60 caracteres', async () => {
+  const client = { contract: '123', serial: 'S'.repeat(60), int6: null, olt: 'VIP-SMP-SPO-ONK-01', ponlink: '0/4/9', signalRx: -20, onuStatus: 'ok', lastInform: null, lat: -23.55, lng: -46.63, readAt: new Date().toISOString() };
+  const base = { olt: 'VIP-SMP-SPO-ONK-01', ponlink: '0/4/9', found: 1 };
+  const ok = await fetch(`${baseUrl}/api/integrations/autoisp/pon`, { method: 'POST', headers: machine, body: JSON.stringify({ ...base, clients: [client] }) });
+  assert.equal(ok.status, 200);
+  const tooLong = await fetch(`${baseUrl}/api/integrations/autoisp/pon`, { method: 'POST', headers: machine, body: JSON.stringify({ ...base, clients: [{ ...client, serial: 'S'.repeat(61) }] }) });
+  assert.equal(tooLong.status, 400);
+});
+
+test('rede: area abaixo do zoom 14 devolve sem cabos e com truncated', async () => {
+  const headers = await login('admin@jhtelecom.com');
+  const response = await fetch(`${baseUrl}/api/rede/area?minLat=-23.6&minLng=-46.7&maxLat=-23.5&maxLng=-46.6&zoom=13`, { headers });
+  assert.equal(response.status, 200);
+  const body = await response.json() as { cables: unknown[]; truncated: boolean };
+  assert.deepEqual(body.cables, []);
+  assert.equal(body.truncated, false);
+});

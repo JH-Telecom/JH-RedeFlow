@@ -12,6 +12,7 @@ import { ChecklistBox } from "../components/FieldAdmin";
 import { checklistForType, type ChecklistTemplate } from "../api";
 import { operationalRegions } from "../lib/constants";
 import { isSaveEnter, registerUnsaved } from "../lib/keyboard";
+import { isTabHidden } from "../lib/nav-items";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
 function formatEventGap(eventAt: string, openedAt: string) {
@@ -116,7 +117,8 @@ export function CallDetailBase() {
       const raw = localStorage.getItem("jh-redeflow-session");
       const session = raw ? JSON.parse(raw) : null;
       setCanDeleteCall(Boolean(session?.user?.role?.permissions?.includes("calls.delete")));
-      setCanViewNetwork(Boolean(session?.user?.role?.permissions?.includes("network.view")));
+      // Aba /rede oculta para o cargo: o botao "Ver no mapa" some tambem.
+      setCanViewNetwork(Boolean(session?.user?.role?.permissions?.includes("network.view")) && !isTabHidden(session?.user?.role?.hiddenTabs, "/rede"));
     } catch {
       setCanDeleteCall(false);
       setCanViewNetwork(false);

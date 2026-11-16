@@ -14,6 +14,7 @@ export type NetworkBatch = { fileName: string; sha256: string; first: boolean; e
 
 const CLUSTER_ZOOM = 15; // abaixo disso CTOs/CEOs viram clusters
 const CLUSTER_GRID = 0.005; // graus
+const CABLE_ZOOM = 14; // abaixo disso os cabos nao vao (pesam demais e nao da para ver)
 const MAX_ELEMENTS = 5000;
 const MAX_CABLES = 3000;
 const CHUNK = 500;
@@ -148,14 +149,19 @@ async function paged<T>(limit: number, build: (from: number, to: number) => Prom
   return rows;
 }
 
-export async function listNetworkArea(box: NetworkBox, zoom: number): Promise<{ elements: NetElementRow[]; clusters: Array<{ lat: number; lng: number; count: number }>; cables: NetCableRow[] }> {
+export type NetworkArea = { elements: NetElementRow[]; clusters: Array<{ lat: number; lng: number; count: number }>; cables: NetCableRow[]; truncated: boolean };
+
+// truncated: a area bateu o limite de elementos ou de cabos e o mapa pede para aproximar.
+export async function listNetworkArea(box: NetworkBox, zoom: number): Promise<NetworkArea> {
   const grouped = zoom < CLUSTER_ZOOM;
+  const withCables = zoom >= CABLE_ZOOM;
+  const result = (elements: NetElementRow[], clusters: NetworkArea['clusters'], cables: NetCableRow[]): NetworkArea => ({ elements, clusters, cables, truncated: elements.length >= MAX_ELEMENTS || cables.length >= MAX_CABLES });
   if (!isSupabaseConfigured()) {
     const inside = [...memoryElements.values()].filter((row) => inBox(row.lat, row.lng, box));
     const elements = (grouped ? inside.filter((row) => row.kind === 'pop') : inside).slice(0, MAX_ELEMENTS);
     const clusters = grouped ? clusterize(inside.filter((row) => row.kind === 'cto' || row.kind === 'ceo')) : [];
-    const cables = [...memoryCables.values()].filter((row) => { const b = cableBox(row.points); return b.minLat <= box.maxLat && b.maxLat >= box.minLat && b.minLng <= box.maxLng && b.maxLng >= box.minLng; }).slice(0, MAX_CABLES);
-    return { elements, clusters, cables };
+    const cables = withCables ? [...memoryCables.values()].filter((row) => { const b = cableBox(row.points); return b.minLat <= box.maxLat && b.maxLat >= box.minLat && b.minLng <= box.maxLng && b.maxLng >= box.minLng; }).slice(0, MAX_CABLES) : [];
+    return result(elements, clusters, cables);
   }
   const admin = getSupabaseAdmin();
   const elementRows = await paged<ElementDbRow>(MAX_ELEMENTS, (from, to) => {
@@ -163,14 +169,23 @@ export async function listNetworkArea(box: NetworkBox, zoom: number): Promise<{ 
     if (grouped) query = query.eq('kind', 'pop');
     return query.order('id').range(from, to);
   });
-  let clusters: Array<{ lat: number; lng: number; count: number }> = [];
+  let clusters: NetworkArea['clusters'] = [];
   if (grouped) {
     const { data, error } = await admin.rpc('network_clusters', { min_lat: box.minLat, min_lng: box.minLng, max_lat: box.maxLat, max_lng: box.maxLng, grid: CLUSTER_GRID });
     if (error) fail(error);
     clusters = ((data || []) as Array<{ lat: number; lng: number; count: number | string }>).map((row) => ({ lat: row.lat, lng: row.lng, count: Number(row.count) }));
   }
-  const cableRows = await paged<CableDbRow>(MAX_CABLES, (from, to) => admin.from('network_cables').select('id, name, color, points, source_file').lte('min_lat', box.maxLat).gte('max_lat', box.minLat).lte('min_lng', box.maxLng).gte('max_lng', box.minLng).order('id').range(from, to));
-  return { elements: elementRows.map(mapElement), clusters, cables: cableRows.map(mapCable) };
+  const cableRows = withCables ? await paged<CableDbRow>(MAX_CABLES, (from, to) => admin.from('network_cables').select('id, name, color, points, source_file').lte('min_lat', box.maxLat).gte('max_lat', box.minLat).lte('min_lng', box.maxLng).gte('max_lng', box.minLng).order('id').range(from, to)) : [];
+  return result(elementRows.map(mapElement), clusters, cableRows.map(mapCable));
+}
+
+// So CTOs (codigo e posicao) dentro da caixa: usado para achar a CTO mais proxima dos clientes de uma PON.
+export async function listCtosInBox(box: NetworkBox): Promise<Array<{ code: string | null; lat: number; lng: number }>> {
+  if (!isSupabaseConfigured()) {
+    return [...memoryElements.values()].filter((row) => row.kind === 'cto' && inBox(row.lat, row.lng, box)).slice(0, MAX_ELEMENTS).map((row) => ({ code: row.code, lat: row.lat, lng: row.lng }));
+  }
+  const admin = getSupabaseAdmin();
+  return paged<{ code: string | null; lat: number; lng: number }>(MAX_ELEMENTS, (from, to) => admin.from('network_elements').select('code, lat, lng').eq('kind', 'cto').gte('lat', box.minLat).lte('lat', box.maxLat).gte('lng', box.minLng).lte('lng', box.maxLng).order('id').range(from, to));
 }
 
 type PopOltDbRow = { pop: string; olt: string; active: boolean | null; note: string | null; confirmed_by: string | null; updated_at: string };
