@@ -81,12 +81,32 @@ async function copyText(text: string): Promise<boolean> {
 const STORE_KEY = "jota-h:conversa";
 const STORE_MAX = 40;
 const INTERRUPTED = "A resposta foi interrompida ao recarregar a página.";
+// Valida o formato de cada mensagem salva: uma mensagem antiga ou adulterada nao pode derrubar o widget ao renderizar.
+function isStoredMessage(value: unknown): value is Message {
+  if (!value || typeof value !== "object") return false;
+  const message = value as Record<string, unknown>;
+  if (typeof message.id !== "number") return false;
+  if (message.from === "user") return typeof message.text === "string";
+  if (message.from !== "bot") return false;
+  switch (message.kind) {
+    case "loading": return true;
+    case "error": return typeof message.text === "string";
+    case "topic": return typeof message.title === "string" && Array.isArray(message.questions) && message.questions.every((q) => typeof q === "string");
+    case "answer": {
+      const answer = message.answer as Record<string, unknown> | null;
+      if (typeof message.question !== "string" || !answer || typeof answer !== "object" || typeof answer.kind !== "string") return false;
+      if (answer.kind === "query") return Array.isArray(answer.colunas) && Array.isArray(answer.linhas);
+      return true;
+    }
+    default: return false;
+  }
+}
 function restoreMessages(user: string): Message[] {
   try {
     const saved = JSON.parse(sessionStorage.getItem(STORE_KEY) || "null") as { user?: unknown; messages?: unknown } | null;
     if (!saved || saved.user !== user || !Array.isArray(saved.messages)) return [];
-    return (saved.messages as Message[])
-      .filter((message) => message && typeof message === "object" && typeof message.id === "number" && (message.from === "user" || message.from === "bot"))
+    return (saved.messages as unknown[])
+      .filter(isStoredMessage)
       .slice(-STORE_MAX)
       .map((message): Message => (message.from === "bot" && message.kind === "loading" ? { id: message.id, from: "bot", kind: "error", text: INTERRUPTED } : message));
   } catch { return []; }
@@ -95,7 +115,10 @@ function saveMessages(user: string, messages: Message[]) {
   try {
     if (messages.length) sessionStorage.setItem(STORE_KEY, JSON.stringify({ user, messages: messages.slice(-STORE_MAX) }));
     else sessionStorage.removeItem(STORE_KEY);
-  } catch { /* armazenamento cheio ou bloqueado: a conversa so nao sobrevive ao F5 */ }
+  } catch {
+    // armazenamento cheio ou bloqueado: apaga a copia antiga para o F5 nao trazer uma conversa desatualizada
+    try { sessionStorage.removeItem(STORE_KEY); } catch { /* bloqueado */ }
+  }
 }
 
 // Data usada para as fantasias. Para QA, force um dia no console:
@@ -333,8 +356,9 @@ export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSe
   // Ctrl+J (Cmd+J no Mac) abre/fecha de qualquer lugar, inclusive com o foco na caixa do Jota H.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "j" || event.repeat) return;
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== "j") return;
       event.preventDefault();
+      if (event.repeat) return;
       togglePanel();
     };
     window.addEventListener("keydown", onKey);

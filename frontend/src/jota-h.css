@@ -40,6 +40,9 @@
 /* "pensando" (resposta a caminho): olhos olham para os lados e a antena pisca mais rapido */
 .jw-bot.is-animated.is-thinking .jw-bot-look { transform-box: view-box; animation: jw-glance 1.6s ease-in-out infinite; }
 .jw-bot.is-animated.is-thinking .jw-bot-ball { animation-duration: .55s; }
+/* Pensando: a cabeca balanca de leve. Aparece mesmo com gorro (sem antena) e com oculos (olhos cobertos). */
+.jw-bot.is-animated.is-thinking .jw-bot-hop { transform-box: view-box; transform-origin: 16px 27px; animation: jw-ponder 1.6s ease-in-out infinite; }
+@keyframes jw-ponder { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } }
 @keyframes jw-glance { 0%, 100% { transform: translateX(0); } 15%, 40% { transform: translateX(-1.6px); } 60%, 85% { transform: translateX(1.6px); } }
 /* resposta chegou: pulinho com sorriso largo (uma vez, so no cabecalho) */
 .jw-bot.is-animated.is-happy .jw-bot-hop { transform-box: view-box; transform-origin: 16px 28px; animation: jw-hop .7s ease-out; }
@@ -47,7 +50,7 @@
 @keyframes jw-hop { 0%, 100% { transform: none; } 18% { transform: translateY(0) scale(1.06, .92); } 45% { transform: translateY(-3.2px) scale(.97, 1.04); } 70% { transform: translateY(0) scale(1.04, .96); } }
 @keyframes jw-grin { 0%, 100% { transform: none; } 25%, 70% { transform: scale(1.35, 1.7); } }
 @media (prefers-reduced-motion: reduce) {
-  .jw-launcher, .jw-bot.is-animated .jw-bot-body, .jw-bot.is-animated .jw-bot-eyes, .jw-bot.is-animated .jw-bot-ball, .jw-bot.is-animated .jw-bot-mouth, .jw-launcher-wrap:hover .jw-wave, .jw-launcher-wrap.is-greeting .jw-wave, .jw-bot.is-animated.is-thinking .jw-bot-look, .jw-bot.is-animated.is-happy .jw-bot-hop, .jw-bot.is-animated.is-happy .jw-bot-mouth { animation: none; }
+  .jw-launcher, .jw-bot.is-animated .jw-bot-body, .jw-bot.is-animated .jw-bot-eyes, .jw-bot.is-animated .jw-bot-ball, .jw-bot.is-animated .jw-bot-mouth, .jw-launcher-wrap:hover .jw-wave, .jw-launcher-wrap.is-greeting .jw-wave, .jw-bot.is-animated.is-thinking .jw-bot-look, .jw-bot.is-animated.is-thinking .jw-bot-hop, .jw-bot.is-animated.is-happy .jw-bot-hop, .jw-bot.is-animated.is-happy .jw-bot-mouth { animation: none; }
   .jw-bot-mouth { opacity: 1; }
 }
 /* toasts do canto sobem para nao ficar em cima do balao */
