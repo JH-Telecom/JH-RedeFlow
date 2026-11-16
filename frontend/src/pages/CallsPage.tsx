@@ -303,7 +303,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
         : { text: formatDuration(minutes), tone: slaTone(state), sub: `${SLA_LABELS[state]} · desde ${shortDateTime(call.openedAt)}` };
       return [
         { text: call.orderNumber, strong: true, sub: call.bdesk && call.bdesk !== call.orderNumber ? `BDESK ${call.bdesk}` : undefined },
-        ...(showTechnician ? [{ text: call.technicianName || "Sem técnico", sub: call.supervisorName || undefined }] : []),
+        ...(showTechnician ? [{ text: call.technicianName || "Sem técnico", sub: call.supportTechnicianName ? `Apoio: ${call.supportTechnicianName}` : call.supervisorName || undefined }] : []),
         clock,
         { text: call.type, sub: call.reason || undefined },
         { text: call.bairro || call.city || call.region || "Sem bairro", sub: [call.bairro || call.city ? call.region : "", call.olt].filter(Boolean).join(" · ") || undefined },
