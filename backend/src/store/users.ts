@@ -136,6 +136,19 @@ export async function deleteUser(id: string): Promise<boolean> {
   return users.delete(id);
 }
 
+async function ensureSupabasePermissions(codes: PermissionCode[]) {
+  const uniqueCodes = [...new Set(codes)];
+  if (!uniqueCodes.length) return [];
+  const { data, error } = await getSupabaseAdmin()
+    .from('permissions')
+    .upsert(uniqueCodes.map((code) => ({ code, description: permissionDescriptions[code] })), { onConflict: 'code' })
+    .select('id, code');
+  if (error) throw new Error(error.message || 'Nao foi possivel carregar as permissoes do cargo.');
+  const rows = data || [];
+  if (rows.length !== uniqueCodes.length) throw new Error('O banco nao retornou todas as permissoes solicitadas.');
+  return rows;
+}
+
 export async function addRole(input: { name: string; description: string; permissions: PermissionCode[]; hiddenTabs?: string[] }): Promise<Role> {
   if (isSupabaseConfigured()) {
     try {
@@ -144,9 +157,8 @@ export async function addRole(input: { name: string; description: string; permis
       if (roleError || !roleData) throw new Error(roleError?.message || 'Nao foi possivel criar o cargo no Supabase.');
 
       if (input.permissions.length) {
-        const { data: permissionRows, error: permissionError } = await admin.from('permissions').select('id, code').in('code', input.permissions);
-        if (permissionError) throw new Error(permissionError.message || 'Nao foi possivel carregar as permissoes do cargo.');
-        const permissionIds = permissionRows?.map((row) => row.id) || [];
+        const permissionRows = await ensureSupabasePermissions(input.permissions);
+        const permissionIds = permissionRows.map((row) => row.id);
         for (const permissionId of permissionIds) {
           const { error: linkError } = await admin.from('role_permissions').insert({ role_id: roleData.id, permission_id: permissionId }).select();
           if (linkError && !String(linkError.message).includes('duplicate key')) throw new Error(linkError.message || 'Nao foi possivel vincular a permissao ao cargo.');
@@ -170,6 +182,8 @@ export async function updateRole(id: string, input: { name?: string; description
     try {
       const admin = getSupabaseAdmin();
 
+      const permissionRows = input.permissions ? await ensureSupabasePermissions(input.permissions) : undefined;
+
       if (input.name !== undefined || input.description !== undefined || input.hiddenTabs !== undefined) {
         const updatePayload: Record<string, string | string[]> = {};
         if (input.name !== undefined) updatePayload.name = input.name;
@@ -184,8 +198,6 @@ export async function updateRole(id: string, input: { name?: string; description
         if (deleteError) throw new Error(deleteError.message || 'Nao foi possivel limpar as permissoes do cargo.');
 
         if (input.permissions.length) {
-          const { data: permissionRows, error: permissionError } = await admin.from('permissions').select('id, code').in('code', input.permissions);
-          if (permissionError) throw new Error(permissionError.message || 'Nao foi possivel carregar as permissoes do cargo.');
           const permissionIds = permissionRows?.map((row) => row.id) || [];
           for (const permissionId of permissionIds) {
             const { error: linkError } = await admin.from('role_permissions').insert({ role_id: id, permission_id: permissionId });

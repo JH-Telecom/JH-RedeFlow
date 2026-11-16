@@ -67,7 +67,7 @@ async function mostrarStatus() {
   const contar = (tipo) => itensR.filter((i) => i.resultado === tipo).length;
   $("roteiroStatus").textContent = !r ? "Roteirizador: nenhuma rodada ainda."
     : r.erro ? `Roteirizador (${quando(r.quando)}): ✗ ${r.erro}`
-    : !itensR.length ? `Roteirizador (${quando(r.quando)}): ${r.ativo === false ? "desligado no sistema" : r.janela === false ? "fora do horário (00h–06h)" : "nada para mover"}.`
+    : !itensR.length ? `Roteirizador (${quando(r.quando)}): ${r.ativo === false ? "desligado no sistema" : r.janela === false ? "fora do horário (22h–06h)" : "nada para mover"}.`
     : `Roteirizador (${quando(r.quando)})${r.teste ? " — modo teste" : ""}: ${contar("Movida")} movida(s), ${contar("Teste")} teste(s), ${contar("Pulada")} pulada(s), ${contar("Erro")} erro(s).`;
 }
 

@@ -8,24 +8,45 @@ Extensão do Chrome da Rede, separada da extensão do JH Agendamentos. Ela expor
 - o **Status OFS**, endereço, bairro, cidade, região, OLT e Data Fim dos chamados que cruzam pela Ordem de Serviço
   (hoje também substitui a base D-0; dias anteriores só atualizam os chamados).
 
+## Grupo de abas "Rede · automação" (v1.12)
+
+A extensão só automatiza dentro do **seu próprio grupo de abas** do Chrome, chamado **Rede · automação** (roxo,
+recolhido). Suas abas do OFS e do AutoISP ficam livres: a extensão nunca escolhe, recarrega, navega ou roda script
+numa aba fora do grupo.
+
+- No grupo ficam até 3 abas, abertas pela extensão em segundo plano quando precisa:
+  - **OFS** para a exportação e o roteirizador;
+  - **OFS** para fechamentos e clusters (a antiga "aba fixada"; aba fixada não entra em grupo no Chrome, então agora
+    ela fica sem fixar, dentro do grupo);
+  - **AutoISP**, só quando há SN ou PON de massiva para ler.
+- **Deixe o grupo quieto**: não feche nem tire abas dele. Se uma aba sair do grupo, a extensão para de usá-la e abre
+  outra no grupo na próxima rodada. Se o grupo sumir (janela fechada) ou for renomeado, ela recria um na última janela usada.
+- **Não arraste suas abas para dentro do grupo**: qualquer aba do OFS ou do AutoISP que estiver no grupo pode ser usada,
+  recarregada e navegada pela automação. Mantenha suas próprias abas fora dele.
+- **Seus downloads ficam com você**: a extensão só captura o CSV gerado pela aba do grupo. Um export que você fizer no
+  seu Console de Alocação, mesmo durante a coleta automática, baixa normalmente.
+- **Login**: quando o popup mostrar "Faça login na aba do grupo Rede · automação (OFS)" ou "(AutoISP)", expanda o
+  grupo, entre na aba indicada e faça login ali. Depois pode recolher o grupo de novo.
+- A aba fixada antiga do OFS (versões até 1.11) não é mais usada (fica fora do grupo e a extensão não mexe nela): pode fechá-la.
+
 ## O que ela faz
 
 - **Hoje:** exporta a cada 1 hora (configurável: 15 min, 30 min, 1 h, 2 h ou desligado).
 - **Dia anterior:** exporta todo dia no horário escolhido (padrão 07:00) e devolve a tela do OFS para hoje.
 - **Qualquer dia dos últimos 31:** botão no popup.
 - **Envio manual:** se o automático falhar, exporte no OFS e selecione o CSV no popup.
-- Só captura o download que ela mesma pediu (janela de 90 s); exportações feitas à mão no OFS baixam normalmente.
+- Só captura o download que a aba do grupo gerou (janela de 90 s); exportações feitas à mão no OFS baixam normalmente.
 - Avisa por notificação depois de 3 falhas seguidas e mostra o histórico dos últimos envios.
 - **Fechamentos (v1.2):** a cada 10 minutos (pode ser 30 min ou desligado), pergunta ao RedeFlow quais chamados já
   terminaram e ainda estão sem o fechamento do OFS (`GET /api/integrations/ofs/fechamentos/pendentes`). Entram os
   Finalizados, os Baixar e os concluídos no OFS, dos últimos 10 dias. Para cada um:
-  - numa **aba própria do OFS** (fixada e em segundo plano), pesquisa a ordem e abre a atividade **concluída**;
+  - numa **aba própria do OFS** (no grupo Rede · automação, em segundo plano), pesquisa a ordem e abre a atividade **concluída**;
   - se a ordem tiver mais de uma atividade (por exemplo, uma suspensa e uma concluída), usa a concluída mais recente;
   - lê o **Motivo de Fechamento** (propriedade 725), o **Submotivo** (916) e o **Tipo do Cabo** (1062) e envia
     (`POST /api/integrations/ofs/fechamentos`).
 
   Só lê: nada é alterado no OFS. São até 12 atividades por ciclo, e a mesma ordem só é tentada de novo depois de 1 h.
-  A exportação nunca usa essa aba fixada.
+  A exportação nunca usa essa aba (usa a outra aba do OFS do grupo).
 
 ## WhatsApp Web: identificador de quem enviou (v1.4)
 
@@ -66,11 +87,12 @@ deixe ligado em uma só (as duas desenham no mesmo lugar).
 
 - No alarme periódico de fechamentos da extensão (e pela mensagem `lerPon`), pergunta ao RedeFlow quais PONs de massivas estão na fila
   (`GET /api/integrations/autoisp/pons-pendentes`).
-- Para cada PON, usa a **aba do AutoISP já aberta e logada** (auto.alloha.com): acha a OLT, busca a PON e abre o
+- Para cada PON, usa a **aba do AutoISP do grupo Rede · automação** (auto.alloha.com, aberta pela extensão; faça login
+  nela quando pedir): acha a OLT, busca a PON e abre o
   detalhe de até 100 clientes, 3 por vez. Só faz GET; não usa "Atualizar sinal".
 - Envia só contrato, serial, int6, OLT, ponlink, sinal, status, último contato e lat/lng
   (`POST /api/integrations/autoisp/pon`). **Nunca nome, endereço ou documento.**
-- Sem a aba do AutoISP aberta, não faz nada e registra "Abra o AutoISP (auto.alloha.com) logado neste Chrome".
+- Com o AutoISP pedindo login na aba do grupo, não lê nada e registra "Faça login na aba do grupo Rede · automação (AutoISP)".
   Se a conta não enxerga a OLT, a fila mostra o erro com o nome da OLT.
 
 ## Instalação
@@ -81,7 +103,7 @@ deixe ligado em uma só (as duas desenham no mesmo lugar).
    O perfil precisa da permissão de Importações. A sessão vale 30 dias e só serve para enviar o export do OFS;
    a senha não fica guardada. Quando vencer (ou o usuário for desativado), a extensão mostra "!" e pede login de novo.
    O token de máquina (`OFS_INGEST_TOKEN`) continua aceito em **Avançado**, como alternativa.
-3. Deixar uma aba do OFS aberta e logada (Console de Alocação) nesta máquina.
+3. Deixar o Chrome aberto. A extensão abre o OFS no grupo **Rede · automação**; faça login lá quando o popup pedir.
 4. Em **Avançado**, informar o `data-id` da alocação da Rede na árvore do OFS para não depender da alocação selecionada.
 
 ## Convivência com a extensão do JH Agendamentos
@@ -93,4 +115,4 @@ esta extensão dispara (e rejeita os de dias anteriores, por não serem de hoje)
 
 - Depende da tela do OFS (seletor de data, árvore de alocação, Ações → Exportar). Se a Oracle mudar o layout, a
   automação para e a extensão avisa.
-- Precisa de um Chrome aberto e logado no OFS.
+- Precisa de um Chrome aberto, com o OFS logado na aba do grupo Rede · automação.
