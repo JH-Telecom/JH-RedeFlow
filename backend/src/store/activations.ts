@@ -3,6 +3,7 @@ import { createSupabaseActivation, decideSupabaseActivation, getSupabaseActivati
 import { addObservation } from "./observations.js";
 import { listUsers } from "./users.js";
 import { ATRELADA_OPEN_STATUSES, findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
+import { aiRegionNote, confidentAiRegion } from "../address-ai.js";
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, User } from "../types.js";
 import { listCalls } from "./calls.js";
 import { activations, calls } from "./demo-data.js";
@@ -89,7 +90,7 @@ async function decideActivationNow(id: string, decision: 'Aceito' | 'Recusado', 
     const existing = findDuplicateCall(activationKeys({ orders: [data.orderNumber, data.officeTrack, analysis?.office_track] }), [...calls.values()]);
     if (existing) { activation.createdCallId = existing.id; return { activation, call: existing }; }
     const mappedRegion = resolveOltRegion(olt).region;
-    const call: Call = { id: `call-${crypto.randomUUID()}`, orderNumber: data.orderNumber || `PEND-${id.slice(-6)}`, bdesk: data.bdesk || '', officeTrack: data.orderNumber || '', client: data.client || 'Cliente nao identificado', type: data.type || analysis?.tipo_registro || 'NOC ACESSO', reason: data.reason || analysis?.motivo || 'Acionamento recebido', region: mappedRegion || data.region || 'Nao informada', city: data.city || '', olt, slotPon: data.slotPon || analysis?.slot_pon?.join(', ') || '', atrelada: analysis?.atrelada || undefined, address: analysis?.endereco_principal || '', bairro: analysis?.bairro_principal || '', status: 'Aberto', openedAt: activation.receivedAt || new Date().toISOString(), eventAt: parseSaoPauloDateTime(analysis?.data_hora_evento), notes: analysis?.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${analysis.atrelada}` : 'Criado a partir de acionamento aceito.' };
+    const call: Call = { id: `call-${crypto.randomUUID()}`, orderNumber: data.orderNumber || `PEND-${id.slice(-6)}`, bdesk: data.bdesk || '', officeTrack: data.orderNumber || '', client: data.client || 'Cliente nao identificado', type: data.type || analysis?.tipo_registro || 'NOC ACESSO', reason: data.reason || analysis?.motivo || 'Acionamento recebido', region: mappedRegion || data.region || confidentAiRegion(analysis) || 'Nao informada', city: data.city || '', olt, slotPon: data.slotPon || analysis?.slot_pon?.join(', ') || '', atrelada: analysis?.atrelada || undefined, address: analysis?.endereco_principal || '', bairro: analysis?.bairro_principal || '', status: 'Aberto', openedAt: activation.receivedAt || new Date().toISOString(), eventAt: parseSaoPauloDateTime(analysis?.data_hora_evento), notes: (analysis?.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${analysis.atrelada}` : 'Criado a partir de acionamento aceito.') + (!mappedRegion && !data.region && confidentAiRegion(analysis) ? aiRegionNote(analysis, confidentAiRegion(analysis)!) : '') };
     calls.set(call.id, call); activation.createdCallId = call.id;
     return { activation, call };
   }

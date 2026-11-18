@@ -93,7 +93,7 @@ export type IgpScoreData = {
 };
 export type GigaOrderRow = { os: string; osOfs: string; origin: string; cluster: string; city: string; openedAt: string | null; closedAt: string | null; tmeHours: number | null; onTime: boolean | null; outlier: boolean | null };
 export type IgpReconciliation = { month: string; cluster: string; both: number; closedUntil: string | null; onlyGigaTotal: number; onlySystemTotal: number; timeDiffTotal: number; onlyGiga: GigaOrderRow[]; onlySystem: { id: string; orderNumber: string; bdesk: string; type: string; region: string; executedAt?: string | null; openedAt: string }[]; timeDiffs: { os: string; callId: string; orderNumber: string; origin: string; gigaClosedAt: string | null; systemClosedAt: string | null; minutes: number }[] };
-export type MissingRegionCall = { id: string; orderNumber: string; status: CallStatus; type: string; client: string; olt: string; slotPon: string; city: string; bairro?: string; address?: string; openedAt: string; technicianName?: string; sameOlt: number; suggestion?: { region: string; reason: 'olt' | 'bairro' | 'cidade'; detail: string } | null };
+export type MissingRegionCall = { id: string; orderNumber: string; status: CallStatus; type: string; client: string; olt: string; slotPon: string; city: string; bairro?: string; address?: string; openedAt: string; technicianName?: string; sameOlt: number; suggestion?: { region: string; reason: 'olt' | 'bairro' | 'cidade' | 'ia'; detail: string } | null };
 export type JotaAnswer =
   | { kind: 'query'; titulo: string; sql: string; explicacao: string; sugestoes: string[]; linhas: Record<string, unknown>[]; colunas: string[]; limite: boolean; logId?: string | null }
   | { kind: 'question'; texto: string; opcoes: string[]; logId?: string | null }
@@ -391,6 +391,7 @@ export const api = {
   igpReconciliation: (month: string, cluster: string) => request<IgpReconciliation>(`/api/igp/conciliacao?month=${encodeURIComponent(month)}&cluster=${encodeURIComponent(cluster)}`),
   saveIgpRules: (rules: IgpRules) => request<{ rules: IgpRules }>('/api/igp/regras', { method: 'PUT', body: JSON.stringify({ rules }) }),
   missingRegionCalls: (page = 1) => request<{ calls: MissingRegionCall[]; total: number; page: number; pageSize: number; regions: string[] }>(`/api/chamados/sem-regiao?page=${page}`),
+  analyzeRegionsWithAi: (ids: string[]) => request<{ suggestions: Record<string, { region: string; reason: 'ia'; detail: string } | null> }>('/api/chamados/sem-regiao/ia', { method: 'POST', body: JSON.stringify({ ids }) }),
   setCallsRegion: (ids: string[], region: string) => request<{ updated: number }>('/api/chamados/regiao-lote', { method: 'POST', body: JSON.stringify({ ids, region }) }),
   setCallRegion: (id: string, region: string, aplicarOlt: boolean) => request<{ others: number; oltSaved: boolean }>(`/api/chamados/${encodeURIComponent(id)}/regiao`, { method: 'POST', body: JSON.stringify({ region, aplicarOlt }) }),
   jotaH: (pergunta: string, contexto: { pergunta: string; sql?: string }[]) => request<JotaAnswer>('/api/jota-h', { method: 'POST', body: JSON.stringify({ pergunta, contexto }) }),

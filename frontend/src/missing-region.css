@@ -17,7 +17,7 @@
 .sr-search input:focus, .sr-search input:focus-visible { box-shadow: none; outline: none; }
 .sr-search:focus-within { border-color: #76a9f4; box-shadow: 0 0 0 3px #1264e812; }
 .sr-search button { display: grid; place-items: center; padding: 2px; border: 0; background: none; color: #4f5d73; cursor: pointer; }
-.sr-accept { margin-left: auto; }
+.sr-accept:first-of-type { margin-left: auto; }
 
 /* Selecao em lote */
 .sr-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid #c8dcfb; background: #f2f7ff; font-size: 13px; color: #1d3b6e; }

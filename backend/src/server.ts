@@ -32,7 +32,7 @@ import { registerMissingHistoricalTechnicians } from './imports/historical-techn
 import { addDays, normalizeSaoPauloLocal, toOperationalDate } from './timezone.js';
 import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
-import type { ActivationAnalysis, AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
+import type { ActivationAnalysis, AuthUser, Call, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
 import { callViewersOf, clearPresence, lastCallSave, leaveCall, markCallSaved, presenceOf, touchCallViewer, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite, onDataChange } from './read-cache.js';
 import { getSupabaseAdmin, invalidateCallsSnapshot } from './integrations/supabase/client.js';
@@ -48,6 +48,7 @@ import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsa
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
 import { sendWhatsAppImage, sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
 import { weeklyIgpText } from './weekly-igp.js';
+import { analyzeAddressesWithAi, applyAddressAi, badAddress, badNeighborhood, regionExamples } from './address-ai.js';
 import { attendanceCalls, attendanceImageSpec, dueSendTime, parseSendTimes, renderImagePng } from './update-image.js';
 import { deliverOltNotice } from './olt-notice-delivery.js';
 import { currentMode, scaled, usageReport } from './db-usage.js';
@@ -1025,7 +1026,7 @@ app.get('/api/chamados/sem-regiao', auth, requirePermission('calls.view'), async
     // Todos de uma vez (a tela filtra e pagina no navegador), cada um com a sugestao de regiao.
     const [calls, technicians, custom] = await Promise.all([listCalls(), listTechnicians(), listCustomOperationalRegions().catch(() => [] as string[])]);
     const missing = missingRegionCalls(calls).slice(0, 2000);
-    const items = missing.map((call) => ({ ...call, sameOlt: sameOltMissing(calls, call.olt, call.id).length, suggestion: suggestRegion(call, calls, (olt) => resolveOltRegion(olt).region) }));
+    const items = missing.map((call) => ({ ...call, sameOlt: sameOltMissing(calls, call.olt, call.id).length, suggestion: suggestRegion(call, calls, (olt) => resolveOltRegion(olt).region) ?? aiSuggestionFor(call.id) ?? null }));
     return response.json({ calls: items, total: missing.length, page: 1, pageSize: items.length, regions: knownRegions(calls.map((call) => call.region), technicians.map((technician) => technician.region), custom) });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados sem regiao.' }); }
 });
@@ -2066,6 +2067,54 @@ ${text}`);
   }
 });
 
+// ---------- Endereco e regiao pela IA (address-ai.ts) ----------
+function addressesOf(analysis: ActivationAnalysis) {
+  const parsed = (analysis.clientes_afetados || []).map((client) => client.endereco || client.raw).filter((item): item is string => Boolean(item));
+  return parsed.length ? parsed : (analysis.localizacao || []).filter(Boolean);
+}
+async function regionsAndExamples(calls: Call[]) {
+  const custom = await listCustomOperationalRegions().catch(() => [] as string[]);
+  const oltRegions = (await listOltRegionMappings().catch(() => [])).map((mapping) => mapping.region);
+  return { regions: knownRegions(calls.map((call) => call.region), oltRegions, custom), examples: regionExamples(calls, isMissingRegion) };
+}
+async function improveAddressWithAi(analysis: ActivationAnalysis, calls: Call[]) {
+  if (analysis.tipo_card === 'TX') return analysis;
+  const addresses = addressesOf(analysis);
+  const needs = !resolveOltRegion(analysis.olt).region || badNeighborhood(analysis.bairro_principal) || badAddress(analysis.endereco_principal);
+  if (!needs || !addresses.length || !process.env.GEMINI_API_KEY) return analysis;
+  const { regions, examples } = await regionsAndExamples(calls);
+  const city = (analysis.clientes_afetados || []).find((client) => client.cidade)?.cidade ?? null;
+  const result = await analyzeAddressesWithAi({ addresses, bairro: analysis.bairro_principal, city, regions, examples });
+  return applyAddressAi(analysis, result);
+}
+// Fila Sem regiao: a IA olha endereco/bairro/cidade dos chamados sem sugestao das regras. Resultado guardado por 24 h.
+const aiRegionCache = new Map<string, { suggestion: { region: string; reason: 'ia'; detail: string } | null; at: number }>();
+export function aiSuggestionFor(callId: string) {
+  const entry = aiRegionCache.get(callId);
+  return entry && Date.now() - entry.at < 24 * 3_600_000 ? entry.suggestion : undefined;
+}
+app.post('/api/chamados/sem-regiao/ia', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ ids: z.array(z.string().trim().min(1).max(120)).min(1).max(20) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie de 1 a 20 chamados.' });
+  if (!process.env.GEMINI_API_KEY) return response.status(409).json({ message: 'A IA não está configurada no servidor (GEMINI_API_KEY).' });
+  try {
+    const calls = await listCalls();
+    const { regions, examples } = await regionsAndExamples(calls);
+    const byId = new Map(calls.map((call) => [call.id, call]));
+    const results: Record<string, { region: string; reason: 'ia'; detail: string } | null> = {};
+    await Promise.all(parsed.data.ids.map(async (id) => {
+      const call = byId.get(id);
+      if (!call || !isMissingRegion(call.region)) return;
+      const addresses = [call.address, [call.bairro, call.city].filter(Boolean).join(', ')].filter((item): item is string => Boolean(item && item.trim()));
+      const result = await analyzeAddressesWithAi({ addresses, bairro: call.bairro || null, city: call.city || null, regions, examples });
+      const suggestion = result?.regiao ? { region: result.regiao, reason: 'ia' as const, detail: `IA (${Math.round(result.confianca * 100)}% de confiança)${result.bairro ? ` · bairro ${result.bairro}` : ''}${result.motivo ? ` · ${result.motivo}` : ''}` } : null;
+      aiRegionCache.set(id, { suggestion, at: Date.now() });
+      results[id] = suggestion;
+    }));
+    return response.json({ suggestions: results });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel analisar com a IA.' }); }
+});
+
 // (15) Coleta do OFS parada: mais de 2h sem envio certo de export ou fechamentos. Avisa uma vez no WhatsApp
 // (grupo dos avisos) quando para e outra quando volta. Estado guardado em integration_events (integration_alert).
 let outageRunning = false;
@@ -2199,13 +2248,16 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
   const fallbackAnalysis = analyzeOperationalMessage(analysisMessage);
   if (!fallbackAnalysis.eh_acionamento) { groupLog(`ignorada, sem sinais de acionamento: "${(analysisMessage.message || '').replace(/\s+/g, ' ').slice(0, 80)}"`); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' }); }
-  const analysis = await interpretWithGemini(analysisMessage, fallbackAnalysis);
+  let analysis = await interpretWithGemini(analysisMessage, fallbackAnalysis);
   if (!analysis.eh_acionamento) { groupLog('ignorada pela analise (Gemini)'); return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' }); }
   const operationalText = analysisMessage.message || '';
   const legacyData = extractOperationalData(operationalText);
   // Ja existe chamado (nao cancelado) com a mesma OS: nao aciona de novo (nem o informativo). BDESK nao conta.
-  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber] }), await listCalls());
+  const allCalls = await listCalls();
+  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber] }), allCalls);
   if (duplicate) { groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS`); return response.status(202).json({ status: 'ignored', reason: 'Ja existe chamado com a mesma OS.', callId: duplicate.id }); }
+  // Endereco pela IA (18/11/2026): OLT sem regiao ou bairro/endereco mal lidos -> a IA le os enderecos dos clientes.
+  analysis = await improveAddressWithAi(analysis, allCalls).catch(() => analysis);
   try {
     const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
     groupLog(`acionamento registrado ${activation.id} (${analysis.tipo_card || 'sem tipo'}, BDESK ${analysis.bdesk || '-'})`);

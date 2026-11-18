@@ -31,6 +31,13 @@ function sectionValue(text: string, heading: RegExp, until: RegExp) {
 function parseAddresses(text: string) {
   const section = sectionValue(text, /(?:^|\n)\s*-?\s*endere[cç]os?\s*:\s*/i, /\n\s*-?\s*(?:cope\s+rede|t[eé]cnico\s+rede|observa[cç][oõ]es?)\s*:/i);
   if (!section) return null;
+  // Formato em uma linha por cliente (18/11/2026): "Serial: X || Contrato: N || Endereço: RUA, Nº, BAIRRO, CIDADE - UF,
+  // CEP, complemento" (o normalizador troca "Serial" por "S/N"). Cabecalhos "SLOT/PON: 06/12" no meio sao ignorados
+  // e um endereco quebrado em duas linhas volta a ser uma linha so.
+  if (/\|\|\s*Endere[cç]o\s*:/i.test(section)) {
+    const records = section.split(/(?=^\s*(?:S\/N|SERIAL)\s*:)/im).map((item) => item.replace(/\n\s*SLOT\s*\/\s*PON\s*:[^\n]*/gi, '').replace(/\s*\n\s*/g, ' ').trim()).filter((item) => /\|\|\s*Endere[cç]o\s*:/i.test(item));
+    if (records.length) return records;
+  }
   const customerRecords = section.split(/(?=^\s*(?:\d{4,}\s+\S|NOME\s*:))/gim).map((item) => item.trim()).filter(Boolean);
   const recordsWithCep = customerRecords.filter((item) => /\bCEP\s*:\s*(?:[0-9]{2}\.[0-9]{3}|[0-9]{5})[-.]?[0-9]{3}/i.test(item));
   if (recordsWithCep.length > 1) return recordsWithCep;
@@ -160,7 +167,13 @@ export async function interpretWithGemini(message: WuzApiMessage, fallback: Acti
     const value = payload.candidates?.[0]?.content?.parts?.[0]?.text;
     const parsed = value ? parseJsonObject(value) : null;
     if (!parsed || typeof parsed.eh_acionamento !== 'boolean') return fallback;
-    return { ...fallback, ...parsed, raw_text: fallback.raw_text } as ActivationAnalysis;
+    // Endereco, bairro e clientes: valem os das regras quando elas leram (a IA geral as vezes devolvia pedaco do CEP
+    // como bairro); a analise de endereco propria (address-ai.ts) cobre os casos em que as regras nao leram.
+    const merged = { ...fallback, ...parsed, raw_text: fallback.raw_text } as ActivationAnalysis;
+    if (fallback.endereco_principal) merged.endereco_principal = fallback.endereco_principal;
+    if (fallback.bairro_principal) merged.bairro_principal = fallback.bairro_principal;
+    if (fallback.clientes_afetados?.length) merged.clientes_afetados = fallback.clientes_afetados;
+    return merged;
   } catch {
     return fallback;
   }

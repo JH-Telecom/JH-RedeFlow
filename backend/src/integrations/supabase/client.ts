@@ -4,6 +4,7 @@ import { activationKeys, findDuplicateCall } from '../../activation-dedupe.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Activation, ActivationAnalysis, ActivationStatus, Call, CallStatus } from '../../types.js';
 import { ATRELADA_OPEN_STATUSES, findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from '../wuzapi/noc-consolidation.js';
+import { aiRegionNote, confidentAiRegion } from '../../address-ai.js';
 import { addDays, operationalDayStartIso, parseSaoPauloDateTime } from '../../timezone.js';
 import { analyzeOperationalMessage } from '../wuzapi/semantic.js';
 import { meteredFetch, scaled } from '../../db-usage.js';
@@ -698,7 +699,8 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
       client: value('client') || 'Cliente nao identificado',
       type: structured.tipo_registro || value('type') || 'Acionamento',
       reason: structured.motivo || structured.tipo_falha || value('reason') || 'Acionamento recebido',
-      region: resolveOltRegion(olt).region || value('region') || 'Nao informada',
+      // Sem regiao pela OLT nem no card: a da IA pelos enderecos, so com confianca alta (address-ai.ts).
+      region: resolveOltRegion(olt).region || value('region') || confidentAiRegion(structured) || 'Nao informada',
       city: value('city') || 'Nao informada',
       address: structured.endereco_principal || '',
       bairro: structured.bairro_principal || '',
@@ -710,7 +712,8 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
       opened_at: row.received_at || new Date().toISOString(),
       event_at: parseSaoPauloDateTime(structured.data_hora_evento) || null,
       // Atrelada a outra ordem: fica escrito nas observacoes para quem abrir o chamado.
-      notes: structured.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${structured.atrelada}` : 'Criado a partir de acionamento aceito.',
+      notes: (structured.atrelada ? `Criado a partir de acionamento aceito.\nAtrelada > ${structured.atrelada}` : 'Criado a partir de acionamento aceito.')
+        + (!resolveOltRegion(olt).region && !value('region') && confidentAiRegion(structured) ? aiRegionNote(structured, confidentAiRegion(structured)!) : ''),
     };
     // Tamanho maximo de cada coluna em calls: um card fora do padrao nao pode mais travar o aceite
     // ("value too long for type character varying"). O texto completo continua na mensagem original.

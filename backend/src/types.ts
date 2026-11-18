@@ -192,10 +192,12 @@ export type ActivationAnalysis = {
   clientes_afetados?: NocAddressRecord[];
   endereco_principal?: string | null;
   bairro_principal?: string | null;
+  // Regiao escolhida pela IA a partir dos enderecos (address-ai.ts), quando a OLT nao tem regiao.
+  regiao_ia?: { regiao: string; confianca: number; motivo: string } | null;
   cep_principal?: string | null;
   atreladas?: string[];
 };
-export type NocAddressRecord = { raw: string; nome: string | null; contrato: string | null; cep: string | null; endereco: string | null; complemento: string | null; bairro: string | null; endereco_base: string | null; endereco_normalizado: string | null; bairro_normalizado: string | null; cep_normalizado: string | null };
+export type NocAddressRecord = { raw: string; nome: string | null; contrato: string | null; cep: string | null; endereco: string | null; complemento: string | null; bairro: string | null; endereco_base: string | null; endereco_normalizado: string | null; bairro_normalizado: string | null; cep_normalizado: string | null; cidade?: string | null };
 export type Activation = {
   id: string;
   source: string;

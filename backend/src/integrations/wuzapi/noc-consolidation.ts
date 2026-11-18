@@ -189,7 +189,42 @@ function parseLineLabeledAddress(raw: string) {
   return { endereco: endereco || null, bairro, cidade: cidade || null };
 }
 
+// Endereco em uma linha so (cards de 11/2026): "S/N: X || Contrato: N || Endereço: RUA X, 53, JARDIM Y, SAO PAULO - SP,
+// 08.120-570, complemento". A ordem e rua, numero, bairro, "cidade - UF", CEP e depois o complemento. O endereco
+// guardado vai ate o CEP (sem complemento) e a rua repetida ("RUA RUA", "AVENIDA AVENIDA", "RUA AVENIDA") e corrigida.
+const STREET_TYPES = String.raw`RUA|AVENIDA|AV\.?|ALAMEDA|TRAVESSA|ESTRADA|RODOVIA|VIA|PRACA|PRAÇA|VIELA|LARGO|PASSAGEM`;
+export function cleanStreet(value: string) {
+  let street = value.replace(/\s+/g, ' ').trim();
+  const repeated = new RegExp(String.raw`^(${STREET_TYPES})\s+(${STREET_TYPES})\b\s*`, 'i');
+  for (let guard = 0; guard < 3 && repeated.test(street); guard += 1) street = street.replace(repeated, (_all, _first, second: string) => `${second} `);
+  return street.trim();
+}
+function parseInlineAddress(raw: string): NocAddressRecord | null {
+  const match = raw.match(/\|\|\s*Endere[cç]o\s*:\s*(.+)$/is);
+  if (!match) return null;
+  const contrato = raw.match(/Contrato\s*:\s*([^|]+?)\s*\|\|/i)?.[1]?.trim() || null;
+  const parts = match[1].replace(/\s+/g, ' ').split(',').map((part) => part.trim());
+  const cityAt = parts.findIndex((part, index) => index >= 1 && /^[^,]+?\s-\s[A-Z]{2}$/i.test(part));
+  if (cityAt < 1) return null;
+  const cepAt = parts.findIndex((part, index) => index > cityAt && /^(?:\d{2}\.?\d{3}|\d{5})-?\d{3}$/.test(part));
+  const before = parts.slice(0, cityAt);
+  const street = cleanStreet(before[0] || '');
+  const numberAt = before.findIndex((part, index) => index >= 1 && /^(?:\d+[A-Z]?|S\/?N)$/i.test(part));
+  const numero = numberAt >= 1 ? before[numberAt] : null;
+  // Bairro: o que vem entre o numero (ou a rua) e a cidade.
+  const bairroRaw = before.slice((numberAt >= 1 ? numberAt : 0) + 1).join(' ').trim() || null;
+  const cidade = parts[cityAt].replace(/\s+/g, ' ').trim();
+  const cep = cepAt > cityAt ? parts[cepAt] : null;
+  const complemento = parts.slice((cepAt > cityAt ? cepAt : cityAt) + 1).filter((part) => part && !/^(?:N[AÃ]O[ _]INFORMAD[OA]|SEM|-+:?-*|S\/R)$/i.test(part)).join(', ') || null;
+  const base = [street, numero].filter(Boolean).join(', ');
+  const endereco = [base, bairroRaw, cidade, cep].filter(Boolean).join(', ');
+  const bairro = cleanNeighborhoodCandidate(bairroRaw);
+  return { raw, nome: null, contrato, cep, endereco, complemento, bairro, endereco_base: normalizeText(base) || null, endereco_normalizado: normalizeText(endereco), bairro_normalizado: normalizeText(bairro) || null, cep_normalizado: normalizeCep(cep), cidade };
+}
+
 export function parseNocAddress(raw: string): NocAddressRecord {
+  const inline = parseInlineAddress(raw);
+  if (inline) return inline;
   const header = raw.match(/(?:^|\n)\s*NOME\s*:\s*(.*?)\s*\|\s*CONTRATO\s*:\s*([^\n|]+)/i);
   const nome = header?.[1]?.trim() || valueBetween(raw, /(?:^|\n)\s*NOME\s*:\s*/i, /\n\s*CONTRATO\s*:/i);
   const contrato = header?.[2]?.trim() || valueBetween(raw, /(?:^|\n)\s*CONTRATO\s*:\s*/i, /\n\s*CEP\s*:/i);
@@ -227,6 +262,17 @@ export function consolidateNocAddresses(rawAddresses: string[] | null | undefine
     }
     return client;
   });
+  // Formato em uma linha (com cidade): o endereco principal e o completo (rua, numero, bairro, cidade e CEP) de um
+  // cliente da rua mais comum no bairro principal.
+  const inlineClients = normalizedClients.filter((client) => client.cidade);
+  if (inlineClients.length) {
+    const streetOf = (client: NocAddressRecord) => (client.endereco_base || '').replace(/,\s*[^,]*$/, '');
+    const inBairro = inlineClients.filter((client) => !bairroPrincipal || client.bairro_normalizado === bairroPrincipal);
+    const pool = inBairro.length ? inBairro : inlineClients;
+    const mainStreet = mostFrequent(pool.map((client, index) => ({ value: streetOf(client) || null, index })));
+    const main = pool.find((client) => streetOf(client) === mainStreet) || pool[0];
+    return { clientes: normalizedClients, enderecoPrincipal: main.endereco, bairroPrincipal, cepPrincipal, enderecoBaseCounts: Object.fromEntries(baseCounts) };
+  }
   return { clientes: normalizedClients, enderecoPrincipal: normalizedClients.find((client) => client.endereco_base === mainBase)?.endereco_base || mainBase, bairroPrincipal, cepPrincipal, enderecoBaseCounts: Object.fromEntries(baseCounts) };
 }
 

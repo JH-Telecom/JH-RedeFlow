@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, ChevronLeft, ChevronRight, MapPinOff, Search, Sparkles, X } from "lucide-react";
+import { Bot, Check, ChevronLeft, ChevronRight, MapPinOff, Search, Sparkles, X } from "lucide-react";
 import { api, type MissingRegionCall, type Role, type User } from "../api";
 import { SkeletonRows } from "../components/Skeleton";
 import { readDataCache, writeDataCache } from "../lib/data-cache";
@@ -14,7 +14,7 @@ const CLOSED = new Set(["Finalizado", "Cancelado", "Baixar"]);
 const PAGE = 50;
 const dateTime = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const normalize = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const REASON: Record<string, string> = { olt: "pela OLT", bairro: "pelo bairro", cidade: "pela cidade" };
+const REASON: Record<string, string> = { olt: "pela OLT", bairro: "pelo bairro", cidade: "pela cidade", ia: "da IA" };
 type Data = { calls: MissingRegionCall[]; regions: string[]; total: number };
 
 export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
@@ -52,6 +52,20 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
   const current = Math.min(page, pages);
   const pageItems = visible.slice((current - 1) * PAGE, current * PAGE);
   const withSuggestion = visible.filter((call) => call.suggestion);
+  // Sem sugestao das regras: a IA le endereco, bairro e cidade (ate 20 por vez, os da pagina primeiro).
+  const withoutSuggestion = visible.filter((call) => !call.suggestion && (call.address || call.bairro || call.city));
+  async function analyzeWithAi() {
+    const ids = [...pageItems, ...visible].filter((call, index, list) => !call.suggestion && (call.address || call.bairro || call.city) && list.indexOf(call) === index).slice(0, 20).map((call) => call.id);
+    if (!ids.length) return;
+    setSaving("ia"); setNotice(""); setError("");
+    try {
+      const { suggestions } = await api.analyzeRegionsWithAi(ids);
+      const found = Object.values(suggestions).filter(Boolean).length;
+      setData((current) => current ? { ...current, calls: current.calls.map((call) => (suggestions[call.id] ? { ...call, suggestion: suggestions[call.id] } : call)) } : current);
+      setNotice(`IA analisou ${ids.length} chamado(s) e sugeriu a região de ${found}. Confira antes de salvar.`);
+    } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível analisar com a IA."); }
+    finally { setSaving(null); }
+  }
   const regionOf = (call: MissingRegionCall) => choice[call.id] ?? call.suggestion?.region ?? "";
   const allOnPageSelected = pageItems.length > 0 && pageItems.every((call) => selected.has(call.id));
 
@@ -116,6 +130,11 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
                 ))}
               </div>
               <label className="sr-search"><Search size={15} aria-hidden="true" /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Ordem, OLT, bairro, cidade, técnico..." aria-label="Pesquisar" />{query && <button type="button" onClick={() => setQuery("")} aria-label="Limpar busca"><X size={14} /></button>}</label>
+              {canEdit && withoutSuggestion.length > 0 && (
+                <button type="button" className="secondary-button compact sr-accept" onClick={() => void analyzeWithAi()} disabled={saving !== null} title="A IA lê o endereço, o bairro e a cidade e sugere a região (até 20 por vez)">
+                  <Bot size={15} aria-hidden="true" /> {saving === "ia" ? "Analisando..." : `Analisar ${Math.min(20, withoutSuggestion.length)} com IA`}
+                </button>
+              )}
               {canEdit && withSuggestion.length > 0 && (
                 <button type="button" className="secondary-button compact sr-accept" onClick={() => void acceptSuggestions()} disabled={saving !== null}>
                   <Sparkles size={15} aria-hidden="true" /> {saving === "sugestoes" ? "Salvando..." : `Aceitar ${withSuggestion.length} sugestão(ões)`}
