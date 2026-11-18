@@ -365,7 +365,9 @@ export async function updateCall(id: string, input: Partial<EditableCallFields>,
   if (isSupabaseConfigured()) {
     const current = await getCall(id);
     if (!current) return undefined;
-    const saved = await updateSupabaseCall(id, prepareCallUpdate(current, input), actor);
+    // So a regiao (fila Sem regiao): vale tambem com o chamado encerrado.
+    const regionOnly = input.region !== undefined && Object.entries(input).every(([field, value]) => field === 'region' || value === undefined);
+    const saved = await updateSupabaseCall(id, prepareCallUpdate(current, input), actor, { regionOnly });
     return saved ? (await withSupportNames([{ ...saved, supportTechnicianId: input.supportTechnicianId === undefined ? current.supportTechnicianId : input.supportTechnicianId || undefined }]))[0] : saved;
   }
   const current = calls.get(id);

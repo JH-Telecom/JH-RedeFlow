@@ -1047,12 +1047,14 @@ app.post('/api/chamados/regiao-lote', auth, requirePermission('calls.edit'), asy
   if (isMissingRegion(parsed.data.region)) return response.status(422).json({ message: 'Escolha uma regiao de verdade.' });
   try {
     let updated = 0;
+    let skipped = 0;
     for (const id of new Set(parsed.data.ids)) {
       const existing = await getCall(id);
-      if (!existing || !isMissingRegion(existing.region)) continue;
+      if (!existing || !isMissingRegion(existing.region)) { skipped += 1; continue; }
       if (await updateCall(existing.id, { region: parsed.data.region }, request.authUser!)) updated += 1;
+      else skipped += 1;
     }
-    return response.json({ updated });
+    return response.json({ updated, skipped });
   } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar as regioes.' }); }
 });
 app.post('/api/chamados/:id/regiao', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
@@ -1064,6 +1066,7 @@ app.post('/api/chamados/:id/regiao', auth, requirePermission('calls.edit'), asyn
     if (!existing) return response.status(404).json({ message: 'Chamado nao encontrado.' });
     const region = parsed.data.region;
     const call = await updateCall(existing.id, { region }, request.authUser!);
+    if (!call) return response.status(422).json({ message: 'Nao foi possivel salvar a regiao deste chamado.' });
     let others = 0;
     let oltSaved = false;
     if (parsed.data.aplicarOlt && existing.olt) {

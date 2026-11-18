@@ -472,11 +472,12 @@ export async function reopenSupabaseCall(id: string, actor: { id: string; name: 
   return (await listSupabaseCalls(undefined, { id }))[0];
 }
 
-export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; supportTechnicianId?: string | null; openedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string | null; closingReason?: string; closingSubreason?: string; cableType?: string; notes?: string }, actor: { id: string; name: string; roleId?: string }) {
+export async function updateSupabaseCall(id: string, input: { orderNumber?: string; bdesk?: string; officeTrack?: string; client?: string; type?: string; reason?: string; region?: string; city?: string; address?: string; bairro?: string; ofsStatus?: string; olt?: string; slotPon?: string; status?: string; technicianId?: string | null; supportTechnicianId?: string | null; openedAt?: string; executedAt?: string | null; result?: string; cancellationReason?: string | null; closingReason?: string; closingSubreason?: string; cableType?: string; notes?: string }, actor: { id: string; name: string; roleId?: string }, options: { regionOnly?: boolean } = {}) {
   const current = (await listSupabaseCalls(undefined, { id }))[0];
   // Chamado encerrado: so aceita troca de status (ex.: Baixar -> Finalizado, ou reabrir); o resto fica travado.
   const changesStatus = input.status !== undefined && input.status !== current.status;
-  if (!current || (isCallClosed(current) && actor.roleId !== 'system' && !changesStatus)) return undefined;
+  // Corrigir so a regiao (fila Sem regiao) vale tambem para chamado encerrado, inclusive GIGA+ concluido no OFS.
+  if (!current || (isCallClosed(current) && actor.roleId !== 'system' && !changesStatus && !options.regionOnly)) return undefined;
   const nextStatus = input.status ?? current.status;
   const terminalStatuses = ['Finalizado', 'Cancelado', 'Baixar'] as const;
   if (terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined) {

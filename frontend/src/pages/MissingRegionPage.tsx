@@ -99,9 +99,9 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
     try {
       const groups = new Map<string, string[]>();
       for (const call of withSuggestion) groups.set(call.suggestion!.region, [...(groups.get(call.suggestion!.region) ?? []), call.id]);
-      let updated = 0;
-      for (const [region, ids] of groups) updated += (await api.setCallsRegion(ids, region)).updated;
-      done(`${updated} chamado(s) com a região sugerida.`);
+      let updated = 0, skipped = 0;
+      for (const [region, ids] of groups) { const result = await api.setCallsRegion(ids, region); updated += result.updated; skipped += result.skipped ?? 0; }
+      done(`${updated} chamado(s) com a região sugerida.${skipped ? ` ${skipped} não foram alterados (já tinham região ou não puderam ser salvos).` : ""}`);
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível salvar as sugestões."); }
     finally { setSaving(null); }
   }
