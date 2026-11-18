@@ -1,4 +1,5 @@
 import { addDays, toOperationalDate } from './timezone.js';
+import { askLlmJson, llmConfigured, LlmError } from './llm.js';
 
 // Jota H (12/11/2026): assistente de dados do RedeFlow. A pergunta em portugues vai para o Gemini junto com o prompt
 // abaixo (estrutura das views do schema jota, sem nenhum dado); ele devolve so um JSON com o SELECT. O SELECT roda no
@@ -79,29 +80,19 @@ export function parseJotaAnswer(raw: string): JotaAnswer | null {
 }
 
 export async function askJotaGemini(question: string, context: JotaContext[] = []): Promise<JotaAnswer> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('O Jota H precisa da chave do Gemini (GEMINI_API_KEY) no servidor.');
-  const body = JSON.stringify({ contents: [{ parts: [{ text: buildJotaRequest(question, context) }] }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } });
-  // 12/11/2026: a cota gratuita do Gemini e por modelo e a chave e a mesma que le os cards do WhatsApp; quando o modelo
-  // principal estoura (HTTP 429) ou esta fora (5xx), tenta os modelos reserva, que tem cota propria.
-  let lastStatus = 0;
-  for (const model of jotaModels()) {
-    let response: Response;
-    try {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: AbortSignal.timeout(25_000) });
-    } catch { lastStatus = 0; continue; }
-    if (response.ok) {
-      const payload = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-      const answer = parseJotaAnswer(payload.candidates?.[0]?.content?.parts?.[0]?.text || '');
-      if (!answer) throw new Error('O Gemini respondeu num formato que não deu para ler. Tente perguntar de outro jeito.');
-      return answer;
-    }
-    lastStatus = response.status;
-    console.warn(`[Jota H] modelo ${model} respondeu HTTP ${response.status}`);
-    if (response.status !== 429 && response.status !== 404 && response.status < 500) break; // erro da propria chamada: outro modelo nao resolve
+  if (!llmConfigured()) throw new Error('O Jota H precisa de uma chave de IA no servidor (GROQ_API_KEY ou GEMINI_API_KEY).');
+  // llm.ts: Groq primeiro; se falhar (cota, fora do ar), os modelos do Gemini, cada um com cota propria.
+  let answer;
+  try {
+    answer = await askLlmJson(buildJotaRequest(question, context), { temperature: 0.1, timeoutMs: 20_000, label: 'Jota H', geminiModels: jotaModels() });
+  } catch (error) {
+    const status = error instanceof LlmError ? error.status : 0;
+    if (status === 429) throw new Error('A cota de uso da IA acabou por agora (HTTP 429), no Groq e no Gemini. Tente de novo em alguns minutos.');
+    throw new Error(status ? `A IA não respondeu (HTTP ${status}). Tente de novo em instantes.` : 'Não consegui falar com a IA. Tente de novo em instantes.');
   }
-  if (lastStatus === 429) throw new Error('A cota de uso do Gemini acabou por agora (HTTP 429), inclusive nos modelos reserva. Ela volta sozinha (a diária zera de madrugada). Para não faltar, ative o faturamento da chave no Google AI Studio.');
-  throw new Error(lastStatus ? `O Gemini não respondeu (HTTP ${lastStatus}). Tente de novo em instantes.` : 'Não consegui falar com o Gemini. Tente de novo em instantes.');
+  const parsed = parseJotaAnswer(answer.text);
+  if (!parsed) throw new Error('A IA respondeu num formato que não deu para ler. Tente perguntar de outro jeito.');
+  return parsed;
 }
 
 // Modelo principal + reservas (JOTA_H_FALLBACK_MODELS, separados por virgula), sem repetir.

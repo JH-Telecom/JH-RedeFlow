@@ -1,6 +1,7 @@
 import { extractOperationalData, type WuzApiMessage } from './client.js';
 import type { ActivationAnalysis } from '../../types.js';
 import { consolidateNocAddresses } from './noc-consolidation.js';
+import { askLlmJson, llmConfigured } from '../../llm.js';
 import { normalizeCardText, splitTicket } from './card-normalizer.js';
 
 const nullValue = (value: string | undefined) => {
@@ -151,21 +152,12 @@ function parseJsonObject(value: string) {
 }
 
 export async function interpretWithGemini(message: WuzApiMessage, fallback: ActivationAnalysis): Promise<ActivationAnalysis> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return fallback;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  if (!llmConfigured()) return fallback;
   const prompt = `Você é um parser de mensagens operacionais de telecom. Retorne SOMENTE JSON válido, sem markdown. Leia a mensagem inteira, não invente dados e use null quando um campo não existir. Preserve todos os endereços como uma lista. Não confunda data/hora com slot/PON, CEP com Office Track, contrato ou OS. Campos: eh_acionamento, tipo_registro, tipo_card, categoria, origem, prioridade, tecnico, auxiliar, telefone, bdesk, ticket, office_track, os_ot, os_casa_cliente, contrato, sn, olt, slot_pon (lista), placa_pon, tipo_falha, motivo, afetados (número), data_hora_evento, tratativa_realizada, localizacao (lista), id_cto, loc_cto, materiais_utilizados, tecnico_rede, cope_rede, observacoes. Mensagem:\n${message.message || ''}`;
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!response.ok) return fallback;
-    const payload = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const value = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-    const parsed = value ? parseJsonObject(value) : null;
+    // llm.ts: Groq primeiro, Gemini de reserva (18/11/2026: o Gemini dava muito erro de cota).
+    const answer = await askLlmJson(prompt, { timeoutMs: 10_000, label: 'card' });
+    const parsed = parseJsonObject(answer.text);
     if (!parsed || typeof parsed.eh_acionamento !== 'boolean') return fallback;
     // Endereco, bairro e clientes: valem os das regras quando elas leram (a IA geral as vezes devolvia pedaco do CEP
     // como bairro); a analise de endereco propria (address-ai.ts) cobre os casos em que as regras nao leram.

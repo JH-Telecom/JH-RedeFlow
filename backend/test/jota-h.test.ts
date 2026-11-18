@@ -73,7 +73,7 @@ test('falls back to the next Gemini model on 429 and explains when all are out o
     assert.equal(answer.kind, 'query');
     assert.deepEqual(called, ['principal', 'reserva']);
     globalThis.fetch = (async () => new Response('{}', { status: 429 })) as typeof fetch;
-    await assert.rejects(() => askJotaGemini('quantos chamados hoje?'), /cota de uso do Gemini acabou/);
+    await assert.rejects(() => askJotaGemini('quantos chamados hoje?'), /cota de uso da IA acabou/);
   } finally {
     globalThis.fetch = original.fetch;
     for (const [name, value] of [['GEMINI_API_KEY', original.key], ['JOTA_H_MODEL', original.model], ['JOTA_H_FALLBACK_MODELS', original.fallbacks]] as const) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }

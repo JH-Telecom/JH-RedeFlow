@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing, suggestRegion } from '../src/missing-region.js';
+import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing, suggestRegion, isRealOlt } from '../src/missing-region.js';
 import type { Call } from '../src/types.js';
 
 const call = (id: string, region: string, olt = 'VIP-CT1-SPO-OHW-01', openedAt = '2026-11-10T10:00:00-03:00'): Call => ({ id, orderNumber: id, bdesk: '', officeTrack: '', client: '', type: 'NOC ACESSO', reason: '', region, city: '', olt, slotPon: '', status: 'Finalizado', openedAt, notes: '' });
@@ -27,4 +27,16 @@ test('region suggestion: OLT mapping first, then the most common region of the s
   assert.equal(suggestRegion({ olt: '', bairro: 'jardim sao pedro', city: 'Sao Paulo' }, calls, noOlt)?.region, 'GUAIANASES 1');
   assert.equal(suggestRegion({ olt: '', bairro: 'CANHEMA', city: 'DIADEMA' }, calls, noOlt)?.reason, 'cidade');
   assert.equal(suggestRegion({ olt: '', bairro: 'X', city: 'Mogi' }, calls, noOlt), null);
+});
+
+test('same bairro in another city is not a suggestion; city comes from the address; junk OLT is ignored', () => {
+  const at = (id: string, region: string, bairro: string, city: string, address = ''): Call => ({ ...call(id, region, ''), bairro, city, address });
+  const calls = [at('1', 'FERRAZ DE VASCONCELOS', 'JARDIM BELA VISTA', 'Ferraz de Vasconcelos'), at('2', 'FERRAZ DE VASCONCELOS', 'JARDIM BELA VISTA', 'Ferraz de Vasconcelos'), at('3', 'GUARULHOS 2', 'JARDIM BELA VISTA', 'Guarulhos')];
+  // Cidade so no endereco: Guarulhos.
+  assert.equal(suggestRegion({ olt: 'ATIVAÇÃO', bairro: 'JARDIM BELA VISTA', city: 'Nao informada', address: 'AGNELLO TRAMA, 77 JARDIM BELA VISTA, GUARULHOS - SP' }, calls, () => 'SUZANO 1')?.region, 'GUARULHOS 2');
+  // Sem cidade nenhuma e o bairro em regioes diferentes: nao sugere pelo bairro.
+  assert.equal(suggestRegion({ olt: '', bairro: 'JARDIM BELA VISTA', city: '' }, calls, () => null), null);
+  assert.equal(isRealOlt('ATIVAÇÃO'), false);
+  assert.equal(isRealOlt('VIP-ITA-SPO-OHW-01'), true);
+  assert.deepEqual(sameOltMissing([at('9', 'Nao informada', 'X', 'Y')].map((item) => ({ ...item, olt: 'ATIVAÇÃO' })), 'ATIVAÇÃO', 'z'), []);
 });

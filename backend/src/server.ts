@@ -48,6 +48,7 @@ import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsa
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
 import { sendWhatsAppImage, sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
 import { weeklyIgpText } from './weekly-igp.js';
+import { llmConfigured } from './llm.js';
 import { analyzeAddressesWithAi, applyAddressAi, badAddress, badNeighborhood, regionExamples } from './address-ai.js';
 import { attendanceCalls, attendanceImageSpec, dueSendTime, parseSendTimes, renderImagePng } from './update-image.js';
 import { deliverOltNotice } from './olt-notice-delivery.js';
@@ -2081,7 +2082,7 @@ async function improveAddressWithAi(analysis: ActivationAnalysis, calls: Call[])
   if (analysis.tipo_card === 'TX') return analysis;
   const addresses = addressesOf(analysis);
   const needs = !resolveOltRegion(analysis.olt).region || badNeighborhood(analysis.bairro_principal) || badAddress(analysis.endereco_principal);
-  if (!needs || !addresses.length || !process.env.GEMINI_API_KEY) return analysis;
+  if (!needs || !addresses.length || !llmConfigured()) return analysis;
   const { regions, examples } = await regionsAndExamples(calls);
   const city = (analysis.clientes_afetados || []).find((client) => client.cidade)?.cidade ?? null;
   const result = await analyzeAddressesWithAi({ addresses, bairro: analysis.bairro_principal, city, regions, examples });
@@ -2096,7 +2097,7 @@ export function aiSuggestionFor(callId: string) {
 app.post('/api/chamados/sem-regiao/ia', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
   const parsed = z.object({ ids: z.array(z.string().trim().min(1).max(120)).min(1).max(20) }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Envie de 1 a 20 chamados.' });
-  if (!process.env.GEMINI_API_KEY) return response.status(409).json({ message: 'A IA não está configurada no servidor (GEMINI_API_KEY).' });
+  if (!llmConfigured()) return response.status(409).json({ message: 'A IA não está configurada no servidor (GROQ_API_KEY ou GEMINI_API_KEY).' });
   try {
     const calls = await listCalls();
     const { regions, examples } = await regionsAndExamples(calls);

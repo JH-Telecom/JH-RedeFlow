@@ -1,9 +1,10 @@
 import type { ActivationAnalysis } from './types.js';
+import { askLlmJson, llmConfigured } from './llm.js';
 
 // Analise de endereco por IA (18/11/2026). Muitos cards vem sem OLT cadastrada (sem regiao), mas com os enderecos dos
-// clientes. A IA (Gemini, a mesma chave do resto do sistema) le os enderecos, devolve o bairro e a cidade principais,
+// clientes. A IA (llm.ts: Groq, com o Gemini de reserva) le os enderecos, devolve o bairro e a cidade principais,
 // um endereco limpo e escolhe a regiao (POP) numa lista fechada, com base nos exemplos de bairro -> regiao dos chamados
-// que ja tem regiao. Sem chave (GEMINI_API_KEY) ou com erro, nao faz nada.
+// que ja tem regiao. Sem chave ou com erro, nao faz nada.
 
 export type AddressAiInput = {
   addresses: string[];
@@ -13,7 +14,7 @@ export type AddressAiInput = {
   examples: Array<{ bairro: string; city: string; region: string; count: number }>;
 };
 export type AddressAiResult = { bairro: string | null; cidade: string | null; endereco: string | null; regiao: string | null; confianca: number; motivo: string };
-type Fetcher = (url: string, init: RequestInit) => Promise<Pick<Response, 'ok' | 'json'>>;
+type Fetcher = Parameters<typeof askLlmJson>[2];
 
 const keyOf = (value: string | null | undefined) => String(value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
 
@@ -77,21 +78,11 @@ export function parseAddressAiResponse(text: string, regions: string[]): Address
   return { bairro: bairro && !badNeighborhood(bairro) ? keyOf(bairro) : null, cidade: str(parsed.cidade) ? keyOf(str(parsed.cidade)) : null, endereco: str(parsed.endereco), regiao, confianca: regiao ? confianca : 0, motivo: str(parsed.motivo) || '' };
 }
 
-export async function analyzeAddressesWithAi(input: AddressAiInput, fetcher: Fetcher = fetch as Fetcher, env: NodeJS.ProcessEnv = process.env): Promise<AddressAiResult | null> {
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey || (!input.addresses.length && !input.bairro)) return null;
-  const model = env.GEMINI_ADDRESS_MODEL || env.GEMINI_MODEL || 'gemini-2.5-flash';
+export async function analyzeAddressesWithAi(input: AddressAiInput, fetcher?: Fetcher, env: NodeJS.ProcessEnv = process.env): Promise<AddressAiResult | null> {
+  if (!llmConfigured(env) || (!input.addresses.length && !input.bairro)) return null;
   try {
-    const response = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: buildAddressPrompt(input) }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json' } }),
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!response.ok) return null;
-    const payload = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-    const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text ? parseAddressAiResponse(text, input.regions) : null;
+    const answer = await askLlmJson(buildAddressPrompt(input), { timeoutMs: 15_000, label: 'endereco', geminiModels: [env.GEMINI_ADDRESS_MODEL || env.GEMINI_MODEL || 'gemini-2.5-flash'] }, fetcher, env);
+    return parseAddressAiResponse(answer.text, input.regions);
   } catch {
     return null;
   }

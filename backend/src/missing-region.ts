@@ -17,9 +17,14 @@ export function missingRegionCalls(calls: Call[]): MissingRegionCall[] {
 }
 
 // Outros chamados sem regiao da mesma OLT (para "aplicar a todos desta OLT").
+// OLT de verdade tem o formato de hostname (ex.: VIP-ITA-SPO-OHW-01); textos como "ATIVACAO" (lixo do card) nao contam.
+export function isRealOlt(olt: string | undefined | null) {
+  return /^[A-Z0-9]+(?:-[A-Z0-9]+)+$/.test(normalizeOltCode(olt || '') || '');
+}
+
 export function sameOltMissing(calls: Call[], olt: string | undefined, exceptId: string) {
   const target = normalizeOltCode(olt || '');
-  if (!target) return [];
+  if (!target || !isRealOlt(olt)) return [];
   return calls.filter((call) => call.id !== exceptId && isMissingRegion(call.region) && normalizeOltCode(call.olt || '') === target);
 }
 
@@ -38,19 +43,31 @@ const mostCommon = (regions: string[]) => {
   for (const region of regions) { const item = counts.get(key(region)) ?? { region, count: 0 }; item.count += 1; counts.set(key(region), item); }
   return [...counts.values()].sort((a, b) => b.count - a.count)[0];
 };
-export function suggestRegion(call: Pick<Call, 'olt' | 'bairro' | 'city'>, calls: Call[], oltRegion: (olt: string) => string | null): RegionSuggestion {
-  const byOlt = call.olt ? oltRegion(call.olt) : null;
+// Cidade do chamado: o campo cidade (sem "Nao informada" e sem o "/Itaim" do OFS) ou a do endereco ("..., GUARULHOS - SP").
+export function cityOf(call: Pick<Call, 'city'> & { address?: string }) {
+  const field = key(call.city).split('/')[0].trim();
+  if (field && !MISSING.has(field) && field !== 'NAO INFORMADA') return field;
+  const fromAddress = String(call.address ?? '').match(/,?\s*([^,]+?)\s+-\s+[A-Z]{2}(?:\s*,|\s*$)/i)?.[1];
+  return fromAddress ? key(fromAddress) : '';
+}
+
+export function suggestRegion(call: Pick<Call, 'olt' | 'bairro' | 'city'> & { address?: string }, calls: Call[], oltRegion: (olt: string) => string | null): RegionSuggestion {
+  const byOlt = call.olt && isRealOlt(call.olt) ? oltRegion(call.olt) : null;
   if (byOlt && !isMissingRegion(byOlt)) return { region: byOlt, reason: 'olt', detail: `OLT ${call.olt}` };
   const withRegion = calls.filter((item) => !isMissingRegion(item.region));
+  const city = cityOf(call);
   if (call.bairro && key(call.bairro)) {
-    const same = withRegion.filter((item) => key(item.bairro) === key(call.bairro) && (!call.city || !item.city || key(item.city) === key(call.city)));
+    // Mesmo bairro e mesma cidade (existe Jardim Bela Vista em Guarulhos e em Ferraz). Sem cidade conhecida, so quando
+    // todos os chamados desse bairro concordam na regiao.
+    const sameBairro = withRegion.filter((item) => key(item.bairro) === key(call.bairro));
+    const same = city ? sameBairro.filter((item) => cityOf(item) === city) : sameBairro;
     const top = same.length ? mostCommon(same.map((item) => item.region)) : undefined;
-    if (top) return { region: top.region, reason: 'bairro', detail: `${top.count} chamado(s) do bairro ${call.bairro}` };
+    if (top && (city || top.count === same.length)) return { region: top.region, reason: 'bairro', detail: `${top.count} chamado(s) do bairro ${call.bairro}${city ? ` em ${city}` : ''}` };
   }
-  if (call.city && key(call.city)) {
-    const same = withRegion.filter((item) => key(item.city) === key(call.city));
+  if (city) {
+    const same = withRegion.filter((item) => cityOf(item) === city);
     const top = same.length >= 3 ? mostCommon(same.map((item) => item.region)) : undefined;
-    if (top && top.count / same.length >= 0.7) return { region: top.region, reason: 'cidade', detail: `${top.count} de ${same.length} chamado(s) de ${call.city}` };
+    if (top && top.count / same.length >= 0.7) return { region: top.region, reason: 'cidade', detail: `${top.count} de ${same.length} chamado(s) de ${city}` };
   }
   return null;
 }
