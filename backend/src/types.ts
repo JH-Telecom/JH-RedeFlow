@@ -25,8 +25,6 @@ export type PermissionCode =
   | 'activations.decide'
   | 'imports.view'
   | 'imports.create'
-  | 'network.view'
-  | 'network.manage'
   | 'settings.manage';
 
 export type Role = {

@@ -23,8 +23,6 @@ import { CallDetailRoute } from "../pages/CallDetailPage";
 import { CallsPage, SupervisorOrdersPage } from "../pages/CallsPage";
 import { SupervisorOverviewPage } from "../pages/SupervisorOverviewPage";
 import { PopKeysPage } from "../pages/PopKeysPage";
-import { NetworkImportPage } from "../pages/NetworkImportPage";
-import { NetworkMapPage } from "../pages/NetworkMapPage";
 import { NightRouterPage } from "../pages/NightRouterPage";
 import { JotaHWidget } from "./JotaHWidget";
 import { MissingRegionPage } from "../pages/MissingRegionPage";
@@ -54,7 +52,7 @@ import { CopyrightNotice } from "./Copyright";
 
 function navItemForPath(pathname: string) {
   if (pathname === "/") return navItems[0];
-  // Prefixo mais longo: /rede/importar e a aba "Rede (KMZ)", nao "Mapa da rede" (/rede).
+  // Prefixo mais longo vence (aba mais especifica).
   return navItems.filter((item) => item.to !== "/" && pathname.startsWith(item.to)).sort((a, b) => b.to.length - a.to.length)[0];
 }
 
@@ -361,7 +359,7 @@ export function Shell({
                   <div key={item.to} className={`nav-item-slot${hidden ? " is-hidden" : ""}`} inert={hidden} aria-hidden={hidden || undefined}><div className="nav-item-slot-inner">
                   <NavLink
                     to={item.to}
-                    end={item.to === "/" || item.to === "/igp" || item.to === "/rede"}
+                    end={item.to === "/" || item.to === "/igp"}
                     onClick={() => setMobileOpen(false)}
                     title={desktopCollapsed ? (count ? `${item.label} (${count})` : item.label) : undefined}
                     className={({ isActive }) => (isActive || (item.to === "/chamados/atendimento" && isCallDetail) ? "nav-item active" : "nav-item")}
@@ -465,8 +463,6 @@ export function Shell({
             <Route path="/cargos" element={guard("roles.view", <RolesPage currentRoleId={user.roleId} />)} />
             <Route path="/historico-alteracoes" element={guard("calls.view_logs", <AuditHistoryPage />)} />
             <Route path="/mapa" element={guard("calls.view", <QueueMapPage />)} />
-            <Route path="/rede" element={guard("network.view", <NetworkMapPage />)} />
-            <Route path="/rede/importar" element={guard("network.manage", <NetworkImportPage />)} />
             <Route path="/chaves" element={guard("calls.view", <PopKeysPage user={user} />)} />
             <Route path="/igp/pontuacao" element={guard("dashboard.view", <IgpScorePage user={user} />)} />
             <Route path="/sem-regiao" element={guard("calls.view", <MissingRegionPage user={user} />)} />

@@ -7,7 +7,7 @@
 var GRUPO_TITULO = "Rede · automação";
 var GRUPO_COR = "purple";
 var GRUPO_CHAVE = "grupoAutomacao"; // chrome.storage.local: { groupId, abas: { ofs, fechamento, autoisp } }
-// "ofs": exportacao e roteirizador. "fechamento": fechamentos e clusters. "autoisp": SN e PONs do mapa da rede.
+// "ofs": exportacao e roteirizador. "fechamento": fechamentos e clusters. "autoisp": leitura de SN.
 var GRUPO_TIPOS = {
   ofs: { origem: "https://alloha.fs.ocs.oraclecloud.com/", nome: "OFS" },
   fechamento: { origem: "https://alloha.fs.ocs.oraclecloud.com/", nome: "OFS" },
@@ -181,7 +181,7 @@ async function autoIspPronto(tabId, ms) {
   return estado;
 }
 
-// Aba do AutoISP do grupo, pronta. Devolve { aba } ou { erro } com a mensagem para o popup/ultimaPon.
+// Aba do AutoISP do grupo, pronta. Devolve { aba } ou { erro } com a mensagem para o popup.
 async function abaAutoIspPronta() {
   var aba;
   try { aba = await abaDoGrupo("autoisp"); } catch (e) { return { erro: "Não consegui abrir o AutoISP no grupo " + GRUPO_TITULO + " (" + ((e && e.message) || e) + ")" }; }

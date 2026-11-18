@@ -703,7 +703,7 @@ chrome.alarms.onAlarm.addListener(async (alarme) => {
   if (alarme.name === "rf-vigia") return conferirCapturaVencida();
   const cfg = await config();
   if (!cfg.ativo || (await semPermissaoDeColeta())) return;
-  if (alarme.name === ALARME_FECH) { await coletarFechamentos(true); await buscarSnAutoIsp().catch(() => undefined); return lerPonsPendentes().catch(() => undefined); }
+  if (alarme.name === ALARME_FECH) { await coletarFechamentos(true); return buscarSnAutoIsp().catch(() => undefined); }
   if (alarme.name === ALARME_CLUSTERS) return coletarClusters(true);
   if (alarme.name === ALARME_HOJE) await exportarDia(hojeSP(), true);
   if (alarme.name === ALARME_ONTEM) {
@@ -747,8 +747,6 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     fechamentos: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarFechamentos(false)),
     clusters: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : coletarClusters(false)),
     buscarSn: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : buscarSnAutoIsp()),
-    lerPon: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : lerPonsPendentes()),
-    ultimaPon: async () => (await chrome.storage.local.get("ultimaPon")).ultimaPon || null,
     roteirizar: async () => ((await semPermissaoDeColeta()) ? { ok: false, erro: MSG_SEM_COLETA } : roteirizar(false)),
     ultimoRoteiro: async () => (await chrome.storage.local.get("ultimoRoteiro")).ultimoRoteiro || null,
   };
@@ -806,5 +804,3 @@ chrome.runtime.onMessage.addListener((msg) => {
 importScripts("grupo-automacao.js");
 // 1.10.0: roteirizador da madrugada (22h-06h desde 1.12.1), no fim porque usa as constantes e funcoes deste arquivo.
 importScripts("roteirizador.js");
-// 1.11.0: le no AutoISP os clientes das PONs das massivas (mapa da rede).
-importScripts("autoisp-rede.js");

@@ -18,7 +18,7 @@ numa aba fora do grupo.
   - **OFS** para a exportação e o roteirizador;
   - **OFS** para fechamentos e clusters (a antiga "aba fixada"; aba fixada não entra em grupo no Chrome, então agora
     ela fica sem fixar, dentro do grupo);
-  - **AutoISP**, só quando há SN ou PON de massiva para ler.
+  - **AutoISP**, só quando há SN para ler.
 - **Deixe o grupo quieto**: não feche nem tire abas dele. Se uma aba sair do grupo, a extensão para de usá-la e abre
   outra no grupo na próxima rodada. Se o grupo sumir (janela fechada) ou for renomeado, ela recria um na última janela usada.
 - **Não arraste suas abas para dentro do grupo**: qualquer aba do OFS ou do AutoISP que estiver no grupo pode ser usada,
@@ -82,18 +82,6 @@ Trazidas da extensão JH Telecom 2.1.1 (JH Agendamentos). Ficam no botão **JH**
 O que dependia do site do JH Agendamentos aberto fica desligado na Rede: painel do cliente, Minha fila, nome do cliente na
 lista e a faixa de mensagens prontas de agendamento. Se a extensão JH Agendamentos também estiver com o WhatsApp ligado,
 deixe ligado em uma só (as duas desenham no mesmo lugar).
-
-## Mapa da rede: clientes da PON no AutoISP (v1.11)
-
-- No alarme periódico de fechamentos da extensão (e pela mensagem `lerPon`), pergunta ao RedeFlow quais PONs de massivas estão na fila
-  (`GET /api/integrations/autoisp/pons-pendentes`).
-- Para cada PON, usa a **aba do AutoISP do grupo Rede · automação** (auto.alloha.com, aberta pela extensão; faça login
-  nela quando pedir): acha a OLT, busca a PON e abre o
-  detalhe de até 100 clientes, 3 por vez. Só faz GET; não usa "Atualizar sinal".
-- Envia só contrato, serial, int6, OLT, ponlink, sinal, status, último contato e lat/lng
-  (`POST /api/integrations/autoisp/pon`). **Nunca nome, endereço ou documento.**
-- Com o AutoISP pedindo login na aba do grupo, não lê nada e registra "Faça login na aba do grupo Rede · automação (AutoISP)".
-  Se a conta não enxerga a OLT, a fila mostra o erro com o nome da OLT.
 
 ## Instalação
 

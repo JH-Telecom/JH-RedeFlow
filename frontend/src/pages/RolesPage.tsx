@@ -14,7 +14,6 @@ const PERMISSION_GROUPS: { prefix: string; label: string }[] = [
   { prefix: "technicians", label: "Técnicos" },
   { prefix: "supervisors", label: "Supervisores" },
   { prefix: "imports", label: "Importações" },
-  { prefix: "network", label: "Rede" },
   { prefix: "users", label: "Usuários" },
   { prefix: "roles", label: "Cargos" },
   { prefix: "settings", label: "Configurações" },
