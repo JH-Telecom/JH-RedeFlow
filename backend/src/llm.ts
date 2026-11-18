@@ -3,7 +3,7 @@
 //   GROQ_MODEL              modelo principal do Groq (padrao llama-3.3-70b-versatile)
 //   GROQ_FALLBACK_MODELS    reservas do Groq, separados por virgula (padrao llama-3.1-8b-instant)
 //   GEMINI_MODEL            modelo do Gemini (padrao gemini-2.5-flash)
-type Fetcher = (url: string, init: RequestInit) => Promise<Pick<Response, 'ok' | 'status' | 'json'>>;
+type Fetcher = (url: string, init: RequestInit) => Promise<Pick<Response, 'ok' | 'status' | 'json'> & { headers?: Pick<Headers, 'get'> }>;
 export type LlmOptions = { temperature?: number; timeoutMs?: number; geminiModels?: string[]; label?: string };
 export type LlmAnswer = { text: string; provider: 'groq' | 'gemini'; model: string };
 
@@ -25,7 +25,7 @@ export function groqModels(env: NodeJS.ProcessEnv = process.env) {
 const PREFERRED = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'moonshotai/kimi-k2-instruct', 'qwen/qwen3-32b', 'openai/gpt-oss-20b', 'llama-3.1-8b-instant'];
 let groqCatalog: { models: string[]; at: number } | null = null;
 export function pickGroqModels(available: string[]) {
-  const chat = available.filter((id) => !/whisper|tts|guard|embed|playai|distil|orpheus|compound/i.test(id));
+  const chat = available.filter((id) => !/whisper|tts|guard|embed|playai|distil|orpheus|compound|allam|prompt/i.test(id));
   const preferred = PREFERRED.filter((id) => chat.includes(id));
   return unique([...preferred, ...chat]).slice(0, 3);
 }
@@ -41,7 +41,10 @@ async function groqAvailableModels(key: string, fetcher: Fetcher): Promise<strin
     return models;
   } catch { return []; }
 }
-export function resetGroqCatalog() { groqCatalog = null; }
+// Modelos que deram 404 neste servidor: nao tenta de novo a cada pedido (antes, toda chamada perdia 2 tentativas).
+const deadGroqModels = new Set<string>();
+export function resetGroqCatalog() { groqCatalog = null; deadGroqModels.clear(); }
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Erro que outro modelo pode resolver: cota (429), modelo fora/inexistente (404, 5xx) ou rede.
 const retryable = (status: number) => status === 0 || status === 429 || status === 404 || status === 413 || status >= 500;
@@ -55,9 +58,11 @@ export async function askLlmJson(prompt: string, options: LlmOptions = {}, fetch
   const groqKey = env.GROQ_API_KEY?.trim();
   if (groqKey) {
     // Configurados primeiro; os que deram 404 (nome que nao existe mais) dao lugar aos que a conta tem hoje.
-    const tried = new Set<string>();
-    let queue = groqModels(env);
+    const tried = new Set<string>(deadGroqModels);
+    let queue = unique([...groqModels(env), ...(groqCatalog?.models ?? [])]).filter((model) => !deadGroqModels.has(model));
     let discovered = false;
+    if (!queue.length) { queue = await groqAvailableModels(groqKey, fetcher); discovered = true; }
+    let waited = false;
     for (let index = 0; index < queue.length; index += 1) {
       const model = queue[index];
       if (tried.has(model)) continue;
@@ -71,6 +76,16 @@ export async function askLlmJson(prompt: string, options: LlmOptions = {}, fetch
           signal: AbortSignal.timeout(timeout),
         });
         status = response.status;
+        // Limite por minuto (429): espera o que o Groq pedir (ate 6 s) e tenta o mesmo modelo de novo, uma vez por pedido.
+        if (status === 429 && !waited) {
+          waited = true;
+          const after = Number(response.headers?.get('retry-after')) || 2;
+          await sleep(Math.min(6, Math.max(1, after)) * 1000);
+          tried.delete(model);
+          index -= 1;
+          console.warn(`${tag} Groq (${model}) no limite por minuto; tentando de novo em ${Math.min(6, Math.max(1, after))} s`);
+          continue;
+        }
         if (response.ok) {
           const payload = await response.json() as { choices?: { message?: { content?: string } }[] };
           const text = payload.choices?.[0]?.message?.content;
@@ -80,6 +95,7 @@ export async function askLlmJson(prompt: string, options: LlmOptions = {}, fetch
       } catch { status = 0; }
       last = new LlmError(`Groq (${model}) respondeu HTTP ${status || 'sem resposta'}`, status, 'groq');
       console.warn(`${tag} ${last.message}`);
+      if (status === 404) deadGroqModels.add(model);
       if (!retryable(status)) break;
       if (status === 404 && !discovered && index === queue.length - 1) {
         discovered = true;

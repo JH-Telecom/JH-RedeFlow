@@ -41,8 +41,18 @@ export function regionExamples(calls: Array<{ bairro?: string; city?: string; re
   return [...counts.values()].sort((a, b) => b.count - a.count).slice(0, limit);
 }
 
+// So os exemplos que ajudam neste chamado (mesma cidade ou palavra do bairro em comum), no maximo 60: o prompt fica
+// pequeno e nao estoura o limite de texto por minuto do plano gratis da IA.
+export function relevantExamples(input: Pick<AddressAiInput, 'addresses' | 'bairro' | 'city' | 'examples'>, limit = 60) {
+  const text = keyOf([input.bairro, input.city, ...input.addresses].join(' '));
+  const words = new Set(text.split(/[^A-Z0-9]+/).filter((word) => word.length >= 4 && !['JARDIM', 'VILA', 'PARQUE', 'RUA', 'AVENIDA', 'PAULO'].includes(word)));
+  const score = (item: AddressAiInput['examples'][number]) => (item.city && text.includes(item.city) ? 2 : 0) + item.bairro.split(' ').filter((word) => words.has(word)).length * 3;
+  return input.examples.map((item) => ({ item, points: score(item) })).filter((entry) => entry.points > 0).sort((a, b) => b.points - a.points || b.item.count - a.item.count).slice(0, limit).map((entry) => entry.item);
+}
+
 export function buildAddressPrompt(input: AddressAiInput) {
-  const addresses = [...new Set(input.addresses.map((item) => item.replace(/\s+/g, ' ').trim()).filter(Boolean))].slice(0, 25);
+  const addresses = [...new Set(input.addresses.map((item) => item.replace(/\s+/g, ' ').trim()).filter(Boolean))].slice(0, 12);
+  input = { ...input, examples: relevantExamples(input) };
   return [
     'Você analisa endereços de clientes afetados por uma falha de rede de fibra (Grande São Paulo e região).',
     'Responda SOMENTE um JSON: {"bairro": string|null, "cidade": string|null, "endereco": string|null, "regiao": string|null, "confianca": número de 0 a 1, "motivo": string curto}.',

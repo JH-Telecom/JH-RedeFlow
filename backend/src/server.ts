@@ -2095,8 +2095,8 @@ export function aiSuggestionFor(callId: string) {
   return entry && Date.now() - entry.at < 24 * 3_600_000 ? entry.suggestion : undefined;
 }
 app.post('/api/chamados/sem-regiao/ia', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
-  const parsed = z.object({ ids: z.array(z.string().trim().min(1).max(120)).min(1).max(20) }).safeParse(request.body);
-  if (!parsed.success) return response.status(400).json({ message: 'Envie de 1 a 20 chamados.' });
+  const parsed = z.object({ ids: z.array(z.string().trim().min(1).max(120)).min(1).max(10) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Envie de 1 a 10 chamados.' });
   if (!llmConfigured()) return response.status(409).json({ message: 'A IA não está configurada no servidor (GROQ_API_KEY ou GEMINI_API_KEY).' });
   try {
     const calls = await listCalls();
@@ -2105,9 +2105,9 @@ app.post('/api/chamados/sem-regiao/ia', auth, requirePermission('calls.edit'), a
     const results: Record<string, { region: string; reason: 'ia'; detail: string } | null> = {};
     let failures = 0;
     let lastError = '';
-    // Um por vez (3 em paralelo no maximo) para nao estourar a cota por minuto da IA.
     const queue = [...parsed.data.ids];
-    await Promise.all(Array.from({ length: 3 }, async () => { for (let id = queue.shift(); id; id = queue.shift()) await analyzeOne(id); }));
+    // Um de cada vez: o plano gratis da IA tem limite por minuto.
+    for (let id = queue.shift(); id; id = queue.shift()) await analyzeOne(id);
     async function analyzeOne(id: string) {
       const call = byId.get(id);
       if (!call || !isMissingRegion(call.region)) return;

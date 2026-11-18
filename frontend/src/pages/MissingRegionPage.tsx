@@ -52,10 +52,10 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
   const current = Math.min(page, pages);
   const pageItems = visible.slice((current - 1) * PAGE, current * PAGE);
   const withSuggestion = visible.filter((call) => call.suggestion);
-  // Sem sugestao das regras: a IA le endereco, bairro e cidade (ate 20 por vez, os da pagina primeiro).
+  // Sem sugestao das regras: a IA le endereco, bairro e cidade (ate 10 por vez, os da pagina primeiro).
   const withoutSuggestion = visible.filter((call) => !call.suggestion && (call.address || call.bairro || call.city));
   async function analyzeWithAi() {
-    const ids = [...pageItems, ...visible].filter((call, index, list) => !call.suggestion && (call.address || call.bairro || call.city) && list.indexOf(call) === index).slice(0, 20).map((call) => call.id);
+    const ids = [...pageItems, ...visible].filter((call, index, list) => !call.suggestion && (call.address || call.bairro || call.city) && list.indexOf(call) === index).slice(0, 10).map((call) => call.id);
     if (!ids.length) return;
     setSaving("ia"); setNotice(""); setError("");
     try {
@@ -133,8 +133,8 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
               </div>
               <label className="sr-search"><Search size={15} aria-hidden="true" /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Ordem, OLT, bairro, cidade, técnico..." aria-label="Pesquisar" />{query && <button type="button" onClick={() => setQuery("")} aria-label="Limpar busca"><X size={14} /></button>}</label>
               {canEdit && withoutSuggestion.length > 0 && (
-                <button type="button" className="secondary-button compact sr-accept" onClick={() => void analyzeWithAi()} disabled={saving !== null} title="A IA lê o endereço, o bairro e a cidade e sugere a região (até 20 por vez)">
-                  <Bot size={15} aria-hidden="true" /> {saving === "ia" ? "Analisando..." : `Analisar ${Math.min(20, withoutSuggestion.length)} com IA`}
+                <button type="button" className="secondary-button compact sr-accept" onClick={() => void analyzeWithAi()} disabled={saving !== null} title="A IA lê o endereço, o bairro e a cidade e sugere a região (até 10 por vez)">
+                  <Bot size={15} aria-hidden="true" /> {saving === "ia" ? "Analisando..." : `Analisar ${Math.min(10, withoutSuggestion.length)} com IA`}
                 </button>
               )}
               {canEdit && withSuggestion.length > 0 && (
