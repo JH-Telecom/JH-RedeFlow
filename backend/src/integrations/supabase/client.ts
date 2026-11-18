@@ -634,7 +634,9 @@ export async function countSupabasePendingActivations(): Promise<number> {
 }
 
 export async function countSupabaseUnassignedOpenCalls(): Promise<number> {
-  const { count, error } = await getSupabaseAdmin().from('calls').select('id', { count: 'exact', head: true }).is('technician_id', null).not('status', 'in', '(Finalizado,Cancelado,Baixar)');
+  // Mesmo criterio da fila Chamados abertos: ativos sem tecnico. GIGA+ (outro escritorio) fica de fora (18/11/2026: o
+  // contador do menu mostrava 3 com 1 chamado na fila, somando 2 GIGA+ sem tecnico).
+  const { count, error } = await getSupabaseAdmin().from('calls').select('id', { count: 'exact', head: true }).is('technician_id', null).in('status', ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']);
   if (error) throw new Error(error.message);
   return count || 0;
 }

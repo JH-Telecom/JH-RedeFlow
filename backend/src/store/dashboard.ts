@@ -7,7 +7,7 @@ import { activations, calls } from "./demo-data.js";
 
 export async function countUnassignedOpenCalls(): Promise<number> {
   if (isSupabaseConfigured()) return await countSupabaseUnassignedOpenCalls();
-  return [...calls.values()].filter((call) => !call.technicianId && !['Finalizado', 'Cancelado', 'Baixar', 'GIGA+'].includes(call.status)).length;
+  return [...calls.values()].filter((call) => !call.technicianId && ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'].includes(call.status)).length;
 }
 
 export async function countPendingActivations(): Promise<number> {
