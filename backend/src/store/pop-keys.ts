@@ -126,6 +126,21 @@ export async function getPopKeyPhoto(movementId: string): Promise<string | null>
   return data?.photo || null;
 }
 
+// Apagar a chave de um POP (quem gerencia as configuracoes): some da lista junto com o historico (cascade no banco).
+export async function deletePopKey(id: string) {
+  if (!isSupabaseConfigured()) {
+    ensureMemory();
+    const index = memoryKeys.findIndex((key) => key.id === id);
+    if (index < 0) return false;
+    memoryKeys.splice(index, 1);
+    for (let i = memoryMovements.length - 1; i >= 0; i -= 1) if (memoryMovements[i].popKeyId === id) memoryMovements.splice(i, 1);
+    return true;
+  }
+  const { data, error } = await getSupabaseAdmin().from('pop_keys').delete().eq('id', id).select('id');
+  if (error) throw new Error(error.message);
+  return Boolean(data?.length);
+}
+
 // POP novo (quem gerencia as configuracoes).
 export async function addPopKey(pop: string) {
   const name = pop.trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-BR');

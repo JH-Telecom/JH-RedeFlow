@@ -406,6 +406,7 @@ export const api = {
   addPopKey: (pop: string) => request<{ key: PopKey }>('/api/chaves', { method: 'POST', body: JSON.stringify({ pop }) }),
   takePopKey: (id: string, data: { holderName: string; holderKind: 'Tecnico' | 'Supervisor' | 'Outro'; holderId: string | null; notes: string | null; photo: string | null; takenAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/retirada`, { method: 'POST', body: JSON.stringify(data) }),
   returnPopKey: (id: string, data: { notes: string | null; returnedAt: string }) => request<{ key: PopKey }>(`/api/chaves/${id}/devolucao`, { method: 'POST', body: JSON.stringify(data) }),
+  deletePopKey: (id: string) => request<void>(`/api/chaves/${id}`, { method: 'DELETE' }),
   popKeyHistory: (id: string) => request<{ movements: PopKeyMovement[] }>(`/api/chaves/${id}/historico`),
   popKeyPhoto: (movementId: string) => request<{ photo: string }>(`/api/chaves/movimentos/${movementId}/foto`),
   backupStatus: () => request<BackupStatus>('/api/configuracoes/backup'),

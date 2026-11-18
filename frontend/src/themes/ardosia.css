@@ -2303,6 +2303,9 @@
     border-color: #353c44;
     color: #e0e5ec
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .pk-delete-button:hover {
+    color: #a43a41
+}
 /* light · network.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .net-hint {
     color: #515e6c
@@ -7731,6 +7734,9 @@
     background: #191c20;
     border-color: #353c44;
     color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .pk-delete-button:hover {
+    color: #ff9192
 }
 /* dark · network.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .net-hint {

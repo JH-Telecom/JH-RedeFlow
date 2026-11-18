@@ -2326,6 +2326,9 @@
     border-color: #333c48;
     color: #dfe5ef
 }
+:where(:root[data-theme="dark"]) .pk-delete-button:hover {
+    color: #ff9192
+}
 
 /* network.css */
 :where(:root[data-theme="dark"]) .net-hint {

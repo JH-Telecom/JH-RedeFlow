@@ -68,7 +68,7 @@ import { sweepNightActivations } from './night-auto-accept.js';
 import { listNetworkArea, listNetworkSources, listPopOlts, saveNetworkBatch, savePopOlt } from './store/network.js';
 import { enqueuePons, pendingPons, ponView, savePonReading } from './store/network-clients.js';
 import { normalizeOlt, normalizePonlink, ponsFromCall } from './network.js';
-import { addPopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
+import { addPopKey, deletePopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
 const port = Number(process.env.PORT || 3333);
@@ -778,6 +778,10 @@ app.post('/api/chaves', auth, requirePermission('settings.manage'), async (reque
   if (!parsed.success) return response.status(400).json({ message: 'Informe o nome do POP.' });
   try { return response.status(201).json({ key: await addPopKey(parsed.data.pop) }); }
   catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel cadastrar o POP.' }); }
+});
+app.delete('/api/chaves/:id', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  try { return (await deletePopKey(String(request.params.id))) ? response.status(204).end() : response.status(404).json({ message: 'Chave nao encontrada.' }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel apagar a chave.' }); }
 });
 // Mapa da rede: ver (network.view) e importar/editar POP -> OLT (network.manage). Nunca guarda nome/endereco de assinante.
 app.get('/api/rede/area', auth, requirePermission('network.view'), async (request: AuthRequest, response) => {

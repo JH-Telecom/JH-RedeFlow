@@ -65,3 +65,7 @@
 .pk-form select { min-height: 46px; padding: 0 12px; border: 1px solid #dce4ef; border-radius: 8px; background: #fff; color: #17233b; font: inherit; font-size: 13px; }
 .pk-form select:focus-visible { outline: 2px solid #1264e8; outline-offset: 1px; }
 :where(:root[data-theme="dark"]) .pk-form select { background: #181c22; border-color: #333c48; color: #dfe5ef; }
+
+/* Apagar chave (18/11/2026): o botao vermelho do formulario no tamanho dos outros botoes da linha */
+.pk-form-actions .delete-button { width: auto; min-height: 38px; margin-top: 0; padding: 0 16px; }
+.pk-delete-button:hover { color: #bd5156; }

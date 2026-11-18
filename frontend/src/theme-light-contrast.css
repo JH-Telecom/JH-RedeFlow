@@ -1317,6 +1317,9 @@
 :where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .pk-form select {
     color: #dfe5ef
 }
+:where(:root:not([data-theme="dark"])) .pk-delete-button:hover {
+    color: #a43a41
+}
 
 /* network.css */
 :where(:root:not([data-theme="dark"])) .net-hint {

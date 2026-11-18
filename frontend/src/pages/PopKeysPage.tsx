@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, History, ImagePlus, KeyRound, Plus, RotateCcw, Search, UserRound, X } from "lucide-react";
+import { Camera, History, ImagePlus, KeyRound, Plus, RotateCcw, Search, Trash2, UserRound, X } from "lucide-react";
 import { api, type PopKey, type PopKeyMovement, type Role, type Supervisor, type Technician, type User } from "../api";
 import { AdminModal } from "../components/ui";
 import { toLocalDateTimeInput } from "../components/call-cells";
@@ -40,6 +40,7 @@ export function PopKeysPage({ user }: { user: User & { role: Role } }) {
   const [history, setHistory] = useState<PopKey | null>(null);
   const [viewer, setViewer] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<PopKey | null>(null);
 
   async function load() {
     try { setKeys((await api.popKeys()).keys); setError(""); }
@@ -100,6 +101,7 @@ export function PopKeysPage({ user }: { user: User & { role: Role } }) {
               {canEdit && key.status === "Retirada" && <button type="button" className="primary-button compact" onClick={() => setReturning(key)}><RotateCcw size={14} aria-hidden="true" /> Devolver</button>}
               {canEdit && key.status === "A conferir" && <button type="button" className="secondary-button compact" onClick={() => setReturning(key)}>Está na base</button>}
               <button type="button" className="icon-button pk-history-button" onClick={() => setHistory(key)} aria-label={`Histórico da chave de ${key.pop}`} title="Histórico"><History size={16} /></button>
+              {canManage && <button type="button" className="icon-button pk-delete-button" onClick={() => setDeleting(key)} aria-label={`Apagar a chave de ${key.pop}`} title="Apagar"><Trash2 size={16} /></button>}
             </div>
           </li>
         ))}
@@ -108,6 +110,7 @@ export function PopKeysPage({ user }: { user: User & { role: Role } }) {
       {taking && <TakeModal popKey={taking} onClose={() => setTaking(null)} onSaved={(key) => { replace(key); setTaking(null); }} />}
       {returning && <ReturnModal popKey={returning} onClose={() => setReturning(null)} onSaved={(key) => { replace(key); setReturning(null); }} />}
       {history && <HistoryModal popKey={history} onClose={() => setHistory(null)} onOpenPhoto={setViewer} />}
+      {deleting && <DeletePopModal popKey={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setKeys((current) => current?.filter((item) => item.id !== deleting.id) ?? null); setDeleting(null); }} />}
       {adding && <AddPopModal onClose={() => setAdding(false)} onSaved={() => { setAdding(false); void load(); }} />}
       {viewer && <AdminModal title="Foto da retirada" onClose={() => setViewer(null)}><img className="pk-viewer" src={viewer} alt="Foto tirada na retirada da chave" /></AdminModal>}
     </div>
@@ -274,6 +277,28 @@ function HistoryModal({ popKey, onClose, onOpenPhoto }: { popKey: PopKey; onClos
           ))}
         </ol>
       )}
+    </AdminModal>
+  );
+}
+
+function DeletePopModal({ popKey, onClose, onDeleted }: { popKey: PopKey; onClose: () => void; onDeleted: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  async function remove() {
+    setSaving(true); setError("");
+    try { await api.deletePopKey(popKey.id); onDeleted(); }
+    catch (err) { setError(err instanceof Error ? err.message : "Não foi possível apagar a chave."); setSaving(false); }
+  }
+  return (
+    <AdminModal title="Apagar chave" onClose={() => { if (!saving) onClose(); }}>
+      <div className="pk-form">
+        <p>Apagar a chave de <b>{popKey.pop}</b>? Ela sai da lista junto com todo o histórico de retiradas e devoluções. Não dá para desfazer.</p>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <div className="pk-form-actions">
+          <button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancelar</button>
+          <button type="button" className="delete-button" onClick={() => void remove()} disabled={saving}>{saving ? "Apagando..." : "Apagar chave"}</button>
+        </div>
+      </div>
     </AdminModal>
   );
 }
