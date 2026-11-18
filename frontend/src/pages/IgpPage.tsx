@@ -5,6 +5,7 @@ import { api, type IgpArea, type IgpGoalPlan, type IgpMetrics, type IgpPlan } fr
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount } from "../components/charts";
 import { useCachedData } from "../lib/data-cache";
+import { SkeletonCards } from "../components/Skeleton";
 
 export function formatIgpPercent(value: number | null) {
   return value === null ? "-" : `${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
@@ -186,7 +187,7 @@ export function IGPPage() {
       <div><span className="section-kicker">IGP · REDES</span><h1>Indicadores de performance</h1><p>Consolidado mensal de Acesso (NOC ACESSO e Acionamento FIELD) e Backbone (NOC TX), ponderado pela quantidade de ordens, como a Giga conta. Ordens que já estão na planilha da Giga usam o cluster e o fechamento dela. <Link to="/igp/pontuacao">Ver a pontuação IGP</Link></p></div>
       <div className="igp-filter-controls"><label className="igp-area-picker">Região<select value={area} onChange={(event) => setArea(event.target.value as IgpArea)}><option value="ALL">Todas</option><option value="SP">SP</option><option value="GRU">GRU</option><option value="ALTO_TIETE">Alto Tietê</option><option value="ABC">ABC</option></select></label><label className="igp-month-picker">Mês de execução<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label></div>
     </div>
-    {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !metrics ? <div className="dv-empty" role="status">Calculando indicadores do mês...</div> : <>
+    {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !metrics ? <SkeletonCards count={4} label="Calculando indicadores do mês..." /> : <>
       {metrics.source && metrics.source.gigaOrders > 0 && <p className="igp-source">Até <b>{new Date(metrics.source.closedUntil!).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</b> pela planilha da Giga ({metrics.source.fileName}): <b>{metrics.source.gigaOrders}</b> ordens, com o cluster, o prazo, o outlier e o TME dela. Depois disso, pelo sistema: <b>{metrics.source.systemOrders}</b> ordens.</p>}
       <div className="dv-kpi-grid">
         <KpiTile label="Ordens consideradas" value={formatCount(metrics.total.orders)} note={`${metrics.access.orders} Acesso${metrics.backbone.orders ? ` · ${metrics.backbone.orders} Backbone` : ""}${metrics.nocTxOrders ? ` · ${metrics.nocTxOrders} NOC TX fora do IGP` : ""}${metrics.excludedOrders ? ` · ${metrics.excludedOrders} fora do cálculo (tipo não reconhecido ou fim antes da abertura)` : ""}`} icon={ClipboardList} />

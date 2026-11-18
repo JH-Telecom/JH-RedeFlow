@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Award, CheckCircle2, Download, FileSpreadsheet, Gauge, ListChecks, Lock, Percent, Save, Upload, XCircle } from "lucide-react";
 import { api, type IgpReconciliation, type IgpRules, type IgpScoreData, type IgpScoredIndicator, type Role, type User } from "../api";
 import { KpiTile, Panel } from "../components/charts";
+import { SkeletonCards } from "../components/Skeleton";
 
 // Pontuacao do IGP ACESSO (12/11/2026): igual a aba "IGP ACESSO" da planilha da Giga, calculada com os numeros das outras
 // abas dela. Importa o "JH (NN).xlsx" (acumulado no mes), mostra a pontuacao por cluster, a regua de faixas, a evolucao
@@ -130,7 +131,7 @@ export function IgpScorePage({ user }: { user: User & { role: Role } }) {
       {error && <div className="dv-empty is-error" role="alert">{error}</div>}
       {notice && <p className="isc-notice" role="status">{notice}</p>}
       {data && !data.latest && !error && <div className="dv-empty"><FileSpreadsheet size={20} aria-hidden="true" /> Nenhuma planilha da Giga importada ainda. {canImport ? "Clique em \"Importar planilha da Giga\" e escolha o \"JH (NN).xlsx\" do mês." : "Peça para quem cuida das importações subir o \"JH (NN).xlsx\" do mês."}</div>}
-      {!data && !error && <div className="dv-empty" role="status">Calculando a pontuação…</div>}
+      {!data && !error && <SkeletonCards count={4} label="Calculando a pontuação…" />}
 
       {data?.latest && score && <>
         <p className="isc-source">Planilha <b>{data.latest.fileName}</b> · ordens fechadas até <b>{fmtDate(data.latest.closedUntil)}</b> · importada {fmtDate(data.latest.importedAt)}{data.latest.importedBy ? ` por ${data.latest.importedBy}` : ""}</p>

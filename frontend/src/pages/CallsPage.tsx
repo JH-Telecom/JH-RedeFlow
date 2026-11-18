@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileSpreadsheet, Search, X } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, ArrowUpDown, Copy, FileSpreadsheet, Rows3, Search, X } from "lucide-react";
 import { api, isCallClosed, type Call, type CallListQuery, type CallListResult, type CallStatus, type Role, type User } from "../api";
 import { TimerCell, formatCallTimestamp, getSlaState } from "../components/call-cells";
 import { slaLimits } from "../lib/sla";
@@ -15,6 +15,7 @@ import { SkeletonRows } from "../components/Skeleton";
 import { useCachedData } from "../lib/data-cache";
 import { localCallsCount, localCallsPage, type FullCall } from "../lib/call-list-local";
 import { useIdBatch } from "../lib/id-batch-cache";
+import { SavedFilters } from "../components/SavedFilters";
 
 export function RangeCallTable({ calls }: { calls: Call[] }) {
   return (
@@ -235,6 +236,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const [searchQuery, setSearchQuery] = useState(() => (initialState.query ?? "").trim());
   useEffect(() => { const timer = window.setTimeout(() => setSearchQuery(query.trim()), 400); return () => window.clearTimeout(timer); }, [query]);
   const [loading, setLoading] = useState(false);
+  // Modo compacto (18/11/2026): linhas mais baixas, mais chamados por tela. Lembrado neste navegador.
+  const [compactRows, setCompactRows] = useState(() => { try { return localStorage.getItem("jh-fila-compacta") === "1"; } catch { return false; } });
   const [regionFilter, setRegionFilter] = useState(initialState.regionFilter ?? "Todas");
   // Area do IGP (SP, GRU, Alto Tiete): conjunto de regioes, igual ao filtro do IGP.
   const [areaFilter, setAreaFilter] = useState<AreaFilter>((initialState as { areaFilter?: AreaFilter }).areaFilter ?? "Todas");
@@ -605,6 +608,9 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             <Copy size={15} />
             {copyState === "copied" ? "Imagem copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao exportar" : "Copiar imagem"}
           </button>
+          <button className={`secondary-button compact${compactRows ? " is-active" : ""}`} type="button" aria-pressed={compactRows} onClick={() => setCompactRows((value) => { try { localStorage.setItem("jh-fila-compacta", value ? "0" : "1"); } catch { /* sem armazenamento */ } return !value; })} title="Mostra mais chamados por tela, com linhas mais baixas">
+            <Rows3 size={15} /> Compacto
+          </button>
           <button className={`secondary-button compact ${refreshing ? "is-refreshing" : ""}`} onClick={() => void refreshCalls()} disabled={refreshing} type="button">
             <Activity size={15} /> {refreshing ? "Atualizando" : "Atualizar"}
           </button>
@@ -646,6 +652,10 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             <div className="cq-filters-summary">
               <span aria-live="polite">{busy ? "Atualizando..." : plural(totalCalls, "resultado", "resultados")}</span>
               {activeFilters > 0 && <button type="button" className="cq-clear" onClick={clearFilters}>Limpar filtros ({activeFilters})</button>}
+              <SavedFilters storageKey={pageKey} canSave={activeFilters > 0} current={{ query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange }} onApply={(saved) => {
+                setQuery(saved.query ?? ""); if (!unassignedOnly) setStatusFilter(saved.statusFilter ?? "Todos"); setRegionFilter(saved.regionFilter ?? "Todas"); setAreaFilter(saved.areaFilter ?? "Todas");
+                setNeighborhoodFilter(saved.neighborhoodFilter ?? "Todos"); setOltFilter(saved.oltFilter ?? "Todas"); setDateRange(saved.dateRange ?? { from: "", to: "" });
+              }} />
             </div>
           </div>
         </div>
@@ -654,7 +664,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           <div className="cq-empty is-error" role="alert"><strong>Não foi possível carregar os chamados.</strong><span>{error}</span><button type="button" className="secondary-button compact" onClick={() => void refreshCalls()}>Tentar de novo</button></div>
         ) : (
           <div className="table-scroll-container cq-scroll">
-            <table ref={tableRef} className={`cq-table${busy ? " is-loading" : ""}`}>
+            <table ref={tableRef} className={`cq-table${busy ? " is-loading" : ""}${compactRows ? " is-compact" : ""}`}>
               <thead><tr>{columns.map((column) => {
                 const key = SORTABLE_COLUMNS[column];
                 if (!key) return <th key={column}>{column}</th>;

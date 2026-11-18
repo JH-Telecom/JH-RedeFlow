@@ -6,6 +6,7 @@ import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount, formatHours } from "../components/charts";
 import { Pager, usePaged } from "../components/Pager";
 import { useCachedData } from "../lib/data-cache";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Relatorios. Mesma regra de prazo de todo o sistema: ate 6h no prazo, acima de 6h fora, acima de 9h outlier.
 // Finalizados contam pela Data Fim; abertos pela abertura.
@@ -115,7 +116,7 @@ function useReport<T>(name: string, load: () => Promise<T>, deps: unknown[]) {
 }
 
 function ReportState({ error }: { error: string }) {
-  return error ? <div className="dv-empty is-error" role="alert">{error}</div> : <div className="dv-empty" role="status">Gerando o relatório...</div>;
+  return error ? <div className="dv-empty is-error" role="alert">{error}</div> : <SkeletonRows rows={6} columns={4} label="Gerando o relatório..." />;
 }
 
 function ExportButton({ onClick, disabled }: { onClick: () => Promise<void>; disabled?: boolean }) {

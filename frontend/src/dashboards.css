@@ -182,3 +182,6 @@
 .igp-table.igp-history th, .igp-table.igp-history td { padding: 10px 8px; }
 .igp-history tr.is-current th, .igp-history tr.is-current td { background: #f4f8fe; }
 .igp-history td .igp-goal { margin-left: 6px; }
+
+/* Vazio com acao (18/11/2026): o porque e o proximo passo */
+.dv-empty-action { display: grid; justify-items: center; gap: 10px; }

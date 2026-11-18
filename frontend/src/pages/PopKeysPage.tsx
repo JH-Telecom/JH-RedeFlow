@@ -79,7 +79,7 @@ export function PopKeysPage({ user }: { user: User & { role: Role } }) {
 
       {error && <div className="form-error" role="alert">{error}</div>}
       {!keys && !error && <SkeletonCards count={8} label="Carregando chaves..." />}
-      {keys && visible.length === 0 && <div className="empty-state">Nenhuma chave com esse filtro.</div>}
+      {keys && visible.length === 0 && <div className="empty-state dv-empty-action"><span>Nenhuma chave com esse filtro{search.trim() ? ` e a busca "${search.trim()}"` : ""}.</span><button type="button" className="secondary-button compact" onClick={() => { setFilter("todas"); setSearch(""); }}>Mostrar todas as chaves</button></div>}
 
       <ul className="pk-grid">
         {visible.slice(0, 100).map((key) => (

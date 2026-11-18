@@ -100,7 +100,7 @@ export function AuditHistoryPage() {
         : !data ? <SkeletonRows rows={8} columns={4} label="Carregando histórico..." />
         : (
           <Panel kicker="ALTERAÇÕES" title={`${data.total.toLocaleString("pt-BR")} registro(s)`} aside={data.totalPages > 1 ? <span className="sa-aside">100 por página</span> : undefined}>
-            {!data.logs.length ? <div className="dv-empty">Nenhuma alteração com esses filtros.</div> : <>
+            {!data.logs.length ? <div className="dv-empty dv-empty-action"><span>Nenhuma alteração com esses filtros no período.</span>{(userId || field || query) && <button type="button" className="secondary-button compact" onClick={() => { setUserId(""); setField(""); setQuery(""); }}>Limpar pessoa, campo e busca</button>}</div> : <>
               <div className="sa-table-wrap">
                 <table className="sa-table rp-table au-table">
                   <thead><tr><th>Quando</th><th>Pessoa</th><th>Ordem</th><th>O que mudou</th><th>Antes</th><th>Depois</th></tr></thead>

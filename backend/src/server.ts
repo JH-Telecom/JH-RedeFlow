@@ -8,7 +8,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { activationKeys, findDuplicateCall } from './activation-dedupe.js';
-import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
+import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, searchObservations, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
@@ -932,6 +932,21 @@ app.delete('/api/supervisores/:id', auth, requirePermission('supervisors.edit'),
   } catch (error) {
     return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel excluir o supervisor.' });
   }
+});
+// Busca rapida nas observacoes (Ctrl+K): ate 8 resultados, so de chamados que a pessoa pode ver.
+app.get('/api/observacoes/busca', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
+  const q = typeof request.query.q === 'string' ? request.query.q : '';
+  try {
+    const hits = await searchObservations(q, 12);
+    const scoped = await getScopedCallQuery(request, request.query.teamScope === 'true');
+    const results = [];
+    for (const hit of hits) {
+      const call = await getCall(hit.callId, scoped);
+      if (call) results.push({ ...hit, orderNumber: call.orderNumber, status: call.status, region: call.region });
+      if (results.length >= 8) break;
+    }
+    return response.json({ results });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel buscar nas observacoes.' }); }
 });
 const FULL_LIST_MAX = 1500;
 app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {

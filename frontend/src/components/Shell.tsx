@@ -9,6 +9,7 @@ import { applyPalette, isPaletteId, useTheme } from "../theme";
 import { UpdateNotice } from "./UpdateNotice";
 import { DueSoonBanner } from "./DueSoonBanner";
 import { CommandPalette } from "./CommandPalette";
+import { ShortcutsHelp } from "./ShortcutsHelp";
 import { HelpTip, PAGE_HELP } from "./HelpTip";
 import { ImageReadyToast } from "./ImageReadyToast";
 import { ACTIVATIONS_CHANGED, ActivationToast } from "./ActivationToast";
@@ -300,6 +301,7 @@ export function Shell({
     activations: activationCount,
   };
   const visibleItems = navItems.filter((item) => canAccess(item.permission) && (!item.fieldOnly || fieldTech) && (!item.roles || item.roles.includes(user.role.name)) && !isTabHidden(hiddenTabs, item.to));
+  const canGoTo = (to: string) => visibleItems.some((item) => item.to === to);
   // Bloqueia a rota se a aba dela OU qualquer aba "acima" estiver oculta (ocultar /igp tambem bloqueia /igp/pontuacao).
   const currentTabHidden = location.pathname === "/"
     ? Boolean(currentItem && isTabHidden(hiddenTabs, currentItem.to))
@@ -319,6 +321,7 @@ export function Shell({
       <UpdateNotice />
       <ImageReadyToast />
       {whatsNew.length > 0 && location.pathname !== "/perfil" && <WhatsNewModal releases={whatsNew} onClose={closeWhatsNew} />}
+      <ShortcutsHelp canGo={canGoTo} />
       {paletteOpen && (
         <CommandPalette
           links={visibleItems.map((item) => ({ label: item.label, to: item.to, section: item.section, icon: item.icon }))}

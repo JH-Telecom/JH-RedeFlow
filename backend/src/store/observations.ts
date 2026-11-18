@@ -245,3 +245,22 @@ export async function latestObservations(callIds: string[]): Promise<Record<stri
   }
   return result;
 }
+
+// Busca rapida (Ctrl+K, 18/11/2026): observacoes que contem o texto, as mais novas primeiro.
+export type ObservationSearchHit = { id: string; callId: string; text: string; createdAt: string; userName: string };
+export async function searchObservations(query: string, limit = 8): Promise<ObservationSearchHit[]> {
+  const term = query.trim().slice(0, 80);
+  if (term.length < 3) return [];
+  if (isSupabaseConfigured()) {
+    // % e _ sao curingas do ilike: escapados para buscar o texto como foi digitado.
+    const pattern = `%${term.replace(/[\%_]/g, (char) => `\${char}`)}%`;
+    const { data, error } = await getSupabaseAdmin().from('call_observations').select('id, call_id, text, created_at, profiles(name)').ilike('text', pattern).order('created_at', { ascending: false }).limit(limit);
+    if (error) throw new Error(error.message);
+    return (data || []).map((row: any) => ({ id: row.id, callId: row.call_id, text: row.text, createdAt: row.created_at, userName: Array.isArray(row.profiles) ? row.profiles[0]?.name || '' : row.profiles?.name || '' }));
+  }
+  const needle = term.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return [...observations.values()]
+    .filter((item) => item.text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes(needle))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit)
+    .map((item) => ({ id: item.id, callId: item.callId, text: item.text, createdAt: item.createdAt, userName: item.userName }));
+}

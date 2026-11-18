@@ -341,6 +341,7 @@ export const api = {
     if (filters.gigaClosed !== undefined) params.set('gigaClosed', String(filters.gigaClosed));
     return request<{ calls: Array<Call & { area?: string }>; total: number; truncated: boolean }>(`/api/chamados?${params}`);
   },
+  searchObservations: (q: string) => request<{ results: Array<{ id: string; callId: string; text: string; createdAt: string; userName: string; orderNumber: string; status: string; region: string }> }>(`/api/observacoes/busca?${new URLSearchParams({ q })}`),
   call: (id: string, filters?: { teamScope?: boolean }) => request<{ call: Call }>(`/api/chamados/${id}${filters?.teamScope ? '?teamScope=true' : ''}`),
   updateCall: (id: string, data: Partial<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'olt' | 'slotPon' | 'status' | 'openedAt' | 'notes'>> & { technicianId?: string | null }) => requestCallMutation<{ call: Call }>(`/api/chamados/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   // Corrige so a Data Fim ("AAAA-MM-DDTHH:mm" no horario de Sao Paulo), mesmo com o chamado encerrado.

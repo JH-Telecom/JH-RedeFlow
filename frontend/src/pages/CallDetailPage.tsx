@@ -14,6 +14,7 @@ import { operationalRegions } from "../lib/constants";
 import { isSaveEnter, registerUnsaved } from "../lib/keyboard";
 import { PageSkeleton } from "../components/Skeleton";
 import { CallPresence } from "../components/CallPresence";
+import { QuickNotes } from "../components/QuickNotes";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
 function formatEventGap(eventAt: string, openedAt: string) {
@@ -440,6 +441,7 @@ export function AuditedCallDetailPage() {
         {tab === "observations" ? (
           <>
             <div className="observation-compose">
+              <QuickNotes current={text} onPick={setText} />
               <MentionTextarea
                 value={text}
                 onChange={setText}

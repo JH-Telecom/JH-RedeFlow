@@ -5,6 +5,7 @@ import { api, type Call, type CallObservation } from "../api";
 import { AdminModal } from "./ui";
 import { MentionTextarea, withMentions } from "./MentionTextarea";
 import { isSaveEnter } from "../lib/keyboard";
+import { QuickNotes } from "./QuickNotes";
 
 const MAX_LENGTH = 5000;
 
@@ -64,6 +65,7 @@ export function ObservationPopup({ call, teamScoped, onClose, onSaved }: { call:
             </>}
         </div>
 
+        <QuickNotes current={text} onPick={(value) => { setText(value.slice(0, MAX_LENGTH)); if (error) setError(""); }} />
         <label className="obs-popup-label">Nova observação
           <MentionTextarea value={text} onChange={(value) => { setText(value.slice(0, MAX_LENGTH)); if (error) setError(""); }} rows={4} placeholder="Técnico chegou no local, CTO sem sinal. Aguardando fusão." onKeyDown={(event) => { if (isSaveEnter(event)) { event.preventDefault(); void save(); } }} />
         </label>

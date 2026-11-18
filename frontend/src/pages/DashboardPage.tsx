@@ -76,7 +76,7 @@ export function DashboardWithDateFilter({ user }: { user: User & { role: Role } 
 }
 
 function OldestCallsList({ calls, now }: { calls: DashboardActiveCall[]; now: number }) {
-  if (!calls.length) return <div className="dv-empty">Nenhum chamado ativo.</div>;
+  if (!calls.length) return <div className="dv-empty">Nenhum chamado ativo agora. Os novos acionamentos aceitos aparecem aqui.</div>;
   return (
     <ol className="dv-oldest">
       {calls.map((call) => {

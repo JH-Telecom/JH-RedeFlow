@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import { api, type Call } from "../api";
 
 export type PaletteLink = { label: string; to: string; section: string; icon: ComponentType<{ size?: number }> };
-type Result = { key: string; kind: "page" | "call"; title: string; detail: string; to: string; icon?: PaletteLink["icon"] };
+type Result = { key: string; kind: "page" | "call" | "note"; title: string; detail: string; to: string; icon?: PaletteLink["icon"] };
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -11,6 +11,8 @@ const normalize = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, 
 export function CommandPalette({ links, canSearchCalls, onClose, onNavigate }: { links: PaletteLink[]; canSearchCalls: boolean; onClose: () => void; onNavigate: (to: string) => void }) {
   const [query, setQuery] = useState("");
   const [calls, setCalls] = useState<Call[]>([]);
+  // Observacoes que contem o texto (18/11/2026): acha chamados pelo que foi escrito neles ("PON 03", "poste caido").
+  const [notes, setNotes] = useState<Awaited<ReturnType<typeof api.searchObservations>>["results"]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,14 +21,14 @@ export function CommandPalette({ links, canSearchCalls, onClose, onNavigate }: {
 
   useEffect(() => {
     const text = query.trim();
-    if (!canSearchCalls || text.length < 3) { setCalls([]); setLoading(false); return; }
+    if (!canSearchCalls || text.length < 3) { setCalls([]); setNotes([]); setLoading(false); return; }
     let active = true;
     setLoading(true);
     const timer = window.setTimeout(() => {
-      api.calls(undefined, { search: text, page: 1, pageSize: 8 })
-        .then((result) => { if (active) setCalls(result.calls); })
-        .catch(() => { if (active) setCalls([]); })
-        .finally(() => { if (active) setLoading(false); });
+      void Promise.all([
+        api.calls(undefined, { search: text, page: 1, pageSize: 8 }).then((result) => { if (active) setCalls(result.calls); }).catch(() => { if (active) setCalls([]); }),
+        api.searchObservations(text).then((result) => { if (active) setNotes(result.results); }).catch(() => { if (active) setNotes([]); }),
+      ]).finally(() => { if (active) setLoading(false); });
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
   }, [query, canSearchCalls]);
@@ -43,10 +45,18 @@ export function CommandPalette({ links, canSearchCalls, onClose, onNavigate }: {
       detail: [call.type, call.region, call.technicianName || "sem técnico", call.status].filter(Boolean).join(" · "),
       to: `/chamados/${call.id}`,
     }));
-    return [...callResults, ...pages];
-  }, [links, calls, query]);
+    const shown = new Set(calls.map((call) => call.id));
+    const noteResults = notes.filter((note) => !shown.has(note.callId)).map((note) => ({
+      key: `note:${note.id}`,
+      kind: "note" as const,
+      title: `${note.orderNumber} · “${note.text.length > 90 ? `${note.text.slice(0, 89)}…` : note.text}”`,
+      detail: [`observação de ${note.userName || "alguém"}`, new Date(note.createdAt).toLocaleDateString("pt-BR"), note.region, note.status].filter(Boolean).join(" · "),
+      to: `/chamados/${note.callId}`,
+    }));
+    return [...callResults, ...noteResults, ...pages];
+  }, [links, calls, notes, query]);
 
-  useEffect(() => { setSelected(0); }, [query, calls.length]);
+  useEffect(() => { setSelected(0); }, [query, calls.length, notes.length]);
 
   function choose(result?: Result) {
     if (!result) return;
@@ -63,7 +73,7 @@ export function CommandPalette({ links, canSearchCalls, onClose, onNavigate }: {
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={canSearchCalls ? "Buscar tela ou chamado (ordem, BDESK, técnico, OLT)..." : "Buscar tela..."}
+            placeholder={canSearchCalls ? "Buscar tela, chamado (ordem, BDESK, técnico, OLT) ou texto de observação..." : "Buscar tela..."}
             aria-label="Buscar"
             onKeyDown={(event) => {
               if (event.key === "Escape") onClose();
@@ -89,7 +99,7 @@ export function CommandPalette({ links, canSearchCalls, onClose, onNavigate }: {
                 onMouseEnter={() => setSelected(index)}
                 onClick={() => choose(result)}
               >
-                <span className={`palette-kind is-${result.kind}`}>{Icon ? <Icon size={15} /> : "OS"}</span>
+                <span className={`palette-kind is-${result.kind}`}>{Icon ? <Icon size={15} /> : result.kind === "note" ? "OBS" : "OS"}</span>
                 <span className="palette-text"><strong>{result.title}</strong><small>{result.detail}</small></span>
                 {index === selected && <CornerDownLeft size={14} aria-hidden="true" />}
               </button>

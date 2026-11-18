@@ -230,3 +230,17 @@
 .serial-detail-item small { display: block; margin-top: 3px; font-size: 11px; color: #4f5d73; }
 :where(:root[data-theme="dark"]) .serial-detail-item .serial-value { color: #dfe5ef; }
 :where(:root[data-theme="dark"]) .serial-detail-item .serial-empty, :where(:root[data-theme="dark"]) .serial-detail-item small { color: #b5b9c1; }
+
+/* Modo compacto da fila (18/11/2026) */
+.cq-table.is-compact td { padding-top: 6px; padding-bottom: 6px; }
+.cq-table.is-compact td .table-subtext { margin-top: 1px; }
+.cq-table.is-compact .cq-ring { width: 26px; height: 26px; }
+.cq-table.is-compact .cq-clock strong { font-size: 14px; }
+.cq-table.is-compact .cq-status { height: 28px; }
+.secondary-button.is-active { border-color: #9cc0f7; background: #edf4ff; color: #0845ae; }
+
+/* Filtros salvos (components/SavedFilters.tsx, 18/11/2026) */
+.saved-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.saved-filters .quick-note > button:first-child { display: inline-flex; align-items: center; gap: 4px; }
+.saved-filters-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.saved-filters-form input { width: 220px; max-width: 100%; height: 32px; padding: 0 10px; font-size: 12px; }

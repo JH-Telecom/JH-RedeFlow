@@ -182,7 +182,7 @@ export function TechnicianLoadPage() {
           {!rows.length ? <div className="dv-empty">Nenhum técnico para mostrar.</div> : <DayTimeline rows={pagedRows.pageItems} dayStart={data.dayStart} />}
         </Panel>
         <Panel kicker="EQUIPE" title="Técnicos" aside={<label className="checkbox-label op-only-free"><input type="checkbox" checked={onlyFree} onChange={(event) => setOnlyFree(event.target.checked)} /> Só livres</label>}>
-          {!rows.length ? <div className="dv-empty">{onlyFree ? "Ninguém livre agora." : "Nenhum técnico ativo."}</div> : (
+          {!rows.length ? <div className="dv-empty dv-empty-action">{onlyFree ? <><span>Ninguém livre agora: todos os técnicos têm chamado ativo.</span><button type="button" className="secondary-button compact" onClick={() => setOnlyFree(false)}>Ver todos os técnicos</button></> : <span>Nenhum técnico trabalhando e ativo. Confira o cadastro em Técnicos.</span>}</div> : (
             <div className="sa-table-wrap">
               <table className="sa-table rp-table op-load">
                 <thead><tr><th>Técnico</th><th>Agora</th><th>Mais antigo</th><th>Situação</th><th>Finalizados hoje</th><th>Tempo médio hoje</th><th aria-label="Ver chamados" /></tr></thead>

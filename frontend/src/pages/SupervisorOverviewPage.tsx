@@ -5,6 +5,7 @@ import { toOperationalDate } from "../dates";
 import { DailyBars, KpiTile, Panel, formatCount, formatHours } from "../components/charts";
 import { useCachedData } from "../lib/data-cache";
 import { HourColumns } from "./SlaAnalysisPage";
+import { SkeletonCards } from "../components/Skeleton";
 
 // Visao dos supervisores: quantos chamados entraram (por regiao, por dia e por horario), media por dia, TME e os
 // totais do mes e da semana. Entrante = chamado aberto no periodo, sem Cancelado (GIGA+ conta).
@@ -70,7 +71,7 @@ export function SupervisorOverviewPage() {
         </div>
       </div>
 
-      {overview.error ? <div className="dv-empty is-error" role="alert">{overview.error}</div> : !data ? <div className="dv-empty" role="status">Calculando...</div> : <>
+      {overview.error ? <div className="dv-empty is-error" role="alert">{overview.error}</div> : !data ? <SkeletonCards count={4} label="Calculando..." /> : <>
         <div className="dv-kpi-grid">
           <KpiTile label="Entrantes no mês" value={formatCount(data.month.entrantes)} note={`${perDay(data.month.perDay)} desde ${shortDate(data.month.from)}`} icon={CalendarDays} />
           <KpiTile label="Entrantes na semana" value={formatCount(data.week.entrantes)} note={`${perDay(data.week.perDay)} desde segunda, ${shortDate(data.week.from)}`} icon={CalendarRange} />

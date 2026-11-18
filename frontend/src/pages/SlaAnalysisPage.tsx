@@ -5,6 +5,7 @@ import { api, type SlaAnalysis, type SlaArea, type SlaCounters, type SlaRankItem
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount, formatHours, formatPercent } from "../components/charts";
 import { useCachedData } from "../lib/data-cache";
+import { SkeletonCards } from "../components/Skeleton";
 
 // Analise de prazo (regra 6h/9h) dos chamados finalizados. "Perder prazo" = mais de 6h entre abertura e Data Fim.
 
@@ -206,7 +207,7 @@ export function SlaAnalysisPage() {
         </div>
       </div>
 
-      {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !analysis || !total || !night ? <div className="dv-empty" role="status">Calculando a análise do período...</div> : <>
+      {error ? <div className="dv-empty is-error" role="alert">{error}</div> : !analysis || !total || !night ? <SkeletonCards count={4} label="Calculando a análise de prazo..." /> : <>
         <div className="dv-kpi-grid">
           <KpiTile label="Finalizados no período" value={formatCount(total.orders)} note={`${periodLabel}`} icon={ClipboardList} />
           <KpiTile label="Perderam prazo" value={formatPercent(total.lostPercent)} note={`${plural(total.lost, "chamado", "chamados")} acima de 6h, ${formatCount(total.outliers)} outlier`} icon={AlertTriangle} tone={total.lostPercent === null ? "default" : total.lostPercent <= LOST_GOOD_MAX ? "good" : total.lostPercent <= LOST_MINIMUM_MAX ? "warning" : "critical"} />
