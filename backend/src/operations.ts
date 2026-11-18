@@ -1,6 +1,6 @@
 import { slaLimits } from './sla.js';
 import { classifySlaHours } from './igp.js';
-import { toOperationalDate } from './timezone.js';
+import { operationalDayStartIso, toOperationalDate } from './timezone.js';
 import type { Call, Technician } from './types.js';
 
 // Lote 3: mapa da fila (por regiao e bairro), reincidencia e carga dos tecnicos.
@@ -119,9 +119,14 @@ export type TechnicianLoad = {
   id: string; name: string; supervisorName?: string; region: string; currentStatus: Technician['currentStatus'];
   active: number; oldestMinutes: number | null; worst: QueueState | null; activeCalls: MapCall[];
   finishedToday: number; onTimeToday: number; avgHoursToday: number | null; free: boolean;
+  timeline: TimelineItem[];
 };
+// Linha do dia (18/11/2026): cada chamado do tecnico que tocou o dia de hoje, de quando foi atribuido (ou aberto)
+// ate a conclusao ou agora. O estado e o prazo no fim do trecho (na conclusao ou agora).
+export type TimelineItem = { id: string; orderNumber: string; type: string; start: string; end: string; state: QueueState; active: boolean };
 export function technicianLoad(technicians: Technician[], calls: Call[], now = Date.now()) {
   const today = toOperationalDate(new Date(now));
+  const dayStart = Date.parse(operationalDayStartIso(today));
   const working = technicians.filter((tech) => tech.teamRole === 'Tecnico' && tech.active && tech.employmentStatus !== 'Demitido');
   const rows: TechnicianLoad[] = working.map((tech) => {
     const mine = calls.filter((call) => call.technicianId === tech.id);
@@ -130,18 +135,24 @@ export function technicianLoad(technicians: Technician[], calls: Call[], now = D
     const measured = finished.map((call) => ({ type: call.type, value: (Date.parse(call.executedAt!) - Date.parse(call.openedAt)) / 3_600_000 })).filter(({ value }) => Number.isFinite(value) && value >= 0);
     const hours = measured.map(({ value }) => value);
     const activeCalls = active.map((call) => ({ id: call.id, orderNumber: call.orderNumber, type: call.type, technicianName: call.technicianName, status: call.status, openedAt: call.openedAt, olt: call.olt, state: queueState(call, now), minutes: Math.round(elapsedMinutes(call, now)) })).sort((a, b) => b.minutes - a.minutes);
+    const timeline: TimelineItem[] = [...active, ...finished].map((call) => {
+      const end = call.status === 'Finalizado' && call.executedAt ? Date.parse(call.executedAt) : now;
+      const begin = Math.max(dayStart, Date.parse(call.assignedAt || call.openedAt) || dayStart);
+      return { id: call.id, orderNumber: call.orderNumber, type: call.type, start: new Date(Math.min(begin, end)).toISOString(), end: new Date(end).toISOString(), state: queueState(call, end), active: isActive(call) };
+    }).sort((a, b) => a.start.localeCompare(b.start));
     const worst = activeCalls.reduce<QueueState | null>((acc, call) => (!acc || STATE_RANK[call.state] > STATE_RANK[acc] ? call.state : acc), null);
     return {
       id: tech.id, name: tech.name, supervisorName: tech.supervisorName, region: tech.region, currentStatus: tech.currentStatus,
       active: active.length, oldestMinutes: activeCalls[0]?.minutes ?? null, worst, activeCalls,
       finishedToday: finished.length, onTimeToday: measured.filter(({ type, value }) => classifySlaHours(value, type) === 'onTime').length,
       avgHoursToday: hours.length ? Math.round((hours.reduce((sum, value) => sum + value, 0) / hours.length) * 100) / 100 : null,
-      free: active.length === 0,
+      free: active.length === 0, timeline,
     };
   });
   // Livres primeiro (para atribuir), depois os com menos carga; entre ocupados, quem tem o chamado mais urgente aparece antes.
   rows.sort((a, b) => Number(b.free) - Number(a.free) || a.active - b.active || (STATE_RANK[b.worst ?? 'ok'] - STATE_RANK[a.worst ?? 'ok']) || a.name.localeCompare(b.name, 'pt-BR'));
   return {
+    dayStart: new Date(dayStart).toISOString(),
     technicians: rows,
     free: rows.filter((row) => row.free).length,
     busy: rows.filter((row) => !row.free).length,

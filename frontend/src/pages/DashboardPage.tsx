@@ -8,6 +8,7 @@ import { ActivityRow, DateRangeFilter, Metric } from "../components/ui";
 import { DailyBars, KpiTile, Panel, RankBars, SlaStack, formatCount, formatHours, formatPercent, percentOf } from "../components/charts";
 import { RangeCallTable } from "./CallsPage";
 import { useCachedData } from "../lib/data-cache";
+import { SkeletonCards, SkeletonRows } from "../components/Skeleton";
 
 type PeriodPreset = "today" | "7d" | "30d" | "month" | "all" | "custom";
 const periodPresets: { key: PeriodPreset; label: string }[] = [
@@ -139,7 +140,7 @@ export function OperationalDashboard({ preset, onPresetChange, dateRange, onDate
   );
 
   if (error && !metrics) return <>{heading}<div className="dv-empty is-error" role="alert">{error}</div></>;
-  if (!metrics) return <>{heading}<div className="dv-empty" role="status">Carregando indicadores...</div></>;
+  if (!metrics) return <>{heading}<div className="sk-page"><SkeletonCards count={4} label="Carregando indicadores..." /><div className="sk-panel"><SkeletonRows rows={5} columns={4} label="" /></div></div></>;
 
   const now = updatedAt;
   const outOfDeadline = metrics.activeSla.late + metrics.activeSla.outlier;

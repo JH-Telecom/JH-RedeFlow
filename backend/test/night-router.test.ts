@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isNightWindow, nightStartIso, nightWeekday, pickNightOrders, saoPauloClock, type NightRun, type NightRouterSettings, type NightShift } from '../src/night-router.js';
+import { isNightWindow, nightStartIso, nightSummary, nightWeekday, pickNightOrders, saoPauloClock, type NightRun, type NightRouterSettings, type NightShift } from '../src/night-router.js';
 import { activationsToAutoAccept, MAX_AUTO_ACCEPTS_PER_SWEEP, sweepNightActivations } from '../src/night-auto-accept.js';
 import { receiveActivation } from '../src/store.js';
 import { calls as demoCalls } from '../src/store/demo-data.js';
@@ -190,4 +190,32 @@ test('auto-accept of a duplicate card links it to the existing call (demo store)
     if (previous.demo === undefined) delete process.env.REDEFLOW_DEMO_DATA; else process.env.REDEFLOW_DEMO_DATA = previous.demo;
     if (previous.url === undefined) delete process.env.SUPABASE_URL; else process.env.SUPABASE_URL = previous.url;
   }
+});
+
+test('night summary: last night 22h-06h, last attempt per order, auto-accepted calls and errors', () => {
+  const now = Date.parse('2026-11-18T08:30:00-03:00');
+  const run = (orderNumber: string, result: NightRun['result'], createdAt: string, message = ''): NightRun => ({ id: `${orderNumber}-${createdAt}`, callId: null, orderNumber, region: 'SUZANO 1', technicianId: 't1', technicianName: 'Carlos', result, message, testMode: false, createdAt: new Date(Date.parse(createdAt)).toISOString() });
+  const runs = [
+    run('A', 'Erro', '2026-11-17T23:00:00-03:00', 'OFS fora do ar'),
+    run('A', 'Movida', '2026-11-17T23:20:00-03:00'),
+    run('B', 'Erro', '2026-11-18T03:52:00-03:00', 'OFS nao achou a ordem'),
+    run('C', 'Movida', '2026-11-18T01:10:00-03:00'),
+    run('D', 'Movida', '2026-11-17T21:00:00-03:00'), // antes das 22h: fora
+    run('E', 'Movida', '2026-11-18T07:00:00-03:00'), // depois das 06h: fora
+  ];
+  const calls = [
+    { openedAt: new Date(Date.parse('2026-11-17T22:14:00-03:00')).toISOString(), notes: 'x\nAceito automaticamente pelo Roteirizador da madrugada (22h às 06h).' },
+    { openedAt: new Date(Date.parse('2026-11-18T02:00:00-03:00')).toISOString(), notes: 'aceito por Matheus' },
+    { openedAt: new Date(Date.parse('2026-11-17T20:00:00-03:00')).toISOString(), notes: 'Aceito automaticamente pelo Roteirizador da madrugada' },
+  ];
+  const summary = nightSummary(runs, calls, now);
+  assert.equal(summary.from, new Date(Date.parse('2026-11-17T22:00:00-03:00')).toISOString());
+  assert.equal(summary.to, new Date(Date.parse('2026-11-18T06:00:00-03:00')).toISOString());
+  assert.equal(summary.inProgress, false);
+  assert.equal(summary.aceitos, 1);
+  assert.equal(summary.movidas, 2); // A (ultima tentativa deu certo) e C
+  assert.equal(summary.erros, 1);
+  assert.deepEqual(summary.problemas.map((item) => item.orderNumber), ['B']);
+  // Durante a madrugada: em andamento.
+  assert.equal(nightSummary(runs, calls, Date.parse('2026-11-18T02:30:00-03:00')).inProgress, true);
 });

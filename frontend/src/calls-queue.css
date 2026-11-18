@@ -62,20 +62,25 @@
 .cq-row:hover > td { background: #f7faff; }
 .cq-row:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
 
-/* Relogio 6h/9h */
-.cq-clock { display: grid; gap: 5px; width: 120px; }
-.cq-clock strong { color: inherit; font-family: 'Manrope', sans-serif; font-size: 16px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+/* Relogio 6h/9h: anel de prazo (18/11/2026) */
+.cq-clock { display: flex; align-items: center; gap: 9px; min-width: 140px; }
+.cq-clock-text { display: grid; gap: 2px; min-width: 0; }
+.cq-clock strong { color: inherit; font-family: 'Manrope', sans-serif; font-size: 16px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cq-table td .cq-clock strong { color: inherit; }
-.cq-clock small { font-size: 12px; font-weight: 600; }
-.cq-clock-bar { position: relative; display: block; height: 5px; border-radius: 3px; background: var(--dv-track); }
-.cq-clock-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; }
-.cq-clock-bar b { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; border-radius: 1px; background: #8a97a8; }
+.cq-clock small { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.cq-ring { flex: none; width: 34px; height: 34px; overflow: visible; }
+.cq-ring circle { fill: none; stroke-width: 4.5; }
+.cq-ring-track { stroke: var(--dv-track); }
+.cq-ring-fill { stroke-linecap: round; transition: stroke-dasharray .4s ease; }
+.cq-ring-tick { stroke: #8a97a8; stroke-width: 1.6; stroke-linecap: round; }
 .cq-clock.is-on-time { color: var(--dv-good-ink); }
-.cq-clock.is-on-time .cq-clock-bar i { background: var(--dv-good); }
+.cq-clock.is-on-time .cq-ring-fill { stroke: var(--dv-good); }
+.cq-clock.is-on-time.is-near { color: var(--dv-warning-ink); }
 .cq-clock.is-late { color: var(--dv-warning-ink); }
-.cq-clock.is-late .cq-clock-bar i { background: var(--dv-warning); }
+.cq-clock.is-late .cq-ring-fill { stroke: var(--dv-warning); }
 .cq-clock.is-outlier { color: var(--dv-critical-ink); }
-.cq-clock.is-outlier .cq-clock-bar i { background: var(--dv-critical); }
+.cq-clock.is-outlier .cq-ring-fill { stroke: var(--dv-critical); }
+@media (prefers-reduced-motion: reduce) { .cq-ring-fill { transition: none; } }
 
 /* Status interno */
 .cq-status { height: 32px; max-width: 150px; padding: 0 8px; border: 1px solid #d9e2ee; border-radius: 7px; background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -112,6 +117,16 @@
   .cq-row > td:first-child::before { display: none; }
   .cq-place, .cq-observation { min-width: 0; }
   .cq-table td .table-subtext { max-width: 100%; }
+  /* Cartao mais enxuto (18/11/2026): ordem e prazo na mesma linha, tecnico logo abaixo, botoes no fim. */
+  .cq-row > td:first-child { grid-column: 1; }
+  .cq-row > td[data-label="Na fila"], .cq-row > td[data-label="Tempo total"] { grid-column: 2; grid-row: 1; justify-self: end; }
+  .cq-row > td[data-label="Na fila"]::before, .cq-row > td[data-label="Tempo total"]::before, .cq-row > td[data-label="Técnico"]::before { display: none; }
+  .cq-row > td[data-label="Na fila"] > .table-subtext { display: none; }
+  .cq-row > td[data-label="Técnico"], .cq-row > td[data-label="Última observação"], .cq-row > td[data-label="Status"] { grid-column: 1 / -1; }
+  .cq-row .cq-clock { min-width: 0; }
+  .cq-row .cq-clock strong { font-size: 15px; }
+  .cq-row > td[data-label="Status"] .cq-status { width: 100%; max-width: none; height: 38px; }
+  .cq-row .cq-observation-button { width: 100%; min-height: 40px; margin: 0; border-color: #d9e2ee; background: #f7faff; }
 }
 
 @media (prefers-reduced-motion: reduce) {

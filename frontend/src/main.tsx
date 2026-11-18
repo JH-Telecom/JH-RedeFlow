@@ -49,6 +49,7 @@ import './whats-new.css';
 import './due-soon.css';
 import './tv-mode.css';
 import './legal.css';
+import './skeleton.css';
 import './contrast-fixes.css';
 import './theme-dark.css';
 import './theme-dark-manual.css';

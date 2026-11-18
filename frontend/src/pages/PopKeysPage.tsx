@@ -4,6 +4,7 @@ import { api, type PopKey, type PopKeyMovement, type Role, type Supervisor, type
 import { AdminModal } from "../components/ui";
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { photoFromFile, photoFromVideo } from "../lib/person-photo";
+import { SkeletonCards } from "../components/Skeleton";
 
 // Chaves dos POPs: quem esta com cada chave, desde quando, com foto tirada na retirada e o historico.
 // Ver: quem ve chamados. Retirar/devolver: quem edita chamados. POP novo: quem gerencia as configuracoes.
@@ -75,7 +76,7 @@ export function PopKeysPage({ user }: { user: User & { role: Role } }) {
       </div>
 
       {error && <div className="form-error" role="alert">{error}</div>}
-      {!keys && !error && <div className="empty-state">Carregando chaves...</div>}
+      {!keys && !error && <SkeletonCards count={8} label="Carregando chaves..." />}
       {keys && visible.length === 0 && <div className="empty-state">Nenhuma chave com esse filtro.</div>}
 
       <ul className="pk-grid">

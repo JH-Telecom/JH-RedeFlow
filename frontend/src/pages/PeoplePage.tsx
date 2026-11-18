@@ -3,6 +3,7 @@ import { Mail, Search, Trophy, X } from "lucide-react";
 import { api, type Highlight, type PersonCard, type UserStatus } from "../api";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { Pager, usePaged } from "../components/Pager";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Pessoas: diretorio SO DE LEITURA, aberto a todos. Mostra quem faz parte do O&M e quem esta online,
 // e abre o perfil (foto, banner, nome, cargo e e-mail). Criar e editar contas continua so em Usuarios.
@@ -76,7 +77,7 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
       </div>
 
       {error ? <div className="form-error" role="alert">{error}</div>
-        : !people ? <div className="empty-state" role="status">Carregando pessoas...</div>
+        : !people ? <SkeletonRows rows={6} columns={3} label="Carregando pessoas..." />
         : !visible.length ? <div className="panel empty-state">{onlyOnline ? "Ninguém online agora com esse filtro." : "Ninguém encontrado."}</div>
         : (
           <div className="pp-grid">

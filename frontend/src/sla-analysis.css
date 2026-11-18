@@ -375,3 +375,29 @@
 .sv-region-scroll { max-height: 380px; overflow-y: auto; }
 .sv-region-scroll thead th { position: sticky; top: 0; z-index: 1; background: #fff; }
 :where(:root[data-theme="dark"]) .sv-region-scroll thead th { background: #181c22; }
+
+/* Linha do dia dos tecnicos (OperationsPages.tsx, 18/11/2026) */
+.op-tl { display: grid; gap: 7px; }
+.op-tl-row { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 12px; align-items: center; }
+.op-tl-name { overflow: hidden; color: var(--ink); font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.op-tl-hours { position: relative; height: 16px; }
+.op-tl-hours span { position: absolute; transform: translateX(-50%); color: #5f6c80; font-size: 11px; font-variant-numeric: tabular-nums; }
+.op-tl-hours span:first-child { transform: none; }
+.op-tl-hours span:last-child { transform: translateX(-100%); }
+.op-tl-track { position: relative; height: 26px; border-radius: 6px; background: #f1f4f8; }
+.op-tl-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: #e2e8f0; }
+.op-tl-empty { position: absolute; inset: 0 auto 0 10px; display: flex; align-items: center; color: #5f6c80; font-size: 11px; }
+.op-tl-block { position: absolute; top: 3px; bottom: 3px; display: flex; align-items: center; overflow: hidden; padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; background: #dcf3e9; color: #0f6b47; }
+.op-tl-block.is-soon { background: #fdeeda; color: #8a4a06; }
+.op-tl-block.is-late { background: #fde4d8; color: #96391a; }
+.op-tl-block.is-outlier { background: #fbe1e4; color: #9e1f2a; }
+.op-tl-block.is-active { background: #12805a; color: #fff; }
+.op-tl-block.is-active.is-soon { background: #a85a06; }
+.op-tl-block.is-active.is-late { background: #b5461b; }
+.op-tl-block.is-active.is-outlier { background: #b3242f; }
+.op-tl-now { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c42e3b; }
+.op-tl-key { display: inline-block; width: 12px; height: 10px; border-radius: 3px; background: #12805a; }
+.op-tl-key.is-late { background: #b5461b; }
+.op-tl-key.is-outlier { background: #b3242f; }
+.op-tl-key.is-done { background: #dcf3e9; border: 1px solid #9fd8bf; }
+@media (max-width: 760px) { .op-tl-row { grid-template-columns: 96px minmax(0, 1fr); gap: 8px; } }

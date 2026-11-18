@@ -19,3 +19,44 @@ export function presenceOf(userId: string, now = Date.now()): { online: boolean;
   if (seen === undefined) return { online: false };
   return { online: now - seen <= ONLINE_WINDOW_MS, lastSeenAt: new Date(seen).toISOString() };
 }
+
+// Quem esta com cada chamado aberto (18/11/2026): a tela do chamado avisa a cada 15 s; vale por 40 s. Tambem guarda
+// quem salvou por ultimo, para avisar quem abriu antes e ainda nao recarregou. Em memoria, como a presenca acima.
+export const CALL_VIEW_WINDOW_MS = 40_000;
+type Viewer = { name: string; at: number; editing: boolean };
+const callViewers = new Map<string, Map<string, Viewer>>();
+const callSaves = new Map<string, { userId: string; name: string; at: number }>();
+
+function prune(callId: string, now: number) {
+  const viewers = callViewers.get(callId);
+  if (!viewers) return;
+  for (const [userId, viewer] of viewers) if (now - viewer.at > CALL_VIEW_WINDOW_MS) viewers.delete(userId);
+  if (!viewers.size) callViewers.delete(callId);
+}
+
+export function touchCallViewer(callId: string, userId: string, name: string, editing: boolean, now = Date.now()) {
+  const viewers = callViewers.get(callId) ?? new Map<string, Viewer>();
+  viewers.set(userId, { name, at: now, editing });
+  callViewers.set(callId, viewers);
+  prune(callId, now);
+}
+
+export function leaveCall(callId: string, userId: string) {
+  callViewers.get(callId)?.delete(userId);
+  if (!callViewers.get(callId)?.size) callViewers.delete(callId);
+}
+
+export function callViewersOf(callId: string, exceptUserId: string, now = Date.now()) {
+  prune(callId, now);
+  return [...(callViewers.get(callId)?.entries() ?? [])].filter(([userId]) => userId !== exceptUserId).map(([, viewer]) => ({ name: viewer.name, editing: viewer.editing }));
+}
+
+export function markCallSaved(callId: string, userId: string, name: string, now = Date.now()) {
+  callSaves.set(callId, { userId, name, at: now });
+  if (callSaves.size > 2000) callSaves.delete(callSaves.keys().next().value as string);
+}
+
+export function lastCallSave(callId: string) {
+  const save = callSaves.get(callId);
+  return save ? { userId: save.userId, name: save.name, at: new Date(save.at).toISOString() } : null;
+}

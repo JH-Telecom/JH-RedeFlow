@@ -33,7 +33,7 @@ import { addDays, normalizeSaoPauloLocal, toOperationalDate } from './timezone.j
 import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
 import type { ActivationAnalysis, AuthUser, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
-import { clearPresence, presenceOf, touchPresence } from './presence.js';
+import { callViewersOf, clearPresence, lastCallSave, leaveCall, markCallSaved, presenceOf, touchCallViewer, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite, onDataChange } from './read-cache.js';
 import { getSupabaseAdmin, invalidateCallsSnapshot } from './integrations/supabase/client.js';
 // Gravou algo pela API: a copia dos chamados em memoria busca o que mudou na proxima leitura.
@@ -63,7 +63,7 @@ import { scoreIgp } from './igp-score.js';
 import { normalizeOltCode } from './integrations/wuzapi/noc-consolidation.js';
 import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing } from './missing-region.js';
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
-import { isNightWindow, nightStartIso, pickNightOrders, singleNightTechnician } from './night-router.js';
+import { isNightWindow, nightStartIso, nightSummary, pickNightOrders, singleNightTechnician } from './night-router.js';
 import { sweepNightActivations } from './night-auto-accept.js';
 import { addPopKey, deletePopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
@@ -1071,7 +1071,21 @@ app.patch('/api/chamados/:id', auth, requirePermission('calls.edit'), async (req
   if (touchesAssignment && ['Atribuido', 'Atrelado', 'Deslocamento', 'Em campo'].includes(nextStatus) && !nextTechnician) return response.status(422).json({ message: `Atribua um tecnico antes de colocar o chamado como ${nextStatus}.` });
   const call = await updateCall(String(request.params.id), parsed.data, request.authUser!);
   if (!call) return response.status(404).json({ message: 'Chamado nao encontrado.' });
+  markCallSaved(call.id, request.authUser!.id, request.authUser!.name);
   return response.json({ call });
+});
+// Quem mais esta com o chamado aberto e quem salvou por ultimo (aviso na tela do chamado).
+app.post('/api/chamados/:id/presenca', auth, requirePermission('calls.view'), (request: AuthRequest, response) => {
+  const parsed = z.object({ editing: z.boolean().default(false) }).safeParse(request.body ?? {});
+  if (!parsed.success) return response.status(400).json({ message: 'Dados de presenca invalidos.' });
+  const callId = String(request.params.id).slice(0, 120);
+  touchCallViewer(callId, request.authUser!.id, request.authUser!.name, parsed.data.editing);
+  const save = lastCallSave(callId);
+  return response.json({ viewers: callViewersOf(callId, request.authUser!.id), lastSave: save && save.userId !== request.authUser!.id ? { name: save.name, at: save.at } : null });
+});
+app.delete('/api/chamados/:id/presenca', auth, (request: AuthRequest, response) => {
+  leaveCall(String(request.params.id).slice(0, 120), request.authUser!.id);
+  return response.status(204).end();
 });
 // ---------- Lote E: checklist (9) e tela do tecnico em campo (8) ----------
 app.get('/api/checklists', auth, async (_request, response) => {
@@ -1584,7 +1598,8 @@ app.get('/api/roteirizador', auth, requirePermission('imports.view'), async (_re
     // cadastradas e as que ja estao na escala. "Nao informada" fica de fora (vai para a fila Sem regiao).
     const regions = knownRegions(calls.map((call) => call.region), oltMappings.map((mapping) => mapping.region), technicians.map((tech) => tech.region), custom, shifts.map((shift) => shift.region));
     const waiting = calls.filter((call) => ['Aberto', 'Atribuido', 'Atrelado'].includes(call.status) && !call.technicianId).length;
-    return response.json({ settings, shifts, runs, regions, technicians: technicians.filter((tech) => tech.teamRole === 'Tecnico' && tech.employmentStatus !== 'Demitido').map((tech) => ({ id: tech.id, name: tech.name, region: tech.region })), janela: isNightWindow(), semTecnico: waiting });
+    const nightRuns = await listNightRuns({ since: nightStartIso(), limit: 500 });
+    return response.json({ resumo: nightSummary(nightRuns, calls), settings, shifts, runs, regions, technicians: technicians.filter((tech) => tech.teamRole === 'Tecnico' && tech.employmentStatus !== 'Demitido').map((tech) => ({ id: tech.id, name: tech.name, region: tech.region })), janela: isNightWindow(), semTecnico: waiting });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o roteirizador.' }); }
 });
 app.put('/api/roteirizador/config', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {

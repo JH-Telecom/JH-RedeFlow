@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, ChevronRight, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { isTabHidden, navItems } from "../lib/nav-items";
@@ -13,40 +13,46 @@ import { HelpTip, PAGE_HELP } from "./HelpTip";
 import { ImageReadyToast } from "./ImageReadyToast";
 import { ACTIVATIONS_CHANGED, ActivationToast } from "./ActivationToast";
 import { markReleasesSeen, unseenReleases, WhatsNewModal } from "./WhatsNew";
-import { TvModePage } from "../pages/TvModePage";
 import faviconUrl from "../../image/favicon.ico";
 import { api, type Activation, type Role, type User, type AppNotification, type ProfilePreferences, type UserStatus } from "../api";
-import { RepeatedCallsPage } from "../repeated-calls";
 import { AccessDenied } from "./ui";
-import { ActivationsPage } from "../pages/ActivationsPage";
-import { CallDetailRoute } from "../pages/CallDetailPage";
-import { CallsPage, SupervisorOrdersPage } from "../pages/CallsPage";
-import { SupervisorOverviewPage } from "../pages/SupervisorOverviewPage";
-import { PopKeysPage } from "../pages/PopKeysPage";
-import { NightRouterPage } from "../pages/NightRouterPage";
 import { JotaHWidget } from "./JotaHWidget";
-import { MissingRegionPage } from "../pages/MissingRegionPage";
-import { IgpScorePage } from "../pages/IgpScorePage";
-import { DashboardWithDateFilter } from "../pages/DashboardPage";
-import { IGPPage } from "../pages/IgpPage";
-import { SlaAnalysisPage } from "../pages/SlaAnalysisPage";
-import { ReportsPage } from "../pages/ReportsPage";
-import { ImportsPage } from "../pages/ImportsPage";
-import { ManualProductionDashboard } from "../pages/ManualProductionPage";
-import { RolesPage } from "../pages/RolesPage";
-import { SettingsPage } from "../pages/SettingsPage";
-import { ProfilePage } from "../pages/ProfilePage";
-import { PeoplePage } from "../pages/PeoplePage";
-import { IntegrationHealthPage } from "../pages/IntegrationHealthPage";
-import { QueueMapPage, TechnicianLoadPage } from "../pages/OperationsPages";
-import { AuditHistoryPage } from "../pages/AuditHistoryPage";
-import { MonthlyReportPage } from "../pages/MonthlyReportPage";
-import { FieldPage } from "../pages/FieldPage";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { SupervisorsPage } from "../pages/SupervisorsPage";
-import { TechniciansPage } from "../pages/TechniciansPage";
-import { UsersPage } from "../pages/UsersPage";
 import { CopyrightNotice } from "./Copyright";
+import { PageSkeleton } from "./Skeleton";
+import { lazyNamed } from "../lib/lazy-named";
+
+// Cada tela baixa so quando e aberta (18/11/2026): antes o login baixava as 30 telas num arquivo so.
+const TvModePage = lazyNamed(() => import("../pages/TvModePage"), "TvModePage");
+const RepeatedCallsPage = lazyNamed(() => import("../repeated-calls"), "RepeatedCallsPage");
+const ActivationsPage = lazyNamed(() => import("../pages/ActivationsPage"), "ActivationsPage");
+const CallDetailRoute = lazyNamed(() => import("../pages/CallDetailPage"), "CallDetailRoute");
+const CallsPage = lazyNamed(() => import("../pages/CallsPage"), "CallsPage");
+const SupervisorOrdersPage = lazyNamed(() => import("../pages/CallsPage"), "SupervisorOrdersPage");
+const SupervisorOverviewPage = lazyNamed(() => import("../pages/SupervisorOverviewPage"), "SupervisorOverviewPage");
+const PopKeysPage = lazyNamed(() => import("../pages/PopKeysPage"), "PopKeysPage");
+const NightRouterPage = lazyNamed(() => import("../pages/NightRouterPage"), "NightRouterPage");
+const MissingRegionPage = lazyNamed(() => import("../pages/MissingRegionPage"), "MissingRegionPage");
+const IgpScorePage = lazyNamed(() => import("../pages/IgpScorePage"), "IgpScorePage");
+const DashboardWithDateFilter = lazyNamed(() => import("../pages/DashboardPage"), "DashboardWithDateFilter");
+const IGPPage = lazyNamed(() => import("../pages/IgpPage"), "IGPPage");
+const SlaAnalysisPage = lazyNamed(() => import("../pages/SlaAnalysisPage"), "SlaAnalysisPage");
+const ReportsPage = lazyNamed(() => import("../pages/ReportsPage"), "ReportsPage");
+const ImportsPage = lazyNamed(() => import("../pages/ImportsPage"), "ImportsPage");
+const ManualProductionDashboard = lazyNamed(() => import("../pages/ManualProductionPage"), "ManualProductionDashboard");
+const RolesPage = lazyNamed(() => import("../pages/RolesPage"), "RolesPage");
+const SettingsPage = lazyNamed(() => import("../pages/SettingsPage"), "SettingsPage");
+const ProfilePage = lazyNamed(() => import("../pages/ProfilePage"), "ProfilePage");
+const PeoplePage = lazyNamed(() => import("../pages/PeoplePage"), "PeoplePage");
+const IntegrationHealthPage = lazyNamed(() => import("../pages/IntegrationHealthPage"), "IntegrationHealthPage");
+const QueueMapPage = lazyNamed(() => import("../pages/OperationsPages"), "QueueMapPage");
+const TechnicianLoadPage = lazyNamed(() => import("../pages/OperationsPages"), "TechnicianLoadPage");
+const AuditHistoryPage = lazyNamed(() => import("../pages/AuditHistoryPage"), "AuditHistoryPage");
+const MonthlyReportPage = lazyNamed(() => import("../pages/MonthlyReportPage"), "MonthlyReportPage");
+const FieldPage = lazyNamed(() => import("../pages/FieldPage"), "FieldPage");
+const SupervisorsPage = lazyNamed(() => import("../pages/SupervisorsPage"), "SupervisorsPage");
+const TechniciansPage = lazyNamed(() => import("../pages/TechniciansPage"), "TechniciansPage");
+const UsersPage = lazyNamed(() => import("../pages/UsersPage"), "UsersPage");
 
 
 
@@ -303,9 +309,9 @@ export function Shell({
     document.title = `${title} · JH Telecom - Rede`;
   }, [title]);
   // Modo TV: tela cheia, sem lateral nem barra do topo (o aviso de atualizacao continua valendo).
-  if (location.pathname === "/modo-tv") return canAccess("dashboard.view") ? <><UpdateNotice /><TvModePage /></> : <AccessDenied />;
+  if (location.pathname === "/modo-tv") return canAccess("dashboard.view") ? <><UpdateNotice /><Suspense fallback={<PageSkeleton />}><TvModePage /></Suspense></> : <AccessDenied />;
   // Relatorio mensal para imprimir/PDF: sem lateral nem topo.
-  if (location.pathname.startsWith("/relatorio-mensal/")) return canAccess("dashboard.view") ? <Routes><Route path="/relatorio-mensal/:month" element={<MonthlyReportPage />} /></Routes> : <AccessDenied />;
+  if (location.pathname.startsWith("/relatorio-mensal/")) return canAccess("dashboard.view") ? <Suspense fallback={<PageSkeleton />}><Routes><Route path="/relatorio-mensal/:month" element={<MonthlyReportPage />} /></Routes></Suspense> : <AccessDenied />;
   return (
     <div className={desktopCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
       {/* Teclado/leitor de tela: primeiro Tab da pagina pula o menu e vai direto ao conteudo. */}
@@ -433,6 +439,7 @@ export function Shell({
           {/* Troca de pagina com fade suave (page-transition.css) em vez do corte seco */}
           <div className="page-transition" key={location.pathname}>
           {currentTabHidden ? (currentItem?.to === "/" && firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDenied />) : (
+          <Suspense fallback={<PageSkeleton />}>
           <Routes>
             <Route path="/" element={canAccess("dashboard.view") ? <DashboardWithDateFilter user={user} /> : firstAllowedPath ? <Navigate to={firstAllowedPath} replace /> : <AccessDenied />} />
             <Route
@@ -475,6 +482,7 @@ export function Shell({
             <Route path="/configuracoes" element={<SettingsPage user={user} canManage={canAccess("settings.manage")} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
           )}
           </div>
           {/* Direitos autorais discretos no fim de cada pagina (inclusive Meu perfil). */}

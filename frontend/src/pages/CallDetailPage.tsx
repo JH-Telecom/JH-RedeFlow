@@ -12,6 +12,8 @@ import { ChecklistBox } from "../components/FieldAdmin";
 import { checklistForType, type ChecklistTemplate } from "../api";
 import { operationalRegions } from "../lib/constants";
 import { isSaveEnter, registerUnsaved } from "../lib/keyboard";
+import { PageSkeleton } from "../components/Skeleton";
+import { CallPresence } from "../components/CallPresence";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
 function formatEventGap(eventAt: string, openedAt: string) {
@@ -143,7 +145,7 @@ export function CallDetailBase() {
     || reason !== call!.reason || region !== call!.region || city !== call!.city || address !== (call!.address || "") || bairro !== (call!.bairro || "")
     || olt !== call!.olt || slotPon !== call!.slotPon || Boolean(cancelReason.trim()));
   useEffect(() => registerUnsaved(() => unsavedRef.current), []);
-  if (!call) return <div className="empty-state">Carregando chamado...</div>;
+  if (!call) return <PageSkeleton />;
   async function save() {
     const openingDate = new Date(openedAt);
     if (!openedAt || Number.isNaN(openingDate.getTime())) {
@@ -224,6 +226,7 @@ export function CallDetailBase() {
           {status}
         </span>
       </div>
+      <CallPresence callId={call.id} editing={unsavedRef.current} />
       <RepeatBanner callId={call.id} />
       <CallTimeline call={call} />
       <div className="detail-layout" data-save-scope>

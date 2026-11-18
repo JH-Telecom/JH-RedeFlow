@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, MapPinOff, Save } from "lucide-react";
 import { api, type MissingRegionCall, type Role, type User } from "../api";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Fila "Sem região": chamados com região vazia ou "Não informada" (qualquer status). Escolha a região e salve; com
 // "todos desta OLT", os outros chamados sem região da mesma OLT recebem a mesma região (e, para quem gerencia as
@@ -55,7 +56,7 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
       {error && <p className="form-error" role="alert">{error}</p>}
       {notice && <p className="mr-notice" role="status">{notice}</p>}
       <section className="panel table-panel">
-        {!calls ? <div className="empty-state">Carregando…</div> : !calls.length ? (
+        {!calls ? <SkeletonRows rows={6} columns={5} label="Carregando chamados sem região..." /> : !calls.length ? (
           <div className="empty-state mr-empty"><MapPinOff size={22} aria-hidden="true" /> Nenhum chamado sem região. Tudo certo!</div>
         ) : (
           <>

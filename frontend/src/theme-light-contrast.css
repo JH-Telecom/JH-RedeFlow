@@ -550,6 +550,18 @@
 :where(:root:not([data-theme="dark"])) .end-date-feedback.is-error {
     color: #b3261e
 }
+:where(:root:not([data-theme="dark"])) .call-presence {
+    color: #1d3b6e
+}
+:where(:root:not([data-theme="dark"])) .call-presence.is-editing {
+    color: #6b4300
+}
+:where(:root:not([data-theme="dark"])) .call-presence.is-conflict {
+    color: #8f1d27
+}
+:where(:root:not([data-theme="dark"])) .call-presence-avatars i {
+    color: #ffffff
+}
 
 /* imports.css */
 :where(:root:not([data-theme="dark"])) .import-stats {
@@ -1465,6 +1477,33 @@
 :where(:root:not([data-theme="dark"])) .nr-message {
     color: #45536b
 }
+:where(:root:not([data-theme="dark"])) .nr-summary-state {
+    color: #116b40
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-state.is-error {
+    color: #a3202b
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-state.is-running {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-kpis b {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-kpis span {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-kpis .is-error b {
+    color: #a3202b
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-errors li {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-errors time {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .nr-summary-errors strong {
+    color: #17233b
+}
 
 /* jota-h.css */
 :where(:root:not([data-theme="dark"])) .jw-hello {
@@ -2205,6 +2244,9 @@
 :where(:root:not([data-theme="dark"])) .cq-clock.is-on-time {
     color: var(--dv-good-ink)
 }
+:where(:root:not([data-theme="dark"])) .cq-clock.is-on-time.is-near {
+    color: var(--dv-warning-ink)
+}
 :where(:root:not([data-theme="dark"])) .cq-clock.is-late {
     color: var(--dv-warning-ink)
 }
@@ -2709,6 +2751,30 @@
 }
 :where(:root:not([data-theme="dark"])) .fa-link small {
     color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .op-tl-name {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .op-tl-hours span {
+    color: #5f6c80
+}
+:where(:root:not([data-theme="dark"])) .op-tl-empty {
+    color: #5f6c80
+}
+:where(:root:not([data-theme="dark"])) .op-tl-block {
+    color: #0f6b47
+}
+:where(:root:not([data-theme="dark"])) .op-tl-block.is-soon {
+    color: #8a4a06
+}
+:where(:root:not([data-theme="dark"])) .op-tl-block.is-late {
+    color: #96391a
+}
+:where(:root:not([data-theme="dark"])) .op-tl-block.is-outlier {
+    color: #9e1f2a
+}
+:where(:root:not([data-theme="dark"])) .op-tl-block.is-active {
+    color: #ffffff
 }
 
 /* update-notice.css */

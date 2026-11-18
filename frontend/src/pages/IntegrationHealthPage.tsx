@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, CircleHelp, MessageCircle, RefreshCw, Send
 import { api, type IntegrationHealth, type HealthStatus, type StuckReason } from "../api";
 import { Panel } from "../components/charts";
 import { Pager, usePaged } from "../components/Pager";
+import { SkeletonCards } from "../components/Skeleton";
 
 // Integracao OFS: semaforo da coleta (export, fechamentos, clusters, falhas), fila dos chamados concluidos no OFS
 // que nao finalizaram aqui (com o motivo) e o historico do que a extensao fez. Atualiza sozinho a cada minuto.
@@ -74,7 +75,7 @@ export function IntegrationHealthPage() {
       {testState.text && <div className={testState.error ? "form-error" : "save-message"} role={testState.error ? "alert" : "status"}>{testState.text}</div>}
 
       {error && <div className="form-error" role="alert">{error}</div>}
-      {!data ? (!error && <div className="dv-empty" role="status">Carregando...</div>) : <>
+      {!data ? (!error && <SkeletonCards count={4} label="Carregando a saúde da integração..." />) : <>
         <div className="ih-checks">
           {data.checks.map((check) => {
             const { label, icon: Icon } = STATUS[check.status];

@@ -70,4 +70,11 @@ test('technician load: free first, then lighter; counts today finished', () => {
   assert.equal(caio.finishedToday, 1);
   assert.equal(caio.onTimeToday, 1);
   assert.equal(caio.avgHoursToday, 4);
+  // Linha do dia: o chamado concluido vai da abertura (sem atribuicao) ate a conclusao; o ativo vai ate agora.
+  assert.equal(caio.timeline.length, 1);
+  assert.equal(caio.timeline[0].end, new Date(Date.parse(ago(60))).toISOString());
+  assert.equal(caio.timeline[0].active, false);
+  assert.equal(ana.timeline.length, 2);
+  assert.ok(ana.timeline.every((item) => item.active && item.end === new Date(now).toISOString()));
+  assert.ok(ana.timeline.every((item) => Date.parse(item.start) >= Date.parse(load.dayStart)));
 });

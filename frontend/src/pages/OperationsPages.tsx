@@ -1,11 +1,12 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, RefreshCw, UserCheck, UserX, Users } from "lucide-react";
-import { api, type MapArea, type MapCall, type QueueMap, type QueueState, type TechnicianLoad } from "../api";
+import { api, type MapArea, type MapCall, type QueueMap, type QueueState, type TechnicianLoad, type TechnicianLoadRow } from "../api";
 import { KpiTile, Panel, formatCount } from "../components/charts";
 import { IncidentsPanel } from "../components/IncidentsPanel";
 import { Pager, usePaged } from "../components/Pager";
 import { useCachedData } from "../lib/data-cache";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Lote 3: Mapa da fila (por regiao e bairro) e Carga dos tecnicos. Os dois atualizam sozinhos a cada minuto.
 
@@ -71,7 +72,7 @@ export function QueueMapPage() {
       </div>
       {error && <div className="form-error" role="alert">{error}</div>}
       <IncidentsPanel refreshKey={incidentKey} />
-      {!data ? (!error && <div className="dv-empty" role="status">Carregando...</div>) : <>
+      {!data ? (!error && <SkeletonRows rows={6} columns={4} />) : <>
         <div className="dv-kpi-grid">
           <KpiTile label="Ativos" value={formatCount(data.total)} note={`${data.noTechnician} sem técnico`} icon={Users} />
           <KpiTile label="Vencem em < 2h" value={formatCount(data.states.soon)} note="Ainda no prazo" icon={Users} tone={data.states.soon ? "warning" : "default"} />
@@ -114,6 +115,44 @@ export function QueueMapPage() {
   );
 }
 
+// ---------- Linha do dia (18/11/2026) ----------
+// Cada tecnico numa faixa: os chamados de hoje de quando foram atribuidos ate a conclusao (claros) ou ate agora
+// (fortes), coloridos pelo prazo. O vazio entre eles e tempo sem chamado; a linha vermelha e agora.
+const clockText = (value: number) => new Date(value).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+function DayTimeline({ rows, dayStart }: { rows: TechnicianLoadRow[]; dayStart: string }) {
+  const now = Date.now();
+  const base = Date.parse(dayStart);
+  const starts = rows.flatMap((row) => row.timeline.map((item) => Date.parse(item.start)));
+  const from = Math.min(base + 6 * 3_600_000, ...starts);
+  const fromHour = Math.floor((from - base) / 3_600_000);
+  const toHour = Math.min(24, Math.max(fromHour + 6, Math.ceil((now - base) / 3_600_000) + 1));
+  const start = base + fromHour * 3_600_000, span = (toHour - fromHour) * 3_600_000;
+  const pos = (value: number) => Math.max(0, Math.min(100, ((value - start) / span) * 100));
+  const hours = Array.from({ length: toHour - fromHour + 1 }, (_, index) => fromHour + index).filter((hour, index, all) => all.length <= 9 || (hour - fromHour) % 2 === 0);
+  const nowPos = now >= start && now <= start + span ? pos(now) : null;
+  return (
+    <div className="op-tl" role="list">
+      <div className="op-tl-row op-tl-axis" aria-hidden="true"><span /><div className="op-tl-hours">{hours.map((hour) => <span key={hour} style={{ left: `${((hour - fromHour) / (toHour - fromHour)) * 100}%` }}>{String(hour).padStart(2, "0")}h</span>)}</div></div>
+      {rows.map((row) => (
+        <div className="op-tl-row" role="listitem" key={row.id}>
+          <span className="op-tl-name" title={row.name}>{row.name}</span>
+          <div className="op-tl-track" aria-label={row.timeline.length ? `${row.name}: ${row.timeline.map((item) => `${item.orderNumber} das ${clockText(Date.parse(item.start))} ${item.active ? "até agora" : `às ${clockText(Date.parse(item.end))}`}, ${STATE_LABEL[item.state]}`).join("; ")}` : `${row.name}: sem chamado hoje`}>
+            {hours.map((hour) => <i key={hour} className="op-tl-grid" style={{ left: `${((hour - fromHour) / (toHour - fromHour)) * 100}%` }} />)}
+            {!row.timeline.length && <span className="op-tl-empty">Sem chamado hoje</span>}
+            {row.timeline.map((item) => {
+              const left = pos(Date.parse(item.start));
+              const width = Math.max(1.2, pos(Date.parse(item.end)) - left);
+              return <span key={item.id} className={`op-tl-block is-${item.state}${item.active ? " is-active" : ""}`} style={{ left: `${left}%`, width: `${width}%` }} title={`${item.orderNumber} · ${item.type}
+${clockText(Date.parse(item.start))} – ${item.active ? "agora" : clockText(Date.parse(item.end))} · ${STATE_LABEL[item.state]}`}>{width > 7 ? item.orderNumber : ""}</span>;
+            })}
+            {nowPos !== null && <i className="op-tl-now" style={{ left: `${nowPos}%` }} />}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---------- Carga dos tecnicos ----------
 export function TechnicianLoadPage() {
   const { data, error, loading, reload } = useAutoLoad<TechnicianLoad>("operacao:carga", () => api.technicianLoad());
@@ -132,13 +171,16 @@ export function TechnicianLoadPage() {
         <RefreshButton loading={loading} onClick={() => void reload()} />
       </div>
       {error && <div className="form-error" role="alert">{error}</div>}
-      {!data ? (!error && <div className="dv-empty" role="status">Carregando...</div>) : <>
+      {!data ? (!error && <SkeletonRows rows={6} columns={4} />) : <>
         <div className="dv-kpi-grid">
           <KpiTile label="Livres" value={formatCount(data.free)} note="Sem chamado ativo" icon={UserCheck} />
           <KpiTile label="Ocupados" value={formatCount(data.busy)} note="Com chamado ativo" icon={UserX} />
           <KpiTile label="Ativos sem técnico" value={formatCount(data.unassignedActive)} note="Aguardando atribuição" icon={Users} tone={data.unassignedActive ? "warning" : "default"} to="/chamados/abertos" />
           <KpiTile label="Técnicos" value={formatCount(data.technicians.length)} note="Trabalhando e ativos" icon={Users} />
         </div>
+        <Panel kicker="HOJE" title="Linha do dia" aside={<div className="op-legend"><span><i className="op-tl-key is-ok" /> No prazo</span><span><i className="op-tl-key is-late" /> Fora do prazo</span><span><i className="op-tl-key is-outlier" /> Outlier</span><span><i className="op-tl-key is-done" /> Concluído (claro)</span></div>}>
+          {!rows.length ? <div className="dv-empty">Nenhum técnico para mostrar.</div> : <DayTimeline rows={pagedRows.pageItems} dayStart={data.dayStart} />}
+        </Panel>
         <Panel kicker="EQUIPE" title="Técnicos" aside={<label className="checkbox-label op-only-free"><input type="checkbox" checked={onlyFree} onChange={(event) => setOnlyFree(event.target.checked)} /> Só livres</label>}>
           {!rows.length ? <div className="dv-empty">{onlyFree ? "Ninguém livre agora." : "Nenhum técnico ativo."}</div> : (
             <div className="sa-table-wrap">

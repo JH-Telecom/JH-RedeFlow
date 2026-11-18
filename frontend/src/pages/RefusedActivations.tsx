@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { api, type Activation } from "../api";
 import { Pager, usePaged } from "../components/Pager";
 import { ACTIVATIONS_CHANGED } from "../components/ActivationToast";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Historico de acionamentos recusados (11/11/2026): os 100 mais recentes, com quem recusou, quando e o motivo.
 // "Aceitar mesmo assim" corrige uma recusa errada: cria o chamado (ou liga ao que ja existe com a mesma OS) e o
@@ -53,7 +54,7 @@ export function RefusedActivations({ tabs, canDecide }: { tabs: ReactNode; canDe
           <label className="ra-search"><Search size={14} aria-hidden="true" /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Pesquisar" aria-label="Pesquisar recusados (ordem, BDESK, motivo, quem recusou)" /></label>
         </div>
         {done && <div className={done.callId ? "save-message" : "form-error"} role="status">{done.message}{done.callId && <> <Link to={`/chamados/${done.callId}`}>Abrir chamado {done.order}</Link></>}</div>}
-        {error ? <div className="empty-state">{error}</div> : !items ? <div className="empty-state">Carregando...</div> : visible.length === 0 ? <div className="empty-state">{search ? "Nada encontrado." : "Nenhum acionamento recusado."}</div> : paged.pageItems.map((item) => (
+        {error ? <div className="empty-state">{error}</div> : !items ? <SkeletonRows rows={5} columns={4} label="Carregando recusados..." /> : visible.length === 0 ? <div className="empty-state">{search ? "Nada encontrado." : "Nenhum acionamento recusado."}</div> : paged.pageItems.map((item) => (
           <div className="activation-row ra-row" key={item.id}>
             <div className="activation-main">
               <div className="activation-icon ra-icon"><Ban size={17} /></div>

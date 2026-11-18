@@ -1,0 +1,14 @@
+/* Esqueleto de carregamento (components/Skeleton.tsx) */
+.sk-bar { display: block; height: 11px; border-radius: 6px; background: linear-gradient(90deg, #edf1f6 0%, #e1e7ef 45%, #edf1f6 90%); background-size: 220% 100%; animation: sk-shine 1.4s linear infinite; }
+.sk-bar.sk-big { height: 22px; }
+.sk-bar.sk-title { height: 26px; }
+.sk-list { display: grid; padding: 4px 18px; }
+.sk-row { display: grid; gap: 18px; align-items: center; padding: 15px 0; border-bottom: 1px solid #f0f3f7; }
+.sk-row:last-child { border-bottom: 0; }
+.sk-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.sk-card { display: grid; gap: 12px; padding: 20px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.sk-page { display: grid; gap: 18px; }
+.sk-heading { display: grid; gap: 10px; margin-bottom: 8px; }
+.sk-panel { border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+@keyframes sk-shine { to { background-position: -220% 0; } }
+@media (prefers-reduced-motion: reduce) { .sk-bar { animation: none; } }

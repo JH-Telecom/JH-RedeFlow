@@ -5,3 +5,13 @@
 .end-date-actions .primary-button, .end-date-actions .secondary-button { min-height: 32px; padding: 0 10px; font-size: 12px; box-shadow: none; }
 .end-date-feedback { display: block; margin-top: 6px; font-size: 11px; color: #167a57; }
 .end-date-feedback.is-error { color: #b3261e; }
+
+/* Quem mais esta com o chamado aberto (components/CallPresence.tsx, 18/11/2026) */
+.call-presence { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; border: 1px solid #c8dcfb; border-radius: 9px; background: #f2f7ff; color: #1d3b6e; font-size: 13px; }
+.call-presence.is-editing { border-color: #f3d48a; background: #fff8e8; color: #6b4300; }
+.call-presence.is-conflict { border-color: #f1b9be; background: #fff3f4; color: #8f1d27; }
+.call-presence-text { flex: 1; min-width: 200px; }
+.call-presence-avatars { display: flex; }
+.call-presence-avatars i { display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid #fff; border-radius: 50%; background: #1264e8; color: #fff; font-size: 10px; font-style: normal; font-weight: 800; }
+.call-presence-avatars i + i { margin-left: -8px; }
+.call-presence-avatars i.is-editing { background: #a85a06; }

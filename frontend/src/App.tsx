@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import faviconUrl from "../image/favicon.ico";
 import { api, clearResponseCache, type Role, type User } from "./api";
 import { clearDataCache } from "./lib/data-cache";
 import { Shell } from "./components/Shell";
 import { FirstLoginPasswordChange, Login } from "./pages/LoginPage";
-import { PrivacyPolicyPage, TermsOfUsePage } from "./pages/LegalPages";
-import { LicensesPage } from "./pages/LicensesPage";
-import { PublicCallPage } from "./pages/PublicCallPage";
-import { StatusPage } from "./pages/StatusPage";
 import { StorageNotice } from "./components/StorageNotice";
+import { lazyNamed } from "./lib/lazy-named";
+import { PageSkeleton } from "./components/Skeleton";
+const StatusPage = lazyNamed(() => import("./pages/StatusPage"), "StatusPage");
+const PublicCallPage = lazyNamed(() => import("./pages/PublicCallPage"), "PublicCallPage");
+const LicensesPage = lazyNamed(() => import("./pages/LicensesPage"), "LicensesPage");
+const PrivacyPolicyPage = lazyNamed(() => import("./pages/LegalPages"), "PrivacyPolicyPage");
+const TermsOfUsePage = lazyNamed(() => import("./pages/LegalPages"), "TermsOfUsePage");
 
 export default function App() {
   const location = useLocation();
@@ -68,13 +71,13 @@ export default function App() {
   }
 
   // Privacidade e Termos abrem com ou sem login.
-  if (location.pathname === "/privacidade") return <><PrivacyPolicyPage /><StorageNotice /></>;
-  if (location.pathname === "/termos") return <><TermsOfUsePage /><StorageNotice /></>;
-  if (location.pathname === "/licencas") return <><LicensesPage /><StorageNotice /></>;
+  if (location.pathname === "/privacidade") return <><Suspense fallback={<PageSkeleton />}><PrivacyPolicyPage /></Suspense><StorageNotice /></>;
+  if (location.pathname === "/termos") return <><Suspense fallback={<PageSkeleton />}><TermsOfUsePage /></Suspense><StorageNotice /></>;
+  if (location.pathname === "/licencas") return <><Suspense fallback={<PageSkeleton />}><LicensesPage /></Suspense><StorageNotice /></>;
   // Status do sistema: aberta sem login (quando o banco cai, o login cai junto).
-  if (location.pathname === "/status") return <><StatusPage /><StorageNotice /></>;
+  if (location.pathname === "/status") return <><Suspense fallback={<PageSkeleton />}><StatusPage /></Suspense><StorageNotice /></>;
   // Link do informativo (Casa Cliente): so leitura, sem login, so aquele chamado.
-  if (location.pathname.startsWith("/consulta/")) return <><PublicCallPage token={location.pathname.slice("/consulta/".length)} /><StorageNotice /></>;
+  if (location.pathname.startsWith("/consulta/")) return <><Suspense fallback={<PageSkeleton />}><PublicCallPage token={location.pathname.slice("/consulta/".length)} /></Suspense><StorageNotice /></>;
   if (hydrating)
     return (
       <div className="app-loading">

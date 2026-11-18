@@ -934,6 +934,29 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .end-date-feedback.is-error {
     color: #b3261e
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .call-presence {
+    border: 1px solid #d9d4ff;
+    background: #f2f7ff;
+    color: #3d326b
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .call-presence.is-editing {
+    border-color: #f3d48a;
+    background: #fff8e8;
+    color: #6b4300
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .call-presence.is-conflict {
+    border-color: #f1b9be;
+    background: #fff3f4;
+    color: #8f1d27
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .call-presence-avatars i {
+    border: 2px solid #fff;
+    background: #734bdf;
+    color: #ffffff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .call-presence-avatars i.is-editing {
+    background: #a85a06
+}
 /* light · imports.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .import-stats {
     color: #68657f
@@ -2528,6 +2551,42 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sr-only {
     border: 0
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-state {
+    background: #e3f6ee;
+    color: #116b40
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-state.is-error {
+    background: #fde8ea;
+    color: #a3202b
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-state.is-running {
+    background: #eeebff;
+    color: #5331a7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-kpis > div {
+    border: 1px solid var(--line);
+    background: #fbfcfe
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-kpis b {
+    color: #241c42
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-kpis span {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-kpis .is-error b {
+    color: #a3202b
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-errors li {
+    border: 1px solid #f3c6cb;
+    background: #fff7f8;
+    color: #524d72
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-errors time {
+    color: #5b577a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .nr-summary-errors strong {
+    color: #241c42
+}
 /* light · jota-h.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .jw-launcher {
     border: 1px solid #e9e7f9;
@@ -3773,29 +3832,35 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-table td .cq-clock strong {
     color: inherit
 }
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock-bar {
-    background: var(--dv-track)
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-ring circle {
+    fill: none
 }
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock-bar b {
-    background: #9592ae
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-ring-track {
+    stroke: var(--dv-track)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-ring-tick {
+    stroke: #9592ae
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-on-time {
     color: var(--dv-good-ink)
 }
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-on-time .cq-clock-bar i {
-    background: var(--dv-good)
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-on-time .cq-ring-fill {
+    stroke: var(--dv-good)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-on-time.is-near {
+    color: var(--dv-warning-ink)
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-late {
     color: var(--dv-warning-ink)
 }
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-late .cq-clock-bar i {
-    background: var(--dv-warning)
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-late .cq-ring-fill {
+    stroke: var(--dv-warning)
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-outlier {
     color: var(--dv-critical-ink)
 }
-:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-outlier .cq-clock-bar i {
-    background: var(--dv-critical)
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-clock.is-outlier .cq-ring-fill {
+    stroke: var(--dv-critical)
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-status {
     border: 1px solid #e0dff2;
@@ -3849,6 +3914,12 @@
 @media (max-width: 760px) {
     :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-row > td::before {
         color: var(--muted)
+    }
+}
+@media (max-width: 760px) {
+    :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-row .cq-observation-button {
+        border-color: #e0dff2;
+        background: #f7faff
     }
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .cq-panel.is-fit .cq-scroll::-webkit-scrollbar-thumb, :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .fit-table-panel.is-fit .fit-scroll::-webkit-scrollbar-thumb {
@@ -4690,6 +4761,66 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .sv-region-scroll thead th {
     background: #1b1a24
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-name {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-hours span {
+    color: #6a6786
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-track {
+    background: #f1f4f8
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-grid {
+    background: #e7e6f3
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-empty {
+    color: #6a6786
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block {
+    background: #dcf3e9;
+    color: #0f6b47
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block.is-soon {
+    background: #fdeeda;
+    color: #8a4a06
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block.is-late {
+    background: #fde4d8;
+    color: #96391a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block.is-outlier {
+    background: #fbe1e4;
+    color: #9e1f2a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block.is-active {
+    background: #12805a;
+    color: #ffffff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block.is-active.is-soon {
+    background: #a85a06
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block.is-active.is-late {
+    background: #b5461b
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-block.is-active.is-outlier {
+    background: #b3242f
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-now {
+    background: #c42e3b
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-key {
+    background: #12805a
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-key.is-late {
+    background: #b5461b
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-key.is-outlier {
+    background: #b3242f
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .op-tl-key.is-done {
+    background: #dcf3e9;
+    border: 1px solid #9fd8bf
+}
 /* light · update-notice.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #241c428c
@@ -5209,6 +5340,24 @@
 }
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .pv-footnote {
     color: #5b577a
+}
+/* light · skeleton.css */
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sk-bar {
+    background: linear-gradient(90deg, #edf1f6 0%, #e6e5f2 45%, #edf1f6 90%)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sk-row {
+    border-bottom: 1px solid #f0f3f7
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sk-row:last-child {
+    border-bottom: 0
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sk-card {
+    border: 1px solid var(--line);
+    background: #fff
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .sk-panel {
+    border: 1px solid var(--line);
+    background: #fff
 }
 /* light · contrast-fixes.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .role-row-button {
@@ -6163,6 +6312,29 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .end-date-feedback.is-error {
     color: #ff8b7b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .call-presence {
+    border: 1px solid #3e3860;
+    background: #16151f;
+    color: #b6adf1
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .call-presence.is-editing {
+    border-color: #4f3d09;
+    background: #1b1302;
+    color: #dcae76
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .call-presence.is-conflict {
+    border-color: #65343b;
+    background: #1e1214;
+    color: #ff8e8c
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .call-presence-avatars i {
+    border: 2px solid #302e3a;
+    background: #734bdf;
+    color: #ffffff
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .call-presence-avatars i.is-editing {
+    background: #a85a06
 }
 /* dark · imports.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .import-stats {
@@ -7758,6 +7930,42 @@
 :where(:root[data-palette="aurora"][data-theme="dark"]) .sr-only {
     border: 0
 }
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-state {
+    background: #031c14;
+    color: #7ccc9b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-state.is-error {
+    background: #251013;
+    color: #ff8a87
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-state.is-running {
+    background: #17122d;
+    color: #b2a5fb
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-kpis > div {
+    border: 1px solid var(--line);
+    background: #181721
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-kpis b {
+    color: #e4e3f2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-kpis span {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-kpis .is-error b {
+    color: #ff8a87
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-errors li {
+    border: 1px solid #613138;
+    background: #15141e;
+    color: #bfbecc
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-errors time {
+    color: #b8b7c3
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .nr-summary-errors strong {
+    color: #e4e3f2
+}
 /* dark · jota-h.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .jw-launcher {
     border: 1px solid #383649;
@@ -9013,29 +9221,35 @@
 :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-table td .cq-clock strong {
     color: inherit
 }
-:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock-bar {
-    background: var(--dv-track)
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-ring circle {
+    fill: none
 }
-:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock-bar b {
-    background: #3f3d54
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-ring-track {
+    stroke: var(--dv-track)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-ring-tick {
+    stroke: #9592ae
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-on-time {
     color: var(--dv-good-ink)
 }
-:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-on-time .cq-clock-bar i {
-    background: var(--dv-good)
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-on-time .cq-ring-fill {
+    stroke: var(--dv-good)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-on-time.is-near {
+    color: var(--dv-warning-ink)
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-late {
     color: var(--dv-warning-ink)
 }
-:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-late .cq-clock-bar i {
-    background: var(--dv-warning)
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-late .cq-ring-fill {
+    stroke: var(--dv-warning)
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-outlier {
     color: var(--dv-critical-ink)
 }
-:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-outlier .cq-clock-bar i {
-    background: var(--dv-critical)
+:where(:root[data-palette="aurora"][data-theme="dark"]) .cq-clock.is-outlier .cq-ring-fill {
+    stroke: var(--dv-critical)
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-status {
     border: 1px solid #3c394e;
@@ -9089,6 +9303,12 @@
 @media (max-width: 760px) {
     :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-row > td::before {
         color: var(--muted)
+    }
+}
+@media (max-width: 760px) {
+    :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-row .cq-observation-button {
+        border-color: #3c394e;
+        background: #16151e
     }
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .cq-panel.is-fit .cq-scroll::-webkit-scrollbar-thumb, :where(:root[data-palette="aurora"][data-theme="dark"]) .fit-table-panel.is-fit .fit-scroll::-webkit-scrollbar-thumb {
@@ -9930,6 +10150,66 @@
 :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .sv-region-scroll thead th {
     background: #1b1a24
 }
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-name {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-hours span {
+    color: #aeadb8
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-track {
+    background: #16151f
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-grid {
+    background: #181625
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-empty {
+    color: #aeadb8
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block {
+    background: #001e13;
+    color: #7bcba2
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block.is-soon {
+    background: #241300;
+    color: #eda56d
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block.is-late {
+    background: #2a0f03;
+    color: #ff9878
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block.is-outlier {
+    background: #2a0e13;
+    color: #ff8a87
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block.is-active {
+    background: #12805a;
+    color: #ffffff
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block.is-active.is-soon {
+    background: #a85a06
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block.is-active.is-late {
+    background: #b5461b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-block.is-active.is-outlier {
+    background: #b3242f
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-now {
+    background: #c42e3b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-key {
+    background: #12805a
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-key.is-late {
+    background: #b5461b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-key.is-outlier {
+    background: #b3242f
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-key.is-done {
+    background: #001e13;
+    border: 1px solid #16513d
+}
 /* dark · update-notice.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .update-notice-backdrop {
     background: #241c42bf
@@ -10449,6 +10729,24 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .pv-footnote {
     color: #b8b7c3
+}
+/* dark · skeleton.css */
+:where(:root[data-palette="aurora"][data-theme="dark"]) .sk-bar {
+    background: linear-gradient(90deg, #16151f 0%, #181625 45%, #16151f 90%)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .sk-row {
+    border-bottom: 1px solid #34333e
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .sk-row:last-child {
+    border-bottom: 0
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .sk-card {
+    border: 1px solid var(--line);
+    background: #1b1a24
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .sk-panel {
+    border: 1px solid var(--line);
+    background: #1b1a24
 }
 /* dark · contrast-fixes.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .role-row-button {

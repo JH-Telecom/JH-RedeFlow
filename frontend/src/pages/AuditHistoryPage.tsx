@@ -5,6 +5,7 @@ import { api, type AuditLogRow, type PersonCard } from "../api";
 import { toOperationalDate } from "../dates";
 import { Panel } from "../components/charts";
 import { Pager } from "../components/Pager";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Historico de alteracoes de todos os chamados: quem mudou o que, quando, e o valor antes e depois.
 // Mesma permissao da aba Auditoria do chamado (calls.view_logs). 100 por pagina, filtros aplicados no servidor.
@@ -96,7 +97,7 @@ export function AuditHistoryPage() {
 
       {!validRange ? <div className="dv-empty">Escolha um período válido.</div>
         : error ? <div className="dv-empty is-error" role="alert">{error}</div>
-        : !data ? <div className="dv-empty" role="status">Carregando...</div>
+        : !data ? <SkeletonRows rows={8} columns={4} label="Carregando histórico..." />
         : (
           <Panel kicker="ALTERAÇÕES" title={`${data.total.toLocaleString("pt-BR")} registro(s)`} aside={data.totalPages > 1 ? <span className="sa-aside">100 por página</span> : undefined}>
             {!data.logs.length ? <div className="dv-empty">Nenhuma alteração com esses filtros.</div> : <>

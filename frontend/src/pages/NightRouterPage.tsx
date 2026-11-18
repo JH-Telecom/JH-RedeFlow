@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Eraser, MoonStar, Save } from "lucide-react";
-import { api, type NightRouterData, type NightShift, type Role, type User } from "../api";
+import { api, type NightRouterData, type NightShift, type NightSummary, type Role, type User } from "../api";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Roteirizador da madrugada: das 22h as 06h a extensao do PC da coleta move no OFS os chamados sem tecnico (acionados
 // desde as 22h) para o tecnico unico da madrugada, se escolhido, ou para o tecnico de plantao da regiao. Os acionamentos
@@ -12,6 +13,34 @@ const DAY_LABEL: Record<number, string> = { 0: "Dom", 1: "Seg", 2: "Ter", 3: "Qu
 const RESULT_CLASS: Record<string, string> = { Movida: "is-ok", Teste: "is-test", Pulada: "is-skip", Erro: "is-error" };
 const dateTime = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const cellKey = (region: string, weekday: number) => `${region}|${weekday}`;
+
+// Resumo da madrugada (18/11/2026): o que o robo fez da ultima vez, para quem chega de manha.
+const clock = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+function NightSummaryPanel({ summary }: { summary: NightSummary }) {
+  const day = new Date(summary.to).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
+  const nothing = !summary.aceitos && !summary.movidas && !summary.teste && !summary.erros && !summary.puladas;
+  return (
+    <section className="panel nr-summary" aria-label="Resumo da madrugada">
+      <div className="nr-summary-head">
+        <h2>{summary.inProgress ? "Madrugada em andamento" : `Resumo da madrugada · ${day}`}</h2>
+        <span className={`nr-summary-state ${summary.inProgress ? "is-running" : summary.erros ? "is-error" : "is-ok"}`}>{summary.inProgress ? "Em andamento" : summary.erros ? `${summary.erros} com erro` : "Sem erros"}</span>
+      </div>
+      <p className="nr-muted">De {clock(summary.from)} a {clock(summary.to)}.{nothing ? " O robô não aceitou nem moveu nenhum chamado." : ""}</p>
+      <div className="nr-summary-kpis">
+        <div><b>{summary.aceitos}</b><span>aceitos automaticamente</span></div>
+        <div><b>{summary.movidas}</b><span>enviados ao técnico no OFS</span></div>
+        <div className={summary.erros ? "is-error" : ""}><b>{summary.erros}</b><span>com erro</span></div>
+        {summary.teste > 0 && <div><b>{summary.teste}</b><span>só testados (modo teste)</span></div>}
+        {summary.puladas > 0 && <div><b>{summary.puladas}</b><span>pulados</span></div>}
+      </div>
+      {summary.problemas.length > 0 && (
+        <ul className="nr-summary-errors">
+          {summary.problemas.map((item) => <li key={`${item.orderNumber}-${item.createdAt}`}><time>{clock(item.createdAt)}</time><strong>{item.orderNumber}</strong><span>{[item.region, item.message].filter(Boolean).join(" · ")}</span></li>)}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export function NightRouterPage({ user }: { user: User & { role: Role } }) {
   const canManage = user.role.permissions.includes("settings.manage");
@@ -82,8 +111,9 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
       {notice && <p className="nr-notice" role="status">{notice}</p>}
-      {!data ? (!error && <p className="nr-muted">Carregando…</p>) : (
+      {!data ? (!error && <SkeletonRows rows={4} columns={3} label="Carregando o roteirizador..." />) : (
         <>
+          {data.resumo && <NightSummaryPanel summary={data.resumo} />}
           <section className="panel nr-status" aria-label="Situação do roteirizador">
             <div className="nr-status-head">
               <span className="nr-status-icon" aria-hidden="true"><MoonStar size={22} /></span>

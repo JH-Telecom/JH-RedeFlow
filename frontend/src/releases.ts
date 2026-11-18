@@ -9,6 +9,18 @@ export type Release = { id: string; label: string; items: ReleaseItem[] };
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-18",
+    label: "18/11",
+    items: [
+      { icon: "sparkles", tag: "Melhoria", title: "Sistema mais rápido para abrir", text: "Cada tela agora baixa só quando você abre a aba, e enquanto carrega aparece o formato da tela no lugar de \"Carregando...\"." },
+      { icon: "list", tag: "Novo", title: "Anel de prazo na fila", text: "Nos chamados abertos e em atendimento, o anel enche até o limite do prazo e avisa quanto falta (\"Faltam 40min\", \"Outlier em 2h\")." },
+      { icon: "user", tag: "Melhoria", title: "Fila mais fácil no celular", text: "No celular, a ordem e o prazo ficam lado a lado no topo de cada cartão, e o status e a observação ocupam a largura toda." },
+      { icon: "chart", tag: "Novo", title: "Linha do dia dos técnicos", text: "Em Carga dos técnicos, uma faixa por técnico mostra os chamados de hoje, do início à conclusão ou até agora, e quem está livre." },
+      { icon: "bell", tag: "Novo", title: "Aviso de chamado aberto por outra pessoa", text: "No detalhe do chamado aparece quem mais está com ele aberto ou editando, e um aviso para recarregar se alguém salvou antes de você." },
+      { icon: "wrench", tag: "Novo", title: "Resumo da madrugada", text: "No Roteirizador, o resumo da última madrugada: quantos chamados foram aceitos, enviados ao técnico no OFS e quais deram erro.", permission: "imports.view" },
+    ],
+  },
+  {
     id: "2026-11-12",
     label: "12/11",
     items: [

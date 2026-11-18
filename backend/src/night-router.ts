@@ -97,3 +97,30 @@ export function nightStartIso(now: number | Date = Date.now()) {
   const today22 = Date.parse(`${date}T${String(NIGHT_START_HOUR).padStart(2, '0')}:00:00.000-03:00`);
   return new Date(saoPauloClock(now).hour >= NIGHT_START_HOUR ? today22 : today22 - 86_400_000).toISOString();
 }
+
+// Resumo da madrugada (18/11/2026): o que o roteirizador fez na ultima madrugada (22h-06h), para quem chega de manha.
+// Aceitos = chamados abertos na janela com a nota de aceite automatico; o resto vem dos registros de envio ao OFS.
+export type NightSummary = {
+  from: string; to: string; inProgress: boolean;
+  aceitos: number; movidas: number; teste: number; erros: number; puladas: number;
+  problemas: Array<{ orderNumber: string; region: string; message: string; createdAt: string }>;
+};
+export const NIGHT_ACCEPT_NOTE = 'Aceito automaticamente pelo Roteirizador da madrugada';
+export function nightSummary(runs: NightRun[], calls: Pick<Call, 'openedAt' | 'notes'>[], now: number | Date = Date.now()): NightSummary {
+  const from = Date.parse(nightStartIso(now));
+  const to = from + (24 - NIGHT_START_HOUR + NIGHT_END_HOUR) * 3_600_000;
+  const inside = (value: string) => { const time = Date.parse(value); return time >= from && time < to; };
+  const nightRuns = runs.filter((run) => inside(run.createdAt));
+  // A mesma OS pode ter varias tentativas: vale a ultima (a lista vem da mais nova para a mais antiga).
+  const last = new Map<string, NightRun>();
+  for (const run of [...nightRuns].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) if (!last.has(run.orderNumber)) last.set(run.orderNumber, run);
+  const finals = [...last.values()];
+  const count = (result: NightRunResult) => finals.filter((run) => run.result === result).length;
+  return {
+    from: new Date(from).toISOString(), to: new Date(to).toISOString(), inProgress: new Date(now).getTime() < to,
+    aceitos: calls.filter((call) => inside(call.openedAt) && (call.notes || '').includes(NIGHT_ACCEPT_NOTE)).length,
+    movidas: count('Movida'), teste: count('Teste'), erros: count('Erro'), puladas: count('Pulada'),
+    problemas: finals.filter((run) => run.result === 'Erro').sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((run) => ({ orderNumber: run.orderNumber, region: run.region, message: run.message, createdAt: run.createdAt })),
+  };
+}

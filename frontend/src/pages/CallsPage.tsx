@@ -11,6 +11,7 @@ import { RiskBadge } from "../components/AssistWidgets";
 import { ObservationPopup } from "../components/ObservationPopup";
 import { CopyText } from "../components/CopyText";
 import type { CallRisk } from "../api";
+import { SkeletonRows } from "../components/Skeleton";
 
 export function RangeCallTable({ calls }: { calls: Call[] }) {
   return (
@@ -154,18 +155,32 @@ const shortDateTime = (value: string) => new Date(value).toLocaleString("pt-BR",
 // Relogio da regra 6h/9h: tempo grande, barra ate 9h com marca nas 6h e a classificacao.
 // Em aberto conta ate agora; encerrado conta da abertura ate a Data Fim.
 // Links (NOC TX): prazo de 15 dias (lib/sla.ts); a barra vai ate o prazo deles.
+// Anel de prazo (18/11/2026): enche ate o limite de outlier; a marca no anel e o fim do prazo (6h, 15 dias no NOC TX).
+// Ao lado, o tempo e quanto falta para o proximo limite, para ver de longe quem esta perto de estourar.
 function QueueClock({ openedAt, endedAt, closed = false, type }: { openedAt: string; endedAt?: string | null; closed?: boolean; type?: string }) {
   if (closed && !endedAt) return <span className="muted-cell">Sem Data Fim</span>;
   const minutes = minutesBetween(openedAt, endedAt);
   const state = getSlaState(minutes, type) as SlaState;
   const limits = slaLimits(type);
-  const fill = Math.min(100, (minutes / limits.outlierMinutes) * 100);
-  const tick = (limits.onTimeMinutes / limits.outlierMinutes) * 100;
+  const fill = Math.min(1, minutes / limits.outlierMinutes);
+  const tick = limits.onTimeMinutes / limits.outlierMinutes;
+  const radius = 15, circumference = 2 * Math.PI * radius;
+  const angle = tick * 2 * Math.PI - Math.PI / 2;
+  const next = state === "on-time" ? limits.onTimeMinutes - minutes : state === "late" ? limits.outlierMinutes - minutes : 0;
+  const hint = closed ? `${SLA_LABELS[state]} no encerramento`
+    : state === "on-time" ? (next <= 60 ? `Faltam ${formatDuration(Math.max(1, next))}` : SLA_LABELS[state])
+    : state === "late" ? `Outlier em ${formatDuration(Math.max(1, next))}` : SLA_LABELS[state];
   return (
-    <div className={`cq-clock is-${state}`} data-prazo={`${formatDuration(minutes)} ${SLA_LABELS[state]}`}>
-      <strong>{formatDuration(minutes)}</strong>
-      <span className="cq-clock-bar" aria-hidden="true"><i style={{ width: `${fill}%` }} /><b style={{ left: `${tick}%` }} /></span>
-      <small>{closed ? `${SLA_LABELS[state]} no encerramento` : SLA_LABELS[state]}</small>
+    <div className={`cq-clock is-${state}${!closed && state === "on-time" && next <= 60 ? " is-near" : ""}`} data-prazo={`${formatDuration(minutes)} ${SLA_LABELS[state]}`}>
+      <svg className="cq-ring" viewBox="0 0 36 36" aria-hidden="true">
+        <circle className="cq-ring-track" cx="18" cy="18" r={radius} />
+        <circle className="cq-ring-fill" cx="18" cy="18" r={radius} strokeDasharray={`${fill * circumference} ${circumference}`} transform="rotate(-90 18 18)" />
+        <line className="cq-ring-tick" x1={18 + Math.cos(angle) * 11.5} y1={18 + Math.sin(angle) * 11.5} x2={18 + Math.cos(angle) * 18.5} y2={18 + Math.sin(angle) * 18.5} />
+      </svg>
+      <span className="cq-clock-text">
+        <strong>{formatDuration(minutes)}</strong>
+        <small>{hint}</small>
+      </span>
     </div>
   );
 }
@@ -673,6 +688,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
                 ))}
               </tbody>
             </table>
+            {loading && currentCalls.length === 0 && <SkeletonRows rows={8} columns={6} label="Carregando chamados..." />}
             {!loading && currentCalls.length === 0 && (
               <div className="cq-empty">
                 {activeFilters > 0
