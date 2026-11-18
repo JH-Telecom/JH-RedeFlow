@@ -12,6 +12,9 @@ import { ObservationPopup } from "../components/ObservationPopup";
 import { CopyText } from "../components/CopyText";
 import type { CallRisk } from "../api";
 import { SkeletonRows } from "../components/Skeleton";
+import { useCachedData } from "../lib/data-cache";
+import { localCallsCount, localCallsPage, type FullCall } from "../lib/call-list-local";
+import { useIdBatch } from "../lib/id-batch-cache";
 
 export function RangeCallTable({ calls }: { calls: Call[] }) {
   return (
@@ -213,38 +216,20 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   // Popup de observacao (fila Em atendimento): chamado aberto no popup e o texto das observacoes salvas por ele.
   const [observationCall, setObservationCall] = useState<Call | null>(null);
   // Ultima observacao (texto e autor) de cada chamado da pagina, numa chamada so; sem observacao, mostra as notas.
-  const [latestObservations, setLatestObservations] = useState<Record<string, { text: string; userName: string; createdAt: string }>>({});
-  const observationIdsKey = assignedOnly ? calls.map((call) => call.id).join(",") : "";
-  useEffect(() => {
-    if (!observationIdsKey) { setLatestObservations({}); return; }
-    let active = true;
-    api.latestObservations(observationIdsKey.split(","), { teamScope: teamScoped })
-      .then((data) => { if (active) setLatestObservations(data.observations); })
-      .catch(() => undefined);
-    return () => { active = false; };
-  }, [observationIdsKey, teamScoped]);
+  const observationIds = assignedOnly ? calls.map((call) => call.id) : [];
+  const fetchedObservations = useIdBatch(`obs:${teamScoped}`, observationIds, async (ids) => (await api.latestObservations(ids, { teamScope: teamScoped })).observations);
+  // Observacao salva agora pelo popup aparece na hora, antes do proximo lote.
+  const [savedObservations, setSavedObservations] = useState<Record<string, { text: string; userName: string; createdAt: string }>>({});
+  const latestObservations = { ...fetchedObservations, ...savedObservations };
+  const setLatestObservations = (update: (current: typeof latestObservations) => typeof latestObservations) => setSavedObservations((current) => update({ ...fetchedObservations, ...current }));
   const canAddObservation = (() => {
     try { return Boolean(JSON.parse(localStorage.getItem("jh-redeflow-session") || "null")?.user?.role?.permissions?.includes("calls.add_observation")); }
     catch { return false; }
   })();
   // Reincidentes da pagina (mesmo endereco + OLT + slot/PON em ate 30 dias), checados no servidor.
-  const [repeatFlags, setRepeatFlags] = useState<Record<string, number>>({});
-  useEffect(() => {
-    const ids = calls.map((call) => call.id).slice(0, 300);
-    if (!ids.length) { setRepeatFlags({}); return; }
-    let active = true;
-    api.repeatFlags(ids).then((data) => { if (active) setRepeatFlags(data.flags); }).catch(() => undefined);
-    return () => { active = false; };
-  }, [calls]);
+  const repeatFlags = useIdBatch("repeat", calls.map((call) => call.id).slice(0, 300), async (ids) => (await api.repeatFlags(ids)).flags);
   // Risco de estourar o prazo (ativos ainda no prazo), estimado pelo historico de 90 dias.
-  const [risks, setRisks] = useState<Record<string, CallRisk>>({});
-  useEffect(() => {
-    const ids = calls.filter((call) => !isCallClosed(call)).map((call) => call.id).slice(0, 300);
-    if (!ids.length) { setRisks({}); return; }
-    let active = true;
-    api.callRisks(ids).then((data) => { if (active) setRisks(data.risks); }).catch(() => undefined);
-    return () => { active = false; };
-  }, [calls]);
+  const risks = useIdBatch<CallRisk>("risk", calls.filter((call) => !isCallClosed(call)).map((call) => call.id).slice(0, 300), async (ids) => (await api.callRisks(ids)).risks);
   const [query, setQuery] = useState(initialState.query ?? "");
   // Busca so vai ao servidor 400 ms depois de parar de digitar (antes era uma consulta por tecla).
   const [searchQuery, setSearchQuery] = useState(() => (initialState.query ?? "").trim());
@@ -284,7 +269,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
+  // O tempo na fila mostra minutos: redesenhar a tabela a cada 30 s basta (antes era a cada segundo).
+  useEffect(() => { const interval = window.setInterval(() => { if (document.visibilityState === "visible") setClock(Date.now()); }, 30_000); return () => window.clearInterval(interval); }, []);
   useEffect(() => { writeCallsPageState(pageKey, { query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage, sortState }); }, [pageKey, sortState, query, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange, showFilters, callsPage]);
   useEffect(() => { setCallsPage(1); }, [sortState, searchQuery, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, status, teamScoped, closedOnly, assignedOnly]);
   // Imagem para WhatsApp: montada a partir dos dados (gerador unico em lib/report-image.ts), com letra grande,
@@ -412,7 +398,22 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     }
   }
 
+  // Fila guardada no navegador (18/11/2026): a lista inteira da tela vem uma vez e fica salva; busca, filtros, abas,
+  // ordem e paginas sao calculados aqui, sem ir ao banco. Atualiza sozinha a cada 1 min (aba visivel) e quando um
+  // chamado muda. Finalizados sem periodo (milhares) continuam na busca paginada do servidor.
+  const baseStatuses = [...new Set((unassignedOnly ? [inProgressCallStatuses] : closedOnly ? [["Finalizado", "Cancelado", "Baixar", "GIGA+"] as CallStatus[]] : assignedOnly ? [inProgressCallStatuses, ["GIGA+"] as CallStatus[]] : [status ? (Array.isArray(status) ? status : [status]) : CALL_STATUSES]).flat())];
+  const baseGigaClosed = closedOnly ? true : assignedOnly ? false : undefined;
+  const fullEnabled = !(closedOnly && !dateRange.from && !dateRange.to);
+  const baseKey = `calls-full:${JSON.stringify({ s: baseStatuses, from: dateRange.from, to: dateRange.to, team: teamScoped, giga: baseGigaClosed })}`;
+  const base = useCachedData(baseKey, () => api.callsFull(baseStatuses, { from: dateRange.from, to: dateRange.to, teamScope: teamScoped, gigaClosed: baseGigaClosed }), { refreshMs: 60_000, refreshOnCallsChanged: true, enabled: fullEnabled });
+  const localMode = fullEnabled && Boolean(base.data && !base.data.truncated);
+  const waitingBase = fullEnabled && !base.data;
+  const localAll = (localMode ? base.data!.calls : null) as FullCall[] | null;
+  const busy = loading || waitingBase;
+  const refreshing = loading || (fullEnabled && base.loading);
+
   async function refreshCalls() {
+    if (localMode || waitingBase) { await base.reload(); return; }
     setLoading(true);
     try {
       const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar", "GIGA+"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
@@ -444,6 +445,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   }
 
   useEffect(() => {
+    if (localMode || waitingBase) return;
     let active = true;
     const requestStatus = unassignedOnly ? inProgressCallStatuses : statusFilter === "Todos" ? (closedOnly ? ["Finalizado", "Cancelado", "Baixar", "GIGA+"] as CallStatus[] : assignedOnly ? inProgressCallStatuses : status) : statusFilter;
     const requestRegion = regionFilter === "Todas" ? undefined : regionFilter;
@@ -496,7 +498,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
       });
 
     return () => { active = false; };
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, searchQuery, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage, sortState]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, searchQuery, statusFilter, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, callsPage, sortState, localMode, waitingBase]);
 
   async function updateCallStatus(call: Call, nextStatus: CallStatus) {
     if (nextStatus === call.status) return;
@@ -524,7 +526,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
   const statusChoices: (CallStatus | "Todos")[] = unassignedOnly ? [] : closedView ? ["Todos", "Finalizado", "Cancelado", "Baixar", "GIGA+"] : assignedOnly ? ["Todos", ...attendanceStatusOptions, "GIGA+"] : ["Todos", ...CALL_STATUSES];
   // Quantos chamados cada aba de status teria com os filtros atuais (uma consulta leve por aba: pageSize 1).
   useEffect(() => {
-    if (!statusChoices.length) return;
+    if (!statusChoices.length || localMode || waitingBase) return;
     let active = true;
     const timer = window.setTimeout(() => {
       void Promise.all(statusChoices.map((choice) => api.calls(statusesFor(choice), { ...listFilters(choice), page: 1, pageSize: 1 }).then((result) => [choice, result.total] as const).catch(() => [choice, undefined] as const)))
@@ -532,7 +534,20 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
     }, 250);
     return () => { active = false; window.clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, searchQuery, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls, countsVersion]);
+  }, [status, assignedOnly, unassignedOnly, closedOnly, teamScoped, searchQuery, regionFilter, areaFilter, neighborhoodFilter, oltFilter, dateRange.from, dateRange.to, totalCalls, countsVersion, localMode, waitingBase]);
+  // Modo local: lista, total, paginas, OLTs e contagem das abas saem da lista guardada.
+  useEffect(() => {
+    if (!localAll) return;
+    const result = localCallsPage(localAll, statusesFor(statusFilter), listFilters(statusFilter), callsPage, CALLS_PAGE_SIZE);
+    setCalls(result.calls);
+    setTotalCalls(result.total);
+    setTotalPages(result.totalPages);
+    setAvailableOlts(result.olts);
+    setError("");
+    if (statusChoices.length) setStatusCounts(Object.fromEntries(statusChoices.map((choice) => [choice, localCallsCount(localAll, statusesFor(choice), listFilters(choice))])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localAll, statusFilter, searchQuery, regionFilter, areaFilter, neighborhoodFilter, oltFilter, callsPage, sortState]);
+  useEffect(() => { if (base.error && fullEnabled && !base.data) setError(base.error); }, [base.error, fullEnabled, base.data]);
   const activeFilters = [
     !unassignedOnly && statusFilter !== "Todos",
     regionFilter !== "Todas",
@@ -590,8 +605,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
             <Copy size={15} />
             {copyState === "copied" ? "Imagem copiada" : copyState === "downloaded" ? "PNG baixado" : copyState === "error" ? "Falha ao exportar" : "Copiar imagem"}
           </button>
-          <button className={`secondary-button compact ${loading ? "is-refreshing" : ""}`} onClick={() => void refreshCalls()} disabled={loading} type="button">
-            <Activity size={15} /> {loading ? "Atualizando" : "Atualizar"}
+          <button className={`secondary-button compact ${refreshing ? "is-refreshing" : ""}`} onClick={() => void refreshCalls()} disabled={refreshing} type="button">
+            <Activity size={15} /> {refreshing ? "Atualizando" : "Atualizar"}
           </button>
         </div>
       </div>
@@ -629,7 +644,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
               <input type="date" value={dateRange.to} min={dateRange.from || undefined} onChange={(event) => setDateRange({ ...dateRange, to: event.target.value })} />
             </FilterField>
             <div className="cq-filters-summary">
-              <span aria-live="polite">{loading ? "Atualizando..." : plural(totalCalls, "resultado", "resultados")}</span>
+              <span aria-live="polite">{busy ? "Atualizando..." : plural(totalCalls, "resultado", "resultados")}</span>
               {activeFilters > 0 && <button type="button" className="cq-clear" onClick={clearFilters}>Limpar filtros ({activeFilters})</button>}
             </div>
           </div>
@@ -639,7 +654,7 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
           <div className="cq-empty is-error" role="alert"><strong>Não foi possível carregar os chamados.</strong><span>{error}</span><button type="button" className="secondary-button compact" onClick={() => void refreshCalls()}>Tentar de novo</button></div>
         ) : (
           <div className="table-scroll-container cq-scroll">
-            <table ref={tableRef} className={`cq-table${loading ? " is-loading" : ""}`}>
+            <table ref={tableRef} className={`cq-table${busy ? " is-loading" : ""}`}>
               <thead><tr>{columns.map((column) => {
                 const key = SORTABLE_COLUMNS[column];
                 if (!key) return <th key={column}>{column}</th>;
@@ -688,8 +703,8 @@ export function CallsPage({ status, title, assignedOnly = false, unassignedOnly 
                 ))}
               </tbody>
             </table>
-            {loading && currentCalls.length === 0 && <SkeletonRows rows={8} columns={6} label="Carregando chamados..." />}
-            {!loading && currentCalls.length === 0 && (
+            {busy && currentCalls.length === 0 && <SkeletonRows rows={8} columns={6} label="Carregando chamados..." />}
+            {!busy && currentCalls.length === 0 && (
               <div className="cq-empty">
                 {activeFilters > 0
                   ? <><strong>Nenhum chamado com esses filtros.</strong><span>Revise a busca ou os filtros para ver mais chamados.</span><button type="button" className="secondary-button compact" onClick={clearFilters}>Limpar filtros</button></>

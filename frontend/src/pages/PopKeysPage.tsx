@@ -5,6 +5,8 @@ import { AdminModal } from "../components/ui";
 import { toLocalDateTimeInput } from "../components/call-cells";
 import { photoFromFile, photoFromVideo } from "../lib/person-photo";
 import { SkeletonCards } from "../components/Skeleton";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 // Chaves dos POPs: quem esta com cada chave, desde quando, com foto tirada na retirada e o historico.
 // Ver: quem ve chamados. Retirar/devolver: quem edita chamados. POP novo: quem gerencia as configuracoes.
@@ -32,7 +34,7 @@ function PersonPhoto({ movementId, name, size = "md", onOpen }: { movementId: st
 export function PopKeysPage({ user }: { user: User & { role: Role } }) {
   const canEdit = user.role.permissions.includes("calls.edit");
   const canManage = user.role.permissions.includes("settings.manage");
-  const [keys, setKeys] = useState<PopKey[] | null>(null);
+  const [keys, setKeys] = useState<PopKey[] | null>(() => readDataCache<PopKey[]>("tela:chaves") ?? null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("todas");
   const [search, setSearch] = useState("");
@@ -44,10 +46,10 @@ export function PopKeysPage({ user }: { user: User & { role: Role } }) {
   const [deleting, setDeleting] = useState<PopKey | null>(null);
 
   async function load() {
-    try { setKeys((await api.popKeys()).keys); setError(""); }
+    try { const next = (await api.popKeys()).keys; setKeys(next); writeDataCache("tela:chaves", next); setError(""); }
     catch (err) { setError(err instanceof Error ? err.message : "Não foi possível carregar as chaves."); }
   }
-  useEffect(() => { void load(); }, []);
+  usePeriodicLoad("tela:chaves", load);
   const replace = (key: PopKey) => setKeys((current) => current?.map((item) => (item.id === key.id ? key : item)) ?? null);
 
   const counts = useMemo(() => ({ todas: keys?.length ?? 0, Base: keys?.filter((key) => key.status === "Base").length ?? 0, Retirada: keys?.filter((key) => key.status === "Retirada").length ?? 0, "A conferir": keys?.filter((key) => key.status === "A conferir").length ?? 0 }), [keys]);

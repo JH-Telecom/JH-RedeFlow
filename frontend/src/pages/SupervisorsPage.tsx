@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Building2, ChevronRight, Search, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import { api, type Role, type Technician, type User } from "../api";
 import { AdminModal } from "../components/ui";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 export function SupervisorsPage({ user }: { user: User & { role: Role } }) {
   const [data, setData] = useState<{
@@ -14,8 +16,8 @@ export function SupervisorsPage({ user }: { user: User & { role: Role } }) {
       technicianCount: number;
     }[];
     technicians: Technician[];
-  }>({ supervisors: [], technicians: [] });
-  const [users, setUsers] = useState<User[]>([]);
+  }>(() => readDataCache<{ supervisors: { id: string; userId?: string; name: string; region: string; active: boolean; technicianCount: number }[]; technicians: Technician[] }>("tela:supervisores") ?? { supervisors: [], technicians: [] });
+  const [users, setUsers] = useState<User[]>(() => readDataCache<User[]>("tela:supervisores:usuarios") ?? []);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", region: "", userId: "", active: true });
   const [error, setError] = useState("");
@@ -28,12 +30,11 @@ export function SupervisorsPage({ user }: { user: User & { role: Role } }) {
     try {
       const supervisorData = await api.supervisors();
       setData(supervisorData);
-      if (user.role.permissions.includes("users.view")) setUsers((await api.users()).users);
+      writeDataCache("tela:supervisores", supervisorData);
+      if (user.role.permissions.includes("users.view")) { const list = (await api.users()).users; setUsers(list); writeDataCache("tela:supervisores:usuarios", list); }
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar supervisores."); }
   }
-  useEffect(() => {
-    load();
-  }, []);
+  usePeriodicLoad("tela:supervisores", load);
   async function save(event: React.FormEvent) {
     event.preventDefault();
     try { await api.createSupervisor({ ...form, userId: form.userId || undefined }); setShowForm(false); setForm({ name: "", region: "", userId: "", active: true }); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar supervisor."); }

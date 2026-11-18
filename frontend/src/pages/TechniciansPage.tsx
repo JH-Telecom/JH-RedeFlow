@@ -7,11 +7,14 @@ import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal, DetailItem, Metric } from "../components/ui";
 import { Pager, usePaged } from "../components/Pager";
 import { DUTY_STATUSES, dutyOf, dutyTone, isWorkingDuty } from "../lib/duty-status";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 export function TechniciansPage() {
   // Lista longa rola dentro do cartao (cabecalho fixo); lista curta continua compacta.
   const tableRef = useFitToViewport<HTMLElement>("max");
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const cachedTeam = readDataCache<{ technicians: Technician[]; supervisors: Supervisor[] }>("tela:tecnicos");
+  const [technicians, setTechnicians] = useState<Technician[]>(cachedTeam?.technicians ?? []);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todos");
@@ -21,7 +24,7 @@ export function TechniciansPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedTechnician, setSelectedTechnician] = useState<Technician | null>(null);
   const [editingTechnician, setEditingTechnician] = useState<Technician | null>(null);
-  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
+  const [supervisors, setSupervisors] = useState<Supervisor[]>(cachedTeam?.supervisors ?? []);
   const emptyForm = { name: "", registration: "", supervisorId: "", teamRole: "Tecnico" as Technician["teamRole"], leadTechnicianId: "", region: "", shift: "", currentStatus: "Disponivel" as Technician["currentStatus"], active: true, employmentStatus: "Trabalhando" as Technician["employmentStatus"], dutyStatus: "", statusNote: "" };
   const [form, setForm] = useState(emptyForm);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -29,13 +32,10 @@ export function TechniciansPage() {
     try {
       const [technicianData, supervisorData] = await Promise.all([api.technicians(), api.supervisors()]);
       setTechnicians(technicianData.technicians); setSupervisors(supervisorData.supervisors);
+      writeDataCache("tela:tecnicos", { technicians: technicianData.technicians, supervisors: supervisorData.supervisors });
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar tecnicos."); }
   }
-  useEffect(() => {
-    load();
-    const interval = window.setInterval(() => void load(), 60000);
-    return () => window.clearInterval(interval);
-  }, []);
+  usePeriodicLoad("tela:tecnicos", load);
   async function save(event: React.FormEvent) {
     event.preventDefault();
     try { await api.createTechnician({ ...form, supervisorId: form.supervisorId || undefined, leadTechnicianId: form.teamRole === "Auxiliar" ? form.leadTechnicianId || undefined : undefined }); setShowForm(false); setForm(emptyForm); await load(); } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel criar tecnico."); }

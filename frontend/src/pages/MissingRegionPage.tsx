@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, MapPinOff, Save } from "lucide-react";
 import { api, type MissingRegionCall, type Role, type User } from "../api";
 import { SkeletonRows } from "../components/Skeleton";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 // Fila "Sem região": chamados com região vazia ou "Não informada" (qualquer status). Escolha a região e salve; com
 // "todos desta OLT", os outros chamados sem região da mesma OLT recebem a mesma região (e, para quem gerencia as
@@ -12,9 +14,10 @@ const dateTime = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "
 export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
   const canEdit = user.role.permissions.includes("calls.edit");
   const canMapOlt = user.role.permissions.includes("settings.manage");
-  const [calls, setCalls] = useState<MissingRegionCall[] | null>(null);
-  const [regions, setRegions] = useState<string[]>([]);
-  const [total, setTotal] = useState(0);
+  const cachedFirst = readDataCache<{ calls: MissingRegionCall[]; regions: string[]; total: number }>("tela:sem-regiao");
+  const [calls, setCalls] = useState<MissingRegionCall[] | null>(cachedFirst?.calls ?? null);
+  const [regions, setRegions] = useState<string[]>(cachedFirst?.regions ?? []);
+  const [total, setTotal] = useState(cachedFirst?.total ?? 0);
   const [page, setPage] = useState(1);
   const [choice, setChoice] = useState<Record<string, string>>({});
   const [byOlt, setByOlt] = useState<Record<string, boolean>>({});
@@ -26,9 +29,10 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
     try {
       const data = await api.missingRegionCalls(target);
       setCalls(data.calls); setRegions(data.regions); setTotal(data.total); setPage(data.page); setError("");
+      if (data.page === 1) writeDataCache("tela:sem-regiao", { calls: data.calls, regions: data.regions, total: data.total });
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível carregar os chamados sem região."); }
   }
-  useEffect(() => { void load(1); }, []);
+  usePeriodicLoad("tela:sem-regiao", () => load(page));
 
   async function save(call: MissingRegionCall) {
     const region = choice[call.id];

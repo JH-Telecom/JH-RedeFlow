@@ -29,7 +29,7 @@ export function useMonthGoals() {
     let active = true;
     const load = () => api.igp(toOperationalDate().slice(0, 7)).then((result) => { if (active) setData(result); }).catch(() => undefined);
     void load();
-    const interval = window.setInterval(load, 5 * 60_000);
+    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 5 * 60_000);
     return () => { active = false; window.clearInterval(interval); };
   }, []);
   return data;

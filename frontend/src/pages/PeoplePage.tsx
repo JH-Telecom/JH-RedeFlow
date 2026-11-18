@@ -4,6 +4,8 @@ import { api, type Highlight, type PersonCard, type UserStatus } from "../api";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { Pager, usePaged } from "../components/Pager";
 import { SkeletonRows } from "../components/Skeleton";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 // Pessoas: diretorio SO DE LEITURA, aberto a todos. Mostra quem faz parte do O&M e quem esta online,
 // e abre o perfil (foto, banner, nome, cargo e e-mail). Criar e editar contas continua so em Usuarios.
@@ -19,9 +21,10 @@ function lastSeenText(person: PersonCard) {
 }
 
 export function PeoplePage({ currentUserId }: { currentUserId: string }) {
-  const [people, setPeople] = useState<PersonCard[] | null>(null);
-  const [avatars, setAvatars] = useState<Record<string, string>>({});
-  const [statuses, setStatuses] = useState<Record<string, UserStatus>>({});
+  const cachedPeople = readDataCache<{ people: PersonCard[]; avatars: Record<string, string>; status?: Record<string, UserStatus> }>("tela:pessoas");
+  const [people, setPeople] = useState<PersonCard[] | null>(cachedPeople?.people ?? null);
+  const [avatars, setAvatars] = useState<Record<string, string>>(cachedPeople?.avatars ?? {});
+  const [statuses, setStatuses] = useState<Record<string, UserStatus>>(cachedPeople?.status ?? {});
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -29,15 +32,15 @@ export function PeoplePage({ currentUserId }: { currentUserId: string }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const closeModal = useCallback(() => setOpenId(null), []);
 
+  // Status online muda sozinho: atualiza a cada 30 s com a aba visivel; ao abrir, mostra o ultimo guardado.
+  const loadPeople = () => api.people()
+    .then((data) => { setPeople(data.people); setAvatars(data.avatars); setStatuses(data.status ?? {}); setError(""); writeDataCache("tela:pessoas", data); })
+    .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar as pessoas."));
+  usePeriodicLoad("tela:pessoas", loadPeople, 30_000);
   useEffect(() => {
     let active = true;
-    const load = () => api.people()
-      .then((data) => { if (!active) return; setPeople(data.people); setAvatars(data.avatars); setStatuses(data.status ?? {}); setError(""); })
-      .catch((err) => { if (active) setError(err instanceof Error ? err.message : "Não foi possível carregar as pessoas."); });
-    void load();
     api.highlights().then((data) => { if (active) setHighlights(data.highlights); }).catch(() => undefined);
-    const interval = window.setInterval(load, 30000); // status online atualiza sozinho
-    return () => { active = false; window.clearInterval(interval); };
+    return () => { active = false; };
   }, []);
 
   const onlineCount = people?.filter((person) => person.online).length ?? 0;

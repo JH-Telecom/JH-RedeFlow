@@ -11,7 +11,7 @@ import { activationKeys, findDuplicateCall } from './activation-dedupe.js';
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
-import { calculateIgpMetrics, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
+import { calculateIgpMetrics, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
@@ -933,6 +933,7 @@ app.delete('/api/supervisores/:id', auth, requirePermission('supervisors.edit'),
     return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel excluir o supervisor.' });
   }
 });
+const FULL_LIST_MAX = 1500;
 app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: AuthRequest, response) => {
   const rawStatus = request.query.status;
   const validStatuses: CallStatus[] = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'Finalizado', 'Cancelado', 'Baixar', 'GIGA+'];
@@ -964,6 +965,14 @@ app.get('/api/chamados', auth, requirePermission('calls.view'), async (request: 
     : 'desc';
   try {
     const scopedQuery = await getScopedCallQuery(request, request.query.teamScope === 'true');
+    // Lista inteira da fila (18/11/2026): a tela guarda e filtra/pesquisa/ordena/pagina no navegador, sem ir ao banco a
+    // cada busca. Vem com a area do IGP de cada chamado. Acima de FULL_LIST_MAX chamados volta truncated e a tela
+    // usa a busca paginada no servidor (ex.: Finalizados sem periodo).
+    if (request.query.full === 'true') {
+      const all = await listCalls(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, hasTechnician, gigaClosed });
+      if (all.length > FULL_LIST_MAX) return response.json({ calls: [], total: all.length, truncated: true });
+      return response.json({ calls: all.map((call) => ({ ...call, area: classifyCallArea(call) })), total: all.length, truncated: false });
+    }
     const result = await listCallsPage(statuses.length ? statuses as CallStatus[] : undefined, { ...scopedQuery, search, region, neighborhood, olt, hasTechnician, gigaClosed, area, sort, direction }, page, pageSize);
     return response.json(result);
   } catch (error) { return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados.' }); }

@@ -22,7 +22,8 @@ export function DueSoonBanner() {
     let active = true;
     const load = () => api.dueSoon().then((result) => { if (active) { setData(result); setNow(Date.now()); } }).catch(() => undefined);
     void load();
-    const refresh = window.setInterval(load, REFRESH_MS);
+    // Aba escondida nao busca (18/11/2026); ao voltar, a proxima volta do intervalo atualiza.
+    const refresh = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, REFRESH_MS);
     const tick = window.setInterval(() => setNow(Date.now()), 30_000);
     const onChange = () => void load();
     window.addEventListener("jh-redeflow:calls-changed", onChange);

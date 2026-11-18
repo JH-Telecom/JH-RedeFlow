@@ -4,6 +4,8 @@ import { api, type Role, type User } from "../api";
 import { useFitToViewport } from "../hooks/useFitToViewport";
 import { AdminModal } from "../components/ui";
 import { Pager, usePaged } from "../components/Pager";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 // "ha 5 min", "ha 2 h", ou a data quando passou de um dia.
 function formatLastSeen(iso: string) {
@@ -16,8 +18,9 @@ function formatLastSeen(iso: string) {
 export function UsersPage() {
   // Lista longa rola dentro do cartao (cabecalho fixo); lista curta continua compacta.
   const tableRef = useFitToViewport<HTMLElement>("max");
-  const [users, setUsers] = useState<User[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
+  const cachedUsers = readDataCache<{ users: User[]; roles: Role[] }>("tela:usuarios");
+  const [users, setUsers] = useState<User[]>(cachedUsers?.users ?? []);
+  const [roles, setRoles] = useState<Role[]>(cachedUsers?.roles ?? []);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
@@ -31,14 +34,11 @@ export function UsersPage() {
       const [userData, roleData] = await Promise.all([api.users(), api.roles()]);
       setUsers(userData.users);
       setRoles(roleData.roles);
+      writeDataCache("tela:usuarios", { users: userData.users, roles: roleData.roles });
     } catch (err) { setError(err instanceof Error ? err.message : "Nao foi possivel carregar usuarios."); }
   }
-  useEffect(() => {
-    load();
-    // Presenca muda sozinha: recarrega a lista a cada 30 s.
-    const timer = window.setInterval(() => void load(), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
+  // Presenca muda sozinha: recarrega a lista a cada 30 s (aba visivel); ao abrir, mostra o ultimo guardado.
+  usePeriodicLoad("tela:usuarios", load, 30_000);
   function openForm(user?: User) {
     setEditing(user || null);
     setShowForm(true);

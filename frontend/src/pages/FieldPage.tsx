@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle2, MapPin, Navigation, RefreshCw, Wrench } from "lucide-react";
 import { api, type FieldCall } from "../api";
 import { ChecklistBox } from "../components/FieldAdmin";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 // Meus chamados: tela do tecnico no celular. So os chamados do tecnico ligado ao usuario, com botoes grandes:
 // "Sai para o local" (Deslocamento), "Cheguei" (Em campo), observacao com foto e "Finalizar" (com o checklist).
@@ -25,16 +27,16 @@ async function resizePhoto(file: File) {
 }
 
 export function FieldPage() {
-  const [data, setData] = useState<{ technician: { name: string }; calls: FieldCall[] } | null>(null);
+  const [data, setData] = useState<{ technician: { name: string }; calls: FieldCall[] } | null>(() => readDataCache<{ technician: { name: string }; calls: FieldCall[] }>("tela:campo") ?? null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const load = useCallback(async () => {
     setLoading(true);
-    try { setData(await api.fieldCalls()); setError(""); }
+    try { const next = await api.fieldCalls(); setData(next); writeDataCache("tela:campo", next); setError(""); }
     catch (err) { setError(err instanceof Error ? err.message : "Não foi possível carregar seus chamados."); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void load(); const interval = window.setInterval(() => void load(), 60_000); return () => window.clearInterval(interval); }, [load]);
+  usePeriodicLoad("tela:campo", load);
   const active = (data?.calls ?? []).filter((call) => call.status !== "Finalizado");
   const done = (data?.calls ?? []).filter((call) => call.status === "Finalizado");
   return (

@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Eraser, MoonStar, Save } from "lucide-react";
 import { api, type NightRouterData, type NightShift, type NightSummary, type Role, type User } from "../api";
 import { SkeletonRows } from "../components/Skeleton";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 // Roteirizador da madrugada: das 22h as 06h a extensao do PC da coleta move no OFS os chamados sem tecnico (acionados
 // desde as 22h) para o tecnico unico da madrugada, se escolhido, ou para o tecnico de plantao da regiao. Os acionamentos
@@ -44,8 +46,8 @@ function NightSummaryPanel({ summary }: { summary: NightSummary }) {
 
 export function NightRouterPage({ user }: { user: User & { role: Role } }) {
   const canManage = user.role.permissions.includes("settings.manage");
-  const [data, setData] = useState<NightRouterData | null>(null);
-  const [grid, setGrid] = useState<Record<string, string>>({});
+  const [data, setData] = useState<NightRouterData | null>(() => readDataCache<NightRouterData>("tela:roteirizador") ?? null);
+  const [grid, setGrid] = useState<Record<string, string>>(() => Object.fromEntries((readDataCache<NightRouterData>("tela:roteirizador")?.shifts ?? []).map((shift) => [cellKey(shift.region, shift.weekday), shift.technicianId])));
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -55,12 +57,16 @@ export function NightRouterPage({ user }: { user: User & { role: Role } }) {
     try {
       const next = await api.nightRouter();
       setData(next);
+      writeDataCache("tela:roteirizador", next);
       setGrid(Object.fromEntries(next.shifts.map((shift) => [cellKey(shift.region, shift.weekday), shift.technicianId])));
       setDirty(false);
       setError("");
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível carregar o roteirizador."); }
   }
-  useEffect(() => { void load(); }, []);
+  // Escala com mudanca nao salva: a atualizacao periodica espera (nao apaga o que a pessoa esta editando).
+  const dirtyRef = useRef(false);
+  dirtyRef.current = dirty;
+  usePeriodicLoad("tela:roteirizador", () => (dirtyRef.current ? undefined : load()));
 
   const technicianName = useMemo(() => new Map((data?.technicians ?? []).map((tech) => [tech.id, tech.name])), [data]);
   const filled = Object.values(grid).filter(Boolean).length;

@@ -4,6 +4,7 @@ import { api, type Call } from "../api";
 import { shareReportImage, type ReportCell, type ReportColumn, type ReportSpec, type ReportTone } from "../lib/report-image";
 import { ManualDashboardArea, ManualProductionData, buildManualDashboardSegments, parseManualProductionData, sumProductionRows } from "../lib/manual-production";
 import { Pager, usePaged } from "../components/Pager";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
 
 export function manualMetricCell(value: number, state: string) {
   return <td className={`manual-metric-cell manual-metric-${state} ${value === 0 ? "is-zero" : "is-active"}`}><span>{value.toLocaleString("pt-BR")}</span></td>;
@@ -20,10 +21,11 @@ export function ManualCardCopyButton({ cardKey, state, onCopy }: { cardKey: Manu
 }
 
 export function ManualProductionDashboard() {
-  const [data, setData] = useState<ManualProductionData | null>(null);
+  const cachedBase = readDataCache<{ data: ManualProductionData | null; fileName: string }>("tela:painel-diario");
+  const [data, setData] = useState<ManualProductionData | null>(cachedBase?.data ?? null);
   const [uploadError, setUploadError] = useState("");
   const [uploadMessage, setUploadMessage] = useState("");
-  const [selectedFileName, setSelectedFileName] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState(cachedBase?.fileName ?? "");
   const [copyStates, setCopyStates] = useState<Record<ManualProductionCardKey, ManualProductionCopyState>>({ activities: "idle", technicians: "idle", orders: "idle" });
   const [technicianQuery, setTechnicianQuery] = useState("");
   const [areaSegment, setAreaSegment] = useState<ManualDashboardArea>("guarulhos");
@@ -38,14 +40,17 @@ export function ManualProductionDashboard() {
       if (!result.base) {
         setData(null);
         setSelectedFileName("");
+        writeDataCache("tela:painel-diario", { data: null, fileName: "" });
         return;
       }
       setData(result.base.data);
       setSelectedFileName(result.base.fileName);
+      writeDataCache("tela:painel-diario", { data: result.base.data, fileName: result.base.fileName });
     }).catch((error) => setUploadError(error instanceof Error ? error.message : "Nao foi possivel carregar a base salva."));
     void loadBase();
     api.calls().then((result) => { setCallsForArea(result.calls); setAreaCallsReady(true); setAreaLookupError(false); }).catch(() => { setCallsForArea([]); setAreaCallsReady(true); setAreaLookupError(true); });
-    const interval = window.setInterval(loadBase, 15000);
+    // Atualiza a cada 1 min com a aba visivel (antes: a cada 15 s, mesmo escondida).
+    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void loadBase(); }, 60_000);
     return () => window.clearInterval(interval);
   }, []);
 

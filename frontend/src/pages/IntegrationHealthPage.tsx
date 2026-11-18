@@ -5,6 +5,8 @@ import { api, type IntegrationHealth, type HealthStatus, type StuckReason } from
 import { Panel } from "../components/charts";
 import { Pager, usePaged } from "../components/Pager";
 import { SkeletonCards } from "../components/Skeleton";
+import { readDataCache, writeDataCache } from "../lib/data-cache";
+import { usePeriodicLoad } from "../lib/screen-cache";
 
 // Integracao OFS: semaforo da coleta (export, fechamentos, clusters, falhas), fila dos chamados concluidos no OFS
 // que nao finalizaram aqui (com o motivo) e o historico do que a extensao fez. Atualiza sozinho a cada minuto.
@@ -20,7 +22,7 @@ const spDateTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(
 const waiting = (minutes: number | null) => (minutes === null ? "–" : minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}` : `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`);
 
 export function IntegrationHealthPage() {
-  const [data, setData] = useState<IntegrationHealth | null>(null);
+  const [data, setData] = useState<IntegrationHealth | null>(() => readDataCache<IntegrationHealth>("tela:integracao-ofs") ?? null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [reason, setReason] = useState<StuckReason | "all">("all");
@@ -28,11 +30,11 @@ export function IntegrationHealthPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setData(await api.integrationHealth()); setError(""); }
+    try { const next = await api.integrationHealth(); setData(next); writeDataCache("tela:integracao-ofs", next); setError(""); }
     catch (err) { setError(err instanceof Error ? err.message : "Não foi possível carregar o painel."); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void load(); const interval = window.setInterval(() => void load(), 60_000); return () => window.clearInterval(interval); }, [load]);
+  usePeriodicLoad("tela:integracao-ofs", load);
 
   const reasonCounts = useMemo(() => {
     const counts = new Map<StuckReason, number>();
