@@ -3510,6 +3510,9 @@
 :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .notification-browser .link-button {
     color: #88c3ff
 }
+:where(:root[data-theme="dark"]) .notification-list::-webkit-scrollbar-thumb {
+    background: #121b27
+}
 
 /* dashboards.css */
 :root:where([data-theme="dark"]) {

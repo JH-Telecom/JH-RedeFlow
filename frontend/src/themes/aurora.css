@@ -3474,6 +3474,9 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .notification-browser .link-button {
     color: #6454a3
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .notification-list::-webkit-scrollbar-thumb {
+    background: #dcdaec
+}
 /* light · dashboards.css */
 :root:where([data-palette="aurora"]:not([data-theme="dark"])) {
     --dv-series-opened: #7a63d1
@@ -8908,6 +8911,9 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) :where(:root[data-theme="dark"]) .notification-browser .link-button {
     color: #bcb2fd
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .notification-list::-webkit-scrollbar-thumb {
+    background: #1a172b
 }
 /* dark · dashboards.css */
 :root:where([data-palette="aurora"][data-theme="dark"]) {

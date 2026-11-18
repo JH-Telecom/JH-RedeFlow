@@ -484,3 +484,12 @@
 .notification-browser .link-button { font-size: 12px; font-weight: 700; color: #0845ae; }
 :where(:root[data-theme="dark"]) .notification-browser { background: #1d222b; color: #b5b9c1; }
 :where(:root[data-theme="dark"]) .notification-browser .link-button { color: #7cb6ff; }
+
+/* Notificacoes com rolagem (18/11/2026): o painel nao passa da tela; titulo e aviso do navegador ficam fixos e so a
+   lista rola. */
+.notification-popover { display: flex; flex-direction: column; max-height: min(520px, calc(100vh - 90px)); }
+.notification-heading, .notification-popover > .notification-browser { flex-shrink: 0; }
+.notification-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-right: -6px; padding-right: 6px; scrollbar-width: thin; scrollbar-color: #d5dde8 transparent; }
+.notification-list::-webkit-scrollbar { width: 6px; }
+.notification-list::-webkit-scrollbar-thumb { border-radius: 3px; background: #d5dde8; }
+@media (max-width: 560px) { .notification-popover { max-height: calc(100vh - 80px); } }
