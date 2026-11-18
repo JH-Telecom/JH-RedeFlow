@@ -246,6 +246,8 @@ export const api = {
   login: (email: string, password: string) => request<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   me: () => request<{ user: User & { role: Role } }>('/api/auth/me'),
   // Consulta publica do informativo (link so de leitura, sem login).
+  sendUpdateImageTest: () => request<{ ok: boolean; total: number }>('/api/integracoes/imagem-atualizacao/teste', { method: 'POST' }),
+  sendWeeklyIgpTest: () => request<{ ok: boolean }>('/api/integracoes/igp-semanal/teste', { method: 'POST' }),
   sendNoticeTest: () => request<{ mode: 'botao' | 'texto'; chat: string }>('/api/integracoes/informativo/teste', { method: 'POST' }),
   extensionInfo: () => request<{ name: string; version: string; fileName: string }>('/api/extensao'),
   publicView: (token: string) => request<PublicView>(`/api/public/consulta/${encodeURIComponent(token)}`),

@@ -46,7 +46,9 @@ import { dueSoonCalls } from './due-soon.js';
 import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
 import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
-import { sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
+import { sendWhatsAppImage, sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
+import { weeklyIgpText } from './weekly-igp.js';
+import { attendanceCalls, attendanceImageSpec, dueSendTime, parseSendTimes, renderImagePng } from './update-image.js';
 import { deliverOltNotice } from './olt-notice-delivery.js';
 import { currentMode, scaled, usageReport } from './db-usage.js';
 import { flushDbUsage, loadDbUsage, runDbUsageJob } from './db-usage-job.js';
@@ -1952,6 +1954,103 @@ async function runDailySummaryReport(now = new Date()) {
   }
 }
 
+// Imagem "Chamados em atendimento" enviada sozinha (18/11/2026). Liga com WUZAPI_UPDATE_IMAGE_CHAT (grupo); horarios
+// em WUZAPI_UPDATE_IMAGE_TIMES (padrao 09:00,13:00,17:00, horario de Sao Paulo). Uma vez por horario por dia
+// (integration_events, kind update_image). O teste manda para o grupo de teste.
+async function buildAttendanceImage() {
+  const calls = attendanceCalls(await listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']));
+  const notes = calls.length ? await latestObservations(calls.slice(0, 100).map((call) => call.id)) : {};
+  return { png: renderImagePng(attendanceImageSpec(calls, notes)), total: calls.length };
+}
+let updateImageRunning = false;
+async function runUpdateImage(now = new Date()) {
+  const config = whatsappConfig();
+  const chat = process.env.WUZAPI_UPDATE_IMAGE_CHAT?.trim();
+  if (!config || !chat || updateImageRunning) return;
+  const times = parseSendTimes(process.env.WUZAPI_UPDATE_IMAGE_TIMES ?? '09:00,13:00,17:00');
+  const clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(now);
+  const date = toOperationalDate(now.toISOString());
+  updateImageRunning = true;
+  try {
+    const sentToday = (await listIntegrationEvents(30, ['update_image'])).filter((event) => event.ok && event.details.date === date && !event.details.test).map((event) => String(event.details.time));
+    const due = dueSendTime(times, clock, sentToday);
+    if (!due) return;
+    const { png, total } = await buildAttendanceImage();
+    try {
+      await sendWhatsAppImage({ ...config, chat }, png, `Chamados em atendimento · ${total} chamado(s)`);
+      await recordIntegrationEvent('update_image', true, `Imagem de atualização das ${due} enviada (${total} chamado(s))`, { date, time: due });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await recordIntegrationEvent('update_image', false, `Falha ao enviar a imagem das ${due}: ${message}`, { date, time: due });
+    }
+  } catch (error) {
+    console.warn(`[Imagem de atualizacao] erro: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    updateImageRunning = false;
+  }
+}
+app.post('/api/integracoes/imagem-atualizacao/teste', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const config = whatsappConfig();
+  if (!config) return response.status(409).json({ message: 'WhatsApp não configurado no servidor (WUZAPI_API_URL, WUZAPI_USER_TOKEN e WUZAPI_ALERT_CHAT).' });
+  const chat = process.env.WUZAPI_INFORMATIVO_TEST_CHAT?.trim() || OLT_NOTICE_TEST_CHAT;
+  try {
+    const { png, total } = await buildAttendanceImage();
+    await sendWhatsAppImage({ ...config, chat }, png, `Teste · Chamados em atendimento · ${total} chamado(s)`);
+    await recordIntegrationEvent('update_image', true, `Imagem de atualização de teste enviada por ${request.authUser!.name} (${total} chamado(s))`, { test: true });
+    return response.json({ ok: true, total, chat: 'grupo de teste' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordIntegrationEvent('update_image', false, `Falha no teste da imagem de atualização: ${message}`, { test: true });
+    return response.status(502).json({ message: `Não foi possível enviar: ${message}` });
+  }
+});
+app.get('/api/integracoes/imagem-atualizacao', auth, requirePermission('settings.manage'), async (_request, response) => {
+  const chat = process.env.WUZAPI_UPDATE_IMAGE_CHAT?.trim();
+  const events = await listIntegrationEvents(24 * 7, ['update_image']).catch(() => []);
+  return response.json({ enabled: Boolean(whatsappConfig() && chat), times: parseSendTimes(process.env.WUZAPI_UPDATE_IMAGE_TIMES ?? '09:00,13:00,17:00'), last: events.slice(0, 5).map((event) => ({ ok: event.ok, summary: event.summary, at: event.createdAt })) });
+});
+
+// Resumo semanal do IGP (18/11/2026): segunda-feira a partir das 08:00, a semana anterior, no mesmo grupo do resumo
+// diario (WUZAPI_REPORT_CHAT ou o grupo dos avisos). Uma vez por semana (integration_events, kind weekly_igp).
+// WUZAPI_WEEKLY_IGP=false desliga.
+let weeklyIgpRunning = false;
+async function runWeeklyIgp(now = new Date()) {
+  const config = whatsappConfig();
+  if (!config || weeklyIgpRunning || process.env.WUZAPI_WEEKLY_IGP?.trim().toLowerCase() === 'false') return;
+  const today = toOperationalDate(now.toISOString());
+  if (new Date(`${today}T12:00:00Z`).getUTCDay() !== 1 || Number(spHour.format(now)) < 8) return;
+  weeklyIgpRunning = true;
+  try {
+    const { text, from } = weeklyIgpText(await listCalls(['Finalizado']), today);
+    if ((await listIntegrationEvents(24 * 3, ['weekly_igp'])).some((event) => event.ok && event.details.week === from && !event.details.test)) return;
+    const chat = process.env.WUZAPI_REPORT_CHAT?.trim() || config.chat;
+    try {
+      await sendWhatsAppText({ ...config, chat }, text);
+      await recordIntegrationEvent('weekly_igp', true, `IGP da semana de ${from} enviado`, { week: from });
+    } catch (error) {
+      await recordIntegrationEvent('weekly_igp', false, `Falha ao enviar o IGP da semana de ${from}: ${error instanceof Error ? error.message : error}`, { week: from });
+    }
+  } catch (error) {
+    console.warn(`[IGP semanal] erro: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    weeklyIgpRunning = false;
+  }
+}
+app.post('/api/integracoes/igp-semanal/teste', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const config = whatsappConfig();
+  if (!config) return response.status(409).json({ message: 'WhatsApp não configurado no servidor (WUZAPI_API_URL, WUZAPI_USER_TOKEN e WUZAPI_ALERT_CHAT).' });
+  const chat = process.env.WUZAPI_INFORMATIVO_TEST_CHAT?.trim() || OLT_NOTICE_TEST_CHAT;
+  try {
+    const { text, from } = weeklyIgpText(await listCalls(['Finalizado']));
+    await sendWhatsAppText({ ...config, chat }, `🧪 Teste
+${text}`);
+    await recordIntegrationEvent('weekly_igp', true, `IGP semanal de teste enviado por ${request.authUser!.name}`, { week: from, test: true });
+    return response.json({ ok: true });
+  } catch (error) {
+    return response.status(502).json({ message: `Não foi possível enviar: ${error instanceof Error ? error.message : error}` });
+  }
+});
+
 // (15) Coleta do OFS parada: mais de 2h sem envio certo de export ou fechamentos. Avisa uma vez no WhatsApp
 // (grupo dos avisos) quando para e outra quando volta. Estado guardado em integration_events (integration_alert).
 let outageRunning = false;
@@ -2352,7 +2451,7 @@ async function startServer() {
   // e coleta parada. Nao rodam dentro dos testes automatizados.
   if (!process.env.NODE_TEST_CONTEXT) {
     if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); }, 5 * 60_000).unref();
+    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); void runUpdateImage(); void runWeeklyIgp(); }, 5 * 60_000).unref();
     // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
     void loadDbUsage();
     setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();

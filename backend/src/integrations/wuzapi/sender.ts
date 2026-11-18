@@ -39,3 +39,17 @@ export async function sendWhatsAppButtons(config: WhatsAppConfig, message: { bod
   try { if ((JSON.parse(text) as { success?: boolean }).success === false) throw new Error(`WuzAPI recusou o botao: ${text.slice(0, 200)}`); }
   catch (error) { if (error instanceof Error && error.message.startsWith('WuzAPI recusou')) throw error; }
 }
+
+// Imagem (PNG) com legenda: POST /chat/send/image { Phone, Image: "data:image/png;base64,...", Caption }.
+export async function sendWhatsAppImage(config: WhatsAppConfig, png: Buffer, caption = ''): Promise<void> {
+  const response = await fetch(`${config.url}/chat/send/image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Token: config.token },
+    body: JSON.stringify({ Phone: config.chat, Image: `data:image/png;base64,${png.toString('base64')}`, Caption: caption }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const text = await response.text().catch(() => '');
+  if (!response.ok) throw new Error(`WuzAPI respondeu ${response.status}: ${text.slice(0, 200)}`);
+  try { if ((JSON.parse(text) as { success?: boolean }).success === false) throw new Error(`WuzAPI recusou a imagem: ${text.slice(0, 200)}`); }
+  catch (error) { if (error instanceof Error && error.message.startsWith('WuzAPI recusou')) throw error; }
+}

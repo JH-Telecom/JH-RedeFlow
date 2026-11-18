@@ -17,7 +17,7 @@ const STATUS: Record<HealthStatus, { label: string; icon: typeof CheckCircle2 }>
   critical: { label: "Parado", icon: XCircle },
   unknown: { label: "Sem dados", icon: CircleHelp },
 };
-const KIND_LABEL: Record<string, string> = { export: "Export", closing: "Fechamentos", cluster: "Clusters", extension: "Extensão", sla_alert: "Aviso de prazo", db_alert: "Tráfego do banco", daily_report: "Resumo diário", integration_alert: "Coleta parada", escalation: "Escalonamento", daily_reset: "Limpeza diária", olt_notice: "Informativo Casa Cliente" };
+const KIND_LABEL: Record<string, string> = { export: "Export", closing: "Fechamentos", cluster: "Clusters", extension: "Extensão", sla_alert: "Aviso de prazo", db_alert: "Tráfego do banco", daily_report: "Resumo diário", integration_alert: "Coleta parada", escalation: "Escalonamento", daily_reset: "Limpeza diária", olt_notice: "Informativo Casa Cliente", update_image: "Imagem de atualização", weekly_igp: "IGP semanal", night_router: "Roteirizador" };
 const spDateTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–");
 const waiting = (minutes: number | null) => (minutes === null ? "–" : minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}` : `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`);
 
@@ -61,6 +61,19 @@ export function IntegrationHealthPage() {
     }
   }
 
+  // Testes no grupo de teste (18/11/2026): a imagem "Chamados em atendimento" automatica e o IGP semanal.
+  async function sendOtherTest(kind: "imagem" | "igp") {
+    if (!window.confirm(kind === "imagem" ? "Mandar a imagem de atualização (chamados em atendimento) no grupo de teste?" : "Mandar o resumo semanal do IGP no grupo de teste?")) return;
+    setTestState({ busy: true, text: "", error: false });
+    try {
+      if (kind === "imagem") { const result = await api.sendUpdateImageTest(); setTestState({ busy: false, error: false, text: `Imagem enviada no grupo de teste (${result.total} chamado(s) em atendimento).` }); }
+      else { await api.sendWeeklyIgpTest(); setTestState({ busy: false, error: false, text: "Resumo semanal do IGP enviado no grupo de teste." }); }
+      void load();
+    } catch (err) {
+      setTestState({ busy: false, error: true, text: err instanceof Error ? err.message : "Não foi possível enviar o teste." });
+    }
+  }
+
   return (
     <div className="dv-dashboard ih-page">
       <div className="page-heading dv-heading">
@@ -70,6 +83,8 @@ export function IntegrationHealthPage() {
           <p>Se a coleta do OFS está funcionando e quais chamados concluídos no OFS ainda não finalizaram aqui, com o motivo.</p>
         </div>
         <div className="cq-heading-actions">
+          {canManage && <button className="secondary-button compact" type="button" onClick={() => void sendOtherTest("imagem")} disabled={testState.busy}><Send size={15} aria-hidden="true" /> Imagem de teste</button>}
+          {canManage && <button className="secondary-button compact" type="button" onClick={() => void sendOtherTest("igp")} disabled={testState.busy}><Send size={15} aria-hidden="true" /> IGP semanal de teste</button>}
           {canManage && <button className="secondary-button compact" type="button" onClick={() => void sendNoticeTest()} disabled={testState.busy}><Send size={15} aria-hidden="true" /> {testState.busy ? "Enviando..." : "Enviar informativo de teste"}</button>}
           <button className="secondary-button compact" type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={15} className={loading ? "ih-spin" : ""} /> {loading ? "Atualizando..." : "Atualizar"}</button>
         </div>

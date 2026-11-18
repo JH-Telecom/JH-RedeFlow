@@ -150,6 +150,11 @@ export function igpAreaRegionKeys(area: Exclude<IgpArea, 'ALL'>): string[] {
 }
 
 export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea = 'ALL'): IgpMetrics {
+  return calculateIgpMetricsWhere(calls, month, area, (date) => date.slice(0, 7) === month);
+}
+// Mesmas regras do IGP do mes para qualquer periodo (ex.: resumo semanal): inPeriod recebe a data AAAA-MM-DD do fechamento.
+export function calculateIgpMetricsWhere(calls: Call[], label: string, area: IgpArea, inPeriod: (date: string) => boolean): IgpMetrics {
+  const month = label;
   const groups = { access: createGroup(), backbone: createGroup() };
   const total = createGroup();
   let excludedOrders = 0;
@@ -159,7 +164,7 @@ export function calculateIgpMetrics(calls: Call[], month: string, area: IgpArea 
     // Abertura e fechamento da Giga quando a ordem ja esta na planilha dela (o fechamento de BDESK e o do ticket, ~20 min
     // antes do fim da atividade no OFS); senao, os do sistema.
     const closedAt = call.gigaClosedAt || call.executedAt;
-    if (call.status !== 'Finalizado' || !closedAt || toOperationalDate(closedAt).slice(0, 7) !== month) continue;
+    if (call.status !== 'Finalizado' || !closedAt || !inPeriod(toOperationalDate(closedAt))) continue;
     if (area !== 'ALL' && classifyCallArea(call) !== area) continue;
     const groupKey = classifyIgpGroup(call.type);
     const openedAt = Date.parse(call.gigaOpenedAt || call.openedAt);
