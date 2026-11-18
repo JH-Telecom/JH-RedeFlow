@@ -8,6 +8,7 @@ export { navItems } from "../lib/nav-items";
 import { applyPalette, isPaletteId, useTheme } from "../theme";
 import { UpdateNotice } from "./UpdateNotice";
 import { DueSoonBanner } from "./DueSoonBanner";
+import { OfflineBanner } from "./OfflineBanner";
 import { CommandPalette } from "./CommandPalette";
 import { ShortcutsHelp } from "./ShortcutsHelp";
 import { HelpTip, PAGE_HELP } from "./HelpTip";
@@ -437,6 +438,7 @@ export function Shell({
           onOpen={() => { setActivationQueue([]); navigate("/acionamentos"); }}
         />
         {canAccess("dashboard.view") && <JotaHWidget userName={displayName} canSeeUsage={canAccess("settings.manage")} />}
+        <OfflineBanner />
         {canAccess("calls.view") && <DueSoonBanner />}
         <main id="conteudo" className="content" tabIndex={-1}>
           {/* Troca de pagina com fade suave (page-transition.css) em vez do corte seco */}

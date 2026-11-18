@@ -890,11 +890,26 @@
 :where(:root:not([data-theme="dark"])) .palette-kind.is-call {
     color: #8f5400
 }
+:where(:root:not([data-theme="dark"])) .palette-kind.is-note {
+    color: #116b40
+}
 :where(:root:not([data-theme="dark"])) .palette-text small {
     color: var(--muted)
 }
 :where(:root:not([data-theme="dark"])) .palette-hint {
     color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .kb-help h3 {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .kb-help dt {
+    color: #4f5d73
+}
+:where(:root:not([data-theme="dark"])) .kb-help dd {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) .kb-help kbd {
+    color: #17233b
 }
 
 /* profile-photo.css */
@@ -1887,6 +1902,15 @@
 :where(:root:not([data-theme="dark"])) .observation-download-state {
     color: var(--muted)
 }
+:where(:root:not([data-theme="dark"])) .quick-note button {
+    color: #0845ae
+}
+:where(:root:not([data-theme="dark"])) .quick-note .quick-note-remove {
+    color: #45536b
+}
+:where(:root:not([data-theme="dark"])) .quick-note-add {
+    color: #45536b
+}
 
 /* calls-layout.css */
 :where(:root:not([data-theme="dark"])) .calls-pagination {
@@ -2353,6 +2377,9 @@
 }
 :where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .serial-detail-item .serial-empty, :where(:root:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .serial-detail-item small {
     color: #656970
+}
+:where(:root:not([data-theme="dark"])) .secondary-button.is-active {
+    color: #0845ae
 }
 
 /* sla-analysis.css */
@@ -2880,6 +2907,12 @@
 }
 :where(:root:not([data-theme="dark"])) .due-soon-list span {
     color: #b4232c
+}
+:where(:root:not([data-theme="dark"])) .offline-banner {
+    color: #6b4300
+}
+:where(:root:not([data-theme="dark"])) .offline-banner.is-online {
+    color: #116b40
 }
 
 /* tv-mode.css */

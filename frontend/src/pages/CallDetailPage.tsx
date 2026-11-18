@@ -15,6 +15,7 @@ import { isSaveEnter, registerUnsaved } from "../lib/keyboard";
 import { PageSkeleton } from "../components/Skeleton";
 import { CallPresence } from "../components/CallPresence";
 import { QuickNotes } from "../components/QuickNotes";
+import { isNetworkError, queueNote } from "../lib/offline-notes";
 
 // Tempo entre o evento informado no card e o envio do card no grupo (abertura).
 function formatEventGap(eventAt: string, openedAt: string) {
@@ -413,7 +414,12 @@ export function AuditedCallDetailPage() {
       setAttachmentFiles([]);
       await refreshHistory();
     } catch (error) {
-      setAttachmentError(error instanceof Error ? error.message : "Nao foi possivel salvar a observacao.");
+      // Sem rede e sem anexo: guarda o texto e envia quando a conexao voltar.
+      if (isNetworkError(error) && !attachmentFiles.length && text.trim()) {
+        queueNote(id, text.trim(), teamScoped);
+        setText("");
+        setAttachmentError("Sem conexão: a observação ficou guardada neste aparelho e será enviada quando a conexão voltar.");
+      } else setAttachmentError(error instanceof Error ? error.message : "Nao foi possivel salvar a observacao.");
     } finally {
       setSavingObservation(false);
     }

@@ -6,6 +6,7 @@ import { AdminModal } from "./ui";
 import { MentionTextarea, withMentions } from "./MentionTextarea";
 import { isSaveEnter } from "../lib/keyboard";
 import { QuickNotes } from "./QuickNotes";
+import { isNetworkError, queueNote } from "../lib/offline-notes";
 
 const MAX_LENGTH = 5000;
 
@@ -43,6 +44,13 @@ export function ObservationPopup({ call, teamScoped, onClose, onSaved }: { call:
       const { observation } = await api.addObservation(call.id, value, [], { teamScope: teamScoped });
       onSaved(observation);
     } catch (err) {
+      if (isNetworkError(err)) {
+        // Sem rede: guarda e fecha; vai sozinha quando a conexao voltar (aviso no topo da tela).
+        queueNote(call.id, value, teamScoped);
+        setSaving(false);
+        onClose();
+        return;
+      }
       setError(err instanceof Error ? err.message : "Não foi possível salvar a observação.");
       setSaving(false);
     }

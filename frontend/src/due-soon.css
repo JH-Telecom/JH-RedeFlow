@@ -10,3 +10,8 @@
 .due-soon-open { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; background: transparent; }
 @media (max-width: 900px) { .due-soon-banner { top: 72px; padding: 9px 20px; } }
 @media (max-width: 560px) { .due-soon-banner { top: 62px; } }
+
+/* Sem conexao (components/OfflineBanner.tsx, 18/11/2026) */
+.offline-banner { position: sticky; top: 72px; z-index: 7; display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 18px; border-bottom: 1px solid #f3d48a; background: #fff8e8; color: #6b4300; font-size: 13px; }
+.offline-banner.is-online { border-color: #b9e4cf; background: #eefaf4; color: #116b40; }
+@media (max-width: 900px) { .offline-banner { top: 62px; } }

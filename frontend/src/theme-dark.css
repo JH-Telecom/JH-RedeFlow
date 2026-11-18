@@ -1504,6 +1504,10 @@
     background: #201302;
     color: #eaa956
 }
+:where(:root[data-theme="dark"]) .palette-kind.is-note {
+    background: #13161d;
+    color: #7ccc9b
+}
 :where(:root[data-theme="dark"]) .palette-text small {
     color: var(--muted)
 }
@@ -1528,6 +1532,20 @@
 :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .search-field:focus-within {
     border-color: #4d94ff;
     box-shadow: 0 0 0 3px #4d94ff3d
+}
+:where(:root[data-theme="dark"]) .kb-help h3 {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .kb-help dt {
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .kb-help dd {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .kb-help kbd {
+    border: 1px solid #363f4b;
+    background: #12151b;
+    color: #dfe5ef
 }
 
 /* profile-photo.css */
@@ -3254,6 +3272,29 @@
 :where(:root[data-theme="dark"]) .observation-download-state {
     color: var(--muted)
 }
+:where(:root[data-theme="dark"]) .quick-note {
+    border: 1px solid #283f62;
+    background: #13161d
+}
+:where(:root[data-theme="dark"]) .quick-note button {
+    border: 0;
+    background: transparent;
+    color: #7cb6ff
+}
+:where(:root[data-theme="dark"]) .quick-note .quick-note-remove {
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .quick-note button:hover {
+    background: #0b172a
+}
+:where(:root[data-theme="dark"]) .quick-note button:focus-visible, :where(:root[data-theme="dark"]) .quick-note-add:focus-visible {
+    outline: 2px solid #1264e8
+}
+:where(:root[data-theme="dark"]) .quick-note-add {
+    border: 1px dashed #374960;
+    background: transparent;
+    color: #bbc0c9
+}
 
 /* calls-layout.css */
 :where(:root[data-theme="dark"]) .calls-pagination {
@@ -4106,6 +4147,11 @@
 }
 :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .serial-detail-item .serial-empty, :where(:root[data-theme="dark"]) :where(:root[data-theme="dark"]) .serial-detail-item small {
     color: #7f8082
+}
+:where(:root[data-theme="dark"]) .secondary-button.is-active {
+    border-color: #324b70;
+    background: #0f1722;
+    color: #7cb6ff
 }
 
 /* sla-analysis.css */
@@ -5047,6 +5093,16 @@
 }
 :where(:root[data-theme="dark"]) .due-soon-open {
     background: transparent
+}
+:where(:root[data-theme="dark"]) .offline-banner {
+    border-bottom: 1px solid #4f3d09;
+    background: #1b1302;
+    color: #dcae76
+}
+:where(:root[data-theme="dark"]) .offline-banner.is-online {
+    border-color: #104b35;
+    background: #0b1913;
+    color: #7ccc9b
 }
 
 /* tv-mode.css */

@@ -1486,6 +1486,10 @@
     background: #fff4e5;
     color: #8f5400
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .palette-kind.is-note {
+    background: #eef6f1;
+    color: #116b40
+}
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .palette-text small {
     color: var(--muted)
 }
@@ -1510,6 +1514,20 @@
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .search-field:focus-within {
     border-color: #7e99b6;
     box-shadow: 0 0 0 3px #7e99b626
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .kb-help h3 {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .kb-help dt {
+    color: #515e6c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .kb-help dd {
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .kb-help kbd {
+    border: 1px solid #d6dde4;
+    background: #f7f9fc;
+    color: #172533
 }
 /* light · profile-photo.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .profile-photo-button {
@@ -3222,6 +3240,29 @@
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .observation-download-state {
     color: var(--muted)
 }
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .quick-note {
+    border: 1px solid #caddf1;
+    background: #f2f7ff
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .quick-note button {
+    border: 0;
+    background: transparent;
+    color: #38526c
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .quick-note .quick-note-remove {
+    color: #465463
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .quick-note button:hover {
+    background: #e4eef9
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .quick-note button:focus-visible, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .quick-note-add:focus-visible {
+    outline: 2px solid #527293
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .quick-note-add {
+    border: 1px dashed #bac6d3;
+    background: transparent;
+    color: #465463
+}
 /* light · calls-layout.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .calls-pagination {
     border-top: 1px solid #e6ebf0;
@@ -4058,6 +4099,11 @@
 }
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .serial-detail-item .serial-empty, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(:root[data-theme="dark"]) .serial-detail-item small {
     color: #66696e
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .secondary-button.is-active {
+    border-color: #b2c0cf;
+    background: #eef4fb;
+    color: #38526c
 }
 /* light · sla-analysis.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .sa-dates label, :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .sa-area {
@@ -4995,6 +5041,16 @@
 }
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .due-soon-open {
     background: transparent
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .offline-banner {
+    border-bottom: 1px solid #f3d48a;
+    background: #fff8e8;
+    color: #6b4300
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .offline-banner.is-online {
+    border-color: #b9e4cf;
+    background: #eefaf4;
+    color: #116b40
 }
 /* light · tv-mode.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .help-tip-button {
@@ -6865,6 +6921,10 @@
     background: #201302;
     color: #eaa956
 }
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .palette-kind.is-note {
+    background: #13171b;
+    color: #7ccc9b
+}
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .palette-text small {
     color: var(--muted)
 }
@@ -6889,6 +6949,20 @@
 :where(:root[data-palette="ardosia"][data-theme="dark"]) :where(:root[data-theme="dark"]) .search-field:focus-within {
     border-color: #7e99b6;
     box-shadow: 0 0 0 3px #7e99b63d
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .kb-help h3 {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .kb-help dt {
+    color: #b5b9be
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .kb-help dd {
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .kb-help kbd {
+    border: 1px solid #383f47;
+    background: #121519;
+    color: #e0e5ec
 }
 /* dark · profile-photo.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .profile-photo-button {
@@ -8601,6 +8675,29 @@
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .observation-download-state {
     color: var(--muted)
 }
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .quick-note {
+    border: 1px solid #374049;
+    background: #13171b
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .quick-note button {
+    border: 0;
+    background: transparent;
+    color: #a2b5ca
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .quick-note .quick-note-remove {
+    color: #bbc0c6
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .quick-note button:hover {
+    background: #0c1824
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .quick-note button:focus-visible, :where(:root[data-palette="ardosia"][data-theme="dark"]) .quick-note-add:focus-visible {
+    outline: 2px solid #527293
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .quick-note-add {
+    border: 1px dashed #3b4958;
+    background: transparent;
+    color: #bbc0c6
+}
 /* dark · calls-layout.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .calls-pagination {
     border-top: 1px solid #34393e;
@@ -9447,6 +9544,11 @@
 }
 :where(:root[data-palette="ardosia"][data-theme="dark"]) :where(:root[data-theme="dark"]) .serial-detail-item .serial-empty, :where(:root[data-palette="ardosia"][data-theme="dark"]) :where(:root[data-theme="dark"]) .serial-detail-item small {
     color: #7f8082
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .secondary-button.is-active {
+    border-color: #424c56;
+    background: #10171e;
+    color: #a2b5ca
 }
 /* dark · sla-analysis.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .sa-dates label, :where(:root[data-palette="ardosia"][data-theme="dark"]) .sa-area {
@@ -10384,6 +10486,16 @@
 }
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .due-soon-open {
     background: transparent
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .offline-banner {
+    border-bottom: 1px solid #4f3d09;
+    background: #1b1302;
+    color: #dcae76
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) .offline-banner.is-online {
+    border-color: #104b35;
+    background: #0b1913;
+    color: #7ccc9b
 }
 /* dark · tv-mode.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .help-tip-button {
