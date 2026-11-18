@@ -1027,8 +1027,14 @@ app.get('/api/chamados/sem-regiao', auth, requirePermission('calls.view'), async
     // Todos de uma vez (a tela filtra e pagina no navegador), cada um com a sugestao de regiao.
     const [calls, technicians, custom] = await Promise.all([listCalls(), listTechnicians(), listCustomOperationalRegions().catch(() => [] as string[])]);
     const missing = missingRegionCalls(calls).slice(0, 2000);
-    const items = missing.map((call) => ({ ...call, sameOlt: sameOltMissing(calls, call.olt, call.id).length, suggestion: suggestRegion(call, calls, (olt) => resolveOltRegion(olt).region) ?? aiSuggestionFor(call.id) ?? null }));
-    return response.json({ calls: items, total: missing.length, page: 1, pageSize: items.length, regions: knownRegions(calls.map((call) => call.region), technicians.map((technician) => technician.region), custom) });
+    const regions = knownRegions(calls.map((call) => call.region), technicians.map((technician) => technician.region), custom);
+    // A da IA (quando ja rodou) vale antes da "regiao com o nome da cidade", que e a mais generica.
+    const items = missing.map((call) => {
+      const rule = suggestRegion(call, calls, (olt) => resolveOltRegion(olt).region, regions);
+      const ai = aiSuggestionFor(call.id);
+      return { ...call, sameOlt: sameOltMissing(calls, call.olt, call.id).length, suggestion: (rule && rule.reason !== 'cidade' ? rule : ai ?? rule) ?? null };
+    });
+    return response.json({ calls: items, total: missing.length, page: 1, pageSize: items.length, regions });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados sem regiao.' }); }
 });
 // Corrige so a regiao (vale tambem para chamado encerrado, que nao aceita outras edicoes). "aplicarOlt": os outros

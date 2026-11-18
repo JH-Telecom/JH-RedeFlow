@@ -51,7 +51,7 @@ export function cityOf(call: Pick<Call, 'city'> & { address?: string }) {
   return fromAddress ? key(fromAddress) : '';
 }
 
-export function suggestRegion(call: Pick<Call, 'olt' | 'bairro' | 'city'> & { address?: string }, calls: Call[], oltRegion: (olt: string) => string | null): RegionSuggestion {
+export function suggestRegion(call: Pick<Call, 'olt' | 'bairro' | 'city'> & { address?: string }, calls: Call[], oltRegion: (olt: string) => string | null, regions: string[] = []): RegionSuggestion {
   const byOlt = call.olt && isRealOlt(call.olt) ? oltRegion(call.olt) : null;
   if (byOlt && !isMissingRegion(byOlt)) return { region: byOlt, reason: 'olt', detail: `OLT ${call.olt}` };
   const withRegion = calls.filter((item) => !isMissingRegion(item.region));
@@ -68,6 +68,9 @@ export function suggestRegion(call: Pick<Call, 'olt' | 'bairro' | 'city'> & { ad
     const same = withRegion.filter((item) => cityOf(item) === city);
     const top = same.length >= 3 ? mostCommon(same.map((item) => item.region)) : undefined;
     if (top && top.count / same.length >= 0.7) return { region: top.region, reason: 'cidade', detail: `${top.count} de ${same.length} chamado(s) de ${city}` };
+    // Existe uma regiao com o nome da propria cidade (GUARULHOS, SUZANO, SAO PAULO, DIADEMA...): e ela.
+    const named = regions.find((region) => key(region) === city);
+    if (named) return { region: named, reason: 'cidade', detail: `região com o nome da cidade ${city}` };
   }
   return null;
 }

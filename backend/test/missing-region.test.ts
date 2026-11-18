@@ -40,3 +40,11 @@ test('same bairro in another city is not a suggestion; city comes from the addre
   assert.equal(isRealOlt('VIP-ITA-SPO-OHW-01'), true);
   assert.deepEqual(sameOltMissing([at('9', 'Nao informada', 'X', 'Y')].map((item) => ({ ...item, olt: 'ATIVAÇÃO' })), 'ATIVAÇÃO', 'z'), []);
 });
+
+test('only the city known: the region named like the city (GUARULHOS, SAO PAULO)', () => {
+  const regions = ['GUARULHOS', 'GUARULHOS 1', 'SÃO PAULO', 'SUZANO'];
+  assert.deepEqual(suggestRegion({ olt: '', bairro: '', city: 'Guarulhos' }, [], () => null, regions), { region: 'GUARULHOS', reason: 'cidade', detail: 'região com o nome da cidade GUARULHOS' });
+  assert.equal(suggestRegion({ olt: '', bairro: '', city: 'São Paulo' }, [], () => null, regions)?.region, 'SÃO PAULO');
+  assert.equal(suggestRegion({ olt: 'ATIVAÇÃO', bairro: 'JARDIM BELA VISTA', city: 'Nao informada', address: 'RUA AGNELLO TRAMA, 77 JARDIM BELA VISTA, GUARULHOS - SP' }, [], () => null, regions)?.region, 'GUARULHOS');
+  assert.equal(suggestRegion({ olt: '', bairro: '', city: 'Mogi' }, [], () => null, regions), null);
+});
