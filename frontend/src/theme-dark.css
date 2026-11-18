@@ -3433,6 +3433,9 @@
     background: transparent;
     color: #bbc0c9
 }
+:where(:root[data-theme="dark"]) .history-panel .observation-compose-actions .primary-button, :where(:root[data-theme="dark"]) .history-panel .observation-compose-actions .observation-attachment-picker {
+    box-shadow: none
+}
 
 /* calls-layout.css */
 :where(:root[data-theme="dark"]) .calls-pagination {

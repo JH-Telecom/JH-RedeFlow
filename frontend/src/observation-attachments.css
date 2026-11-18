@@ -8,3 +8,16 @@
 .quick-note button:hover { background: #e3eeff; }
 .quick-note button:focus-visible, .quick-note-add:focus-visible { outline: 2px solid #1264e8; outline-offset: 1px; }
 .quick-note-add { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 1px dashed #b7c6da; border-radius: 999px; background: transparent; color: #45536b; font: 600 12px 'DM Sans', sans-serif; cursor: pointer; }
+
+/* Caixa de nova observacao (18/11/2026): observacoes prontas em cima, o campo na largura toda e os botoes alinhados a
+   direita embaixo, mesma altura e sem quebrar o texto. Antes tudo ficava numa linha so e o campo sumia. */
+.history-panel .observation-compose { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: stretch; margin-top: 18px; }
+.history-panel .observation-compose .quick-notes { margin-bottom: 0; }
+.history-panel .observation-compose .mention-box { width: 100%; }
+.history-panel .observation-compose textarea { width: 100%; min-height: 84px; font-size: 13px; line-height: 1.5; }
+.history-panel .observation-compose-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 9px; }
+.history-panel .observation-compose-actions .primary-button, .history-panel .observation-compose-actions .observation-attachment-picker { min-height: 38px; height: 38px; padding: 0 14px; font-size: 13px; white-space: nowrap; box-shadow: none; }
+@media (max-width: 560px) {
+  .history-panel .observation-compose-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .history-panel .observation-compose-actions .primary-button, .history-panel .observation-compose-actions .observation-attachment-picker { width: 100%; justify-content: center; }
+}

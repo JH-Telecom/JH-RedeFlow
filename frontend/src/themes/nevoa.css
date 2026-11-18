@@ -3400,6 +3400,9 @@
     background: transparent;
     color: #5e4a64
 }
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .history-panel .observation-compose-actions .primary-button, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .history-panel .observation-compose-actions .observation-attachment-picker {
+    box-shadow: none
+}
 /* light · calls-layout.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .calls-pagination {
     border-top: 1px solid #eee8f1;
@@ -8974,6 +8977,9 @@
     border: 1px dashed #533f59;
     background: transparent;
     color: #c4bdc6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .history-panel .observation-compose-actions .primary-button, :where(:root[data-palette="nevoa"][data-theme="dark"]) .history-panel .observation-compose-actions .observation-attachment-picker {
+    box-shadow: none
 }
 /* dark · calls-layout.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .calls-pagination {
