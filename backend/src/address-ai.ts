@@ -78,12 +78,14 @@ export function parseAddressAiResponse(text: string, regions: string[]): Address
   return { bairro: bairro && !badNeighborhood(bairro) ? keyOf(bairro) : null, cidade: str(parsed.cidade) ? keyOf(str(parsed.cidade)) : null, endereco: str(parsed.endereco), regiao, confianca: regiao ? confianca : 0, motivo: str(parsed.motivo) || '' };
 }
 
-export async function analyzeAddressesWithAi(input: AddressAiInput, fetcher?: Fetcher, env: NodeJS.ProcessEnv = process.env): Promise<AddressAiResult | null> {
+// throwOnError: a tela Sem regiao quer saber quando a IA falhou (cota, fora do ar) para avisar, em vez de "0 sugestoes".
+export async function analyzeAddressesWithAi(input: AddressAiInput, fetcher?: Fetcher, env: NodeJS.ProcessEnv = process.env, options: { throwOnError?: boolean } = {}): Promise<AddressAiResult | null> {
   if (!llmConfigured(env) || (!input.addresses.length && !input.bairro)) return null;
   try {
     const answer = await askLlmJson(buildAddressPrompt(input), { timeoutMs: 15_000, label: 'endereco', geminiModels: [env.GEMINI_ADDRESS_MODEL || env.GEMINI_MODEL || 'gemini-2.5-flash'] }, fetcher, env);
     return parseAddressAiResponse(answer.text, input.regions);
-  } catch {
+  } catch (error) {
+    if (options.throwOnError) throw error;
     return null;
   }
 }

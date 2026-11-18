@@ -20,6 +20,29 @@ export function groqModels(env: NodeJS.ProcessEnv = process.env) {
   return unique([env.GROQ_MODEL || 'llama-3.3-70b-versatile', ...(env.GROQ_FALLBACK_MODELS ?? 'llama-3.1-8b-instant').split(',')]);
 }
 
+// Modelos que a conta do Groq tem (GET /models), para quando os configurados nao existem mais (HTTP 404): os nomes do
+// Groq mudam com o tempo. Guardado por 6 h. Prefere os modelos de texto grandes; ignora audio, guarda e embeddings.
+const PREFERRED = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'moonshotai/kimi-k2-instruct', 'qwen/qwen3-32b', 'openai/gpt-oss-20b', 'llama-3.1-8b-instant'];
+let groqCatalog: { models: string[]; at: number } | null = null;
+export function pickGroqModels(available: string[]) {
+  const chat = available.filter((id) => !/whisper|tts|guard|embed|playai|distil|orpheus|compound/i.test(id));
+  const preferred = PREFERRED.filter((id) => chat.includes(id));
+  return unique([...preferred, ...chat]).slice(0, 3);
+}
+async function groqAvailableModels(key: string, fetcher: Fetcher): Promise<string[]> {
+  if (groqCatalog && Date.now() - groqCatalog.at < 6 * 3_600_000) return groqCatalog.models;
+  try {
+    const response = await fetcher('https://api.groq.com/openai/v1/models', { method: 'GET', headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return [];
+    const payload = await response.json() as { data?: { id?: string; active?: boolean }[] };
+    const models = pickGroqModels((payload.data || []).filter((item) => item.id && item.active !== false).map((item) => item.id!));
+    groqCatalog = { models, at: Date.now() };
+    if (models.length) console.log(`[IA] modelos do Groq disponiveis: ${models.join(', ')}`);
+    return models;
+  } catch { return []; }
+}
+export function resetGroqCatalog() { groqCatalog = null; }
+
 // Erro que outro modelo pode resolver: cota (429), modelo fora/inexistente (404, 5xx) ou rede.
 const retryable = (status: number) => status === 0 || status === 429 || status === 404 || status === 413 || status >= 500;
 
@@ -31,7 +54,14 @@ export async function askLlmJson(prompt: string, options: LlmOptions = {}, fetch
 
   const groqKey = env.GROQ_API_KEY?.trim();
   if (groqKey) {
-    for (const model of groqModels(env)) {
+    // Configurados primeiro; os que deram 404 (nome que nao existe mais) dao lugar aos que a conta tem hoje.
+    const tried = new Set<string>();
+    let queue = groqModels(env);
+    let discovered = false;
+    for (let index = 0; index < queue.length; index += 1) {
+      const model = queue[index];
+      if (tried.has(model)) continue;
+      tried.add(model);
       let status = 0;
       try {
         const response = await fetcher('https://api.groq.com/openai/v1/chat/completions', {
@@ -51,6 +81,10 @@ export async function askLlmJson(prompt: string, options: LlmOptions = {}, fetch
       last = new LlmError(`Groq (${model}) respondeu HTTP ${status || 'sem resposta'}`, status, 'groq');
       console.warn(`${tag} ${last.message}`);
       if (!retryable(status)) break;
+      if (status === 404 && !discovered && index === queue.length - 1) {
+        discovered = true;
+        queue = [...queue, ...(await groqAvailableModels(groqKey, fetcher)).filter((item) => !tried.has(item))];
+      }
     }
   }
 

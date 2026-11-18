@@ -59,10 +59,12 @@ export function MissingRegionPage({ user }: { user: User & { role: Role } }) {
     if (!ids.length) return;
     setSaving("ia"); setNotice(""); setError("");
     try {
-      const { suggestions } = await api.analyzeRegionsWithAi(ids);
+      const { suggestions, failures = 0 } = await api.analyzeRegionsWithAi(ids);
       const found = Object.values(suggestions).filter(Boolean).length;
+      if (failures) setError(`A IA não respondeu em ${failures} de ${ids.length} chamado(s). Tente de novo em alguns minutos.`);
       setData((current) => current ? { ...current, calls: current.calls.map((call) => (suggestions[call.id] ? { ...call, suggestion: suggestions[call.id] } : call)) } : current);
-      setNotice(`IA analisou ${ids.length} chamado(s) e sugeriu a região de ${found}. Confira antes de salvar.`);
+      const analyzed = ids.length - failures;
+      if (analyzed) setNotice(found ? `IA analisou ${analyzed} chamado(s) e sugeriu a região de ${found}. Confira antes de salvar.` : `IA analisou ${analyzed} chamado(s) e não teve segurança para sugerir nenhuma região (muitos só têm a cidade, sem bairro).`);
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível analisar com a IA."); }
     finally { setSaving(null); }
   }

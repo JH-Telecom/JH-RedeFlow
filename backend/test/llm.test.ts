@@ -34,3 +34,19 @@ test('a request error (400) does not try other models; no key throws', async () 
   assert.equal(llmConfigured({ GROQ_API_KEY: ' ' } as NodeJS.ProcessEnv), false);
   assert.deepEqual(groqModels({ GROQ_MODEL: 'x', GROQ_FALLBACK_MODELS: 'y, x' } as NodeJS.ProcessEnv), ['x', 'y']);
 });
+
+test('Groq models that no longer exist (404): asks the account model list and uses an available one', async () => {
+  const { resetGroqCatalog, pickGroqModels } = await import('../src/llm.js');
+  resetGroqCatalog();
+  const used: string[] = [];
+  const fetcher = async (url: string, init: RequestInit) => {
+    if (url.endsWith('/models')) return reply(200, { data: [{ id: 'whisper-large-v3' }, { id: 'openai/gpt-oss-120b' }, { id: 'meta-llama/llama-guard-4-12b' }] });
+    const model = String(JSON.parse(String(init.body)).model);
+    used.push(model);
+    return model === 'openai/gpt-oss-120b' ? reply(200, { choices: [{ message: { content: '{"ok":1}' } }] }) : reply(404, {});
+  };
+  const answer = await askLlmJson('json', {}, fetcher, { GROQ_API_KEY: 'g' } as NodeJS.ProcessEnv);
+  assert.equal(answer.model, 'openai/gpt-oss-120b');
+  assert.deepEqual(used, ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b']);
+  assert.deepEqual(pickGroqModels(['whisper-large-v3', 'qwen/qwen3-32b', 'openai/gpt-oss-120b']), ['openai/gpt-oss-120b', 'qwen/qwen3-32b']);
+});

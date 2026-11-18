@@ -391,7 +391,7 @@ export const api = {
   igpReconciliation: (month: string, cluster: string) => request<IgpReconciliation>(`/api/igp/conciliacao?month=${encodeURIComponent(month)}&cluster=${encodeURIComponent(cluster)}`),
   saveIgpRules: (rules: IgpRules) => request<{ rules: IgpRules }>('/api/igp/regras', { method: 'PUT', body: JSON.stringify({ rules }) }),
   missingRegionCalls: (page = 1) => request<{ calls: MissingRegionCall[]; total: number; page: number; pageSize: number; regions: string[] }>(`/api/chamados/sem-regiao?page=${page}`),
-  analyzeRegionsWithAi: (ids: string[]) => request<{ suggestions: Record<string, { region: string; reason: 'ia'; detail: string } | null> }>('/api/chamados/sem-regiao/ia', { method: 'POST', body: JSON.stringify({ ids }) }),
+  analyzeRegionsWithAi: (ids: string[]) => request<{ suggestions: Record<string, { region: string; reason: 'ia'; detail: string } | null>; failures?: number }>('/api/chamados/sem-regiao/ia', { method: 'POST', body: JSON.stringify({ ids }) }),
   setCallsRegion: (ids: string[], region: string) => request<{ updated: number }>('/api/chamados/regiao-lote', { method: 'POST', body: JSON.stringify({ ids, region }) }),
   setCallRegion: (id: string, region: string, aplicarOlt: boolean) => request<{ others: number; oltSaved: boolean }>(`/api/chamados/${encodeURIComponent(id)}/regiao`, { method: 'POST', body: JSON.stringify({ region, aplicarOlt }) }),
   jotaH: (pergunta: string, contexto: { pergunta: string; sql?: string }[]) => request<JotaAnswer>('/api/jota-h', { method: 'POST', body: JSON.stringify({ pergunta, contexto }) }),

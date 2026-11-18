@@ -2103,16 +2103,24 @@ app.post('/api/chamados/sem-regiao/ia', auth, requirePermission('calls.edit'), a
     const { regions, examples } = await regionsAndExamples(calls);
     const byId = new Map(calls.map((call) => [call.id, call]));
     const results: Record<string, { region: string; reason: 'ia'; detail: string } | null> = {};
-    await Promise.all(parsed.data.ids.map(async (id) => {
+    let failures = 0;
+    let lastError = '';
+    // Um por vez (3 em paralelo no maximo) para nao estourar a cota por minuto da IA.
+    const queue = [...parsed.data.ids];
+    await Promise.all(Array.from({ length: 3 }, async () => { for (let id = queue.shift(); id; id = queue.shift()) await analyzeOne(id); }));
+    async function analyzeOne(id: string) {
       const call = byId.get(id);
       if (!call || !isMissingRegion(call.region)) return;
       const addresses = [call.address, [call.bairro, call.city].filter(Boolean).join(', ')].filter((item): item is string => Boolean(item && item.trim()));
-      const result = await analyzeAddressesWithAi({ addresses, bairro: call.bairro || null, city: call.city || null, regions, examples });
+      let result;
+      try { result = await analyzeAddressesWithAi({ addresses, bairro: call.bairro || null, city: call.city || null, regions, examples }, undefined, process.env, { throwOnError: true }); }
+      catch (error) { failures += 1; lastError = error instanceof Error ? error.message : String(error); return; }
       const suggestion = result?.regiao ? { region: result.regiao, reason: 'ia' as const, detail: `IA (${Math.round(result.confianca * 100)}% de confiança)${result.bairro ? ` · bairro ${result.bairro}` : ''}${result.motivo ? ` · ${result.motivo}` : ''}` } : null;
       aiRegionCache.set(id, { suggestion, at: Date.now() });
       results[id] = suggestion;
-    }));
-    return response.json({ suggestions: results });
+    }
+    if (failures && failures === parsed.data.ids.length) return response.status(502).json({ message: `A IA não respondeu (${lastError}). Confira a chave GROQ_API_KEY na Render ou tente de novo em alguns minutos.` });
+    return response.json({ suggestions: results, failures });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel analisar com a IA.' }); }
 });
 
