@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { SelectSearchLayer } from './components/SelectSearch';
 import './styles.css';
+import './form-controls.css';
 import './password-change.css';
 import './team.css';
 import './supervisor-overrides.css';

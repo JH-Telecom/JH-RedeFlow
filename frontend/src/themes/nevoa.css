@@ -317,6 +317,28 @@
         background: #2e1b3440
     }
 }
+/* light · form-controls.css */
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) :where(select) {
+    border: 1px solid #e9e0ec;
+    background-color: #fff;
+    color: #2e1b34
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) :where(select):hover {
+    border-color: #dfcce6
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) :where(select):focus {
+    border-color: #c690d7;
+    box-shadow: 0 0 0 3px #9d3ab912;
+    outline: none
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) :where(select):focus-visible {
+    border-color: #9d3ab9;
+    box-shadow: 0 0 0 3px #9d3ab926
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) :where(select):disabled {
+    background-color: #f3f6fa;
+    color: #67556c
+}
 /* light · password-change.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .password-change-page {
     background: radial-gradient(ellipse at 12% 12%,#f7ecfb 0,transparent 38%),linear-gradient(135deg,#f7f9fc,#eef4fb)
@@ -5869,6 +5891,28 @@
     :where(:root[data-palette="nevoa"][data-theme="dark"]) .sidebar-overlay {
         background: #2e1b3473
     }
+}
+/* dark · form-controls.css */
+:where(:root[data-palette="nevoa"][data-theme="dark"]) :where(select) {
+    border: 1px solid #413744;
+    background-color: #1f1a20;
+    color: #e9e1ec
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) :where(select):hover {
+    border-color: #4e3755
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) :where(select):focus {
+    border-color: #c690d7;
+    box-shadow: 0 0 0 3px #a03dbc1d;
+    outline: none
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) :where(select):focus-visible {
+    border-color: #9d3ab9;
+    box-shadow: 0 0 0 3px #a03dbc3d
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) :where(select):disabled {
+    background-color: #19141b;
+    color: #bdb6bf
 }
 /* dark · password-change.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .password-change-page {

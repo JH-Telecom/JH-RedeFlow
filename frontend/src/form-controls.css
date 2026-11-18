@@ -1,0 +1,18 @@
+/* Dropdowns (select) sem estilo proprio (18/11/2026): ficavam com a cara padrao do navegador (borda cinza quadrada,
+   letra pequena), ex.: "Tecnico unico da madrugada" no Roteirizador. :where() tem peso zero, entao qualquer estilo
+   que a tela ja tenha para o seu select continua valendo; isto so preenche o que faltava. A seta continua a nativa. */
+:where(select) {
+  padding: 8px 10px;
+  border: 1px solid #dce4ef;
+  border-radius: 8px;
+  background-color: #fff;
+  color: #17233b;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+:where(select):hover { border-color: #c5d5ed; }
+:where(select):focus { border-color: #76a9f4; box-shadow: 0 0 0 3px #1264e812; outline: none; }
+:where(select):focus-visible { border-color: #1264e8; box-shadow: 0 0 0 3px #1264e826; }
+:where(select):disabled { background-color: #f3f6fa; color: #4f5d73; cursor: not-allowed; }

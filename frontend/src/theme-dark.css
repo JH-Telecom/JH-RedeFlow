@@ -320,6 +320,29 @@
     }
 }
 
+/* form-controls.css */
+:where(:root[data-theme="dark"]) :where(select) {
+    border: 1px solid #333c48;
+    background-color: #181c22;
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) :where(select):hover {
+    border-color: #30425d
+}
+:where(:root[data-theme="dark"]) :where(select):focus {
+    border-color: #76a9f4;
+    box-shadow: 0 0 0 3px #1667eb1d;
+    outline: none
+}
+:where(:root[data-theme="dark"]) :where(select):focus-visible {
+    border-color: #1264e8;
+    box-shadow: 0 0 0 3px #1667eb3d
+}
+:where(:root[data-theme="dark"]) :where(select):disabled {
+    background-color: #13161d;
+    color: #b5b9c1
+}
+
 /* password-change.css */
 :where(:root[data-theme="dark"]) .password-change-page {
     background: radial-gradient(ellipse at 12% 12%,#0d1726 0,transparent 38%),linear-gradient(135deg,#12151b,#13161d)

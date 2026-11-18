@@ -317,6 +317,28 @@
         background: #17253340
     }
 }
+/* light · form-controls.css */
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(select) {
+    border: 1px solid #dde4eb;
+    background-color: #fff;
+    color: #172533
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(select):hover {
+    border-color: #c7d6e5
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(select):focus {
+    border-color: #97aabe;
+    box-shadow: 0 0 0 3px #52729312;
+    outline: none
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(select):focus-visible {
+    border-color: #527293;
+    box-shadow: 0 0 0 3px #52729326
+}
+:where(:root[data-palette="ardosia"]:not([data-theme="dark"])) :where(select):disabled {
+    background-color: #f3f6fa;
+    color: #515e6c
+}
 /* light · password-change.css */
 :where(:root[data-palette="ardosia"]:not([data-theme="dark"])) .password-change-page {
     background: radial-gradient(ellipse at 12% 12%,#e9f1fa 0,transparent 38%),linear-gradient(135deg,#f7f9fc,#eef4fb)
@@ -5869,6 +5891,28 @@
     :where(:root[data-palette="ardosia"][data-theme="dark"]) .sidebar-overlay {
         background: #17253373
     }
+}
+/* dark · form-controls.css */
+:where(:root[data-palette="ardosia"][data-theme="dark"]) :where(select) {
+    border: 1px solid #353c44;
+    background-color: #191c20;
+    color: #e0e5ec
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) :where(select):hover {
+    border-color: #334354
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) :where(select):focus {
+    border-color: #97aabe;
+    box-shadow: 0 0 0 3px #5575961d;
+    outline: none
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) :where(select):focus-visible {
+    border-color: #527293;
+    box-shadow: 0 0 0 3px #5575963d
+}
+:where(:root[data-palette="ardosia"][data-theme="dark"]) :where(select):disabled {
+    background-color: #13171b;
+    color: #b5b9be
 }
 /* dark · password-change.css */
 :where(:root[data-palette="ardosia"][data-theme="dark"]) .password-change-page {

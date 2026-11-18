@@ -169,6 +169,14 @@
     color: var(--muted)
 }
 
+/* form-controls.css */
+:where(:root:not([data-theme="dark"])) :where(select) {
+    color: #17233b
+}
+:where(:root:not([data-theme="dark"])) :where(select):disabled {
+    color: #4f5d73
+}
+
 /* password-change.css */
 :where(:root:not([data-theme="dark"])) .password-change-mark {
     color: #0056d9

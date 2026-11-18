@@ -317,6 +317,28 @@
         background: #1e1e4340
     }
 }
+/* light · form-controls.css */
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(select) {
+    border: 1px solid #e0e2f4;
+    background-color: #fff;
+    color: #1e1e43
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(select):hover {
+    border-color: #ccd1f7
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(select):focus {
+    border-color: #979cfe;
+    box-shadow: 0 0 0 3px #5f49f712;
+    outline: none
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(select):focus-visible {
+    border-color: #5f49f7;
+    box-shadow: 0 0 0 3px #5f49f726
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) :where(select):disabled {
+    background-color: #f3f6fa;
+    color: #56597b
+}
 /* light · password-change.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .password-change-page {
     background: radial-gradient(ellipse at 12% 12%,#ecefff 0,transparent 38%),linear-gradient(135deg,#f7f9fc,#eef4fb)
@@ -5869,6 +5891,28 @@
     :where(:root[data-palette="neon"][data-theme="dark"]) .sidebar-overlay {
         background: #1e1e4373
     }
+}
+/* dark · form-controls.css */
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(select) {
+    border: 1px solid #38394d;
+    background-color: #1a1b24;
+    color: #e1e3f3
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(select):hover {
+    border-color: #3a3c67
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(select):focus {
+    border-color: #979cfe;
+    box-shadow: 0 0 0 3px #614cfa1d;
+    outline: none
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(select):focus-visible {
+    border-color: #5f49f7;
+    box-shadow: 0 0 0 3px #614cfa3d
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) :where(select):disabled {
+    background-color: #14151f;
+    color: #b6b8c4
 }
 /* dark · password-change.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .password-change-page {
