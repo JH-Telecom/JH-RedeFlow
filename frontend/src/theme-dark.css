@@ -2872,55 +2872,170 @@
 }
 
 /* missing-region.css */
-:where(:root[data-theme="dark"]) .mr-notice {
+:where(:root[data-theme="dark"]) .sr-notice {
     border: 1px solid #104b35;
     background: #0b1913;
     color: #7ccc9b
 }
-:where(:root[data-theme="dark"]) .mr-summary {
-    border-bottom: 1px solid #31353c;
+:where(:root[data-theme="dark"]) .sr-empty {
     color: #bbc0c9
 }
-:where(:root[data-theme="dark"]) .mr-summary strong {
+:where(:root[data-theme="dark"]) .sr-toolbar {
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .sr-tabs {
+    border: 1px solid var(--line);
+    background: #12151b
+}
+:where(:root[data-theme="dark"]) .sr-tabs button {
+    border: 0;
+    background: transparent;
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .sr-tabs button span {
+    background: #14181e;
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .sr-tabs button.is-selected {
+    background: #181c22;
+    color: #7cb6ff;
+    box-shadow: 0 1px 3px #00000044
+}
+:where(:root[data-theme="dark"]) .sr-tabs button.is-selected span {
+    background: #0b172a;
+    color: #7cb6ff
+}
+:where(:root[data-theme="dark"]) .sr-tabs button:focus-visible {
+    outline: 2px solid #1264e8
+}
+:where(:root[data-theme="dark"]) .sr-search {
+    border: 1px solid var(--line);
+    background: #181c22;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .sr-search input {
+    border: 0;
+    background: transparent;
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .sr-search input:focus, :where(:root[data-theme="dark"]) .sr-search input:focus-visible {
+    box-shadow: none;
+    outline: none
+}
+:where(:root[data-theme="dark"]) .sr-search:focus-within {
+    border-color: #76a9f4;
+    box-shadow: 0 0 0 3px #1667eb1d
+}
+:where(:root[data-theme="dark"]) .sr-search button {
+    border: 0;
+    background: none;
+    color: #b5b9c1
+}
+:where(:root[data-theme="dark"]) .sr-bulk {
+    border-bottom: 1px solid #283f62;
+    background: #13161d;
+    color: #94b8f5
+}
+:where(:root[data-theme="dark"]) .sr-bulk select {
+    border: 1px solid #283f62;
+    background: #181c22;
     color: #dfe5ef
 }
-:where(:root[data-theme="dark"]) .mr-empty {
-    color: #bbc0c9
+:where(:root[data-theme="dark"]) .sr-bulk .primary-button {
+    box-shadow: none
 }
-:where(:root[data-theme="dark"]) .mr-table th {
-    border-bottom: 1px solid #31353c;
+:where(:root[data-theme="dark"]) .sr-table th {
+    border-bottom: 1px solid var(--line);
     background: #15181f;
     color: #b5b9c1
 }
-:where(:root[data-theme="dark"]) .mr-table td {
+:where(:root[data-theme="dark"]) .sr-table td {
     border-bottom: 1px solid #31353c;
     color: #bbc0c9
 }
-:where(:root[data-theme="dark"]) .mr-table td strong {
-    color: #dfe5ef
+:where(:root[data-theme="dark"]) .sr-table tr:last-child td {
+    border-bottom: 0
 }
-:where(:root[data-theme="dark"]) .mr-table td small {
+:where(:root[data-theme="dark"]) .sr-table tr.is-selected td {
+    background: #11151b
+}
+:where(:root[data-theme="dark"]) .sr-table td small {
     color: #b5b9c1
 }
-:where(:root[data-theme="dark"]) .mr-table a {
+:where(:root[data-theme="dark"]) .sr-table td strong {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .sr-table input[type="checkbox"] {
+    accent-color: #2170f5
+}
+:where(:root[data-theme="dark"]) .sr-order {
     color: #7cb6ff
 }
-:where(:root[data-theme="dark"]) .mr-edit-row select {
+:where(:root[data-theme="dark"]) .sr-status {
+    background: #0e1727;
+    color: #83b4ff
+}
+:where(:root[data-theme="dark"]) .sr-status.is-closed {
+    background: #13171d;
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .sr-table td small.sr-olt-name {
+    color: #dfe5ef
+}
+:where(:root[data-theme="dark"]) .sr-date {
+    color: #bbc0c9
+}
+:where(:root[data-theme="dark"]) .sr-edit-row select {
     border: 1px solid #333c48;
     background: #181c22;
     color: #dfe5ef
 }
-:where(:root[data-theme="dark"]) .mr-edit-row .primary-button {
+:where(:root[data-theme="dark"]) .sr-edit-row .primary-button {
     box-shadow: none
 }
-:where(:root[data-theme="dark"]) .mr-olt {
+:where(:root[data-theme="dark"]) .sr-table td .sr-suggestion {
+    color: #dcae76
+}
+:where(:root[data-theme="dark"]) .sr-olt {
     color: #bbc0c9
 }
-:where(:root[data-theme="dark"]) .mr-muted {
+:where(:root[data-theme="dark"]) .sr-muted {
     color: #b5b9c1
 }
-:where(:root[data-theme="dark"]) .mr-pager {
+:where(:root[data-theme="dark"]) .sr-footer {
+    border-top: 1px solid var(--line);
     color: #bbc0c9
+}
+@media (max-width: 1240px) {
+    :where(:root[data-theme="dark"]) .sr-panel .sr-table tr {
+        border-bottom: 1px solid #32363d
+    }
+}
+@media (max-width: 1240px) {
+    :where(:root[data-theme="dark"]) .sr-panel .sr-table tr:last-child {
+        border-bottom: 0
+    }
+}
+@media (max-width: 1240px) {
+    :where(:root[data-theme="dark"]) .sr-panel .sr-table td {
+        border: 0;
+        background: transparent
+    }
+}
+@media (max-width: 1240px) {
+    :where(:root[data-theme="dark"]) .sr-panel .sr-table tr.is-selected {
+        background: #11151b
+    }
+}
+@media (max-width: 1240px) {
+    :where(:root[data-theme="dark"]) .sr-panel .sr-table tr.is-selected td {
+        background: transparent
+    }
+}
+@media (max-width: 1240px) {
+    :where(:root[data-theme="dark"]) .sr-panel .sr-table td::before {
+        color: #b5b9c1
+    }
 }
 
 /* igp-score.css */

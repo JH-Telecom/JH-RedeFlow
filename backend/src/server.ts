@@ -62,8 +62,8 @@ import { askJotaGemini, validateJotaSql } from './jota-h.js';
 import { DUTY_STATUSES } from './duty-status.js';
 import { getIgpRules, importGigaWorkbook, listGigaImports, listGigaOrders, reconcile, saveIgpRules } from './store/giga.js';
 import { scoreIgp } from './igp-score.js';
-import { normalizeOltCode } from './integrations/wuzapi/noc-consolidation.js';
-import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing } from './missing-region.js';
+import { normalizeOltCode, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
+import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing, suggestRegion } from './missing-region.js';
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
 import { isNightWindow, nightStartIso, nightSummary, pickNightOrders, singleNightTechnician } from './night-router.js';
 import { sweepNightActivations } from './night-auto-accept.js';
@@ -1022,16 +1022,31 @@ app.get('/api/chamados/ultimas-observacoes', auth, requirePermission('calls.view
 // Vem antes de /api/chamados/:id para "sem-regiao" nao ser lido como id.
 app.get('/api/chamados/sem-regiao', auth, requirePermission('calls.view'), async (request, response) => {
   try {
-    const page = Math.max(1, Math.floor(Number(request.query.page ?? 1)));
+    // Todos de uma vez (a tela filtra e pagina no navegador), cada um com a sugestao de regiao.
     const [calls, technicians, custom] = await Promise.all([listCalls(), listTechnicians(), listCustomOperationalRegions().catch(() => [] as string[])]);
-    const missing = missingRegionCalls(calls);
-    const items = missing.slice((page - 1) * 100, page * 100).map((call) => ({ ...call, sameOlt: sameOltMissing(calls, call.olt, call.id).length }));
-    return response.json({ calls: items, total: missing.length, page, pageSize: 100, regions: knownRegions(calls.map((call) => call.region), technicians.map((technician) => technician.region), custom) });
+    const missing = missingRegionCalls(calls).slice(0, 2000);
+    const items = missing.map((call) => ({ ...call, sameOlt: sameOltMissing(calls, call.olt, call.id).length, suggestion: suggestRegion(call, calls, (olt) => resolveOltRegion(olt).region) }));
+    return response.json({ calls: items, total: missing.length, page: 1, pageSize: items.length, regions: knownRegions(calls.map((call) => call.region), technicians.map((technician) => technician.region), custom) });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar os chamados sem regiao.' }); }
 });
 // Corrige so a regiao (vale tambem para chamado encerrado, que nao aceita outras edicoes). "aplicarOlt": os outros
 // chamados sem regiao da mesma OLT recebem a mesma regiao; quem gerencia as configuracoes tambem grava a OLT -> regiao,
 // para os proximos chamados dessa OLT ja chegarem com a regiao.
+// Varios chamados de uma vez na mesma regiao (selecao da fila Sem regiao). So mexe nos que ainda estao sem regiao.
+app.post('/api/chamados/regiao-lote', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ ids: z.array(z.string().trim().min(1).max(120)).min(1).max(500), region: z.string().trim().min(2).max(100) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Escolha os chamados e a regiao.' });
+  if (isMissingRegion(parsed.data.region)) return response.status(422).json({ message: 'Escolha uma regiao de verdade.' });
+  try {
+    let updated = 0;
+    for (const id of new Set(parsed.data.ids)) {
+      const existing = await getCall(id);
+      if (!existing || !isMissingRegion(existing.region)) continue;
+      if (await updateCall(existing.id, { region: parsed.data.region }, request.authUser!)) updated += 1;
+    }
+    return response.json({ updated });
+  } catch (error) { return response.status(422).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar as regioes.' }); }
+});
 app.post('/api/chamados/:id/regiao', auth, requirePermission('calls.edit'), async (request: AuthRequest, response) => {
   const parsed = z.object({ region: z.string().trim().min(2).max(100), aplicarOlt: z.boolean().optional() }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Escolha a regiao.' });
