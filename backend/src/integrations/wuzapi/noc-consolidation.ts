@@ -64,7 +64,8 @@ const defaultOltRegionMap: Record<string, string> = Object.freeze({
 const manualOltRegionMap = new Map<string, string>();
 
 function normalizeText(value: string | null | undefined) {
-  return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').replace(/\s*[,;/]\s*/g, ', ').trim();
+  // String(): um campo salvo como numero (resposta da IA) nao pode derrubar o registro do acionamento.
+  return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').replace(/\s*[,;/]\s*/g, ', ').trim();
 }
 
 export function normalizeOltCode(value: string | null | undefined) {

@@ -151,6 +151,30 @@ function parseJsonObject(value: string) {
   }
 }
 
+// A resposta da IA vem no formato que ela quiser: o Groq (19/11/2026) devolvia contrato/OS como numero e isso
+// quebrava o registro do acionamento ("normalize is not a function"). Aqui so passam os campos conhecidos, cada um
+// convertido para o tipo da analise por regras; o que nao der para converter fica com o valor das regras.
+const AI_LIST_FIELDS = new Set(['slot_pon', 'localizacao']);
+const AI_SKIPPED_FIELDS = new Set(['raw_text', 'clientes_afetados', 'regiao_ia', 'atreladas', 'atrelada', 'endereco_principal', 'bairro_principal', 'cep_principal']);
+export function sanitizeAiAnalysis(parsed: Record<string, unknown>, fallback: ActivationAnalysis): Partial<ActivationAnalysis> {
+  const text = (value: unknown) => (typeof value === 'string' ? value : typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (AI_SKIPPED_FIELDS.has(key) || !(key in fallback)) continue;
+    if (value === null || value === undefined) { out[key] = null; continue; }
+    if (key === 'eh_acionamento') { if (typeof value === 'boolean') out[key] = value; continue; }
+    if (key === 'afetados') { const number = typeof value === 'number' ? value : Number(text(value)); if (Number.isFinite(number)) out[key] = number; continue; }
+    if (AI_LIST_FIELDS.has(key)) {
+      const list = (Array.isArray(value) ? value : [value]).map(text).filter((item): item is string => Boolean(item && item.trim()));
+      out[key] = list.length ? list : null;
+      continue;
+    }
+    const converted = text(value);
+    if (converted !== undefined) out[key] = converted.trim() || null;
+  }
+  return out as Partial<ActivationAnalysis>;
+}
+
 export async function interpretWithGemini(message: WuzApiMessage, fallback: ActivationAnalysis): Promise<ActivationAnalysis> {
   if (!llmConfigured()) return fallback;
   const prompt = `Você é um parser de mensagens operacionais de telecom. Retorne SOMENTE JSON válido, sem markdown. Leia a mensagem inteira, não invente dados e use null quando um campo não existir. Preserve todos os endereços como uma lista. Não confunda data/hora com slot/PON, CEP com Office Track, contrato ou OS. Campos: eh_acionamento, tipo_registro, tipo_card, categoria, origem, prioridade, tecnico, auxiliar, telefone, bdesk, ticket, office_track, os_ot, os_casa_cliente, contrato, sn, olt, slot_pon (lista), placa_pon, tipo_falha, motivo, afetados (número), data_hora_evento, tratativa_realizada, localizacao (lista), id_cto, loc_cto, materiais_utilizados, tecnico_rede, cope_rede, observacoes. Mensagem:\n${message.message || ''}`;
@@ -161,7 +185,7 @@ export async function interpretWithGemini(message: WuzApiMessage, fallback: Acti
     if (!parsed || typeof parsed.eh_acionamento !== 'boolean') return fallback;
     // Endereco, bairro e clientes: valem os das regras quando elas leram (a IA geral as vezes devolvia pedaco do CEP
     // como bairro); a analise de endereco propria (address-ai.ts) cobre os casos em que as regras nao leram.
-    const merged = { ...fallback, ...parsed, raw_text: fallback.raw_text } as ActivationAnalysis;
+    const merged = { ...fallback, ...sanitizeAiAnalysis(parsed, fallback), raw_text: fallback.raw_text } as ActivationAnalysis;
     if (fallback.endereco_principal) merged.endereco_principal = fallback.endereco_principal;
     if (fallback.bairro_principal) merged.bairro_principal = fallback.bairro_principal;
     if (fallback.clientes_afetados?.length) merged.clientes_afetados = fallback.clientes_afetados;

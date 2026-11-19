@@ -3,7 +3,7 @@ import test from 'node:test';
 import XLSX from 'xlsx';
 import { parseImport } from '../src/imports/parser.js';
 import { extractOperationalData, parseIncomingMessage } from '../src/integrations/wuzapi/client.js';
-import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
+import { analyzeOperationalMessage, sanitizeAiAnalysis } from '../src/integrations/wuzapi/semantic.js';
 import { clearManualOltRegion, consolidateNocAddresses, identifyAtreladas, resolveOltRegion, setManualOltRegion } from '../src/integrations/wuzapi/noc-consolidation.js';
 import { listOltRegionMappings, saveOltRegionMappings } from '../src/store.js';
 
@@ -506,4 +506,19 @@ test('CSV keeps accented headers and Brazilian dates exactly as written', () => 
     assert.deepEqual(parsed.columns, ['Ordem de Serviço', 'Data', 'Fim', 'Endereço']);
     assert.deepEqual(parsed.rows, [{ 'Ordem de Serviço': 'RF-10', Data: '03/11/26', Fim: '14:30', Endereço: 'Rua São João, 10' }]);
   }
+});
+
+test('AI card answer with numbers does not break activation registration', () => {
+  const card = '⚠️ACIONAMENTO FIELD⚠️\n\nINFO CASA CLIENTE\n\n- TÉCNICO: JOAO TESTE\n\n- MOTIVO: CAIXA ATENUADA\n\n- O.S. CASA CLIENTE: 12719813\n\n- CONTRATO: 6953236\n\nINFO GERÊNCIA\n\n- OLT: VIP-ITA-SPO-OHW-01\n\n- PLACA/PON: SLOT: 6 PON: 12\n\nINFO REDE EXTERNA\n\n- AFETAÇÃO: 2\n\n- OS OT: 12721727';
+  const fallback = analyzeOperationalMessage({ text: card } as never);
+  const clean = sanitizeAiAnalysis({ eh_acionamento: true, contrato: 6953236, os_ot: 12721727, office_track: 12721727, slot_pon: [6, 12], afetados: '2', olt: { x: 1 }, inventado: 'x', raw_text: 'y' }, fallback);
+  assert.equal(clean.contrato, '6953236');
+  assert.equal(clean.os_ot, '12721727');
+  assert.deepEqual(clean.slot_pon, ['6', '12']);
+  assert.equal(clean.afetados, 2);
+  assert.equal('olt' in clean, false);
+  assert.equal('inventado' in clean, false);
+  assert.equal('raw_text' in clean, false);
+  const merged = { ...fallback, ...clean };
+  assert.doesNotThrow(() => identifyAtreladas(merged, [{ id: 'a', analysis: { ...merged, contrato: 6953236 as unknown as string } }]));
 });
