@@ -199,3 +199,35 @@ test('grupo-automacao: download que nao veio da aba do grupo e deixado em paz', 
   assert.equal(s.downloadDaExportacaoDoGrupo(http, captura, agora, [http.url]), false);
   assert.equal(s.podeSerDaCaptura(nosso, captura, agora), true);
 });
+
+test('grupo-automacao 1.13.1: frame removido e blob sem espiao', () => {
+  const { s } = carregar();
+  assert.equal(s.erroDeFrameSumiu('Frame with ID 0 was removed.'), true);
+  assert.equal(s.erroDeFrameSumiu('Cannot access a chrome:// URL'), false);
+  // Sem aba do OFS fora do grupo: o download so pode ser da automacao.
+  assert.equal(s.blobAceitavelSemEspiao([{ id: 1, groupId: 50 }], 50), true);
+  // OFS aberto em outra aba de quem usa: nao arrisca.
+  assert.equal(s.blobAceitavelSemEspiao([{ id: 1, groupId: 50 }, { id: 2, groupId: -1 }], 50), false);
+  assert.equal(s.blobAceitavelSemEspiao([], 50), false);
+  assert.equal(s.blobAceitavelSemEspiao([{ id: 1, groupId: 50 }], null), false);
+});
+
+test('grupo-automacao 1.13.1: sem nenhuma janela do Chrome, abre uma minimizada com o OFS e cria o grupo nela', async () => {
+  const { s, abas, log } = carregar();
+  const janelas: any[] = [];
+  s.chrome.windows = {
+    getLastFocused: async () => { throw new Error('No last-focused window'); },
+    getAll: async () => [],
+    create: async (props: { url: string; state: string; focused: boolean }) => {
+      janelas.push(props);
+      const aba = { id: 555, groupId: -1, pendingUrl: props.url, windowId: 33, status: 'loading' };
+      abas.push(aba);
+      return { id: 33, tabs: [{ ...aba }] };
+    },
+  };
+  const aba = await s.abaDoGrupo('ofs');
+  assert.equal(aba.id, 555);
+  assert.deepEqual(plain(janelas), [{ url: OFS, focused: false, state: 'minimized', type: 'normal' }]);
+  assert.equal(log.criadas.length, 0); // nao abriu outra aba alem da da janela nova
+  assert.equal(log.agrupadas[0].createProperties.windowId, 33);
+});

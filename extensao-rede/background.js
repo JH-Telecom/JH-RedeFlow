@@ -37,7 +37,10 @@ const OFS_ORIGEM = "https://alloha.fs.ocs.oraclecloud.com/";
 const FECH_POR_CICLO = 12; // atividades abertas por ciclo
 const FECH_ESPERA_MS = 60 * 60_000; // a mesma ordem so e tentada de novo depois de 1 h
 const FECH_ESPERA_ERRO_MS = 15 * 60_000; // depois de uma falha tecnica, tenta de novo em 15 min
-const JANELA_CAPTURA_MS = 90_000;
+// 1.13.1: 150 s (era 90 s). A aba do grupo fica recolhida, em segundo plano, e o Chrome a deixa mais lenta: de manha
+// cedo o OFS chegava a passar dos 90 s para gerar o arquivo.
+const JANELA_CAPTURA_MS = 150_000;
+const MSG_SEM_ARQUIVO = "O OFS não gerou o arquivo a tempo (2,5 min)";
 const LIMITE_AVISO_FALHAS = 3;
 const PADRAO = { token: "", intervaloMin: 60, horaDiaAnterior: "07:00", alocacaoId: "", ativo: true, fechamentoMin: 10, clusterMin: 60 };
 
@@ -351,7 +354,13 @@ async function blobsDaAbaDoGrupo(tabId) {
 chrome.downloads.onCreated.addListener(async (item) => {
   const { captura } = await chrome.storage.local.get("captura");
   if (!podeSerDaCaptura(item, captura, Date.now())) return; // nao fomos nos que pedimos: deixa o Chrome baixar normal
-  if (!downloadDaExportacaoDoGrupo(item, captura, Date.now(), await blobsDaAbaDoGrupo(captura.tabId))) return;
+  if (!downloadDaExportacaoDoGrupo(item, captura, Date.now(), await blobsDaAbaDoGrupo(captura.tabId))) {
+    // 1.13.1: a pagina recarregou e o espiao de blob se perdeu. Aceita assim mesmo se nenhuma aba do OFS fora do
+    // grupo existe (o arquivo so pode ser da aba da automacao); com o OFS aberto em outra aba, deixa baixar normal.
+    const { groupId } = await lerEstadoGrupo();
+    const abasOfs = await chrome.tabs.query({ url: OFS_ORIGEM + "*" }).catch(() => []);
+    if (!blobAceitavelSemEspiao(abasOfs, groupId)) return;
+  }
   await chrome.storage.local.remove("captura");
   // O blob baixa rapido: se o cancelamento chegar tarde, apaga o arquivo que a propria extensao pediu.
   chrome.downloads.cancel(item.id).catch(() => chrome.downloads.removeFile(item.id).catch(() => {}).then(() => chrome.downloads.erase({ id: item.id })).catch(() => {}));
@@ -373,8 +382,8 @@ async function conferirCapturaVencida() {
   const { captura } = await chrome.storage.local.get("captura");
   if (!captura || Date.now() <= captura.ate) return;
   await chrome.storage.local.remove("captura");
-  if (captura.balde) { await chrome.storage.local.set({ ultimoClusterEnvio: { ok: false, erro: "O OFS não gerou o arquivo a tempo (90 s)", balde: captura.balde, quando: Date.now() } }); return; }
-  await registrar({ ok: false, data: captura.data, automatico: captura.automatico, erro: "O OFS não gerou o arquivo a tempo (90 s)" });
+  if (captura.balde) { await chrome.storage.local.set({ ultimoClusterEnvio: { ok: false, erro: MSG_SEM_ARQUIVO, balde: captura.balde, quando: Date.now() } }); return; }
+  await registrar({ ok: false, data: captura.data, automatico: captura.automatico, erro: MSG_SEM_ARQUIVO });
   await voltarParaHoje(captura.tabId, captura.data);
 }
 

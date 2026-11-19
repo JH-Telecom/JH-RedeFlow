@@ -68,6 +68,21 @@ function downloadDaExportacaoDoGrupo(item, captura, agora, blobsDaAba) {
   return Array.isArray(blobsDaAba) && blobsDaAba.indexOf(String(item.url)) >= 0;
 }
 
+// 1.13.1: a pagina do OFS recarregou/navegou no meio de um executeScript ("Frame with ID 0 was removed"): vale
+// esperar a aba carregar e tentar de novo uma vez.
+function erroDeFrameSumiu(mensagem) {
+  return /Frame with ID \d+ was removed|No frame with id|frame was removed|Frame with ID \d+ is showing error page/i.test(String(mensagem || ""));
+}
+
+// 1.13.1: o OFS gerou o CSV mas o espiao de blob se perdeu (a pagina recarregou entre a preparacao e o export).
+// Ainda da para aceitar o download se nao existe nenhuma aba do OFS fora do grupo: entao ele so pode ter vindo
+// da aba da automacao. Com o OFS aberto em outra aba de quem usa, nao arrisca (pode ser um export manual).
+function blobAceitavelSemEspiao(abasOfs, groupId) {
+  if (groupId == null || groupId === -1) return false;
+  var lista = Array.isArray(abasOfs) ? abasOfs : [];
+  return lista.length > 0 && lista.every(function (a) { return a && a.groupId === groupId; });
+}
+
 // ---------- Chrome ----------
 
 async function lerEstadoGrupo() {
@@ -113,8 +128,20 @@ async function abaDoGrupoAgora(tipo) {
     }
   }
   // Abre a aba (sem fixar: aba fixada nao entra em grupo no Chrome) e poe no grupo, criando o grupo se preciso.
-  var windowId = grupo ? grupo.windowId : await janelaParaGrupo();
-  var nova = await chrome.tabs.create({ url: t.origem, active: false, pinned: false, windowId: windowId });
+  // 1.13.1: sem nenhuma janela do Chrome aberta (Chrome rodando so em segundo plano), abre uma janela minimizada ja
+  // com o site, em vez de falhar com "Nenhuma janela do Chrome aberta".
+  var windowId = null;
+  var nova = null;
+  if (grupo) windowId = grupo.windowId;
+  else {
+    try { windowId = await janelaParaGrupo(); }
+    catch (_) {
+      var janela = await chrome.windows.create({ url: t.origem, focused: false, state: "minimized", type: "normal" });
+      windowId = janela.id;
+      nova = janela.tabs && janela.tabs[0];
+    }
+  }
+  if (!nova) nova = await chrome.tabs.create({ url: t.origem, active: false, pinned: false, windowId: windowId });
   try {
     await chrome.tabs.update(nova.id, { autoDiscardable: false });
     if (grupo) {
@@ -150,10 +177,32 @@ async function garantirNoGrupo(tabId) {
   if (!(await abaNoGrupo(tabId))) throw new Error(MSG_FORA_DO_GRUPO);
 }
 
-// Todo executeScript da automacao passa por aqui: so roda em aba do grupo.
+// Espera a aba terminar de carregar (ate `ms`). Aba descartada pelo Chrome e recarregada.
+async function esperarAbaCarregada(tabId, ms) {
+  var fim = Date.now() + (ms || 20000);
+  while (Date.now() < fim) {
+    var aba = null;
+    try { aba = await chrome.tabs.get(tabId); } catch (_) { return false; }
+    if (aba.discarded) { try { await chrome.tabs.reload(tabId); } catch (_) { return false; } }
+    else if (aba.status === "complete") return true;
+    await new Promise(function (resolve) { setTimeout(resolve, 1000); });
+  }
+  return false;
+}
+
+// Todo executeScript da automacao passa por aqui: so roda em aba do grupo. 1.13.1: se a pagina recarregou no meio
+// ("Frame with ID 0 was removed"), espera carregar e tenta de novo uma vez.
 async function executarNoGrupo(detalhes) {
-  await garantirNoGrupo(detalhes && detalhes.target && detalhes.target.tabId);
-  return chrome.scripting.executeScript(detalhes);
+  var tabId = detalhes && detalhes.target && detalhes.target.tabId;
+  await garantirNoGrupo(tabId);
+  try {
+    return await chrome.scripting.executeScript(detalhes);
+  } catch (e) {
+    if (!erroDeFrameSumiu(e && e.message)) throw e;
+    await esperarAbaCarregada(tabId, 20000);
+    await garantirNoGrupo(tabId);
+    return chrome.scripting.executeScript(detalhes);
+  }
 }
 
 // AutoISP pronto na aba do grupo? "ok" | "login" | "timeout". Espera carregar; tela de senha ou fora do site = login.
