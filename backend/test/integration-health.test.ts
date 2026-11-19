@@ -38,7 +38,6 @@ test('health checks: fresh, late and failing parts of the OFS collection', () =>
   assert.equal(checks.export.status, 'ok');
   assert.equal(checks.closing.status, 'critical', 'ultimo ciclo certo ha mais de 3h');
   assert.match(checks.closing.detail, /aba fixada fora do Console/);
-  assert.equal(checks.cluster.status, 'unknown');
   assert.equal(checks.errors.status, 'warn');
   assert.equal(checks.stuck.status, 'ok');
   const recentFail = Object.fromEntries(healthChecks([event('export', 5, false, 'HTTP 500'), event('export', 20)], [], now).map((check) => [check.key, check]));

@@ -1,13 +1,13 @@
 // Grupo de abas proprio da automacao (1.12.0). Script classico carregado com importScripts() pelo background.js.
 // A extensao so automatiza dentro do grupo "Rede · automação" (recolhido, roxo): uma aba do OFS para exportar e
-// roteirizar, outra do OFS para fechamentos e clusters, e uma do AutoISP aberta so quando precisa. Nunca escolhe,
+// roteirizar, outra do OFS para fechamentos, e uma do AutoISP aberta so quando precisa. Nunca escolhe,
 // recarrega, navega ou injeta script numa aba fora do grupo: as abas do OFS e do AutoISP de quem usa ficam livres.
 // Se o grupo sumir (janela fechada, grupo desfeito), recria na proxima vez, na ultima janela normal focada.
 
 var GRUPO_TITULO = "Rede · automação";
 var GRUPO_COR = "purple";
 var GRUPO_CHAVE = "grupoAutomacao"; // chrome.storage.local: { groupId, abas: { ofs, fechamento, autoisp } }
-// "ofs": exportacao e roteirizador. "fechamento": fechamentos e clusters. "autoisp": leitura de SN.
+// "ofs": exportacao e roteirizador. "fechamento": fechamentos. "autoisp": leitura de SN.
 var GRUPO_TIPOS = {
   ofs: { origem: "https://alloha.fs.ocs.oraclecloud.com/", nome: "OFS" },
   fechamento: { origem: "https://alloha.fs.ocs.oraclecloud.com/", nome: "OFS" },

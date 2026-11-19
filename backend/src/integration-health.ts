@@ -74,12 +74,11 @@ function freshness(key: string, label: string, events: IntegrationEvent[], kinds
 // Eventos mais recentes primeiro. Coleta automatica roda de hora em hora (export e fechamentos) e os clusters a cada ciclo.
 export function healthChecks(events: IntegrationEvent[], stuck: StuckCall[], now = Date.now()): HealthCheck[] {
   const sorted = [...events].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
-  const recentFailures = sorted.filter((event) => !event.ok && ['export', 'cluster', 'closing', 'extension'].includes(event.kind) && minutesSince(event.createdAt, now) <= 360);
+  const recentFailures = sorted.filter((event) => !event.ok && ['export', 'closing', 'extension'].includes(event.kind) && minutesSince(event.createdAt, now) <= 360);
   const longStuck = stuck.filter((call) => !call.reasons.includes('pronto') && (call.waitingMinutes ?? 0) >= 120);
   return [
     freshness('export', 'Export do OFS (painel e Status OFS)', sorted, ['export'], 90, 180, now, 'envio'),
     freshness('closing', 'Leitura de fechamentos', sorted, ['closing'], 90, 180, now, 'ciclo'),
-    freshness('cluster', 'Clusters', sorted, ['cluster'], 180, 720, now, 'envio de cluster'),
     {
       key: 'errors', label: 'Falhas nas últimas 6 h',
       status: recentFailures.length === 0 ? 'ok' : recentFailures.length <= 3 ? 'warn' : 'critical',

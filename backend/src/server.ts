@@ -26,7 +26,6 @@ import { findHistoricalTechnician, normalizeHistoricalIdentifier, parseHistorica
 import { parseCurrentCallsWorkbook, type CurrentCallsCandidate } from './imports/current-calls.js';
 import { hasD0Identifiers } from './imports/d0.js';
 import { callsReadyToFinish, matchOfsClosing, pendingClosingOrders } from './imports/ofs-closing.js';
-import { applyClusterExport, assignClustersFromWorkzones } from './store/clusters.js';
 import { countRowsForDate, parseOfsActivityExport } from './imports/ofs-export.js';
 import { registerMissingHistoricalTechnicians } from './imports/historical-technicians.js';
 import { addDays, normalizeSaoPauloLocal, toOperationalDate } from './timezone.js';
@@ -1416,7 +1415,6 @@ app.post('/api/integrations/ofs/export', async (request, response) => {
     const base = await saveManualDailyBase(fileName, data, uploadedBy, businessDate);
     let d0: { rows: number; matchedCalls: number; updatedCalls: number; unmatchedRows: number } | undefined;
     let d0Error: string | undefined;
-    let clusteredCalls = 0;
     try {
       const d0File = parseImport(fileName, Buffer.from(parsed.data.csv, 'utf8').toString('base64'));
       if (d0File.errors.length) d0Error = d0File.errors.join(' ');
@@ -1425,42 +1423,19 @@ app.post('/api/integrations/ofs/export', async (request, response) => {
       // (Status OFS, Data Fim etc.), sem sobrescrever a D-0 de hoje.
       else {
         d0 = isToday ? await replaceD0Base(fileName, uploadedBy, d0File.rows) : await applyOfsRowsToCalls(d0File.rows, uploadedBy);
-        // Ordens ja atribuidas nao estao nos baldes de cluster: o cluster vem pela Workzone aprendida.
-        clusteredCalls = await assignClustersFromWorkzones(d0File.rows).catch(() => 0);
       }
     } catch (error) {
       d0Error = error instanceof Error ? error.message : 'Nao foi possivel atualizar a base D-0.';
     }
-    console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${businessDate}; chamados ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados, ${clusteredCalls} com cluster pela Workzone` : `nao atualizados (${d0Error})`}`);
+    console.log(`[Coletor OFS] ${uploadedBy}: ${data.records.length} atividades de rede no painel de ${businessDate}; chamados ${d0 ? `${d0.matchedCalls} cruzados, ${d0.updatedCalls} atualizados` : `nao atualizados (${d0Error})`}`);
     void recordIntegrationEvent('export', !d0Error, `${data.records.length} atividades de ${businessDate}; ${d0 ? `${d0.matchedCalls} chamados cruzados, ${d0.updatedCalls} atualizados` : `chamados não atualizados (${d0Error})`}`, { businessDate, by: uploadedBy, records: data.records.length, ...(d0 || {}), d0Error });
-    return response.json({ ok: true, painel: { businessDate: base.businessDate, records: data.records.length, technicians: data.technicians.length, orders: data.orders.length }, d0, d0Error, clusteredCalls });
+    return response.json({ ok: true, painel: { businessDate: base.businessDate, records: data.records.length, technicians: data.technicians.length, orders: data.orders.length }, d0, d0Error });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do OFS.';
     void recordIntegrationEvent('export', false, `Export recusado: ${message}`, { businessDate });
     return response.status(422).json({ message });
   } finally {
     ofsIngestRunning = false;
-  }
-});
-// Export de um balde de cluster (CLUSTER_C08, C09, C11, C12): marca o cluster das ordens que estao nele e aprende
-// Workzone -> cluster. Nao mexe no Painel diario nem na base D-0 (sao so as ordens daquele balde).
-app.post('/api/integrations/ofs/cluster', async (request, response) => {
-  const identity = await ofsCollectorIdentity(request);
-  if (!('label' in identity)) return response.status(identity.status).json({ message: identity.message });
-  const parsed = z.object({ csv: z.string().min(1).max(14_000_000), balde: z.string().trim().min(2).max(80), nome: z.string().trim().max(255).optional() }).safeParse(request.body);
-  if (!parsed.success) return response.status(400).json({ message: 'Envie o CSV e o nome do balde do cluster.' });
-  if (!normalizeCluster(parsed.data.balde)) return response.status(400).json({ message: `Balde sem cluster reconhecivel: ${parsed.data.balde}` });
-  try {
-    const file = parseImport(parsed.data.nome || `${parsed.data.balde}.csv`, Buffer.from(parsed.data.csv, 'utf8').toString('base64'));
-    if (file.errors.length) return response.status(422).json({ message: file.errors.join(' ') });
-    const result = await applyClusterExport(file.rows, parsed.data.balde);
-    console.log(`[Coletor OFS] ${identity.label || 'token'}: ${parsed.data.balde} ${result.rows} linhas, ${result.matchedCalls} chamados, ${result.updatedCalls} com cluster novo, ${result.learnedWorkzones} workzones`);
-    void recordIntegrationEvent('cluster', true, `${parsed.data.balde}: ${result.matchedCalls} chamados, ${result.updatedCalls} com cluster novo`, { balde: parsed.data.balde, ...result });
-    return response.json({ ok: true, cluster: normalizeCluster(parsed.data.balde), ...result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Nao foi possivel processar o CSV do cluster.';
-    void recordIntegrationEvent('cluster', false, `${parsed.data.balde}: ${message}`, { balde: parsed.data.balde });
-    return response.status(422).json({ message });
   }
 });
 // Fechamento do OFS (Motivo, Submotivo, Tipo do Cabo): nao vem no CSV. A extensao pergunta quais chamados ja

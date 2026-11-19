@@ -8,7 +8,7 @@ import { SkeletonCards } from "../components/Skeleton";
 import { readDataCache, writeDataCache } from "../lib/data-cache";
 import { usePeriodicLoad } from "../lib/screen-cache";
 
-// Integracao OFS: semaforo da coleta (export, fechamentos, clusters, falhas), fila dos chamados concluidos no OFS
+// Integracao OFS: semaforo da coleta (export, fechamentos, falhas), fila dos chamados concluidos no OFS
 // que nao finalizaram aqui (com o motivo) e o historico do que a extensao fez. Atualiza sozinho a cada minuto.
 
 const STATUS: Record<HealthStatus, { label: string; icon: typeof CheckCircle2 }> = {

@@ -16,7 +16,7 @@ numa aba fora do grupo.
 
 - No grupo ficam até 3 abas, abertas pela extensão em segundo plano quando precisa:
   - **OFS** para a exportação e o roteirizador;
-  - **OFS** para fechamentos e clusters (a antiga "aba fixada"; aba fixada não entra em grupo no Chrome, então agora
+  - **OFS** para fechamentos (a antiga "aba fixada"; aba fixada não entra em grupo no Chrome, então agora
     ela fica sem fixar, dentro do grupo);
   - **AutoISP**, só quando há SN para ler.
 - **Deixe o grupo quieto**: não feche nem tire abas dele. Se uma aba sair do grupo, a extensão para de usá-la e abre
