@@ -59,7 +59,7 @@ const UsersPage = lazyNamed(() => import("../pages/UsersPage"), "UsersPage");
 
 
 function navItemForPath(pathname: string) {
-  if (pathname === "/") return navItems[0];
+  if (pathname === "/") return navItems.find((item) => item.to === "/");
   // Prefixo mais longo vence (aba mais especifica).
   return navItems.filter((item) => item.to !== "/" && pathname.startsWith(item.to)).sort((a, b) => b.to.length - a.to.length)[0];
 }
