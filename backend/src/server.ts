@@ -7,7 +7,7 @@ import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { activationKeys, findDuplicateCall } from './activation-dedupe.js';
+import { activationKeys, findDuplicateCall, isClosingReport } from './activation-dedupe.js';
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, searchObservations, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
@@ -67,7 +67,7 @@ import { normalizeOltCode, resolveOltRegion } from './integrations/wuzapi/noc-co
 import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing, suggestRegion } from './missing-region.js';
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
 import { isNightWindow, nightStartIso, nightSummary, pickNightOrders, singleNightTechnician } from './night-router.js';
-import { sweepNightActivations } from './night-auto-accept.js';
+import { nightRouterActor, sweepNightActivations } from './night-auto-accept.js';
 import { addPopKey, deletePopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
@@ -2247,7 +2247,21 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const legacyData = extractOperationalData(operationalText);
   // Ja existe chamado (nao cancelado) com a mesma OS: nao aciona de novo (nem o informativo). BDESK nao conta.
   const allCalls = await listCalls();
-  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber] }), allCalls);
+  // Relatorio de encerramento do tecnico (CAUSA DA FALHA, TRATATIVA REALIZADA...): nao e acionamento. Vai para as notas
+  // do chamado do mesmo BDESK (19/11/2026: um relatorio desses foi aceito e virou chamado repetido).
+  if (isClosingReport(operationalText)) {
+    const target = findDuplicateCall(activationKeys({ orders: [], bdesks: [analysis.bdesk, legacyData.bdesk] }), allCalls);
+    if (target) {
+      const stamp = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date());
+      await updateCall(target.id, { notes: `${target.notes || ''}
+
+Relatório de encerramento recebido no grupo (${stamp}):
+${operationalText.trim().slice(0, 2000)}` }, nightRouterActor('relatório do grupo')).catch((error) => console.warn(`[WuzAPI] nao consegui anotar o relatorio no chamado ${target.orderNumber}: ${error instanceof Error ? error.message : error}`));
+    }
+    groupLog(`ignorada, e relatorio de encerramento${target ? ` (anotado no chamado ${target.orderNumber})` : ' (sem chamado com esse BDESK)'}`);
+    return response.status(202).json({ status: 'ignored', reason: 'Relatorio de encerramento do tecnico.', callId: target?.id ?? null });
+  }
+  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber], bdesks: [analysis.bdesk, legacyData.bdesk] }), allCalls);
   if (duplicate) { groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS`); return response.status(202).json({ status: 'ignored', reason: 'Ja existe chamado com a mesma OS.', callId: duplicate.id }); }
   // Endereco pela IA (18/11/2026): OLT sem regiao ou bairro/endereco mal lidos -> a IA le os enderecos dos clientes.
   analysis = await improveAddressWithAi(analysis, allCalls).catch(() => analysis);

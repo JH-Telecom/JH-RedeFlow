@@ -731,12 +731,17 @@ export async function decideSupabaseActivation(id: string, decision: 'Aceito' | 
     // So pela OS: mesmo BDESK pode ser outro chamado.
     let existingRow = null as Record<string, any> | null;
     const safe = (value: string) => /^[A-Za-z0-9-]+$/.test(value);
-    const lookups = !orderNumber.startsWith('PEND-') && safe(orderNumber) ? [`order_number.eq.${orderNumber}`, `office_track.eq.${orderNumber}`] : [];
+    // 19/11/2026: card sem OS (a "ordem" e o BDESK): procura pelo BDESK (ex.: relatorio do tecnico aceito por engano).
+    const hasOs = Boolean(structured.office_track || structured.os_ot || value('officeTrack') || value('orderNumber'));
+    const bdeskValue = String(structured.bdesk || value('bdesk') || '').trim();
+    const lookups = hasOs
+      ? (!orderNumber.startsWith('PEND-') && safe(orderNumber) ? [`order_number.eq.${orderNumber}`, `office_track.eq.${orderNumber}`] : [])
+      : (bdeskValue && safe(bdeskValue) ? [`bdesk.eq.${bdeskValue}`] : []);
     if (lookups.length) {
       const { data: found, error: findError } = await admin.from('calls').select(callColumns).neq('status', 'Cancelado').or(lookups.join(',')).order('created_at', { ascending: true }).limit(20);
       if (findError) throw new Error(findError.message);
-      const candidates = (found || []).map((item) => ({ row: item, id: String(item.id), status: item.status as CallStatus, orderNumber: item.order_number || '', officeTrack: item.office_track || '' }));
-      existingRow = findDuplicateCall(activationKeys({ orders: [orderNumber, callInput.office_track] }), candidates)?.row || null;
+      const candidates = (found || []).map((item) => ({ row: item, id: String(item.id), status: item.status as CallStatus, orderNumber: item.order_number || '', officeTrack: item.office_track || '', bdesk: item.bdesk || '' }));
+      existingRow = findDuplicateCall(hasOs ? activationKeys({ orders: [orderNumber, callInput.office_track] }) : activationKeys({ orders: [], bdesks: [bdeskValue] }), candidates)?.row || null;
     }
     const { data: callRow, error: callError } = existingRow ? { data: existingRow, error: null } : await admin.from('calls').insert(callInput).select(callColumns).single();
     if (callError || !callRow) throw new Error(callError?.message || 'Nao foi possivel criar o chamado.');
