@@ -887,6 +887,12 @@
     background: #f3e8ff;
     color: #6b21a8
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .manual-card-hint {
+    color: var(--muted)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .manual-card-label {
+    color: var(--ink)
+}
 /* light · activation-overrides.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .ra-search {
     border: 1px solid #e0e2f4;
@@ -6464,6 +6470,12 @@
 :where(:root[data-palette="neon"][data-theme="dark"]) .activation-atrelada-badge {
     background: #1d1029;
     color: #cd9cff
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .manual-card-hint {
+    color: var(--muted)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .manual-card-label {
+    color: var(--ink)
 }
 /* dark · activation-overrides.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .ra-search {

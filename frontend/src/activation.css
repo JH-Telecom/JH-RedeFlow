@@ -6,3 +6,10 @@
 .activation-row.is-atrelada .activation-icon{background:#f3e8ff;color:#7e22ce}
 .activation-row.is-atrelada .activation-main span{color:#5b4570}
 .activation-atrelada-badge{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#f3e8ff;color:#6b21a8;font-size:11px;font-style:normal;font-weight:700;vertical-align:middle}
+/* Colar card (ManualCardDialog) */
+.manual-card{display:grid;gap:10px}
+.manual-card-hint{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+.manual-card-label{font-size:12px;font-weight:700;color:var(--ink)}
+.admin-form .manual-card-text{min-height:260px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.45}
+.manual-card-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:4px}
+.manual-card-actions .primary-button{display:inline-flex;align-items:center;gap:6px}

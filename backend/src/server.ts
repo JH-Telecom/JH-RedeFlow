@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { activationKeys, findDuplicateCall, isClosingReport } from './activation-dedupe.js';
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, searchObservations, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
-import { extractOperationalData, parseIncomingMessage } from './integrations/wuzapi/client.js';
+import { extractOperationalData, parseIncomingMessage, type WuzApiMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
@@ -2204,6 +2204,52 @@ app.get('/api/integrations/wuzapi/grupos', auth, requirePermission('settings.man
   filterDisabled: skipWuzapiGroupFilter,
   groups: [...wuzapiGroupSightings.values()].sort((left, right) => right.activationLike - left.activationLike || right.messages - left.messages),
 }));
+// Analisa um card e registra o acionamento (pendente). Usado pelo webhook do WuzAPI e pelo "Colar card" da tela de
+// Acionamentos (22/11/2026: o WhatsApp do WuzAPI desconectou e os cards nao chegaram; o mesario cola o card na mao).
+// Mesmas regras nos dois: relatorio de encerramento vai para as notas, OS repetida nao aciona, IA de endereco, atreladas.
+type ActivationResult = { status: number; body: Record<string, unknown> };
+const activationResult = (status: number, body: Record<string, unknown>): ActivationResult => ({ status, body });
+async function processActivationMessage(message: WuzApiMessage, groupLog: (decision: string) => void): Promise<ActivationResult> {
+  const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
+  const fallbackAnalysis = analyzeOperationalMessage(analysisMessage);
+  if (!fallbackAnalysis.eh_acionamento) { groupLog(`ignorada, sem sinais de acionamento: "${(analysisMessage.message || '').replace(/\s+/g, ' ').slice(0, 80)}"`); return activationResult(202, { status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' }); }
+  let analysis = await interpretWithGemini(analysisMessage, fallbackAnalysis);
+  if (!analysis.eh_acionamento) { groupLog('ignorada pela analise (Gemini)'); return activationResult(202, { status: 'ignored', reason: 'Mensagem classificada como nao operacional.' }); }
+  const operationalText = analysisMessage.message || '';
+  const legacyData = extractOperationalData(operationalText);
+  // Ja existe chamado (nao cancelado) com a mesma OS: nao aciona de novo (nem o informativo). BDESK nao conta.
+  const allCalls = await listCalls();
+  // Relatorio de encerramento do tecnico (CAUSA DA FALHA, TRATATIVA REALIZADA...): nao e acionamento. Vai para as notas
+  // do chamado do mesmo BDESK (19/11/2026: um relatorio desses foi aceito e virou chamado repetido).
+  if (isClosingReport(operationalText)) {
+    const target = findDuplicateCall(activationKeys({ orders: [], bdesks: [analysis.bdesk, legacyData.bdesk] }), allCalls);
+    if (target) {
+      const stamp = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date());
+      await updateCall(target.id, { notes: `${target.notes || ''}
+
+Relatório de encerramento recebido no grupo (${stamp}):
+${operationalText.trim().slice(0, 2000)}` }, nightRouterActor('relatório do grupo')).catch((error) => console.warn(`[WuzAPI] nao consegui anotar o relatorio no chamado ${target.orderNumber}: ${error instanceof Error ? error.message : error}`));
+    }
+    groupLog(`ignorada, e relatorio de encerramento${target ? ` (anotado no chamado ${target.orderNumber})` : ' (sem chamado com esse BDESK)'}`);
+    return activationResult(202, { status: 'ignored', reason: 'Relatorio de encerramento do tecnico.', callId: target?.id ?? null });
+  }
+  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber], bdesks: [analysis.bdesk, legacyData.bdesk] }), allCalls);
+  if (duplicate) { groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS`); return activationResult(202, { status: 'ignored', reason: 'Ja existe chamado com a mesma OS.', callId: duplicate.id }); }
+  // Endereco pela IA (18/11/2026): OLT sem regiao ou bairro/endereco mal lidos -> a IA le os enderecos dos clientes.
+  analysis = await improveAddressWithAi(analysis, allCalls).catch(() => analysis);
+  try {
+    const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
+    groupLog(`acionamento registrado ${activation.id} (${analysis.tipo_card || 'sem tipo'}, BDESK ${analysis.bdesk || '-'})`);
+    void sendOltNotice(activation.id, withCardFallback(analysis, legacyData), operationalText);
+    if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
+    // Madrugada (22h-06h) com o roteirizador ligado e fora do modo teste: aceita ja, sem esperar a extensao.
+    if (isNightWindow()) void getNightRouterSettings().then((settings) => sweepNightActivations(settings)).catch((error) => console.warn(`[Roteirizador] aceite automatico falhou: ${error instanceof Error ? error.message : error}`));
+    return activationResult(202, { activationId: activation.id, status: activation.status });
+  } catch (error) {
+    console.error('[WuzAPI] falha ao registrar acionamento:', error);
+    return activationResult(500, { message: error instanceof Error ? error.message : 'Nao foi possivel registrar o acionamento.' });
+  }
+}
 app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   const body = normalizeWuzApiBody(request);
   if (wuzapiDebug) console.log('[WuzAPI] JSON recebido:', JSON.stringify(redactWuzApiPayload(request, body), null, 2));
@@ -2238,45 +2284,8 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
   if (!message.message?.trim() && !message.quotedMessage?.trim()) { groupLog('ignorada, sem texto'); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' }); }
   // Informativo de acionamento (mandado pelo proprio sistema ou pela planilha) nao e card novo.
   if (isOltNoticeMessage(message.message)) { groupLog('ignorada, e informativo de acionamento'); return response.status(202).json({ status: 'ignored', reason: 'Informativo de acionamento.' }); }
-  const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
-  const fallbackAnalysis = analyzeOperationalMessage(analysisMessage);
-  if (!fallbackAnalysis.eh_acionamento) { groupLog(`ignorada, sem sinais de acionamento: "${(analysisMessage.message || '').replace(/\s+/g, ' ').slice(0, 80)}"`); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' }); }
-  let analysis = await interpretWithGemini(analysisMessage, fallbackAnalysis);
-  if (!analysis.eh_acionamento) { groupLog('ignorada pela analise (Gemini)'); return response.status(202).json({ status: 'ignored', reason: 'Mensagem classificada como nao operacional.' }); }
-  const operationalText = analysisMessage.message || '';
-  const legacyData = extractOperationalData(operationalText);
-  // Ja existe chamado (nao cancelado) com a mesma OS: nao aciona de novo (nem o informativo). BDESK nao conta.
-  const allCalls = await listCalls();
-  // Relatorio de encerramento do tecnico (CAUSA DA FALHA, TRATATIVA REALIZADA...): nao e acionamento. Vai para as notas
-  // do chamado do mesmo BDESK (19/11/2026: um relatorio desses foi aceito e virou chamado repetido).
-  if (isClosingReport(operationalText)) {
-    const target = findDuplicateCall(activationKeys({ orders: [], bdesks: [analysis.bdesk, legacyData.bdesk] }), allCalls);
-    if (target) {
-      const stamp = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date());
-      await updateCall(target.id, { notes: `${target.notes || ''}
-
-Relatório de encerramento recebido no grupo (${stamp}):
-${operationalText.trim().slice(0, 2000)}` }, nightRouterActor('relatório do grupo')).catch((error) => console.warn(`[WuzAPI] nao consegui anotar o relatorio no chamado ${target.orderNumber}: ${error instanceof Error ? error.message : error}`));
-    }
-    groupLog(`ignorada, e relatorio de encerramento${target ? ` (anotado no chamado ${target.orderNumber})` : ' (sem chamado com esse BDESK)'}`);
-    return response.status(202).json({ status: 'ignored', reason: 'Relatorio de encerramento do tecnico.', callId: target?.id ?? null });
-  }
-  const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber], bdesks: [analysis.bdesk, legacyData.bdesk] }), allCalls);
-  if (duplicate) { groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS`); return response.status(202).json({ status: 'ignored', reason: 'Ja existe chamado com a mesma OS.', callId: duplicate.id }); }
-  // Endereco pela IA (18/11/2026): OLT sem regiao ou bairro/endereco mal lidos -> a IA le os enderecos dos clientes.
-  analysis = await improveAddressWithAi(analysis, allCalls).catch(() => analysis);
-  try {
-    const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
-    groupLog(`acionamento registrado ${activation.id} (${analysis.tipo_card || 'sem tipo'}, BDESK ${analysis.bdesk || '-'})`);
-    void sendOltNotice(activation.id, withCardFallback(analysis, legacyData), operationalText);
-    if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
-    // Madrugada (22h-06h) com o roteirizador ligado e fora do modo teste: aceita ja, sem esperar a extensao.
-    if (isNightWindow()) void getNightRouterSettings().then((settings) => sweepNightActivations(settings)).catch((error) => console.warn(`[Roteirizador] aceite automatico falhou: ${error instanceof Error ? error.message : error}`));
-    return response.status(202).json({ activationId: activation.id, status: activation.status });
-  } catch (error) {
-    console.error('[WuzAPI] falha ao registrar acionamento:', error);
-    return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel registrar o acionamento.' });
-  }
+  const result = await processActivationMessage(message, groupLog);
+  return response.status(result.status).json(result.body);
 });
 app.get('/api/acionamentos', auth, requirePermission('activations.view'), async (request, response) => {
   const status = request.query.status as 'Pendente' | 'Aceito' | 'Recusado' | undefined;
@@ -2287,6 +2296,22 @@ app.get('/api/acionamentos', auth, requirePermission('activations.view'), async 
     return response.json({ activations: list.map((item) => ({ ...item, decisionByName: item.decisionBy ? names.get(item.decisionBy) || null : null })) });
   }
   return response.json({ activations: await listActivations(status) });
+});
+// "Colar card": o mesario cola um card que nao chegou pelo WhatsApp. Passa pelas mesmas regras do webhook e fica
+// pendente como os outros. A origem e a mesma do ultimo acionamento recebido (o grupo), para a checagem de repetido valer.
+app.post('/api/acionamentos/manual', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ text: z.string().trim().min(20).max(20_000) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Cole o texto completo do card.' });
+  const latest = await listActivations(undefined, 1).catch(() => []);
+  const source = latest[0]?.source || activationGroupIds[0] || 'manual';
+  const actor = request.authUser!;
+  const groupLog = (decision: string) => console.log(`[Colar card] ${actor.name}: ${decision}`);
+  try {
+    const result = await processActivationMessage({ id: undefined, message: parsed.data.text, source, isGroup: true, chatId: source }, groupLog);
+    return response.status(result.status).json(result.body);
+  } catch (error) {
+    return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel registrar o card.' });
+  }
 });
 app.post('/api/acionamentos/:id/reaceitar', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
   try {

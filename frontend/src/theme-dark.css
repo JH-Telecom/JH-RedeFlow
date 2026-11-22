@@ -899,6 +899,12 @@
     background: #1d1029;
     color: #cd9cff
 }
+:where(:root[data-theme="dark"]) .manual-card-hint {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .manual-card-label {
+    color: var(--ink)
+}
 
 /* activation-overrides.css */
 :where(:root[data-theme="dark"]) .ra-search {

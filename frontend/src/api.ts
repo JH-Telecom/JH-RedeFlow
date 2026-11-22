@@ -366,6 +366,7 @@ export const api = {
   activations: (status?: Activation['status']) => request<{ activations: Activation[] }>(`/api/acionamentos${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   acceptActivation: (id: string) => requestCallMutation<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
   reacceptActivation: (id: string) => requestCallMutation<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/reaceitar`, { method: 'POST' }),
+  manualActivation: (text: string) => request<{ status: string; activationId?: string; reason?: string; callId?: string | null }>('/api/acionamentos/manual', { method: 'POST', body: JSON.stringify({ text }) }),
   rejectActivation: (id: string, reason: string) => request<{ activation: Activation }>(`/api/acionamentos/${id}/recusar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   imports: () => request<{ imports: ImportRecord[] }>('/api/importacoes'),
   d0Base: () => request<{ base: D0BaseSummary }>('/api/importacoes/d0'),

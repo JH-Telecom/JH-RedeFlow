@@ -518,6 +518,12 @@
 :where(:root:not([data-theme="dark"])) .activation-atrelada-badge {
     color: #6b21a8
 }
+:where(:root:not([data-theme="dark"])) .manual-card-hint {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .manual-card-label {
+    color: var(--ink)
+}
 
 /* activation-overrides.css */
 :where(:root:not([data-theme="dark"])) .ra-search {
