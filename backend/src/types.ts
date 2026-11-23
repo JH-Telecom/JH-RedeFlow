@@ -211,6 +211,8 @@ export type Activation = {
   decisionAt?: string;
   createdCallId?: string;
   rejectionReason?: string;
+  // O card ja estava no sistema (mesmo texto ou mesma OS pendente/aceita): nao foi criado de novo.
+  duplicate?: boolean;
 };
 
 export type ImportStatus = 'Previsualizada' | 'Confirmada' | 'Falhou';

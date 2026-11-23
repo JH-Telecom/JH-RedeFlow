@@ -19,6 +19,8 @@ const STATUS: Record<HealthStatus, { label: string; icon: typeof CheckCircle2 }>
 };
 const KIND_LABEL: Record<string, string> = { export: "Export", closing: "Fechamentos", cluster: "Clusters", extension: "Extensão", sla_alert: "Aviso de prazo", db_alert: "Tráfego do banco", daily_report: "Resumo diário", integration_alert: "Coleta parada", escalation: "Escalonamento", daily_reset: "Limpeza diária", olt_notice: "Informativo Casa Cliente", update_image: "Imagem de atualização", weekly_igp: "IGP semanal", night_router: "Roteirizador" };
 const spDateTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–");
+// Versao a.b.c menor que a atual (extensao desatualizada naquele computador).
+const isOlder = (version: string, latest: string) => { const a = version.split(".").map(Number); const b = latest.split(".").map(Number); for (let i = 0; i < Math.max(a.length, b.length); i += 1) { const d = (a[i] || 0) - (b[i] || 0); if (d) return d < 0; } return false; };
 const waiting = (minutes: number | null) => (minutes === null ? "–" : minutes < 60 ? `${minutes} min` : minutes < 2880 ? `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}` : `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`);
 
 export function IntegrationHealthPage() {
@@ -139,6 +141,16 @@ export function IntegrationHealthPage() {
             <p className="ih-hint">Sem técnico: atribua no chamado. Ordem em mais de um chamado: cancele o repetido. Fechamento não lido ou em código: a extensão lê de novo no próximo ciclo; se continuar, confira a atividade no OFS. "Pronto" finaliza sozinho no próximo ciclo da extensão.</p>
           </>}
         </Panel>
+
+        {data.extensions && data.extensions.machines.length > 0 && <Panel kicker="EXTENSÃO" title="Versão em cada computador" aside={<span className="sa-aside">{data.extensions.latest ? `atual: ${data.extensions.latest}` : ""}</span>}>
+          <ul className="ih-versions">
+            {data.extensions.machines.map((machine) => {
+              const old = data.extensions!.latest ? isOlder(machine.version, data.extensions!.latest) : false;
+              return <li key={machine.by} className={old ? "is-old" : ""}><b>{machine.by}</b><span>{machine.version}{old ? " · desatualizada: reinstale a extensão neste computador" : ""}</span><time>{spDateTime(machine.lastAt)}</time></li>;
+            })}
+          </ul>
+          <p className="ih-versions-note">Pelos registros das últimas 72 h. Computador com versão antiga pode mandar dados que o sistema não usa mais.</p>
+        </Panel>}
 
         <Panel kicker="HISTÓRICO" title="O que a coleta fez (últimas 72 h)" aside={<span className="sa-aside">{data.events.length} registro(s)</span>}>
           {!data.events.length ? <div className="dv-empty">Nada registrado ainda. Os registros começam no próximo ciclo da extensão (v1.3.4 manda também os erros do navegador).</div> : (

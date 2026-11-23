@@ -11,7 +11,7 @@ import { activationKeys, findDuplicateCall, isClosingReport } from './activation
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, searchObservations, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage, type WuzApiMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
-import { calculateIgpMetrics, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
+import { calculateIgpMetrics, calculateIgpMetricsWhere, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
@@ -42,7 +42,7 @@ import { buildExtensionZip, extensionInfo } from './extension-package.js';
 import { latestObservations } from './store/observations.js';
 import { createPublicViewToken, extractAllSlotPons, extractNoticeAddresses, isNoticeOlt, isOltNoticeMessage, OLT_NOTICE_DEFAULT_CHAT, OLT_NOTICE_TEST_CHAT, publicViewExpired, readPublicViewToken } from './olt-notice.js';
 import { dueSoonCalls } from './due-soon.js';
-import { healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
+import { extensionVersions, healthChecks, STUCK_REASON_LABEL, stuckOfsCalls } from './integration-health.js';
 import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsappAlertText } from './sla-alerts.js';
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
 import { sendWhatsAppImage, sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
@@ -68,6 +68,9 @@ import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing, sugg
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
 import { isNightWindow, nightStartIso, nightSummary, pickNightOrders, singleNightTechnician } from './night-router.js';
 import { nightRouterActor, sweepNightActivations } from './night-auto-accept.js';
+import { cardPreview, summarizeCards } from './activation-summary.js';
+import { activationMessages, callOrigin, recentCardFacts } from './store/activations.js';
+import { cardsToRetry, noteGroupMessage, silenceBackText, silenceText, whatsappSilence } from './activation-watch.js';
 import { addPopKey, deletePopKey, getPopKeyPhoto, listPopKeyMovements, listPopKeys, returnPopKey, takePopKey } from './store/pop-keys.js';
 
 const app = express();
@@ -623,6 +626,19 @@ app.get('/api/relatorios/fora-do-prazo', auth, requirePermission('dashboard.view
     return response.json({ calls: lateFinishedCalls(calls, parsed.data.from, parsed.data.to, parsed.data.area) });
   } catch (error) {
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel gerar o relatorio.' });
+  }
+});
+// Previa do IGP de hoje (23/11/2026): as ordens finalizadas hoje, com as mesmas regras do IGP do mes.
+app.get('/api/dashboards/igp-hoje', auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
+  const parsedArea = z.enum(['ALL', 'SP', 'GRU', 'ALTO_TIETE', 'ABC']).safeParse(request.query.area ?? 'ALL');
+  if (!parsedArea.success) return response.status(400).json({ message: 'Regiao invalida.' });
+  const today = toOperationalDate();
+  try {
+    const scopedQuery = await getScopedCallQuery(request, true);
+    const calls = await listCalls('Finalizado', { ...scopedQuery, from: today, to: today });
+    return response.json({ date: today, total: calculateIgpMetricsWhere(calls, today, parsedArea.data, (date) => date === today).total });
+  } catch (error) {
+    return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular o IGP de hoje.' });
   }
 });
 app.get('/api/dashboards/igp', auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
@@ -1342,6 +1358,10 @@ app.get('/api/auditoria', auth, requirePermission('calls.view_logs'), async (req
     return response.json({ ...result, page, pageSize, totalPages: Math.max(1, Math.ceil(result.total / pageSize)), truncated: false });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o historico.' }); }
 });
+app.get('/api/chamados/:id/origem', auth, requirePermission('calls.view'), async (request, response) => {
+  try { return response.json({ origin: await callOrigin(String(request.params.id)) }); }
+  catch { return response.json({ origin: null }); }
+});
 app.get('/api/chamados/:id/logs', auth, requirePermission('calls.view_logs'), async (request, response) => response.json({ logs: await listAuditLogs(String(request.params.id)) }));
 // Coletor OFS (extensao do Chrome): recebe o mesmo CSV que a pessoa subiria no Painel diario e faz os dois passos do
 // envio manual — salva o painel do dia e atualiza a base D-0/Status OFS dos chamados. Autenticado por token de maquina.
@@ -1780,6 +1800,7 @@ app.get('/api/integracoes/saude', auth, requirePermission('imports.view'), async
       stuck,
       reasonLabels: STUCK_REASON_LABEL,
       events: events.filter((event) => ['export', 'cluster', 'closing', 'extension', 'integration_alert', 'daily_report', 'db_alert'].includes(event.kind)).slice(0, 60),
+      extensions: { latest: extensionInfo()?.version ?? null, machines: extensionVersions(events) },
       d0: d0 ? { fileName: d0.fileName, rowCount: d0.rowCount, uploadedAt: d0.uploadedAt, uploadedBy: d0.uploadedBy } : null,
       whatsapp: { configured: Boolean(whatsapp), chat: whatsapp ? maskChat(whatsapp.chat) : null, alerts: events.filter((event) => event.kind === 'sla_alert').slice(0, 10) },
     });
@@ -2116,7 +2137,8 @@ async function runIntegrationWatch() {
   if (!config || outageRunning) return;
   outageRunning = true;
   try {
-    const events = await listIntegrationEvents(48);
+    // So o ultimo envio certo, o ultimo envio (certo ou nao) e os avisos ja mandados (antes: todos os eventos de 48 h).
+    const events = (await Promise.all([listIntegrationEvents(48, ['export', 'closing'], { limit: 1, okOnly: true }), listIntegrationEvents(48, ['export', 'closing'], { limit: 1 }), listIntegrationEvents(48, ['integration_alert'])])).flat();
     const outage = integrationOutage(events);
     if (!outage.known) return;
     const lastAlert = events.filter((event) => event.kind === 'integration_alert' && event.ok).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
@@ -2209,7 +2231,18 @@ app.get('/api/integrations/wuzapi/grupos', auth, requirePermission('settings.man
 // Mesmas regras nos dois: relatorio de encerramento vai para as notas, OS repetida nao aciona, IA de endereco, atreladas.
 type ActivationResult = { status: number; body: Record<string, unknown> };
 const activationResult = (status: number, body: Record<string, unknown>): ActivationResult => ({ status, body });
-async function processActivationMessage(message: WuzApiMessage, groupLog: (decision: string) => void): Promise<ActivationResult> {
+// Falha inesperada ao registrar: guarda o texto do card (evento activation_failed) para a nova tentativa automatica.
+async function processActivationMessage(message: WuzApiMessage, groupLog: (decision: string) => void, options: { retry?: boolean } = {}): Promise<ActivationResult> {
+  try {
+    return await processActivationMessageInner(message, groupLog);
+  } catch (error) {
+    const text = (message.message?.trim() || message.quotedMessage?.trim() || '').slice(0, 20_000);
+    const reason = error instanceof Error ? error.message : String(error);
+    if (!options.retry && text) await recordIntegrationEvent('activation_failed', false, `Card nao gravado: ${reason}`.slice(0, 300), { text, source: message.source || 'wuzapi', error: reason.slice(0, 500) }).catch(() => undefined);
+    return activationResult(500, { message: reason || 'Nao foi possivel registrar o acionamento.' });
+  }
+}
+async function processActivationMessageInner(message: WuzApiMessage, groupLog: (decision: string) => void): Promise<ActivationResult> {
   const analysisMessage = message.message?.trim() && analyzeOperationalMessage(message).eh_acionamento ? message : { ...message, message: message.quotedMessage };
   const fallbackAnalysis = analyzeOperationalMessage(analysisMessage);
   if (!fallbackAnalysis.eh_acionamento) { groupLog(`ignorada, sem sinais de acionamento: "${(analysisMessage.message || '').replace(/\s+/g, ' ').slice(0, 80)}"`); return activationResult(202, { status: 'ignored', reason: 'Mensagem sem sinais de acionamento.' }); }
@@ -2230,15 +2263,22 @@ async function processActivationMessage(message: WuzApiMessage, groupLog: (decis
 Relatório de encerramento recebido no grupo (${stamp}):
 ${operationalText.trim().slice(0, 2000)}` }, nightRouterActor('relatório do grupo')).catch((error) => console.warn(`[WuzAPI] nao consegui anotar o relatorio no chamado ${target.orderNumber}: ${error instanceof Error ? error.message : error}`));
     }
+    void recordIntegrationEvent('card_blocked', true, 'Relatorio de encerramento', { reason: 'closing_report', callId: target?.id ?? null }).catch(() => undefined);
     groupLog(`ignorada, e relatorio de encerramento${target ? ` (anotado no chamado ${target.orderNumber})` : ' (sem chamado com esse BDESK)'}`);
     return activationResult(202, { status: 'ignored', reason: 'Relatorio de encerramento do tecnico.', callId: target?.id ?? null });
   }
   const duplicate = findDuplicateCall(activationKeys({ orders: [analysis.office_track, analysis.os_ot, legacyData.officeTrack, legacyData.orderNumber], bdesks: [analysis.bdesk, legacyData.bdesk] }), allCalls);
-  if (duplicate) { groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS`); return activationResult(202, { status: 'ignored', reason: 'Ja existe chamado com a mesma OS.', callId: duplicate.id }); }
+  if (duplicate) { void recordIntegrationEvent('card_blocked', true, `OS ja tem o chamado ${duplicate.orderNumber}`, { reason: 'same_call', callId: duplicate.id }).catch(() => undefined); groupLog(`ignorada, ja existe o chamado ${duplicate.orderNumber} (${duplicate.status}) com a mesma OS`); return activationResult(202, { status: 'ignored', reason: 'Ja existe chamado com a mesma OS.', callId: duplicate.id, orderNumber: duplicate.orderNumber, callStatus: duplicate.status }); }
   // Endereco pela IA (18/11/2026): OLT sem regiao ou bairro/endereco mal lidos -> a IA le os enderecos dos clientes.
   analysis = await improveAddressWithAi(analysis, allCalls).catch(() => analysis);
   try {
     const activation = await receiveActivation({ source: message.source || 'wuzapi', originalMessage: operationalText, extractedData: legacyData, analysis });
+    if (activation.duplicate) {
+      // Card repetido (reenviado no grupo ou colado de novo): nao manda o informativo outra vez.
+      void recordIntegrationEvent('card_blocked', true, 'Card repetido', { reason: 'duplicate', activationId: activation.id }).catch(() => undefined);
+      groupLog(`ignorada, o card ja estava no sistema (acionamento ${activation.id}, ${activation.status})`);
+      return activationResult(202, { status: 'duplicate', activationId: activation.id, activationStatus: activation.status, callId: activation.createdCallId ?? null, orderNumber: analysis.office_track || analysis.os_ot || legacyData.orderNumber || null });
+    }
     groupLog(`acionamento registrado ${activation.id} (${analysis.tipo_card || 'sem tipo'}, BDESK ${analysis.bdesk || '-'})`);
     void sendOltNotice(activation.id, withCardFallback(analysis, legacyData), operationalText);
     if (message.id) processedWebhookMessages.set(message.id, { activationId: activation.id, expiresAt: Date.now() + webhookDeduplicationWindowMs });
@@ -2247,7 +2287,7 @@ ${operationalText.trim().slice(0, 2000)}` }, nightRouterActor('relatório do gru
     return activationResult(202, { activationId: activation.id, status: activation.status });
   } catch (error) {
     console.error('[WuzAPI] falha ao registrar acionamento:', error);
-    return activationResult(500, { message: error instanceof Error ? error.message : 'Nao foi possivel registrar o acionamento.' });
+    throw error;
   }
 }
 app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
@@ -2280,6 +2320,7 @@ app.post('/api/integrations/wuzapi/webhook', async (request, response) => {
     return response.status(202).json({ status: 'ignored', reason, chatId: message.chatId || null, isGroup: message.isGroup ?? false });
   }
   // Grupo autorizado: toda decisao vai para o log (sem precisar de WUZAPI_DEBUG), para dar para acompanhar no Render.
+  noteGroupMessage();
   const groupLog = (decision: string) => console.log(`[WuzAPI] grupo ${message.chatId || '-'}${message.isFromMe ? ' (enviada pelo numero conectado)' : ''}: ${decision}`);
   if (!message.message?.trim() && !message.quotedMessage?.trim()) { groupLog('ignorada, sem texto'); return response.status(202).json({ status: 'ignored', reason: 'Mensagem sem texto analisavel.' }); }
   // Informativo de acionamento (mandado pelo proprio sistema ou pela planilha) nao e card novo.
@@ -2311,6 +2352,18 @@ app.post('/api/acionamentos/manual', auth, requirePermission('activations.decide
     return response.status(result.status).json(result.body);
   } catch (error) {
     return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel registrar o card.' });
+  }
+});
+// Resumo dos cards de hoje e lista dos cards com leitura incompleta (ultimos 7 dias).
+app.get('/api/acionamentos/resumo', auth, requirePermission('activations.view'), async (_request, response) => {
+  try {
+    const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const [cards, blocked] = await Promise.all([recentCardFacts(since), listIntegrationEvents(30, ['card_blocked'])]);
+    const summary = summarizeCards(cards, blocked);
+    const messages = await activationMessages(summary.problems.map((problem) => problem.id));
+    return response.json({ ...summary, problems: summary.problems.map((problem) => ({ ...problem, preview: cardPreview(messages.get(problem.id) || '') })) });
+  } catch (error) {
+    return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel montar o resumo.' });
   }
 });
 app.post('/api/acionamentos/:id/reaceitar', auth, requirePermission('activations.decide'), async (request: AuthRequest, response) => {
@@ -2541,6 +2594,33 @@ app.use((error: Error & { type?: string; status?: number }, _request: Request, r
   if (error.type === 'entity.too.large' || error.status === 413) return response.status(413).json({ message: 'Envio grande demais: divida em lotes menores.' });
   return response.status(500).json({ message: error.message || 'Erro interno.' });
 });
+// Vigia dos cards (5 em 5 min): avisa quando os grupos ficam em silencio (WuzAPI caiu) e tenta de novo os cards que
+// falharam ao gravar. O aviso vai pelo proprio WhatsApp (se so o webhook caiu, ainda chega) e fica no sino.
+let silenceAlerted = false;
+let activationWatchRunning = false;
+async function runActivationWatch() {
+  if (activationWatchRunning || !activationGroupIds.length) return;
+  activationWatchRunning = true;
+  try {
+    const silence = whatsappSilence();
+    const config = whatsappConfig();
+    if (silence.silent !== silenceAlerted) {
+      silenceAlerted = silence.silent;
+      await recordIntegrationEvent('whatsapp_silent', !silence.silent, silence.silent ? `Nenhuma mensagem dos grupos ha ${silence.minutes} min` : 'Mensagens dos grupos voltaram', { minutes: silence.minutes, lastAt: silence.lastAt });
+      if (config) await sendWhatsAppText(config, silence.silent ? silenceText(silence.minutes, process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app') : silenceBackText()).catch(() => undefined);
+    }
+    for (const card of cardsToRetry(await listIntegrationEvents(24, ['activation_failed', 'activation_retry']))) {
+      const source = card.source || activationGroupIds[0];
+      const result = await processActivationMessage({ message: card.text, source, chatId: source, isGroup: true }, (decision) => console.log(`[Card de novo] ${decision}`), { retry: true });
+      const ok = result.status < 500;
+      await recordIntegrationEvent('activation_retry', ok, ok ? `Card gravado na tentativa ${card.attempts + 1}` : `Tentativa ${card.attempts + 1} falhou`, { failedId: card.failedId, result: result.body });
+    }
+  } catch (error) {
+    console.warn(`[Vigia dos cards] ${error instanceof Error ? error.message : error}`);
+  } finally {
+    activationWatchRunning = false;
+  }
+}
 async function startServer() {
   try { await listOltRegionMappings(); }
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }
@@ -2550,7 +2630,7 @@ async function startServer() {
   // e coleta parada. Nao rodam dentro dos testes automatizados.
   if (!process.env.NODE_TEST_CONTEXT) {
     if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); void runUpdateImage(); void runWeeklyIgp(); }, 5 * 60_000).unref();
+    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); void runUpdateImage(); void runWeeklyIgp(); void runActivationWatch(); }, 5 * 60_000).unref();
     // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
     void loadDbUsage();
     setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();

@@ -20,6 +20,7 @@ export type CallObservationAttachmentUpload = Pick<CallObservationAttachment, 'f
 export type CallObservationAttachmentContent = CallObservationAttachment & { observationId: string; contentBase64: string };
 export type CallObservation = { id: string; callId: string; userId: string; userName: string; text: string; createdAt: string; attachments: CallObservationAttachment[] };
 export type CallAuditLog = { id: string; callId: string; userId: string; userName: string; action: string; field: string; previousValue: string; newValue: string; createdAt: string };
+export type ActivationSummaryData = { date: string; today: { received: number; accepted: number; refused: number; pending: number; blocked: number; blockedSameCall: number; blockedDuplicate: number; blockedClosing: number; aiRegion: number }; problems: Array<{ id: string; receivedAt: string; status: string; type: string; missing: string[]; preview: string }>; problemCount: number };
 export type Activation = { id: string; source: string; originalMessage: string; receivedAt: string; status: 'Pendente' | 'Processando' | 'Aceito' | 'Recusado'; extractedData: Record<string, string>; analysis?: Record<string, unknown> & { atrelada?: string | null }; decisionBy?: string; decisionAt?: string; createdCallId?: string; rejectionReason?: string };
 export type ImportRecord = { id: string; fileName: string; fileType: 'csv' | 'xlsx'; sheetName: string; columns: string[]; preview: Record<string, string>[]; totalRows: number; validRows: number; errors: string[]; status: 'Previsualizada' | 'Confirmada' | 'Falhou'; importedBy: string; createdAt: string };
 export type HistoricalActivationImportPreview = { previewId: string; fileName: string; sheetName: string; target: string; canWrite: boolean; totalRows: number; parsedRows: number; importableRows: number; alreadyInSystem: number; duplicatesWithinFile: number; conflictingOrderRows: number; conflicts: { orderNumber: string; rows: { rowNumber: number; openedAt: string; assignedAt?: string; executedAt: string }[] }[]; missingOpeningDate: number; missingFinishedDate: number; missingOrder: number; missingReason: number; missingOlt: number; missingTechnician: number; unmatchedTechnicians: string[]; omittedLongNeighborhood: number; omittedLongSlotPon: number; byType: Record<string, number>; sample: { rowNumber: number; orderNumber: string; type: string; status: CallStatus; openedAt: string; executedAt?: string; region: string; technicianName?: string }[] };
@@ -227,6 +228,7 @@ export type IntegrationHealth = {
   reasonLabels: Record<StuckReason, string>;
   events: IntegrationEventRow[];
   d0: { fileName?: string; rowCount: number; uploadedAt?: string; uploadedBy?: string } | null;
+  extensions?: { latest: string | null; machines: { by: string; version: string; lastAt: string }[] };
   whatsapp: { configured: boolean; chat: string | null; alerts: IntegrationEventRow[] };
 };
 // Pessoas (diretorio so de leitura, aberto a todos).
@@ -291,6 +293,7 @@ export const api = {
   dailySummary: (date: string) => request<{ summary: DailySummary; text: string; whatsapp: { configured: boolean; sendsAt: string } }>(`/api/relatorios/resumo-dia?date=${date}`),
   lateFinishedReport: (from: string, to: string, area: SlaArea = 'ALL') => request<{ calls: LateCallRow[] }>(`/api/relatorios/fora-do-prazo?from=${from}&to=${to}&area=${area}`),
   slaAnalysis: (from: string, to: string, area: SlaArea = 'ALL') => request<{ analysis: SlaAnalysis }>(`/api/dashboards/prazo?from=${from}&to=${to}&area=${area}`),
+  igpToday: (area: IgpArea = 'ALL') => request<{ date: string; total: IgpMetrics['total'] }>(`/api/dashboards/igp-hoje?area=${encodeURIComponent(area)}`),
   igp: (month: string, area: IgpArea = 'ALL') => request<{ igp: IgpMetrics; plan?: IgpPlan }>(`/api/dashboards/igp?month=${encodeURIComponent(month)}&area=${encodeURIComponent(area)}`),
   dailyBase: () => request<{ base?: ManualDailyBase }>('/api/dashboards/painel-diario/base'),
   saveDailyBase: (fileName: string, data: ManualProductionData) => request<{ base: ManualDailyBase }>('/api/dashboards/painel-diario/base', { method: 'PUT', body: JSON.stringify({ fileName, data }) }),
@@ -362,11 +365,13 @@ export const api = {
   observations: (id: string, filters?: { teamScope?: boolean }) => request<{ observations: CallObservation[]; banners?: Record<string, string> }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`),
   addObservation: (id: string, text: string, attachments: CallObservationAttachmentUpload[] = [], filters?: { teamScope?: boolean }) => request<{ observation: CallObservation }>(`/api/chamados/${id}/observacoes${filters?.teamScope ? '?teamScope=true' : ''}`, { method: 'POST', body: JSON.stringify({ text, attachments }) }),
   observationAttachment: (callId: string, observationId: string, attachmentId: string, filters?: { teamScope?: boolean }) => request<{ attachment: CallObservationAttachmentContent }>(`/api/chamados/${callId}/observacoes/${observationId}/anexos/${attachmentId}${filters?.teamScope ? '?teamScope=true' : ''}`),
+  callOrigin: (id: string) => request<{ origin: { receivedAt: string; decisionAt: string | null; decisionByName: string | null } | null }>(`/api/chamados/${id}/origem`),
   auditLogs: (id: string) => request<{ logs: CallAuditLog[] }>(`/api/chamados/${id}/logs`),
   activations: (status?: Activation['status']) => request<{ activations: Activation[] }>(`/api/acionamentos${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   acceptActivation: (id: string) => requestCallMutation<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/aceitar`, { method: 'POST' }),
   reacceptActivation: (id: string) => requestCallMutation<{ activation: Activation; call?: Call }>(`/api/acionamentos/${id}/reaceitar`, { method: 'POST' }),
-  manualActivation: (text: string) => request<{ status: string; activationId?: string; reason?: string; callId?: string | null }>('/api/acionamentos/manual', { method: 'POST', body: JSON.stringify({ text }) }),
+  activationSummary: () => request<ActivationSummaryData>('/api/acionamentos/resumo'),
+  manualActivation: (text: string) => request<{ status: string; activationId?: string; activationStatus?: string; reason?: string; callId?: string | null; orderNumber?: string | null; callStatus?: string }>('/api/acionamentos/manual', { method: 'POST', body: JSON.stringify({ text }) }),
   rejectActivation: (id: string, reason: string) => request<{ activation: Activation }>(`/api/acionamentos/${id}/recusar`, { method: 'POST', body: JSON.stringify({ reason }) }),
   imports: () => request<{ imports: ImportRecord[] }>('/api/importacoes'),
   d0Base: () => request<{ base: D0BaseSummary }>('/api/importacoes/d0'),

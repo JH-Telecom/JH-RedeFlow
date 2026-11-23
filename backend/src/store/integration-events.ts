@@ -28,16 +28,18 @@ export async function recordIntegrationEvent(kind: IntegrationEventKind, ok: boo
   }
 }
 
-export async function listIntegrationEvents(sinceHours = 72, kinds?: IntegrationEventKind[]): Promise<IntegrationEvent[]> {
+export async function listIntegrationEvents(sinceHours = 72, kinds?: IntegrationEventKind[], options: { limit?: number; okOnly?: boolean } = {}): Promise<IntegrationEvent[]> {
   const since = new Date(Date.now() - sinceHours * 3_600_000).toISOString();
   if (isSupabaseConfigured()) {
-    let query = getSupabaseAdmin().from('integration_events').select('id, kind, ok, summary, details, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(500);
+    let query = getSupabaseAdmin().from('integration_events').select('id, kind, ok, summary, details, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(options.limit ?? 500);
+    if (options.okOnly) query = query.eq('ok', true);
     if (kinds?.length) query = query.in('kind', kinds);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return (data || []).map((row) => ({ id: row.id, kind: row.kind, ok: row.ok, summary: row.summary, details: (row.details || {}) as Record<string, unknown>, createdAt: row.created_at }));
   }
-  return memory.filter((event) => event.createdAt >= since && (!kinds?.length || kinds.includes(event.kind)));
+  const found = memory.filter((event) => event.createdAt >= since && (!kinds?.length || kinds.includes(event.kind)) && (!options.okOnly || event.ok));
+  return options.limit ? [...found].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, options.limit) : found;
 }
 
 // So para os testes.

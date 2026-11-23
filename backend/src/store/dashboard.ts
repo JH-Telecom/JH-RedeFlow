@@ -4,6 +4,7 @@ import { addDays, toOperationalDate } from "../timezone.js";
 import type { Call, DashboardActiveCall, DashboardMetrics, SlaBreakdown } from "../types.js";
 import { type CallQuery, isCallInDateRange, listCalls } from "./calls.js";
 import { activations, calls } from "./demo-data.js";
+import { whatsappSilence } from "../activation-watch.js";
 
 export async function countUnassignedOpenCalls(): Promise<number> {
   if (isSupabaseConfigured()) return await countSupabaseUnassignedOpenCalls();
@@ -21,6 +22,9 @@ export async function listNotifications(includeOperational = true) {
     const unassigned = await countUnassignedOpenCalls();
     if (unassigned) notifications.push({ id: 'unassigned-calls', type: 'warning', title: `${unassigned} chamados sem tecnico`, detail: 'Existem chamados aguardando atribuicao.', href: '/chamados/abertos', count: unassigned });
   }
+  // WuzAPI em silencio (activation-watch.ts): avisa no sino de quem decide acionamentos.
+  const silence = whatsappSilence();
+  if (silence.silent && process.env.WUZAPI_ACTIVATION_GROUP_ID?.trim()) notifications.push({ id: 'whatsapp-silent', type: 'warning', title: 'Nenhum card chegando do WhatsApp', detail: `Há ${silence.minutes} min sem mensagens dos grupos. Confira o WuzAPI; use "Colar card" enquanto isso.`, href: '/acionamentos', count: 1 });
   const pending = await countPendingActivations();
   if (pending) notifications.push({ id: 'pending-activations', type: 'info', title: `${pending} acionamentos pendentes`, detail: 'Revise os dados recebidos para decidir.', href: '/acionamentos', count: pending });
   return notifications;

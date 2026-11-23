@@ -5,8 +5,8 @@ import { getCall, listCalls } from './calls.js';
 import { activations } from './demo-data.js';
 
 // Dados do acionamento de cada chamado (Supabase ou demonstracao).
-async function activationDataForCalls(callIds: string[]) {
-  if (isSupabaseConfigured()) return supabaseActivationDataForCalls(callIds);
+async function activationDataForCalls(callIds: string[], paths?: string[]) {
+  if (isSupabaseConfigured()) return supabaseActivationDataForCalls(callIds, paths);
   const result = new Map<string, { activationId: string; extracted: Record<string, unknown> }>();
   for (const activation of activations.values()) {
     if (activation.createdCallId && callIds.includes(activation.createdCallId)) {
@@ -24,10 +24,22 @@ export async function getCallSerial(callId: string) {
 }
 
 // Chamados em aberto sem SN e com contrato no card: a extensao procura cada um no AutoISP.
+const SERIAL_PATHS = ['autoispSerial', 'autoispContract', 'serialNumber', 'contract', '_analysis.sn', '_analysis.contrato'];
 const LOOKUP_STATUSES: CallStatus[] = ['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo', 'GIGA+'];
 export async function pendingSerialLookups(limit = 25) {
   const open = await listCalls(LOOKUP_STATUSES);
-  const data = await activationDataForCalls(open.map((call) => call.id));
+  // A extensao pergunta a cada 5 min: busca so os campos do SN e do contrato (antes vinha o JSON inteiro de ~260
+  // chamados). A lista de clientes (mais contratos) so para os chamados que ainda estao sem SN.
+  const data = await activationDataForCalls(open.map((call) => call.id), SERIAL_PATHS);
+  const missing = open.filter((call) => { const item = data.get(call.id); return item && !serialFromActivationData(item.extracted); }).map((call) => call.id);
+  if (missing.length) {
+    const clients = await activationDataForCalls(missing, ['_analysis.clientes_afetados']);
+    for (const [callId, item] of clients) {
+      const current = data.get(callId);
+      const extraAnalysis = (item.extracted._analysis || {}) as Record<string, unknown>;
+      if (current) current.extracted = { ...current.extracted, _analysis: { ...((current.extracted._analysis || {}) as Record<string, unknown>), ...extraAnalysis } };
+    }
+  }
   const pending: Array<{ callId: string; orderNumber: string; olt: string; contracts: string[] }> = [];
   for (const call of open) {
     const item = data.get(call.id);

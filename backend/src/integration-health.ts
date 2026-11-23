@@ -49,7 +49,21 @@ export function stuckOfsCalls(calls: Call[], now = Date.now()): StuckCall[] {
     .sort((left, right) => (right.waitingMinutes ?? -1) - (left.waitingMinutes ?? -1));
 }
 
-export type IntegrationEventKind = 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report' | 'integration_alert' | 'escalation' | 'daily_reset' | 'olt_notice' | 'db_usage' | 'db_alert' | 'db_backup' | 'night_router' | 'update_image' | 'weekly_igp';
+// Versao da extensao em cada computador (23/11/2026): a extensao manda "versao" e "by" em cada registro. A mais
+// recente de cada pessoa, para achar quem ficou numa versao antiga (ex.: 1.9.5 ainda mandando clusters).
+export function extensionVersions(events: IntegrationEvent[]) {
+  const latest = new Map<string, { by: string; version: string; lastAt: string }>();
+  for (const event of events) {
+    const by = typeof event.details?.by === 'string' ? event.details.by.trim() : '';
+    const version = typeof event.details?.versao === 'string' ? event.details.versao.trim() : '';
+    if (!by || !version) continue;
+    const current = latest.get(by);
+    if (!current || event.createdAt > current.lastAt) latest.set(by, { by, version, lastAt: event.createdAt });
+  }
+  return [...latest.values()].sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+}
+
+export type IntegrationEventKind = 'card_blocked' | 'activation_failed' | 'activation_retry' | 'whatsapp_silent' | 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report' | 'integration_alert' | 'escalation' | 'daily_reset' | 'olt_notice' | 'db_usage' | 'db_alert' | 'db_backup' | 'night_router' | 'update_image' | 'weekly_igp';
 export type IntegrationEvent = { id: string; kind: IntegrationEventKind; ok: boolean; summary: string; details: Record<string, unknown>; createdAt: string };
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type HealthCheck = { key: string; label: string; status: HealthStatus; lastAt: string | null; detail: string };

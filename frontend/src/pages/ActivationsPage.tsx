@@ -6,6 +6,7 @@ import { api, type Activation } from "../api";
 import { Pager, usePaged } from "../components/Pager";
 import { ACTIVATIONS_CHANGED } from "../components/ActivationToast";
 import { RefusedActivations } from "./RefusedActivations";
+import { ActivationSummary } from "./ActivationSummary";
 
 // Acionamentos: aba Pendentes (aceitar/recusar) e aba Recusados (historico, com "Aceitar mesmo assim").
 function canDecideActivations() {
@@ -13,14 +14,15 @@ function canDecideActivations() {
 }
 export function ActivationsPage() {
   const [params, setParams] = useSearchParams();
-  const view = params.get("aba") === "recusados" ? "recusados" : "pendentes";
+  const view = params.get("aba") === "recusados" ? "recusados" : params.get("aba") === "resumo" ? "resumo" : "pendentes";
   const tabs = (
     <div className="dv-segmented" role="group" aria-label="Acionamentos">
       <button type="button" className={view === "pendentes" ? "is-selected" : ""} aria-pressed={view === "pendentes"} onClick={() => setParams({}, { replace: true })}>Pendentes</button>
       <button type="button" className={view === "recusados" ? "is-selected" : ""} aria-pressed={view === "recusados"} onClick={() => setParams({ aba: "recusados" }, { replace: true })}>Recusados</button>
+      <button type="button" className={view === "resumo" ? "is-selected" : ""} aria-pressed={view === "resumo"} onClick={() => setParams({ aba: "resumo" }, { replace: true })}>Resumo</button>
     </div>
   );
-  return view === "recusados" ? <RefusedActivations tabs={tabs} canDecide={canDecideActivations()} /> : <PendingActivations tabs={tabs} />;
+  return view === "resumo" ? <ActivationSummary tabs={tabs} /> : view === "recusados" ? <RefusedActivations tabs={tabs} canDecide={canDecideActivations()} /> : <PendingActivations tabs={tabs} />;
 }
 
 function PendingActivations({ tabs }: { tabs: ReactNode }) {

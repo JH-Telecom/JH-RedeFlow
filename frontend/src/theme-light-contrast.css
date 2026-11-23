@@ -524,6 +524,39 @@
 :where(:root:not([data-theme="dark"])) .manual-card-label {
     color: var(--ink)
 }
+:where(:root:not([data-theme="dark"])) .manual-card-existing {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .as-title {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .as-hint {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .as-tile small {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .as-tile strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .as-tile span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .as-row-main strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .as-row-main span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .as-badge {
+    color: #9a3412
+}
+:where(:root:not([data-theme="dark"])) .as-status {
+    color: var(--muted)
+}
+:root:where(:not([data-theme="dark"]))[data-theme="dark"] .as-badge {
+    color: #fed7aa
+}
 
 /* activation-overrides.css */
 :where(:root:not([data-theme="dark"])) .ra-search {
@@ -2854,6 +2887,30 @@
 }
 :where(:root:not([data-theme="dark"])) .op-tl-block.is-active {
     color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .ct-steps li {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .ct-steps time {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .ih-versions li {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .ih-versions li span {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .ih-versions li.is-old span {
+    color: #9a3412
+}
+:root:where(:not([data-theme="dark"]))[data-theme="dark"] .ih-versions li.is-old span {
+    color: #8f5300
+}
+:where(:root:not([data-theme="dark"])) .ih-versions time {
+    color: var(--muted)
+}
+:where(:root:not([data-theme="dark"])) .ih-versions-note {
+    color: var(--muted)
 }
 
 /* update-notice.css */

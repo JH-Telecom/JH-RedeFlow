@@ -893,6 +893,52 @@
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .manual-card-label {
     color: var(--ink)
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .manual-card-existing {
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: color-mix(in srgb,var(--brand,#734bdf) 8%,transparent)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-title {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-count {
+    background: var(--line)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-hint {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-tile {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-tile small {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-tile strong {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-tile span {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-row {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-row-main strong {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-row-main span {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-badge {
+    color: #9a3412;
+    background: #ffedd5
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .as-status {
+    color: var(--muted)
+}
+:root:where([data-palette="aurora"]:not([data-theme="dark"]))[data-theme="dark"] .as-badge {
+    color: #fed7aa;
+    background: #7c2d1233
+}
 /* light · activation-overrides.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ra-search {
     border: 1px solid #e3e1f3;
@@ -5016,6 +5062,37 @@
     background: #dcf3e9;
     border: 1px solid #9fd8bf
 }
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ct-steps {
+    border-left: 2px solid var(--line)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ct-steps li {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ct-steps time {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ih-versions li {
+    border: 1px solid var(--line);
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ih-versions li span {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ih-versions li.is-old {
+    border-color: #f59e0b
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ih-versions li.is-old span {
+    color: #9a3412
+}
+:root:where([data-palette="aurora"]:not([data-theme="dark"]))[data-theme="dark"] .ih-versions li.is-old span {
+    color: #8f5300
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ih-versions time {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"]:not([data-theme="dark"])) .ih-versions-note {
+    color: var(--muted)
+}
 /* light · update-notice.css */
 :where(:root[data-palette="aurora"]:not([data-theme="dark"])) .update-notice-backdrop {
     background: #241c428c
@@ -6476,6 +6553,52 @@
 }
 :where(:root[data-palette="aurora"][data-theme="dark"]) .manual-card-label {
     color: var(--ink)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .manual-card-existing {
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: color-mix(in srgb,var(--brand,#734bdf) 8%,transparent)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-title {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-count {
+    background: var(--line)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-hint {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-tile {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-tile small {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-tile strong {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-tile span {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-row {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-row-main strong {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-row-main span {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-badge {
+    color: #ff9473;
+    background: #241300
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .as-status {
+    color: var(--muted)
+}
+:root:where([data-palette="aurora"][data-theme="dark"])[data-theme="dark"] .as-badge {
+    color: #fed7aa;
+    background: #7c2d1233
 }
 /* dark · activation-overrides.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .ra-search {
@@ -10609,6 +10732,37 @@
 :where(:root[data-palette="aurora"][data-theme="dark"]) .op-tl-key.is-done {
     background: #001e13;
     border: 1px solid #16513d
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ct-steps {
+    border-left: 2px solid var(--line)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ct-steps li {
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ct-steps time {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ih-versions li {
+    border: 1px solid var(--line);
+    color: var(--ink)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ih-versions li span {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ih-versions li.is-old {
+    border-color: #f59e0b
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ih-versions li.is-old span {
+    color: #ff9473
+}
+:root:where([data-palette="aurora"][data-theme="dark"])[data-theme="dark"] .ih-versions li.is-old span {
+    color: #ffc781
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ih-versions time {
+    color: var(--muted)
+}
+:where(:root[data-palette="aurora"][data-theme="dark"]) .ih-versions-note {
+    color: var(--muted)
 }
 /* dark · update-notice.css */
 :where(:root[data-palette="aurora"][data-theme="dark"]) .update-notice-backdrop {

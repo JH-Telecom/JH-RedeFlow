@@ -167,6 +167,23 @@ function GoalPlanCard({ kind, title, current, plan }: { kind: PlanKind; title: s
   );
 }
 
+// Hoje ate agora (23/11/2026): as ordens finalizadas hoje, com as metas do mes, para corrigir o rumo no mesmo dia.
+function IgpToday({ area }: { area: IgpArea }) {
+  const query = useCachedData<{ date: string; total: IgpMetrics["total"] }>(`igp-hoje:${area}`, () => api.igpToday(area));
+  const total = query.data?.total;
+  if (!total) return null;
+  const rows = Object.values(igpGoals).map((goal, index) => ({ ...goal, key: (Object.keys(igpGoals) as (keyof typeof igpGoals)[])[index] }));
+  return <Panel kicker="HOJE ATÉ AGORA" title="Como está o dia" aside={<span className="dv-panel-meta">{total.orders ? `${formatCount(total.orders)} ordens finalizadas hoje` : "nenhuma ordem finalizada hoje ainda"}</span>}>
+    {total.orders === 0 ? <div className="dv-empty">Assim que as ordens de hoje forem finalizadas, a prévia aparece aqui.</div> : <div className="dv-kpi-grid">
+      {rows.map((row) => {
+        const value = total[row.key];
+        const state = getIgpGoalState(value, row.target, row.minimum, row.lowerIsBetter).className as keyof typeof goalTone;
+        return <KpiTile key={row.key} label={row.key === "onTimePercent" ? "Dentro do prazo hoje" : row.key === "mttrHours" ? "MTTR de hoje" : "Outlier hoje"} value={row.format(value)} note={<GoalNote value={value} goal={row} />} icon={row.key === "outlierPercent" ? AlertTriangle : row.key === "onTimePercent" ? Timer : Clock3} tone={goalTone[state]} />;
+      })}
+    </div>}
+  </Panel>;
+}
+
 export function IGPPage() {
   const [month, setMonth] = useState(() => toOperationalDate().slice(0, 7));
   const [area, setArea] = useState<IgpArea>('ALL');
@@ -200,6 +217,8 @@ export function IGPPage() {
       </div>
 
       <MttrPeriod total={metrics.total} />
+
+      {month === toOperationalDate().slice(0, 7) && <IgpToday area={area} />}
 
       {plan && <Panel kicker="PARA BATER A META" title={plan.currentMonth ? "O que precisamos fazer até o fim do mês" : "Como o mês fechou"} aside={<span className="dv-panel-meta">{plan.currentMonth ? `ritmo de ${count(Math.round(plan.orders / Math.max(1, plan.elapsedDays)))} ordens/dia · faltam ${plan.daysInMonth - plan.elapsedDays} dias` : areaLabel}</span>}>
         <div className="igp-plan-grid">

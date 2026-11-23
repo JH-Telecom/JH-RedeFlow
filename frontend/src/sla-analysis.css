@@ -401,3 +401,18 @@
 .op-tl-key.is-outlier { background: #b3242f; }
 .op-tl-key.is-done { background: #dcf3e9; border: 1px solid #9fd8bf; }
 @media (max-width: 760px) { .op-tl-row { grid-template-columns: 96px minmax(0, 1fr); gap: 8px; } }
+/* Etapas do chamado (CallTimeline) */
+.ct-steps-toggle{margin-top:10px;font-size:13px}
+.ct-steps{display:grid;gap:6px;margin:10px 0 4px;padding:0 0 0 4px;list-style:none;border-left:2px solid var(--line)}
+.ct-steps li{display:flex;gap:10px;align-items:baseline;padding-left:10px;font-size:13px;color:var(--ink)}
+.ct-steps time{flex:none;min-width:86px;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+/* Versao da extensao por computador (IntegrationHealthPage) */
+.ih-versions{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.ih-versions li{display:grid;grid-template-columns:minmax(140px,1fr) 2fr auto;gap:10px;align-items:baseline;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--ink)}
+.ih-versions li span{color:var(--muted)}
+.ih-versions li.is-old{border-color:#f59e0b}
+.ih-versions li.is-old span{color:#9a3412;font-weight:600}
+:root[data-theme="dark"] .ih-versions li.is-old span{color:#fdba74}
+.ih-versions time{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.ih-versions-note{margin:10px 0 0;color:var(--muted);font-size:12.5px}
+@media (max-width:640px){.ih-versions li{grid-template-columns:1fr}}

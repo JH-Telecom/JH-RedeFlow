@@ -1,5 +1,5 @@
 import { parseSaoPauloDateTime } from '../timezone.js';
-import { createSupabaseActivation, decideSupabaseActivation, getSupabaseActivation, isSupabaseConfigured, listSupabaseActivations, reopenSupabaseRejectedActivation } from "../integrations/supabase/client.js";
+import { createSupabaseActivation, decideSupabaseActivation, getSupabaseActivation, isSupabaseConfigured, listSupabaseActivations, reopenSupabaseRejectedActivation, supabaseActivationMessages, supabaseCallOrigin, supabaseRecentCardFacts } from "../integrations/supabase/client.js";
 import { addObservation } from "./observations.js";
 import { listUsers } from "./users.js";
 import { ATRELADA_OPEN_STATUSES, findAtreladaCallOrder, identifyAtreladas, resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
@@ -16,6 +16,23 @@ import { activationKeys, findDuplicateCall, serializeAccept } from "../activatio
 // Chegou card, aceite ou recusa (qualquer gravacao pela API): limpa na hora.
 const activationListCache = new Map<string, { at: number; list: Activation[] }>();
 onDataChange(() => activationListCache.clear());
+// Resumo dos cards (activation-summary.ts): Supabase com poucos campos; demonstracao direto da memoria.
+export async function recentCardFacts(sinceIso: string) {
+  if (isSupabaseConfigured()) return await supabaseRecentCardFacts(sinceIso);
+  return [...activations.values()].filter((activation) => activation.receivedAt >= sinceIso).map((activation) => ({ id: activation.id, status: activation.status, receivedAt: activation.receivedAt, extracted: { ...activation.extractedData, _analysis: activation.analysis } as Record<string, unknown> }));
+}
+export async function callOrigin(callId: string) {
+  const origin = isSupabaseConfigured()
+    ? await supabaseCallOrigin(callId)
+    : (() => { const found = [...activations.values()].find((activation) => activation.createdCallId === callId); return found ? { receivedAt: found.receivedAt, decisionAt: found.decisionAt || null, decisionBy: found.decisionBy || null } : null; })();
+  if (!origin) return null;
+  const users = origin.decisionBy ? await listUsers().catch(() => []) : [];
+  return { ...origin, decisionByName: users.find((user) => user.id === origin.decisionBy)?.name || (origin.decisionBy?.startsWith('system') ? 'Roteirizador' : null) };
+}
+export async function activationMessages(ids: string[]) {
+  if (isSupabaseConfigured()) return await supabaseActivationMessages(ids);
+  return new Map(ids.map((id) => [id, activations.get(id)?.originalMessage || '']));
+}
 export async function listActivations(status?: ActivationStatus, limit?: number): Promise<Activation[]> {
   if (isSupabaseConfigured()) {
     const key = `${status || 'todos'}:${limit || ''}`;
@@ -66,7 +83,7 @@ export async function receiveActivation(input: { source: string; originalMessage
   // Mesmo card (mesma mensagem ou mesma OS) ja recebido: devolve o mesmo acionamento. BDESK nao conta (chamados diferentes).
   const incomingKeys = [input.originalMessage, input.extractedData.officeTrack, input.extractedData.orderNumber].map(comparable).filter(Boolean);
   const existing = [...activations.values()].find((activation) => activation.status !== 'Recusado' && [activation.originalMessage, activation.extractedData.officeTrack, activation.extractedData.orderNumber].map(comparable).some((key) => incomingKeys.includes(key)));
-  if (existing) return existing;
+  if (existing) return { ...existing, duplicate: true };
   const relatedOrder = input.analysis ? findAtreladaCallOrder(input.analysis, await listCalls([...ATRELADA_OPEN_STATUSES])) : undefined;
   const enrichedAnalysis = input.analysis ? { ...input.analysis, atrelada: relatedOrder || null, atreladas: identifyAtreladas(input.analysis, [...activations.values()].map((activation) => ({ id: activation.id, analysis: activation.analysis }))) } : input.analysis;
   const activation: Activation = { id: `activation-${crypto.randomUUID()}`, source: input.source, originalMessage: input.originalMessage, receivedAt: new Date().toISOString(), status: 'Pendente', extractedData: input.extractedData, analysis: enrichedAnalysis }; activations.set(activation.id, activation); return activation;

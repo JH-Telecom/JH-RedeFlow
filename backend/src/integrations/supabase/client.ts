@@ -78,9 +78,7 @@ export async function getSupabaseProfile(id: string, createdAt?: string) {
 }
 
 export async function getSupabaseUserAvatar(userId: string): Promise<string | null> {
-  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('data_url').eq('user_id', userId).maybeSingle();
-  if (error) throw new Error(error.message);
-  return data?.data_url || null; // "" = so tem banner, sem foto
+  return (await cachedImages('photo', [userId]))[userId] || null; // "" = so tem banner, sem foto
 }
 
 export async function saveSupabaseUserAvatar(userId: string, dataUrl: string): Promise<boolean> {
@@ -106,9 +104,10 @@ async function pruneSupabaseUserAvatarRow(userId: string) {
   await getSupabaseAdmin().from('user_avatars').delete().eq('user_id', userId);
 }
 
-// Status personalizado (aba Pessoas): texto, emoji e ate quando vale. select('*') para nao quebrar antes da migracao.
+// Status personalizado (aba Pessoas): texto, emoji e ate quando vale. So essas colunas: o select('*') trazia a foto e
+// o banner de todo mundo a cada 30 s da aba Pessoas (23/11/2026).
 export async function getSupabaseUserStatuses(userIds: string[]): Promise<Record<string, { text: string; emoji: string; until: string | null }>> {
-  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('*').in('user_id', userIds);
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('user_id, status_text, status_emoji, status_until').in('user_id', userIds);
   if (error) throw new Error(error.message);
   const result: Record<string, { text: string; emoji: string; until: string | null }> = {};
   for (const row of (data || []) as Record<string, unknown>[]) {
@@ -136,7 +135,7 @@ export async function saveSupabaseUserStatus(userId: string, status: { text: str
 
 // Preferencias do perfil: apelido (so aparece para a propria pessoa) e tema de cor.
 export async function getSupabaseUserPreferences(userId: string): Promise<{ nickname: string | null; palette: string | null }> {
-  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('*').eq('user_id', userId).maybeSingle();
+  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('nickname, palette').eq('user_id', userId).maybeSingle();
   if (error) throw new Error(error.message);
   const row = (data || {}) as Record<string, unknown>;
   return { nickname: typeof row.nickname === 'string' && row.nickname ? row.nickname : null, palette: typeof row.palette === 'string' && row.palette ? row.palette : null };
@@ -159,19 +158,31 @@ export async function saveSupabaseUserPreferences(userId: string, preferences: {
 }
 
 // Fotos de varias pessoas de uma vez (aba Pessoas). "" = so tem banner, sem foto.
-export async function getSupabaseUserAvatars(userIds: string[]): Promise<Record<string, string>> {
+// Copia das fotos/banners em memoria (23/11/2026): pergunta so a data de alteracao de cada linha (poucos bytes) e
+// baixa a imagem de novo so quando mudou. Antes cada tela que mostrava fotos baixava todas de novo.
+const imageCache = { photo: new Map<string, { at: string; value: string }>(), banner: new Map<string, { at: string; value: string }>() };
+async function cachedImages(kind: 'photo' | 'banner', userIds: string[]): Promise<Record<string, string>> {
   if (!userIds.length) return {};
-  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('user_id, data_url').in('user_id', userIds);
+  const column = kind === 'photo' ? 'data_url' : 'banner_data_url';
+  const cache = imageCache[kind];
+  const { data: stamps, error } = await getSupabaseAdmin().from('user_avatars').select('user_id, updated_at').in('user_id', userIds);
   if (error) throw new Error(error.message);
-  return Object.fromEntries((data || []).filter((row) => row.data_url).map((row) => [row.user_id, row.data_url as string]));
+  const stale = (stamps || []).filter((row) => cache.get(row.user_id)?.at !== String(row.updated_at)).map((row) => row.user_id as string);
+  for (let index = 0; index < stale.length; index += 50) {
+    const { data, error: readError } = await getSupabaseAdmin().from('user_avatars').select(`user_id, updated_at, ${column}`).in('user_id', stale.slice(index, index + 50));
+    if (readError) throw new Error(readError.message);
+    for (const row of (data || []) as unknown as Array<Record<string, string>>) cache.set(row.user_id, { at: String(row.updated_at), value: row[column] || '' });
+  }
+  const present = new Set((stamps || []).map((row) => row.user_id as string));
+  return Object.fromEntries(userIds.filter((id) => present.has(id) && cache.get(id)?.value).map((id) => [id, cache.get(id)!.value]));
+}
+export async function getSupabaseUserAvatars(userIds: string[]): Promise<Record<string, string>> {
+  return cachedImages('photo', userIds);
 }
 
 // Banner do perfil (fundo das observacoes do usuario nos chamados).
 export async function getSupabaseUserBanners(userIds: string[]): Promise<Record<string, string>> {
-  if (!userIds.length) return {};
-  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('user_id, banner_data_url').in('user_id', userIds).not('banner_data_url', 'is', null);
-  if (error) throw new Error(error.message);
-  return Object.fromEntries((data || []).filter((row) => row.banner_data_url).map((row) => [row.user_id, row.banner_data_url as string]));
+  return cachedImages('banner', userIds);
 }
 
 export async function saveSupabaseUserBanner(userId: string, bannerDataUrl: string | null): Promise<void> {
@@ -559,27 +570,48 @@ export async function listSupabaseRoles() {
 }
 
 // Ultimo processamento de cada acionamento em poucas consultas (antes era uma consulta por acionamento).
-async function latestProcessingByActivation(ids: string[]) {
+// paths (23/11/2026): so os campos pedidos ("officeTrack", "_analysis.olt"), em vez do JSON inteiro com o texto do card
+// e a lista de clientes. Cada card que chegava baixava ~5 MB so para checar repetido: era ~45% do trafego do banco.
+export function processingSelect(paths?: string[]) {
+  if (!paths?.length) return 'activation_id, extracted_data, created_at';
+  return ['activation_id', 'created_at', ...paths.map((path, index) => `f${index}:extracted_data->${path.split('.').join('->')}`)].join(', ');
+}
+export function processingFromRow(row: Record<string, unknown>, paths?: string[]) {
+  if (!paths?.length) return (row.extracted_data || {}) as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  paths.forEach((path, index) => {
+    const value = row[`f${index}`];
+    if (value === null || value === undefined) return;
+    const keys = path.split('.');
+    let target = out;
+    for (const key of keys.slice(0, -1)) target = (target[key] ??= {}) as Record<string, unknown>;
+    target[keys[keys.length - 1]] = value;
+  });
+  return out;
+}
+async function latestProcessingByActivation(ids: string[], paths?: string[]) {
   const latest = new Map<string, Record<string, unknown>>();
   for (let index = 0; index < ids.length; index += 150) {
     const chunk = ids.slice(index, index + 150);
-    const { data, error } = await getSupabaseAdmin().from('activation_processing').select('activation_id, extracted_data, created_at').in('activation_id', chunk).order('created_at', { ascending: false });
+    const { data, error } = await getSupabaseAdmin().from('activation_processing').select(processingSelect(paths)).in('activation_id', chunk).order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    for (const row of data || []) if (!latest.has(row.activation_id)) latest.set(row.activation_id, (row.extracted_data || {}) as Record<string, unknown>);
+    for (const row of (data || []) as unknown as Array<Record<string, unknown> & { activation_id: string }>) if (!latest.has(row.activation_id)) latest.set(row.activation_id, processingFromRow(row, paths));
   }
   return latest;
 }
+// Campos que a checagem de repetido e de atreladas usa (identifyAtreladas) quando chega um card novo.
+const DEDUPE_PATHS = ['officeTrack', 'orderNumber', '_analysis.olt', '_analysis.placa_pon', '_analysis.slot_pon', '_analysis.bdesk', '_analysis.office_track', '_analysis.contrato', '_analysis.endereco_principal', '_analysis.bairro_principal'];
 
 // SN dos chamados: o acionamento que criou o chamado guarda o que foi lido do card (FIELD traz o S/N) e o SN que a
 // extensao achou no AutoISP. Busca so os acionamentos dos chamados pedidos (pouco trafego).
-export async function supabaseActivationDataForCalls(callIds: string[]) {
+export async function supabaseActivationDataForCalls(callIds: string[], paths?: string[]) {
   const result = new Map<string, { activationId: string; extracted: Record<string, unknown> }>();
   for (let index = 0; index < callIds.length; index += 150) {
     const chunk = callIds.slice(index, index + 150);
     const { data, error } = await getSupabaseAdmin().from('activations').select('id, created_call_id, decision_at').in('created_call_id', chunk).order('decision_at', { ascending: false });
     if (error) throw new Error(error.message);
     const rows = (data || []).filter((row) => row.created_call_id && !result.has(row.created_call_id));
-    const latest = await latestProcessingByActivation(rows.map((row) => row.id));
+    const latest = await latestProcessingByActivation(rows.map((row) => row.id), paths);
     for (const row of rows) if (!result.has(row.created_call_id)) result.set(row.created_call_id, { activationId: row.id, extracted: latest.get(row.id) || {} });
   }
   return result;
@@ -604,18 +636,25 @@ export async function createSupabaseActivation(input: { source: string; original
   const normalize = (value: unknown) => String(value || '').trim().toLowerCase();
   // Mesmo card (mesma mensagem ou mesma OS) ja recebido: devolve o mesmo acionamento. BDESK nao conta (chamados diferentes).
   const incomingKeys = [input.originalMessage, input.extractedData.officeTrack, input.extractedData.orderNumber].map(normalize).filter(Boolean);
-  const { data: pendingRows, error: pendingError } = await admin.from('activations').select('id, source, original_message, received_at, status').eq('source', input.source).in('status', ['Pendente', 'Aceito']).gte('received_at', new Date(Date.now() - ACTIVATION_DEDUPE_DAYS * 86_400_000).toISOString()).order('received_at', { ascending: false });
+  const sinceDedupe = new Date(Date.now() - ACTIVATION_DEDUPE_DAYS * 86_400_000).toISOString();
+  const { data: pendingRows, error: pendingError } = await admin.from('activations').select('id, source, received_at, status').eq('source', input.source).in('status', ['Pendente', 'Aceito']).gte('received_at', sinceDedupe).order('received_at', { ascending: false });
   if (pendingError) throw new Error(pendingError.message);
-  const processingById = await latestProcessingByActivation((pendingRows || []).map((row) => row.id));
+  // Mesmo texto ja recebido: confere no banco (antes vinha o texto de todos os acionamentos dos 14 dias a cada card).
+  const { data: sameText } = await admin.from('activations').select('id').eq('source', input.source).in('status', ['Pendente', 'Aceito']).gte('received_at', sinceDedupe).eq('original_message', input.originalMessage).limit(1);
+  const sameTextId = sameText?.[0]?.id as string | undefined;
+  const processingById = await latestProcessingByActivation((pendingRows || []).map((row) => row.id), DEDUPE_PATHS);
   const existingAnalyses: Array<{ id: string; analysis?: ActivationAnalysis }> = [];
   for (const pending of pendingRows || []) {
     const stored = processingById.get(pending.id) || {};
     const { _analysis: storedAnalysis } = stored;
     existingAnalyses.push({ id: pending.id, analysis: storedAnalysis as ActivationAnalysis | undefined });
-    const storedKeys = [pending.original_message, stored.officeTrack, stored.orderNumber].map(normalize).filter(Boolean);
-    if (!incomingKeys.some((key) => storedKeys.includes(key))) continue;
-    const { _analysis: analysis, ...extractedData } = stored;
-    return { id: pending.id, source: pending.source, originalMessage: pending.original_message, receivedAt: pending.received_at, status: pending.status as ActivationStatus, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
+    const storedKeys = [stored.officeTrack, stored.orderNumber].map(normalize).filter(Boolean);
+    if (pending.id !== sameTextId && !incomingKeys.some((key) => storedKeys.includes(key))) continue;
+    // Achou o mesmo card: so agora busca os dados completos dele.
+    const full = (await latestProcessingByActivation([pending.id])).get(pending.id) || {};
+    const { data: original } = await admin.from('activations').select('original_message').eq('id', pending.id).maybeSingle();
+    const { _analysis: analysis, ...extractedData } = full;
+    return { duplicate: true, id: pending.id, source: pending.source, originalMessage: original?.original_message || input.originalMessage, receivedAt: pending.received_at, status: pending.status as ActivationStatus, extractedData: extractedData as Record<string, string>, analysis: analysis as ActivationAnalysis | undefined };
   }
   const atreladaOrder = input.analysis ? findAtreladaCallOrder(input.analysis, await listAtreladaCandidates(input.analysis.olt)) : undefined;
   const enrichedAnalysis = input.analysis ? { ...input.analysis, atrelada: atreladaOrder || null, atreladas: identifyAtreladas(input.analysis, existingAnalyses) } : input.analysis;
@@ -641,6 +680,26 @@ export async function countSupabaseUnassignedOpenCalls(): Promise<number> {
   return count || 0;
 }
 
+// Resumo dos cards (activation-summary.ts): so status/datas e os campos que dizem se a leitura foi completa.
+const CARD_FACT_PATHS = ['orderNumber', 'officeTrack', 'olt', 'type', '_analysis.office_track', '_analysis.os_ot', '_analysis.olt', '_analysis.tipo_card', '_analysis.regiao_ia'];
+export async function supabaseRecentCardFacts(sinceIso: string) {
+  const { data, error } = await getSupabaseAdmin().from('activations').select('id, status, received_at').gte('received_at', sinceIso).order('received_at', { ascending: false }).limit(2000);
+  if (error) throw new Error(error.message);
+  const latest = await latestProcessingByActivation((data || []).map((row) => row.id), CARD_FACT_PATHS);
+  return (data || []).map((row) => ({ id: row.id as string, status: row.status as string, receivedAt: row.received_at as string, extracted: latest.get(row.id) || {} }));
+}
+// Origem do chamado (linha do tempo): o card que o criou, quando chegou e quando/quem aceitou.
+export async function supabaseCallOrigin(callId: string) {
+  const { data, error } = await getSupabaseAdmin().from('activations').select('received_at, decision_at, decision_by').eq('created_call_id', callId).order('decision_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? { receivedAt: data.received_at as string, decisionAt: (data.decision_at as string) || null, decisionBy: (data.decision_by as string) || null } : null;
+}
+export async function supabaseActivationMessages(ids: string[]) {
+  if (!ids.length) return new Map<string, string>();
+  const { data, error } = await getSupabaseAdmin().from('activations').select('id, original_message').in('id', ids.slice(0, 150));
+  if (error) throw new Error(error.message);
+  return new Map((data || []).map((row) => [row.id as string, String(row.original_message || '')]));
+}
 export async function listSupabaseActivations(status?: ActivationStatus, limit?: number): Promise<Activation[]> {
   const admin = getSupabaseAdmin();
   let query = admin.from('activations').select('id, source, original_message, received_at, status, decision_by, decision_at, created_call_id, rejection_reason').order('received_at', { ascending: false });

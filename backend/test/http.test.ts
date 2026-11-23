@@ -1633,6 +1633,8 @@ test('support technician is saved, listed in place of the supervisor, and cannot
   const id = 'call-240916-01'; // Em campo, tecnico tech-andre
   const same = await fetch(`${baseUrl}/api/chamados/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ supportTechnicianId: 'tech-andre' }) });
   assert.equal(same.status, 422);
+  // Fora do turno do Pedro (08-17h) ele conta como inativo: marca ativo na mao para o teste nao depender da hora.
+  await fetch(`${baseUrl}/api/tecnicos/tech-pedro`, { method: 'PATCH', headers, body: JSON.stringify({ active: true }) });
   const saved = await fetch(`${baseUrl}/api/chamados/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ supportTechnicianId: 'tech-pedro' }) });
   assert.equal(saved.status, 200);
   const body = await saved.json() as { call: { supportTechnicianId?: string; supportTechnicianName?: string; technicianId?: string } };

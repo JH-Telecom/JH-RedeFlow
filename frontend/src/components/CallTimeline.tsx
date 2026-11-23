@@ -39,9 +39,31 @@ export function buildSegments(call: Call, logs: CallAuditLog[], now = Date.now()
   return segments.filter((segment) => segment.to > segment.from);
 }
 
+type Origin = { receivedAt: string; decisionAt: string | null; decisionByName: string | null } | null;
+// Etapas do chamado em ordem (23/11/2026): do card no grupo ate a finalizacao, com quem fez cada passo.
+export function buildMilestones(call: Call, logs: CallAuditLog[], origin: Origin) {
+  const items: Array<{ at: number; text: string }> = [];
+  const add = (iso: string | null | undefined, text: string) => { const at = iso ? Date.parse(iso) : NaN; if (Number.isFinite(at)) items.push({ at, text }); };
+  if (origin) {
+    add(origin.receivedAt, "Card recebido no grupo");
+    add(origin.decisionAt, `Acionamento aceito${origin.decisionByName ? ` por ${origin.decisionByName}` : ""}`);
+  } else add(call.openedAt, "Chamado aberto");
+  for (const log of logs) {
+    if (log.field === "technicianId") add(log.createdAt, log.newValue ? `${log.newValue === call.technicianId && call.technicianName ? `Técnico: ${call.technicianName}` : "Técnico trocado"}${log.userName ? ` (por ${log.userName})` : ""}` : `Técnico removido${log.userName ? ` (por ${log.userName})` : ""}`);
+    else if (log.field === "status") add(log.createdAt, `Status: ${log.newValue}${log.userName ? ` (por ${log.userName})` : ""}`);
+    else if (log.field === "notes" && /Relat[oó]rio de encerramento recebido/i.test(log.newValue)) add(log.createdAt, "Relatório de encerramento do técnico recebido no grupo");
+  }
+  if (["Finalizado", "Cancelado"].includes(call.status)) add(call.executedAt, call.status === "Finalizado" ? "Finalizado (Data Fim)" : "Cancelado");
+  return items.sort((a, b) => a.at - b.at);
+}
+
 export function CallTimeline({ call }: { call: Call }) {
   const [logs, setLogs] = useState<CallAuditLog[]>([]);
+  const [origin, setOrigin] = useState<Origin>(null);
+  const [showSteps, setShowSteps] = useState(false);
   useEffect(() => { let active = true; api.auditLogs(call.id).then((data) => { if (active) setLogs(data.logs); }).catch(() => undefined); return () => { active = false; }; }, [call.id]);
+  useEffect(() => { let active = true; api.callOrigin(call.id).then((data) => { if (active) setOrigin(data.origin); }).catch(() => undefined); return () => { active = false; }; }, [call.id]);
+  const milestones = buildMilestones(call, logs, origin);
   const segments = buildSegments(call, logs);
   if (!segments.length) return null;
   const start = segments[0].from;
@@ -62,6 +84,8 @@ export function CallTimeline({ call }: { call: Call }) {
         {segments.map((segment, index) => <i key={index} className={`is-${segment.tone}`} style={{ flexGrow: segment.to - segment.from }} title={`${segment.label}: ${fmt((segment.to - segment.from) / 60_000)} (${when(segment.from)} → ${when(segment.to)})`} />)}
         {deadline < end && <span className="ct-deadline" style={{ left: `${((deadline - start) / span) * 100}%` }} title={`Prazo de 6h: ${when(deadline)}`} />}
       </div>
+      {milestones.length > 1 && <button type="button" className="link-button ct-steps-toggle" aria-expanded={showSteps} onClick={() => setShowSteps(!showSteps)}>{showSteps ? "Ocultar etapas" : `Ver etapas (${milestones.length})`}</button>}
+      {showSteps && <ol className="ct-steps">{milestones.map((item, index) => <li key={index}><time>{when(item.at)}</time><span>{item.text}</span></li>)}</ol>}
       <ul className="ct-legend">
         {[...totals.entries()].map(([label, minutes]) => <li key={label}><i className={`is-${TONE[label] || "assigned"}`} aria-hidden="true" />{label === "Atribuido" ? "Atribuído" : label} <b>{fmt(minutes)}</b></li>)}
       </ul>

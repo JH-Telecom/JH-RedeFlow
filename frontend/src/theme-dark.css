@@ -905,6 +905,52 @@
 :where(:root[data-theme="dark"]) .manual-card-label {
     color: var(--ink)
 }
+:where(:root[data-theme="dark"]) .manual-card-existing {
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: color-mix(in srgb,var(--brand,#1264e8) 8%,transparent)
+}
+:where(:root[data-theme="dark"]) .as-title {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .as-count {
+    background: var(--line)
+}
+:where(:root[data-theme="dark"]) .as-hint {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .as-tile {
+    border: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .as-tile small {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .as-tile strong {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .as-tile span {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .as-row {
+    border: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .as-row-main strong {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .as-row-main span {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .as-badge {
+    color: #ff9473;
+    background: #241300
+}
+:where(:root[data-theme="dark"]) .as-status {
+    color: var(--muted)
+}
+:root:where([data-theme="dark"])[data-theme="dark"] .as-badge {
+    color: #fed7aa;
+    background: #7c2d1233
+}
 
 /* activation-overrides.css */
 :where(:root[data-theme="dark"]) .ra-search {
@@ -5065,6 +5111,37 @@
 :where(:root[data-theme="dark"]) .op-tl-key.is-done {
     background: #001e13;
     border: 1px solid #16513d
+}
+:where(:root[data-theme="dark"]) .ct-steps {
+    border-left: 2px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .ct-steps li {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .ct-steps time {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .ih-versions li {
+    border: 1px solid var(--line);
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .ih-versions li span {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .ih-versions li.is-old {
+    border-color: #f59e0b
+}
+:where(:root[data-theme="dark"]) .ih-versions li.is-old span {
+    color: #ff9473
+}
+:root:where([data-theme="dark"])[data-theme="dark"] .ih-versions li.is-old span {
+    color: #ffc781
+}
+:where(:root[data-theme="dark"]) .ih-versions time {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .ih-versions-note {
+    color: var(--muted)
 }
 
 /* update-notice.css */
