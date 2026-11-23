@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { analyzeOperationalMessage } from '../src/integrations/wuzapi/semantic.js';
+import { extractOperationalData } from '../src/integrations/wuzapi/client.js';
 
 // Card real de backbone (NOC TX): a ordem vem como "OFS:" e o evento como "ABERTO EM:".
 const backboneCard = [
@@ -72,4 +73,15 @@ test('backbone card reads the order from "OfficeTrack/OS:"', () => {
   for (const label of ['OS/OfficeTrack', 'Office Track / OS', 'OS / OT']) {
     assert.equal(analyzeOperationalMessage(`⚠️VALIDAR COM NOC TX⚠️\n- TICKET: 1\n- ${label}: 611150177550102`).office_track, '611150177550102', label);
   }
+});
+
+test('backbone card with "OS:" at the end and "Trecho BDesk" reads the OS and no fake BDESK', () => {
+  const card = ['⚠️VALIDAR COM NOC TX⚠️', ' ', '⚠️ACIONAMENTO DE EVENTO BACKBONE ⚠️', ' ', '- TICKET: ', '', '- ABERTO EM: 23/11/2026 06:46:00', '', '- TIPO: RUPTURA', '', 'Titulo: SP::RUP::SAO_PAULO_SPN<>SAO_PAULO_SPN::DWDM::SPACE', 'Trecho BDesk: SP4SPN8_SP1SPN16_2', 'Rota: n/d', '', 'Ponta A:', '- Placa: SP4SPN8-01', '', 'Logs DWDM:', '[Ponta A] [23/11/2026 06:18:07] SP4SPN8-01 | PORT-1-5-LINEIN | critical | Input LOS', '', 'OS: 612043094090102', '', 'TECNICO: JH TELECOM REDES'].join('\n');
+  const analysis = analyzeOperationalMessage(card);
+  assert.equal(analysis.office_track, '612043094090102');
+  assert.equal(analysis.os_ot, '612043094090102');
+  assert.equal(analysis.bdesk, null);
+  const legacy = extractOperationalData(card);
+  assert.equal(legacy.orderNumber, '612043094090102');
+  assert.equal(legacy.bdesk, '');
 });

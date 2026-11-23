@@ -173,7 +173,7 @@ export function extractOperationalData(rawMessage: string): Record<string, strin
   const isFieldActivation = /ACIONAMENTO\s+FIELD/i.test(message);
   const isBackboneActivation = /EVENTO\s+BACKBONE|VALIDAR\s+COM\s+NOC\s+TX/i.test(message);
   const hasNocTx = /NOC\s+TX/i.test(normalized);
-  const officeTrack = valueFor(message, [/TAREFA\s+OFFICE\s+TRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICE\s+TRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OS\s+OT\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICETRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICETRACK\s+([^\n\r]+)/i]);
+  const officeTrack = valueFor(message, [/TAREFA\s+OFFICE\s+TRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICE\s+TRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OS\s+OT\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICETRACK\s*[:=-][ \t]*([^\n\r]+)/i, /OFFICETRACK\s+([^\n\r]+)/i, /^[ \t]*[-*]?[ \t]*OS[ \t]*[:=-][ \t]*(\d[^\n\r]*)/im]);
   const orderNumber = valueFor(message, [/ORDEM\s+DE\s+SERVIÇO\s*[:=-][ \t]*([^\n\r]+)/i, /ORDEM\s*[:=-][ \t]*([^\n\r]+)/i, /ORDEM\s+([^\n\r]+)/i, /O\.S\.\s*[:=-][ \t]*([^\n\r]+)/i]) || officeTrack;
   const type = isBackboneActivation ? 'NOC TX' : isFieldActivation ? 'ACIONAMENTO FIELD' : hasNocTx ? 'NOC TX' : 'NOC ACESSO';
   const addresses = /Endere[cç]os?\s*:/i.test(message) ? message.split(/Endere[cç]os?\s*:/i)[1]?.split(/COPE\s+REDE:/i)[0]?.trim() || '' : '';
@@ -188,7 +188,7 @@ export function extractOperationalData(rawMessage: string): Record<string, strin
   return {
     orderNumber,
     officeTrack,
-    bdesk: splitTicket(valueFor(message, [/BDESK\s*[:=-][ \t]*([^\n\r]+)/i, /TICKET\s*[:=-][ \t]*([^\n\r]+)/i])).numero || '',
+    bdesk: splitTicket(valueFor(message, [/(?<!TRECHO\s)BDESK\s*[:=-][ \t]*([^\n\r]+)/i, /TICKET\s*[:=-][ \t]*([^\n\r]+)/i])).numero || '',
     type,
     reason: valueFor(message, [/MOTIVO\s*[:=-][ \t]*([^\n\r]+)/i, /TIPO\s+DE\s+FALHA\s*[:=-][ \t]*([^\n\r]+)/i, /TIPO\s*[:=-][ \t]*([^\n\r]+)/i]),
     eventAt: valueFor(message, [/DATA\s*(?:\/|[-])?\s*HORA\s+DO\s+EVENTO\s*[:=-][ \t]*([^\n\r]+)/i, /DATA\s*(?:\/|[-])?\s*HORA\s*[:=-][ \t]*([^\n\r]+)/i, /DATA\s+HORA\s+DO\s+EVENTO\s*[:=-][ \t]*([^\n\r]+)/i]),

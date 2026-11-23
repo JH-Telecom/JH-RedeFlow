@@ -79,7 +79,7 @@ export function analyzeOperationalMessage(message: WuzApiMessage | string): Acti
     classification.type,
     /\b(?:ORDEM|OS|ACIONAMENTO)\b/i.test(text) ? 'operational-marker' : null,
     labelValue(text, ['BDESK', 'TICKET']),
-    labelValue(text, ['TAREFA OFFICE TRACK', 'OFFICE TRACK', 'OFFICETRACK', 'OS OT']),
+    labelValue(text, ['TAREFA OFFICE TRACK', 'OFFICE TRACK', 'OFFICETRACK', 'OS OT', 'OS']),
     labelValue(text, ['OLT']),
     labelValue(text, ['SLOT\\s*/\\s*PON', 'PLACA\\s*/\\s*PON']),
     labelValue(text, ['MOTIVO', 'TIPO DE FALHA', 'TIPO']),
