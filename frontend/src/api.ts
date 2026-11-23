@@ -123,6 +123,20 @@ export type DbUsageReport = {
   daily: { day: string; bytes: number; requests: number }[]; topTargets: { name: string; bytes: number; requests: number }[];
 };
 
+// 429 que nao veio do sistema (sem JSON: barrado no caminho, Vercel/Render, antes de chegar no servidor): o pedido nao foi
+// processado, entao tenta de novo sozinho ate 2 vezes, esperando o Retry-After (ate 8 s) ou 1,5 s / 3 s. Os 429 do
+// proprio sistema (limite de login, perguntas ao Jota H) vem em JSON e nao sao repetidos (23/11/2026).
+async function fetchWithBusyRetry(url: string, init: RequestInit) {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetch(url, init);
+    const fromSystem = (response.headers.get('content-type') || '').includes('application/json');
+    if (response.status !== 429 || fromSystem || attempt >= 2) return response;
+    const retryAfter = Number(response.headers.get('retry-after'));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(8, retryAfter) * 1000 : 1500 * (attempt + 1);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
+
 // noCache: respostas grandes e que mudam a cada movimento (mapa da rede) ficam fora do cache por ETag.
 async function request<T>(path: string, init: RequestInit = {}, options: { noCache?: boolean } = {}): Promise<T> {
   const token = localStorage.getItem('jh-redeflow-token');
@@ -130,7 +144,7 @@ async function request<T>(path: string, init: RequestInit = {}, options: { noCac
   const useCache = isRead && !options.noCache;
   const cacheKey = `${token ? token.slice(-16) : 'anon'}|${path}`;
   const cached = useCache ? responseCache.get(cacheKey) : undefined;
-  const response = await fetch(`${API_URL}${path}`, { ...init, ...(isRead ? { cache: 'no-store' as RequestCache } : {}), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(cached ? { 'If-None-Match': cached.etag } : {}), ...init.headers } });
+  const response = await fetchWithBusyRetry(`${API_URL}${path}`, { ...init, ...(isRead ? { cache: 'no-store' as RequestCache } : {}), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(cached ? { 'If-None-Match': cached.etag } : {}), ...init.headers } });
   if (response.status === 304 && cached) {
     responseCache.delete(cacheKey);
     responseCache.set(cacheKey, cached);
@@ -140,7 +154,7 @@ async function request<T>(path: string, init: RequestInit = {}, options: { noCac
   const rawText = await response.text();
   let payload: any = {};
 
-  const fallbackMessage = `A API respondeu com ${response.status}${response.statusText ? ` ${response.statusText}` : ''}.`;
+  const fallbackMessage = response.status === 429 ? 'O servidor está recebendo muitos pedidos agora. Espere alguns segundos e tente de novo.' : `A API respondeu com ${response.status}${response.statusText ? ` ${response.statusText}` : ''}.`;
   // Erro fora do formato JSON (ex.: 413 do proxy da Vercel): o erro leva o status, para quem chamou decidir (dividir o lote etc.).
   const failWithStatus = (message: string): never => { throw Object.assign(new Error(message), { status: response.status }); };
   if (rawText) {
