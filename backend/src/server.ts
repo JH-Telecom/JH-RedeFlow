@@ -1,7 +1,7 @@
 import { getSharedTheme, listSharedThemes, publishSharedTheme, removeSharedTheme } from './store/wa-themes.js';
 import { sanitizeThemeColors } from './wa-themes.js';
 import { getCallSerial, pendingSerialLookups, saveAutoIspSerial } from './store/serials.js';
-import { isCallClosed } from './call-status.js';
+import { isCallClosed, shouldAutoFinalize } from './call-status.js';
 import 'dotenv/config';
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
@@ -11,7 +11,7 @@ import { activationKeys, findDuplicateCall, isClosingReport } from './activation
 import { acceptOltRegionRequest, addCustomOperationalRegion, addObservation, addRole, addSupervisor, addTechnician, addUser, cancelCall, captureUnknownOltRequestsFromCalls, changeUserPassword, clearD0Base, decideActivation, deleteAllCalls, deleteCall, deleteManualDailyBase, deleteSupervisor, deleteTechnician, deleteUser, deleteUserAvatar, findExistingCallIdentifiers, finishCall, getAuthUser, getCall, getD0BaseSummary, getDashboardMetrics, getManualDailyBase, getObservationAttachment, getRoleById, getSupervisorIdForUser, listAllAuditLogs, listAuditLogPage, listObservationsInRange, searchObservations, getSettings, getUserAvatar, getUserAvatars, getUserBanners, saveUserBanner, getUserPreferences, saveUserPreferences, getUserByEmail, ignoreOltRegionRequest, insertHistoricalCalls, insertWorkbookCalls, listActivations, getActivation, listAuditLogs, listCalls, listCallsPage, listCustomOperationalRegions, listImports, listNotifications, listObservations, listOltRegionMappings, listOltRegionRequests, listPermissions, listRoles, listSupervisors, listTechnicians, listUsers, receiveActivation, reopenCall, replaceD0Base, applyOfsRowsToCalls, saveImport, saveManualDailyBase, saveOltRegionMappings, saveUserAvatar, updateCall, updateCallEndDate, updateRole, updateSettings, updateSupervisor, updateTechnician, updateUser, validatePassword } from './store.js';
 import { extractOperationalData, parseIncomingMessage, type WuzApiMessage } from './integrations/wuzapi/client.js';
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
-import { calculateIgpMetrics, calculateIgpMetricsWhere, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
+import { calculateIgpMetrics, calculateIgpMetricsWhere, countsForRedeIndicators, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
@@ -31,7 +31,7 @@ import { registerMissingHistoricalTechnicians } from './imports/historical-techn
 import { addDays, normalizeSaoPauloLocal, toOperationalDate } from './timezone.js';
 import { timingSafeEqual } from 'node:crypto';
 import { authenticateSupabaseUser, checkSupabaseConnection, getSupabaseProfile, isSupabaseConfigured, isSupabaseRuntime } from './integrations/supabase/client.js';
-import type { ActivationAnalysis, AuthUser, Call, CallObservationAttachmentInput, CallStatus, PermissionCode } from './types.js';
+import type { ActivationAnalysis, AuthUser, Call, CallObservationAttachmentInput, CallStatus, PermissionCode, User } from './types.js';
 import { callViewersOf, clearPresence, lastCallSave, leaveCall, markCallSaved, presenceOf, touchCallViewer, touchPresence } from './presence.js';
 import { cacheReadModel, invalidateOnWrite, onDataChange } from './read-cache.js';
 import { getSupabaseAdmin, invalidateCallsSnapshot } from './integrations/supabase/client.js';
@@ -455,7 +455,7 @@ app.get('/api/dashboards/prazo', auth, requirePermission('dashboard.view'), cach
   if (!parsed.success || parsed.data.from > parsed.data.to) return response.status(400).json({ message: 'Informe um periodo valido (de/ate no formato AAAA-MM-DD).' });
   try {
     const scopedQuery = await getScopedCallQuery(request, true);
-    const calls = (await listCalls(undefined, scopedQuery)).filter((call) => call.status !== 'GIGA+');
+    const calls = (await listCalls(undefined, scopedQuery)).filter(countsForRedeIndicators);
     return response.json({ analysis: calculateSlaAnalysis(calls, parsed.data.from, parsed.data.to, parsed.data.area) });
   } catch (error) {
     return response.status(400).json({ message: error instanceof Error ? error.message : 'Nao foi possivel calcular a analise de prazo.' });
@@ -469,7 +469,7 @@ const reportQuery = z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to
 // Relatorios, mapa, carga e incidentes: so os chamados da Rede SP (GIGA+ e do outro escritorio).
 async function reportCalls(request: AuthRequest, statuses?: CallStatus[]) {
   const scope = await getScopedCallQuery(request, true);
-  return (await listCalls(statuses, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined })).filter((call) => call.status !== 'GIGA+');
+  return (await listCalls(statuses, { supervisorId: 'supervisorId' in scope ? scope.supervisorId : undefined })).filter(countsForRedeIndicators);
 }
 function reportRoute(path: string, statuses: CallStatus[] | undefined, build: (calls: Awaited<ReturnType<typeof listCalls>>, from: string, to: string, area: z.infer<typeof reportQuery>['area']) => unknown) {
   app.get(path, auth, requirePermission('dashboard.view'), cacheReadModel, async (request: AuthRequest, response) => {
@@ -2594,6 +2594,24 @@ app.use((error: Error & { type?: string; status?: number }, _request: Request, r
   if (error.type === 'entity.too.large' || error.status === 413) return response.status(413).json({ message: 'Envio grande demais: divida em lotes menores.' });
   return response.status(500).json({ message: error.message || 'Erro interno.' });
 });
+// Baixar/GIGA+ -> Finalizado sozinho quando o OFS concluir (24/11/2026). So com tecnico (nunca finaliza sem tecnico)
+// e com Data Fim. GIGA+ guarda a marca de outro escritorio (gigaPlus) para os indicadores.
+const autoFinalizeActor: User = { id: 'system-ofs-finalize', name: 'Finalizacao automatica (OFS concluido)', email: 'system-ofs-finalize@jhtelecom.com', roleId: 'system', active: true, createdAt: new Date(0).toISOString() };
+let autoFinalizeRunning = false;
+async function runAutoFinalize() {
+  if (autoFinalizeRunning) return;
+  autoFinalizeRunning = true;
+  let done = 0;
+  try {
+    for (const call of (await listCalls(['Baixar', 'GIGA+'])).filter(shouldAutoFinalize)) {
+      try { if (await updateCall(call.id, { status: 'Finalizado' }, autoFinalizeActor)) done += 1; }
+      catch (error) { console.warn(`[Finalizacao automatica] ${call.orderNumber}: ${error instanceof Error ? error.message : error}`); }
+    }
+    if (done) console.log(`[Finalizacao automatica] ${done} chamado(s) Baixar/GIGA+ concluidos no OFS viraram Finalizado.`);
+  } finally {
+    autoFinalizeRunning = false;
+  }
+}
 // Vigia dos cards (5 em 5 min): avisa quando os grupos ficam em silencio (WuzAPI caiu) e tenta de novo os cards que
 // falharam ao gravar. O aviso vai pelo proprio WhatsApp (se so o webhook caiu, ainda chega) e fica no sino.
 let silenceAlerted = false;
@@ -2630,7 +2648,7 @@ async function startServer() {
   // e coleta parada. Nao rodam dentro dos testes automatizados.
   if (!process.env.NODE_TEST_CONTEXT) {
     if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); void runUpdateImage(); void runWeeklyIgp(); void runActivationWatch(); }, 5 * 60_000).unref();
+    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); void runUpdateImage(); void runWeeklyIgp(); void runActivationWatch(); void runAutoFinalize(); }, 5 * 60_000).unref();
     // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
     void loadDbUsage();
     setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();

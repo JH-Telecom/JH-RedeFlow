@@ -1,5 +1,5 @@
 import { countSupabasePendingActivations, countSupabaseUnassignedOpenCalls, isSupabaseConfigured, listSupabaseCalls } from "../integrations/supabase/client.js";
-import { classifySlaHours } from "../igp.js";
+import { classifySlaHours, countsForRedeIndicators } from "../igp.js";
 import { addDays, toOperationalDate } from "../timezone.js";
 import type { Call, DashboardActiveCall, DashboardMetrics, SlaBreakdown } from "../types.js";
 import { type CallQuery, isCallInDateRange, listCalls } from "./calls.js";
@@ -147,7 +147,7 @@ export async function getDashboardMetrics(query: CallQuery = {}): Promise<Dashbo
     ? await listSupabaseCalls(undefined, { supervisorId: query.supervisorId }, { summary: true })
     : query.supervisorId ? await listCalls(undefined, { supervisorId: query.supervisorId }) : [...calls.values()];
   // GIGA+ e do outro escritorio: nao entra na Visao geral.
-  const ourCalls = scopeCalls.filter((call) => call.status !== 'GIGA+');
+  const ourCalls = scopeCalls.filter(countsForRedeIndicators);
   const periodCalls = query.from || query.to ? ourCalls.filter((call) => isCallInDateRange(call, query)) : ourCalls;
   return { ...summarizeDashboardMetrics(periodCalls, pendingActivations, today), ...summarizeOperationalTrends(ourCalls, periodCalls, query, today) };
 }

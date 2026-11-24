@@ -100,6 +100,13 @@ export function igpAreaClusters(area: Exclude<IgpArea, 'ALL'>): string[] {
 // Area do chamado (12/11/2026): 1) cluster da planilha da Giga, quando a ordem ja esta nela (e o oficial);
 // 2) regiao (listas acima: bateu com a Giga em ~92% das ordens); 3) cluster do balde do OFS, so quando a regiao nao
 // diz nada (ele divergiu da Giga: Guarulhos em C08, Sao Rafael em C11...).
+// Chamado que entra nos indicadores: GIGA+ ainda aberto/concluido com status GIGA+ fica fora (como antes); GIGA+ que
+// virou Finalizado conta nas areas do outro escritorio, mas nunca na area SP (24/11/2026).
+export function countsForRedeIndicators(call: { status: string; gigaPlus?: boolean; cluster?: string; gigaCluster?: string; region: string }) {
+  if (call.status === 'GIGA+') return false;
+  return !call.gigaPlus || classifyCallArea(call) !== 'SP';
+}
+
 export function classifyCallArea(call: { cluster?: string; gigaCluster?: string; region: string }): Exclude<IgpArea, 'ALL'> | 'OUTRAS' {
   const giga = normalizeCluster(call.gigaCluster);
   if (giga) return CLUSTER_AREAS[giga] ?? 'OUTRAS';
@@ -166,6 +173,7 @@ export function calculateIgpMetricsWhere(calls: Call[], label: string, area: Igp
     const closedAt = call.gigaClosedAt || call.executedAt;
     if (call.status !== 'Finalizado' || !closedAt || !inPeriod(toOperationalDate(closedAt))) continue;
     if (area !== 'ALL' && classifyCallArea(call) !== area) continue;
+    if (!countsForRedeIndicators(call)) continue;
     const groupKey = classifyIgpGroup(call.type);
     const openedAt = Date.parse(call.gigaOpenedAt || call.openedAt);
     const executedAt = Date.parse(closedAt);

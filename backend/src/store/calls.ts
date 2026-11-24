@@ -1,4 +1,4 @@
-import { isCallClosed, matchesGigaState } from '../call-status.js';
+import { isCallClosed, matchesGigaState, nextGigaPlus } from '../call-status.js';
 import { cancelSupabaseCall, finishSupabaseCall, getSupabaseAdmin, invalidateCallsSnapshot, isSupabaseConfigured, listSupabaseCalls, reopenSupabaseCall, updateSupabaseCall } from "../integrations/supabase/client.js";
 import { resolveOltRegion } from "../integrations/wuzapi/noc-consolidation.js";
 import { toOperationalDate } from "../timezone.js";
@@ -349,8 +349,10 @@ export function prepareCallUpdate(current: Call, input: Partial<EditableCallFiel
   const shouldSetCompletionDate = terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && input.executedAt === undefined;
   const reopening = isCallClosed(current) && !terminalStatuses.includes(nextStatus as typeof terminalStatuses[number]) && !(nextStatus === 'GIGA+' && current.status === 'GIGA+');
 
+  const gigaPlus = input.status !== undefined && input.status !== current.status ? nextGigaPlus(current, nextStatus) : undefined;
   return {
     ...input,
+    ...(gigaPlus !== undefined ? { gigaPlus } : {}),
     region: resolveOltRegion(olt).region || input.region?.trim() || current.region,
     address: input.address?.trim() || current.address || '',
     bairro: input.bairro?.trim() || current.bairro || '',

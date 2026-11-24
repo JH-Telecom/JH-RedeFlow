@@ -129,6 +129,9 @@ export type Call = {
   gigaCluster?: string;
   gigaOpenedAt?: string;
   gigaClosedAt?: string;
+  // Chamado do outro escritorio (GIGA+), guardado mesmo depois de virar Finalizado (24/11/2026): fora da area SP nos
+  // indicadores, mas contando nas outras areas (GRU, Alto Tiete, ABC) para acompanhar o trabalho deles.
+  gigaPlus?: boolean;
   /** Fechamento no OFS (formulario "Fechamento"), lido pelo Coletor OFS. */
   closingReason?: string;
   closingSubreason?: string;
@@ -145,7 +148,7 @@ export type Call = {
   sourceProcessedAt?: string;
 };
 
-export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'openedAt' | 'executedAt' | 'result' | 'notes' | 'closingReason' | 'closingSubreason' | 'cableType'>, 'technicianId'> & { technicianId?: string | null; supportTechnicianId?: string | null; cancellationReason?: string | null };
+export type EditableCallFields = Omit<Pick<Call, 'orderNumber' | 'bdesk' | 'officeTrack' | 'client' | 'type' | 'reason' | 'region' | 'city' | 'address' | 'bairro' | 'ofsStatus' | 'olt' | 'slotPon' | 'status' | 'technicianId' | 'openedAt' | 'executedAt' | 'result' | 'notes' | 'closingReason' | 'closingSubreason' | 'cableType' | 'gigaPlus'>, 'technicianId'> & { technicianId?: string | null; supportTechnicianId?: string | null; cancellationReason?: string | null };
 
 export type CallObservationAttachment = { id: string; fileName: string; mimeType: string; sizeBytes: number; createdAt: string };
 export type CallObservationAttachmentInput = Omit<CallObservationAttachment, 'id' | 'createdAt'> & { contentBase64: string };
