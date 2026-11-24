@@ -16,7 +16,7 @@ import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
 import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
 import { activeStatus, findMentions, monthHighlights } from './team.js';
-import { ESCALATION_LABEL, escalations, escalationText, integrationOutage, outageText, recoveryText } from './alerts.js';
+import { integrationOutage, outageText, recoveryText } from './alerts.js';
 import { buildRiskModel, callRisk, massIncidents, suggestTechnicians, type RiskModel } from './assist.js';
 import { checklistFor, checklistNote, FIELD_STATUSES, missingChecklistItems } from './field.js';
 import { listChecklistTemplates, listTechnicianLinks, saveChecklistTemplates, setTechnicianUser, technicianIdForUser } from './store/field.js';
@@ -2158,43 +2158,6 @@ async function runIntegrationWatch() {
   }
 }
 
-// (3) Escalonamento: sem tecnico ha mais de 5h vai para quem atribui chamados (calls.assign); com tecnico e sem
-// observacao ha mais de 2h vai para o supervisor do tecnico (ou, sem usuario de supervisor, para quem atribui).
-// Aviso no sino sempre; no WhatsApp tambem, se ligado. Cada chamado e escalado uma vez por regra a cada 24h.
-let escalationRunning = false;
-async function runEscalations() {
-  if (escalationRunning) return;
-  escalationRunning = true;
-  try {
-    const found = escalations(await listCalls(['Aberto', 'Atribuido', 'Atrelado', 'Deslocamento', 'Em campo']));
-    if (!found.length) return;
-    const done = new Set((await listIntegrationEvents(24, ['escalation'])).map((event) => `${event.details.callId}|${event.details.rule}`));
-    const fresh = found.filter((item) => !done.has(`${item.callId}|${item.rule}`));
-    if (!fresh.length) return;
-    const [users, technicians, supervisors] = await Promise.all([listUsers(), listTechnicians(), listSupervisors()]);
-    const assigners = users.filter((user) => user.active && user.role?.permissions?.includes('calls.assign')).map((user) => user.id);
-    const notifications = fresh.flatMap((item) => {
-      const supervisorId = item.technicianId ? technicians.find((tech) => tech.id === item.technicianId)?.supervisorId : undefined;
-      const supervisorUser = supervisorId ? supervisors.find((sup) => sup.id === supervisorId)?.userId : undefined;
-      const targets = item.rule === 'sem-observacao' && supervisorUser ? [supervisorUser] : assigners;
-      return targets.map((userId) => ({ userId, kind: 'escalation', title: `Escalado: ${item.orderNumber}`, detail: `${ESCALATION_LABEL[item.rule]}${item.technicianName ? ` · ${item.technicianName}` : ''}${item.region ? ` · ${item.region}` : ''}`, href: `/chamados/${item.callId}` }));
-    });
-    await createUserNotifications(notifications).catch((error) => console.warn(`[Escalonamento] sino: ${error instanceof Error ? error.message : error}`));
-    const config = whatsappConfig();
-    let whatsapp: string | undefined;
-    if (config) {
-      try { await sendWhatsAppText(config, escalationText(fresh, process.env.APP_PUBLIC_URL || 'https://jh-rede.vercel.app')); whatsapp = 'enviado'; }
-      catch (error) { whatsapp = `falhou: ${error instanceof Error ? error.message : error}`; }
-    }
-    for (const item of fresh) await recordIntegrationEvent('escalation', true, `${item.orderNumber}: ${ESCALATION_LABEL[item.rule]}`, { callId: item.callId, rule: item.rule, whatsapp });
-    console.log(`[Escalonamento] ${fresh.length} chamado(s) escalado(s)${whatsapp ? `; WhatsApp ${whatsapp}` : ''}.`);
-  } catch (error) {
-    console.warn(`[Escalonamento] erro: ${error instanceof Error ? error.message : error}`);
-  } finally {
-    escalationRunning = false;
-  }
-}
-
 // Diagnostico dos grupos: quais grupos mandam mensagens e quantas parecem acionamento. Ajuda a achar o ID
 // certo para WUZAPI_ACTIVATION_GROUP_ID quando o grupo muda (novo grupo, numero removido etc.).
 type WuzApiGroupSighting = { chatId: string; authorized: boolean; messages: number; activationLike: number; lastAt: string; lastSender?: string; lastActivationAt?: string };
@@ -2644,11 +2607,11 @@ async function startServer() {
   catch (error) { console.error('[Configuracoes] nao foi possivel carregar os overrides de OLT:', error); }
   await captureUnknownOltRequestsFromCalls();
   const server = app.listen(port, () => console.log(`JH RedeFlow API running on http://localhost:${port}`));
-  // Rotinas a cada 5 min: escalonamento (sino sempre) e, com WhatsApp configurado, aviso de prazo, resumo das 7h
+  // Rotinas a cada 5 min (o escalonamento saiu em 24/11/2026: so gastava leitura e avisava demais). Com WhatsApp configurado: aviso de prazo, resumo das 7h
   // e coleta parada. Nao rodam dentro dos testes automatizados.
   if (!process.env.NODE_TEST_CONTEXT) {
     if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runEscalations(); void runUpdateImage(); void runWeeklyIgp(); void runActivationWatch(); void runAutoFinalize(); }, 5 * 60_000).unref();
+    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runUpdateImage(); void runWeeklyIgp(); void runActivationWatch(); void runAutoFinalize(); }, 5 * 60_000).unref();
     // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
     void loadDbUsage();
     setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();
