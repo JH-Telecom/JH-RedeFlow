@@ -239,3 +239,21 @@ test('same order on two OFS rows: the most advanced row wins, whatever the file 
     assert.equal(match.fields.executedAt, '2026-11-11T15:20:00-03:00');
   }
 });
+
+// Caso real 24/11/2026 (612110565850102): a atividade "Apoio" (iniciada, com o tecnico que ajuda) tem a mesma ordem da
+// Manutencao Corretiva (suspensa). O sistema pegava o tecnico e o status do Apoio; agora o Apoio fica de fora.
+test('OFS "Apoio" activity never sets the technician or the OFS status of the call', () => {
+  const open = { id: 'c-apoio', orderNumber: 'BDESK-612110565850102', bdesk: '612110565850102', officeTrack: '', client: '', type: 'Manutenção Corretiva de Rede', reason: '', region: '', city: '', olt: '', slotPon: '', status: 'Atribuido' as const, technicianId: 'tMain', openedAt: '2026-11-24T08:00:00-03:00', notes: '' };
+  const techs = [
+    { id: 'tMain', name: 'Jose Leidson da Silva Barbosa', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+    { id: 'tHelp', name: 'Jose Eduardo Aparecido', active: true, teamRole: 'Tecnico', employmentStatus: 'Trabalhando' },
+  ];
+  const apoio: D0Row = { 'Ordem de Serviço': '612110565850102', 'ID da Atividade': '13693993', 'Tipo de Atividade': 'Apoio', 'Status da Atividade': 'iniciado', Recurso: 'Jose Eduardo Aparecido' };
+  const real: D0Row = { 'Ordem de Serviço': 'BDESK-612110565850102', 'ID da Atividade': '13692897', 'Tipo de Atividade': 'Manutenção Corretiva de Rede', 'Status da Atividade': 'suspenso', Recurso: 'JH TELECOM REDES' };
+  for (const order of [[apoio, real], [real, apoio]]) {
+    const [match] = matchD0Rows(order, [open]).matches;
+    assert.equal(match.fields.ofsStatus, 'suspenso');
+    assert.deepEqual(technicianAssignmentsFromRows(order, [open], techs), []);
+  }
+  assert.equal(matchD0Rows([apoio], [open]).matches.length, 0);
+});

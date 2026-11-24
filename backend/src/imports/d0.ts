@@ -98,6 +98,13 @@ function mapFields(row: D0Row, call: Call): D0CallFields {
   return fields;
 }
 
+// Atividade "Apoio" do OFS (24/11/2026): so uma guia de que um tecnico esta ajudando outro, com a MESMA ordem da
+// atividade de verdade. Nao serve para o chamado: o Recurso dela e o tecnico de apoio e o status e o dele (ex.: Apoio
+// "iniciado" com Jose Eduardo x Manutencao Corretiva "suspensa" na 612110565850102). Fica fora do cruzamento.
+export function isSupportActivityRow(row: D0Row) {
+  return normalize(value(row, 'Tipo de Atividade', 'Tipo')) === 'apoio';
+}
+
 // Ordem que bate em mais de um chamado: se so um nao estiver Cancelado (ex.: card mandado duas vezes e a copia
 // cancelada), e esse. Senao, nao adivinha.
 export function pickSingleCall<T extends { status: Call['status'] }>(candidates: T[]): T | undefined {
@@ -112,6 +119,7 @@ export function matchD0Rows(rows: D0Row[], calls: Call[]): D0MatchResult {
   let unmatchedRows = 0;
 
   for (const row of rows) {
+    if (isSupportActivityRow(row)) continue;
     const identifiers = rowIdentifiers(row);
     const candidates = callKeys.filter(({ identifiers: keys }) => identifiers.some((identifier) => keys.has(identifier)));
     const chosen = pickSingleCall(candidates.map((candidate) => candidate.call));
@@ -145,6 +153,7 @@ export function matchRowsToCalls(rows: D0Row[], calls: Call[]): Array<{ row: D0R
   const callKeys = calls.map((call) => ({ call, identifiers: new Set(callIdentifiers(call)) }));
   const matches: Array<{ row: D0Row; call: Call }> = [];
   for (const row of rows) {
+    if (isSupportActivityRow(row)) continue;
     const identifiers = rowIdentifiers(row);
     if (!identifiers.length) continue;
     const candidates = callKeys.filter(({ identifiers: keys }) => identifiers.some((identifier) => keys.has(identifier)));
