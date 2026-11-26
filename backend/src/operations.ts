@@ -33,12 +33,34 @@ export function repeatKey(call: Pick<Call, 'address' | 'olt' | 'slotPon'>) {
   return NO_ADDRESS.has(address) || !olt || !slotPon ? null : `${address}||${olt}||${slotPon}`;
 }
 
+// Mesma PON, qualquer endereco (26/11/2026): PON que gera chamado de novo em poucos dias (ex.: 5 em 3 dias) aponta
+// problema na rede, nao no cliente. Slot/PON vem em formatos diferentes ("14/08", "SLOT:1PON:3", "4, 4"): vale so
+// os numeros. OLT sem numero de slot/PON ("ATIVAÇÃO", "S/N", "-", card de campo) nao entra.
+export const PON_WINDOW_DAYS = 7;
+export function ponKey(call: Pick<Call, 'olt' | 'slotPon'>) {
+  const olt = (call.olt || '').trim().toUpperCase();
+  const numbers = (call.slotPon || '').match(/\d+/g)?.map(Number) || [];
+  if (!olt || !/\d/.test(olt) || numbers.length < 2) return null;
+  return `${olt}||${numbers.slice(0, 2).join('/')}`;
+}
+export function samePonRecent(call: Call, calls: Call[], now = Date.now()) {
+  const key = ponKey(call);
+  if (!key) return { count: 0, items: [] as RepeatHistoryItem[] };
+  const since = now - PON_WINDOW_DAYS * 86_400_000;
+  const items = calls
+    .filter((item) => item.id !== call.id && item.status !== 'Cancelado' && Date.parse(item.openedAt) >= since && ponKey(item) === key)
+    .sort((a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt))
+    .map(({ id, orderNumber, status, openedAt, executedAt, technicianName, result, closingReason, closingSubreason, type }) => ({ id, orderNumber, status, openedAt, executedAt, technicianName, result, closingReason, closingSubreason, type }));
+  return { count: items.length, items: items.slice(0, 10) };
+}
+
 export type RepeatHistoryItem = Pick<Call, 'id' | 'orderNumber' | 'status' | 'openedAt' | 'executedAt' | 'technicianName' | 'result' | 'closingReason' | 'closingSubreason' | 'type'>;
 // Historico do mesmo ponto (endereco + OLT + slot/PON), do mais recente para o mais antigo, e se este chamado e
 // reincidente (houve outro no mesmo ponto ate 30 dias antes dele).
 export function repeatHistory(call: Call, calls: Call[]) {
   const key = repeatKey(call);
-  if (!key) return { eligible: false, isRepeat: false, previousWithin30Days: 0, history: [] as RepeatHistoryItem[] };
+  const samePon = samePonRecent(call, calls);
+  if (!key) return { eligible: false, isRepeat: false, previousWithin30Days: 0, history: [] as RepeatHistoryItem[], samePon };
   const opened = Date.parse(call.openedAt);
   const same = calls.filter((item) => item.id !== call.id && item.status !== 'Cancelado' && repeatKey(item) === key);
   const previousWithin30Days = same.filter((item) => { const diff = opened - Date.parse(item.openedAt); return diff > 0 && diff <= REPEAT_WINDOW_MS; }).length;
@@ -46,7 +68,7 @@ export function repeatHistory(call: Call, calls: Call[]) {
     .sort((a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt))
     .slice(0, 20)
     .map(({ id, orderNumber, status, openedAt, executedAt, technicianName, result, closingReason, closingSubreason, type }) => ({ id, orderNumber, status, openedAt, executedAt, technicianName, result, closingReason, closingSubreason, type }));
-  return { eligible: true, isRepeat: previousWithin30Days > 0, previousWithin30Days, history };
+  return { eligible: true, isRepeat: previousWithin30Days > 0, previousWithin30Days, history, samePon };
 }
 
 // Para a fila: quais destes chamados sao reincidentes (e quantos anteriores em 30 dias).

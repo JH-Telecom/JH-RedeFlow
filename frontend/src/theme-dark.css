@@ -951,6 +951,18 @@
     color: #fed7aa;
     background: #7c2d1233
 }
+:where(:root[data-theme="dark"]) .activation-main span.activation-wait {
+    color: var(--muted)
+}
+:where(:root[data-theme="dark"]) .activation-main span.activation-wait b {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .activation-row.is-waiting {
+    box-shadow: inset 4px 0 0 #d9770680
+}
+:where(:root[data-theme="dark"]) .activation-row.is-waiting.is-atrelada {
+    box-shadow: inset 4px 0 0 #9333ea80,inset 8px 0 0 #d9770680
+}
 
 /* activation-overrides.css */
 :where(:root[data-theme="dark"]) .ra-search {

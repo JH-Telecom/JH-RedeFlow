@@ -172,7 +172,10 @@ export function CallDetailBase() {
     if (cancelling && cancelReason.trim().length < 3) { setMessage("Informe o motivo do cancelamento."); return; }
     setSaving(true);
     try {
-      const fields = { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, technicianId: technicianId || null, supportTechnicianId: supportTechnicianId && supportTechnicianId !== technicianId ? supportTechnicianId : null, openedAt: openingDate.toISOString(), notes };
+      const fields = { orderNumber, bdesk, officeTrack, client, type, reason, region, city, address, bairro, olt, slotPon, technicianId: technicianId || null, supportTechnicianId: supportTechnicianId && supportTechnicianId !== technicianId ? supportTechnicianId : null, notes,
+        // Abertura so vai quando a pessoa mudou o campo (26/11/2026): o campo nao tem segundos, entao reenviar a mesma
+        // data cortava os segundos e gravava "Data de abertura alterada" no historico a cada salvar (673 em 30 dias).
+        ...(openedAt !== toLocalDateTimeInput(current.openedAt) ? { openedAt: openingDate.toISOString() } : {}) };
       if (finishing || cancelling) {
         // Primeiro salva os dados (ex.: tecnico escolhido agora), depois encerra.
         await api.updateCall(id, { ...fields, status: current.status });
@@ -618,10 +621,40 @@ export function CallDetailRoute() {
 function RepeatBanner({ callId }: { callId: string }) {
   const [data, setData] = useState<RepeatHistory | null>(null);
   const [open, setOpen] = useState(false);
+  const [ponOpen, setPonOpen] = useState(false);
   useEffect(() => { let active = true; api.repeatHistory(callId).then((result) => { if (active) setData(result); }).catch(() => undefined); return () => { active = false; }; }, [callId]);
-  if (!data?.eligible || !data.history.length) return null;
+  const pon = data?.samePon;
+  const showPoint = Boolean(data?.eligible && data.history.length);
+  if (!data || (!showPoint && !pon?.count)) return null;
   const when = (iso?: string) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–");
+  const list = (items: typeof data.history) => (
+    <ul className="repeat-history">
+      {items.map((item) => (
+        <li key={item.id}>
+          <Link to={`/chamados/${item.id}`} className="rp-order">{item.orderNumber}</Link>
+          <span>{when(item.openedAt)}</span>
+          <span>{item.status}{item.technicianName ? ` · ${item.technicianName}` : ""}</span>
+          <span>{[item.closingReason, item.closingSubreason].filter(Boolean).join(" — ") || item.result || "–"}</span>
+        </li>
+      ))}
+    </ul>
+  );
+  // Mesma PON nos ultimos 7 dias, em qualquer endereco (26/11/2026): problema provavel na rede, nao no cliente.
+  const ponSection = pon && pon.count > 0 && (
+    <section className={`panel repeat-banner${pon.count >= 2 ? " is-repeat" : ""}`} aria-label="Chamados na mesma PON">
+      <div className="repeat-banner-head">
+        <div>
+          {pon.count >= 2 ? <span className="call-badge reincidente">PON com falha repetida</span> : null}
+          <strong>{pon.count} outro(s) chamado(s) nesta mesma OLT e slot/PON nos últimos 7 dias</strong>
+        </div>
+        <button type="button" className="link-button" onClick={() => setPonOpen(!ponOpen)} aria-expanded={ponOpen}>{ponOpen ? "Esconder" : "Ver chamados"}</button>
+      </div>
+      {ponOpen && list(pon.items)}
+    </section>
+  );
+  if (!showPoint) return <>{ponSection}</>;
   return (
+    <>{ponSection}
     <section className={`panel repeat-banner${data.isRepeat ? " is-repeat" : ""}`} aria-label="Histórico do mesmo ponto">
       <div className="repeat-banner-head">
         <div>
@@ -630,19 +663,9 @@ function RepeatBanner({ callId }: { callId: string }) {
         </div>
         <button type="button" className="link-button" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Esconder histórico" : "Ver histórico"}</button>
       </div>
-      {open && (
-        <ul className="repeat-history">
-          {data.history.map((item) => (
-            <li key={item.id}>
-              <Link to={`/chamados/${item.id}`} className="rp-order">{item.orderNumber}</Link>
-              <span>{when(item.openedAt)}</span>
-              <span>{item.status}{item.technicianName ? ` · ${item.technicianName}` : ""}</span>
-              <span>{[item.closingReason, item.closingSubreason].filter(Boolean).join(" — ") || item.result || "–"}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      {open && list(data.history)}
     </section>
+    </>
   );
 }
 

@@ -17,7 +17,7 @@ const STATUS: Record<HealthStatus, { label: string; icon: typeof CheckCircle2 }>
   critical: { label: "Parado", icon: XCircle },
   unknown: { label: "Sem dados", icon: CircleHelp },
 };
-const KIND_LABEL: Record<string, string> = { export: "Export", closing: "Fechamentos", cluster: "Clusters", extension: "Extensão", sla_alert: "Aviso de prazo", db_alert: "Tráfego do banco", daily_report: "Resumo diário", integration_alert: "Coleta parada", escalation: "Escalonamento", daily_reset: "Limpeza diária", olt_notice: "Informativo Casa Cliente", update_image: "Imagem de atualização", weekly_igp: "IGP semanal", night_router: "Roteirizador" };
+const KIND_LABEL: Record<string, string> = { export: "Export", closing: "Fechamentos", cluster: "Clusters", extension: "Extensão", sla_alert: "Aviso de prazo", db_alert: "Tráfego do banco", daily_report: "Resumo diário", integration_alert: "Coleta parada", escalation: "Escalonamento", daily_reset: "Limpeza diária", olt_notice: "Informativo Casa Cliente", update_image: "Imagem de atualização", weekly_igp: "IGP semanal", night_router: "Roteirizador", day_accept: "Aceite automático" };
 const spDateTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–");
 // Versao a.b.c menor que a atual (extensao desatualizada naquele computador).
 const isOlder = (version: string, latest: string) => { const a = version.split(".").map(Number); const b = latest.split(".").map(Number); for (let i = 0; i < Math.max(a.length, b.length); i += 1) { const d = (a[i] || 0) - (b[i] || 0); if (d) return d < 0; } return false; };

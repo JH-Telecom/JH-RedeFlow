@@ -13,7 +13,7 @@ import { extractOperationalData, parseIncomingMessage, type WuzApiMessage } from
 import { analyzeOperationalMessage, interpretWithGemini } from './integrations/wuzapi/semantic.js';
 import { calculateIgpMetrics, calculateIgpMetricsWhere, countsForRedeIndicators, classifyCallArea, calculateIgpPlan, calculateIgpWithGiga, CLUSTER_AREAS, normalizeCluster } from './igp.js';
 import { calculateSlaAnalysis, lateFinishedCalls } from './sla-analysis.js';
-import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking } from './reports.js';
+import { bottleneckReport, closingReasonsReport, comparePeriods, dailySummary, dailySummaryText, heatmapReport, productivityReport, repeatRanking, blankClosingReport } from './reports.js';
 import { queueMap, repeatFlags, repeatHistory, technicianLoad } from './operations.js';
 import { activeStatus, findMentions, monthHighlights } from './team.js';
 import { integrationOutage, outageText, recoveryText } from './alerts.js';
@@ -68,6 +68,7 @@ import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing, sugg
 import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
 import { isNightWindow, nightStartIso, nightSummary, pickNightOrders, singleNightTechnician } from './night-router.js';
 import { nightRouterActor, sweepNightActivations } from './night-auto-accept.js';
+import { missingForAutoAccept, sweepDayActivations } from './day-auto-accept.js';
 import { cardPreview, summarizeCards } from './activation-summary.js';
 import { activationMessages, callOrigin, recentCardFacts } from './store/activations.js';
 import { cardsToRetry, noteGroupMessage, silenceBackText, silenceText, whatsappSilence } from './activation-watch.js';
@@ -485,6 +486,7 @@ reportRoute('/api/relatorios/comparar', undefined, comparePeriods);
 reportRoute('/api/relatorios/gargalos', ['Finalizado'], bottleneckReport);
 reportRoute('/api/relatorios/mapa-de-calor', undefined, heatmapReport);
 reportRoute('/api/relatorios/reincidencia-tecnico', undefined, repeatRanking);
+reportRoute('/api/relatorios/fechamento-em-branco', ['Finalizado'], blankClosingReport);
 // (14) Exportacao completa (Configuracoes, so administrador): chamados abertos ou finalizados no periodo, todas as
 // observacoes e todo o historico de alteracoes do periodo. Ate 366 dias por vez; a planilha e montada no navegador.
 app.get('/api/exportacao', auth, requirePermission('settings.manage'), async (request, response) => {
@@ -2299,7 +2301,9 @@ app.get('/api/acionamentos', auth, requirePermission('activations.view'), async 
     const names = new Map(users.map((user) => [user.id, user.name]));
     return response.json({ activations: list.map((item) => ({ ...item, decisionByName: item.decisionBy ? names.get(item.decisionBy) || null : null })) });
   }
-  return response.json({ activations: await listActivations(status) });
+  // Pendentes: o que falta para o aceite automatico de 15 min (vazio = sera aceito sozinho).
+  const list = await listActivations(status);
+  return response.json({ activations: status === 'Pendente' ? list.map((item) => ({ ...item, autoAcceptMissing: missingForAutoAccept(item) })) : list });
 });
 // "Colar card": o mesario cola um card que nao chegou pelo WhatsApp. Passa pelas mesmas regras do webhook e fica
 // pendente como os outros. A origem e a mesma do ultimo acionamento recebido (o grupo), para a checagem de repetido valer.
@@ -2611,7 +2615,7 @@ async function startServer() {
   // e coleta parada. Nao rodam dentro dos testes automatizados.
   if (!process.env.NODE_TEST_CONTEXT) {
     if (whatsappConfig()) console.log('[Aviso de prazo] WhatsApp configurado: verificando a cada 5 min.');
-    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runUpdateImage(); void runWeeklyIgp(); void runActivationWatch(); void runAutoFinalize(); }, 5 * 60_000).unref();
+    setInterval(() => { void runDailyReset(); void runWhatsAppSlaAlerts(); void runDailySummaryReport(); void runIntegrationWatch(); void runUpdateImage(); void runWeeklyIgp(); void runActivationWatch(); void runAutoFinalize(); void sweepDayActivations().catch((error) => console.warn(`[Aceite automatico] erro: ${error instanceof Error ? error.message : error}`)); }, 5 * 60_000).unref();
     // Trafego do Supabase: salva a medicao e entra/sai do modo economia (aviso no grupo dos avisos).
     void loadDbUsage();
     setInterval(() => { const config = whatsappConfig(); void runDbUsageJob(config ? (text) => sendWhatsAppText(config, text).then(() => undefined) : undefined); }, 5 * 60_000).unref();

@@ -34,3 +34,8 @@
 .as-badge{padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:700;color:#9a3412;background:#ffedd5}
 .as-status{font-size:12px;color:var(--muted)}
 :root[data-theme="dark"] .as-badge{color:#fed7aa;background:#7c2d1233}
+/* Tempo de espera do card (26/11/2026): acima de 15 min a linha ganha a faixa amarela. */
+.activation-main span.activation-wait{white-space:normal;color:var(--muted);font-size:11px}
+.activation-main span.activation-wait b{color:var(--ink)}
+.activation-row.is-waiting{box-shadow:inset 4px 0 0 #d97706}
+.activation-row.is-waiting.is-atrelada{box-shadow:inset 4px 0 0 #9333ea,inset 8px 0 0 #d97706}

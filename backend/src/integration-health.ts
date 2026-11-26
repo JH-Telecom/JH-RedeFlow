@@ -63,7 +63,7 @@ export function extensionVersions(events: IntegrationEvent[]) {
   return [...latest.values()].sort((a, b) => b.lastAt.localeCompare(a.lastAt));
 }
 
-export type IntegrationEventKind = 'card_blocked' | 'activation_failed' | 'activation_retry' | 'whatsapp_silent' | 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report' | 'integration_alert' | 'escalation' | 'daily_reset' | 'olt_notice' | 'db_usage' | 'db_alert' | 'db_backup' | 'night_router' | 'update_image' | 'weekly_igp';
+export type IntegrationEventKind = 'card_blocked' | 'activation_failed' | 'activation_retry' | 'whatsapp_silent' | 'export' | 'cluster' | 'closing' | 'extension' | 'sla_alert' | 'daily_report' | 'integration_alert' | 'escalation' | 'daily_reset' | 'olt_notice' | 'db_usage' | 'db_alert' | 'db_backup' | 'night_router' | 'update_image' | 'weekly_igp' | 'day_accept';
 export type IntegrationEvent = { id: string; kind: IntegrationEventKind; ok: boolean; summary: string; details: Record<string, unknown>; createdAt: string };
 export type HealthStatus = 'ok' | 'warn' | 'critical' | 'unknown';
 export type HealthCheck = { key: string; label: string; status: HealthStatus; lastAt: string | null; detail: string };

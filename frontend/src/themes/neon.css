@@ -939,6 +939,18 @@
     color: #fed7aa;
     background: #7c2d1233
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .activation-main span.activation-wait {
+    color: var(--muted)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .activation-main span.activation-wait b {
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .activation-row.is-waiting {
+    box-shadow: inset 4px 0 0 #d97706
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .activation-row.is-waiting.is-atrelada {
+    box-shadow: inset 4px 0 0 #9333ea,inset 8px 0 0 #d97706
+}
 /* light · activation-overrides.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .ra-search {
     border: 1px solid #e0e2f4;
@@ -6599,6 +6611,18 @@
 :root:where([data-palette="neon"][data-theme="dark"])[data-theme="dark"] .as-badge {
     color: #fed7aa;
     background: #7c2d1233
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .activation-main span.activation-wait {
+    color: var(--muted)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .activation-main span.activation-wait b {
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .activation-row.is-waiting {
+    box-shadow: inset 4px 0 0 #d9770680
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .activation-row.is-waiting.is-atrelada {
+    box-shadow: inset 4px 0 0 #9333ea80,inset 8px 0 0 #d9770680
 }
 /* dark · activation-overrides.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .ra-search {

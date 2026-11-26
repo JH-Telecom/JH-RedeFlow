@@ -3,6 +3,7 @@ import type { SlaArea } from './sla-analysis.js';
 import { addDays, toOperationalDate } from './timezone.js';
 import type { Call } from './types.js';
 import { repeatKey } from './operations.js';
+import { OFS_EMPTY_CLOSING } from './imports/ofs-closing.js';
 
 // Relatorios da aba Relatorios (alem de "Finalizados fora do prazo", em sla-analysis.ts).
 // Mesma regra de prazo de todo o sistema: ate 6h no prazo, acima de 6h fora, acima de 9h outlier.
@@ -233,6 +234,26 @@ export function heatmapReport(calls: Call[], from: string, to: string, area: Sla
 // ---------- Lote D: reincidencia por tecnico (12) ----------
 // Para cada chamado finalizado no periodo (pela Data Fim), se o mesmo ponto (endereco + OLT + slot/PON) teve
 // outro chamado aberto ate 30 dias depois da Data Fim: o reparo "nao segurou". Taxa por tecnico (minimo 5).
+// Fechamento em branco no OFS por tecnico (26/11/2026): ~30% dos finalizados vinham "Nao preenchido no OFS" e
+// ficavam sem causa (rompimento, atenuacao...). Mostra quem mais deixa o formulario vazio, para cobrar na origem.
+export function blankClosingReport(calls: Call[], from: string, to: string, area: SlaArea = 'ALL') {
+  const groups = new Map<string, { finished: number; items: { id: string; orderNumber: string; executedAt: string }[] }>();
+  for (const { call } of finishedIn(calls, from, to, area)) {
+    const name = call.technicianName?.trim() || 'Sem técnico';
+    const group = groups.get(name) || { finished: 0, items: [] };
+    group.finished += 1;
+    const reason = call.closingReason?.trim() || '';
+    // So o que o Coletor confirmou vazio no OFS: sem Motivo ainda pode ser fechamento nao lido (ou finalizado a mao).
+    if (reason === OFS_EMPTY_CLOSING) group.items.push({ id: call.id, orderNumber: call.orderNumber, executedAt: call.executedAt! });
+    groups.set(name, group);
+  }
+  const rows = [...groups.entries()].map(([name, group]) => ({ name, finished: group.finished, blank: group.items.length, percent: percent(group.items.length, group.finished), items: group.items.sort((a, b) => b.executedAt.localeCompare(a.executedAt)).slice(0, 50) }))
+    .sort((a, b) => b.blank - a.blank || (b.percent ?? 0) - (a.percent ?? 0));
+  const finished = rows.reduce((sum, row) => sum + row.finished, 0);
+  const blank = rows.reduce((sum, row) => sum + row.blank, 0);
+  return { finished, blank, percent: percent(blank, finished), technicians: rows };
+}
+
 export function repeatRanking(calls: Call[], from: string, to: string, area: SlaArea = 'ALL') {
   const opensByKey = new Map<string, { at: number; orderNumber: string; id: string }[]>();
   for (const call of calls) {

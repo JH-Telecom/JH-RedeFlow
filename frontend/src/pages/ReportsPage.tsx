@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, ClipboardList, Copy, FileSpreadsheet, Minus, Timer } from "lucide-react";
-import { api, type RepeatRanking, type BottleneckReport, type HeatmapReport, type StageStats, type CompareReport, type DailySummary, type LateCallRow, type PeriodMetrics, type ProductivityReport, type ProductivityRow, type ReasonsReport, type SlaArea } from "../api";
+import { api, type BlankClosingReport, type RepeatRanking, type BottleneckReport, type HeatmapReport, type StageStats, type CompareReport, type DailySummary, type LateCallRow, type PeriodMetrics, type ProductivityReport, type ProductivityRow, type ReasonsReport, type SlaArea } from "../api";
 import { toOperationalDate } from "../dates";
 import { KpiTile, Panel, formatCount, formatHours } from "../components/charts";
 import { Pager, usePaged } from "../components/Pager";
@@ -11,7 +11,7 @@ import { SkeletonRows } from "../components/Skeleton";
 // Relatorios. Mesma regra de prazo de todo o sistema: ate 6h no prazo, acima de 6h fora, acima de 9h outlier.
 // Finalizados contam pela Data Fim; abertos pela abertura.
 
-type ReportType = "late-finished" | "productivity" | "reasons" | "compare" | "daily" | "bottlenecks" | "heatmap" | "repeat-ranking" | "monthly";
+type ReportType = "late-finished" | "productivity" | "reasons" | "compare" | "daily" | "bottlenecks" | "heatmap" | "repeat-ranking" | "blank-closing" | "monthly";
 const REPORTS: { value: ReportType; label: string; description: string }[] = [
   { value: "late-finished", label: "Finalizados fora do prazo (acima de 6h)", description: "Chamados finalizados no período, pela Data Fim, que levaram mais de 6h entre a abertura e o fim. Acima de 9h é outlier." },
   { value: "productivity", label: "Produtividade por técnico e supervisor", description: "Finalizados no período por técnico e por supervisor, com quantos ficaram no prazo, fora e outliers, e o tempo médio." },
@@ -20,6 +20,7 @@ const REPORTS: { value: ReportType; label: string; description: string }[] = [
   { value: "bottlenecks", label: "Gargalos: espera x atendimento", description: "Onde o tempo se perde nos finalizados do período: esperando técnico (da abertura à atribuição) ou em atendimento (da atribuição à Data Fim). Mediana e p90 (9 em cada 10 ficaram abaixo), por região e por técnico." },
   { value: "heatmap", label: "Mapa de calor por horário", description: "Por dia da semana e hora: chamados que entram, técnicos que finalizaram chamados e quantos chamados por técnico. Ajuda a montar escala e plantão." },
   { value: "repeat-ranking", label: "Reincidência por técnico", description: "Dos reparos finalizados no período, quantos tiveram outro chamado no mesmo endereço, OLT e slot/PON em até 30 dias depois da Data Fim (o reparo não segurou). % por técnico (ranking a partir de 5 reparos)." },
+  { value: "blank-closing", label: "Fechamento em branco no OFS", description: "Dos finalizados no período, quantos o técnico concluiu no OFS sem preencher o formulário de fechamento (Motivo, Submotivo e Tipo do Cabo). Sem isso o chamado fica sem causa nos motivos e na reincidência." },
   { value: "monthly", label: "Relatório mensal (PDF)", description: "Relatório do mês para enviar ao contrato: indicadores contra as metas, por área, comparação com o mês anterior, motivos de fechamento e reincidência. Abre numa página para imprimir ou salvar em PDF." },
   { value: "daily", label: "Resumo do dia", description: "O resumo de um dia (o mesmo que vai no WhatsApp às 7h, com o dia anterior, quando ligado)." },
 ];
@@ -101,6 +102,7 @@ export function ReportsPage() {
         : report === "productivity" ? <ProductivityView from={range.from} to={range.to} area={area} />
         : report === "reasons" ? <ReasonsView from={range.from} to={range.to} area={area} />
         : report === "repeat-ranking" ? <RepeatRankingView from={range.from} to={range.to} area={area} />
+        : report === "blank-closing" ? <BlankClosingView from={range.from} to={range.to} area={area} />
         : report === "bottlenecks" ? <BottleneckView from={range.from} to={range.to} area={area} />
         : report === "heatmap" ? <HeatmapView from={range.from} to={range.to} area={area} />
         : <CompareView from={range.from} to={range.to} area={area} />}
@@ -454,6 +456,43 @@ function RepeatRankingView({ from, to, area }: { from: string; to: string; area:
                   <td>{row.items.length > 0 && <button type="button" className="link-button" onClick={() => setOpen(open === row.name ? null : row.name)} aria-expanded={open === row.name}>{open === row.name ? "Esconder" : "Ver ordens"}</button>}</td>
                 </tr>
                 {open === row.name && <tr><td colSpan={6}><ul className="rp-repeat-list">{row.items.map((item) => <li key={item.id}><Link to={`/chamados/${item.id}`} className="rp-order">{item.orderNumber}</Link> voltou como <Link to={`/chamados/${item.nextId}`} className="rp-order">{item.nextOrder}</Link> {item.days.toLocaleString("pt-BR")} dia(s) depois</li>)}</ul></td></tr>}
+              </Fragment>
+            ))}</tbody>
+          </table>
+          <Pager {...paged} noun={["técnico", "técnicos"]} />
+        </div>
+      )}
+    </Panel>
+  </>;
+}
+
+// ---------- Fechamento em branco no OFS ----------
+function BlankClosingView({ from, to, area }: { from: string; to: string; area: SlaArea }) {
+  const { data, error } = useReport<BlankClosingReport>("blankClosingReport", () => api.blankClosingReport(from, to, area), [from, to, area]);
+  const paged = usePaged(data?.technicians ?? [], data);
+  const [open, setOpen] = useState<string | null>(null);
+  if (!data) return <ReportState error={error} />;
+  const worst = data.technicians.find((row) => row.finished >= 5 && row.blank > 0);
+  return <>
+    <div className="dv-kpi-grid">
+      <KpiTile label="Finalizados no período" value={formatCount(data.finished)} icon={ClipboardList} />
+      <KpiTile label="Sem fechamento no OFS" value={formatCount(data.blank)} note={`${pct(data.percent)} dos finalizados ficaram sem causa`} icon={AlertTriangle} tone={data.blank ? "warning" : "default"} />
+      <KpiTile label="Quem mais deixa em branco" value={worst?.name || "–"} note={worst ? `${worst.blank} de ${worst.finished} (${pct(worst.percent)})` : "Ninguém"} icon={Timer} />
+    </div>
+    <Panel kicker="POR TÉCNICO" title="Fechamento em branco no OFS" aside={<span className="rp-aside"><ExportButton disabled={!data.blank} onClick={() => writeExcel(`Fechamento em branco ${fileDate(from)} a ${fileDate(to)}.xlsx`, [{ name: "Técnicos", rows: data.technicians.map((row) => ({ "Técnico": row.name, Finalizados: row.finished, "Em branco": row.blank, "%": row.percent })) }, { name: "Ordens", rows: data.technicians.flatMap((row) => row.items.map((item) => ({ "Técnico": row.name, Ordem: item.orderNumber, "Data Fim": spDateTime(item.executedAt) }))) }])} /></span>}>
+      {!data.technicians.length ? <div className="dv-empty">Nenhum chamado finalizado no período.</div> : (
+        <div className="sa-table-wrap">
+          <table className="sa-table rp-table">
+            <thead><tr><th>Técnico</th><th>Finalizados</th><th>Em branco</th><th>%</th><th aria-label="Ver ordens" /></tr></thead>
+            <tbody>{paged.pageItems.map((row) => (
+              <Fragment key={row.name}>
+                <tr>
+                  <td><strong>{row.name}</strong></td>
+                  <td>{row.finished}</td><td>{row.blank}</td>
+                  <td><span className="rp-meter"><span className="rp-meter-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, row.percent ?? 0)}%` }} /></span>{pct(row.percent)}</span></td>
+                  <td>{row.items.length > 0 && <button type="button" className="link-button" onClick={() => setOpen(open === row.name ? null : row.name)} aria-expanded={open === row.name}>{open === row.name ? "Esconder" : "Ver ordens"}</button>}</td>
+                </tr>
+                {open === row.name && <tr><td colSpan={5}><ul className="rp-repeat-list">{row.items.map((item) => <li key={item.id}><Link to={`/chamados/${item.id}`} className="rp-order">{item.orderNumber}</Link> finalizada em {spDateTime(item.executedAt)}</li>)}</ul>{row.blank > row.items.length && <small>Mostrando as 50 mais recentes de {row.blank}.</small>}</td></tr>}
               </Fragment>
             ))}</tbody>
           </table>
