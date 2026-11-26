@@ -47,6 +47,7 @@ const SettingsPage = lazyNamed(() => import("../pages/SettingsPage"), "SettingsP
 const ProfilePage = lazyNamed(() => import("../pages/ProfilePage"), "ProfilePage");
 const PeoplePage = lazyNamed(() => import("../pages/PeoplePage"), "PeoplePage");
 const IntegrationHealthPage = lazyNamed(() => import("../pages/IntegrationHealthPage"), "IntegrationHealthPage");
+const JotaMonitorPage = lazyNamed(() => import("../pages/JotaMonitorPage"), "JotaMonitorPage");
 const QueueMapPage = lazyNamed(() => import("../pages/OperationsPages"), "QueueMapPage");
 const TechnicianLoadPage = lazyNamed(() => import("../pages/OperationsPages"), "TechnicianLoadPage");
 const AuditHistoryPage = lazyNamed(() => import("../pages/AuditHistoryPage"), "AuditHistoryPage");
@@ -481,6 +482,7 @@ export function Shell({
             <Route path="/roteirizador" element={guard("imports.view", <NightRouterPage user={user} />)} />
             <Route path="/carga" element={guard("calls.view", <TechnicianLoadPage />)} />
             <Route path="/integracao-ofs" element={guard("imports.view", <IntegrationHealthPage />)} />
+            <Route path="/acompanhamento-ia" element={guard("settings.manage", <JotaMonitorPage />)} />
             <Route path="/campo" element={<FieldPage />} />
             <Route path="/pessoas" element={<PeoplePage currentUserId={user.id} />} />
             <Route path="/perfil" element={<ProfilePage user={user} profile={{ photo: profilePhoto, saving: savingProfilePhoto, error: profilePhotoError, onChange: handleProfilePhotoChange, onRemove: handleProfilePhotoRemove }} preferences={preferences} onSavePreferences={savePreferences} theme={theme} onToggleTheme={toggleTheme} status={myStatus} onSaveStatus={saveMyStatus} />} />

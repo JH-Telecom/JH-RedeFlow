@@ -1,5 +1,5 @@
 import { addDays, toOperationalDate } from './timezone.js';
-import { askLlmJson, llmConfigured, LlmError } from './llm.js';
+import { askLlmJson, llmConfigured, LlmError, type LlmAnswer } from './llm.js';
 
 // Jota H (12/11/2026): assistente de dados do RedeFlow. A pergunta em portugues vai para o Gemini junto com o prompt
 // abaixo (estrutura das views do schema jota, sem nenhum dado); ele devolve so um JSON com o SELECT. O SELECT roda no
@@ -33,15 +33,19 @@ Regras do negocio:
 - Nomes de pessoas: use ILIKE com % entre as partes (ex.: tecnico ILIKE '%joao%silva%'); troque letras acentuadas por _ (ex.: '%jo_o%'). Regiao: ILIKE tambem.
 PERGUNTAR DE VOLTA: se faltar uma informacao essencial que muda o resultado (ex.: periodo em perguntas de total/ranking/comparacao sem data nenhuma; tecnico com nome ambiguo), NAO chute: devolva {"pergunta_ia":{"texto":"pergunta curta em portugues","opcoes":["opcao 1","opcao 2"]}} com 2 a 6 opcoes curtas (ex. de periodo: "Hoje","Ontem","Esta semana","Este mês","Mês passado"; a mais provavel primeiro). Pergunte UMA coisa por vez. Se o periodo/filtro ja estiver na pergunta (inclusive entre parenteses, vindo de uma resposta anterior), responda direto. CONFIRMAR: so quando a pergunta for complicada e tiver 2+ interpretacoes plausiveis, use pergunta_ia com texto "Entendi: <sua leitura em 1 frase>. Certo?" e opcoes ["Sim, pode calcular","Não, é outra coisa"]; nunca confirme se a pergunta terminar com "(pode calcular)".
 DE ONDE VEM / DETALHAR: se pedirem as linhas do resultado anterior ("de onde vem esse numero", "liste as ordens"), refaca o SELECT anterior SEM agregar, listando as linhas com colunas legiveis, no maximo 50, com o MESMO filtro.
+MELHOR E PIOR (ex.: "melhor e pior tecnico em prazo"): NUNCA use UNION com ORDER BY/LIMIT em cada parte (da erro de sintaxe). Use WITH base AS (...), r AS (SELECT *, row_number() OVER (ORDER BY x DESC) AS pos_melhor, row_number() OVER (ORDER BY x ASC) AS pos_pior FROM base) SELECT CASE WHEN pos_melhor <= N THEN 'Melhor' ELSE 'Pior' END AS "Posição", ... FROM r WHERE pos_melhor <= N OR pos_pior <= N. Para prazo/TME por tecnico, so tecnicos com pelo menos 3 chamados finalizados no periodo.
+FILTER so vai direto numa agregacao: round(100.0 * count(*) FILTER (WHERE ...) / nullif(count(*), 0), 1) (nunca round(...) FILTER).
 COMPARAR PERIODOS ("compare com o periodo anterior", "essa semana contra a passada"): UMA linha por item com as colunas "Período atual", "Período anterior" e "Variação" (atual menos anterior; em % use pontos percentuais). Semana x semana anterior, mes x mes anterior, hoje x ontem.
 Responda SOMENTE um JSON: {"titulo": "frase curta", "sql": "SELECT ...", "explicacao": "como calculou, em 1 frase, portugues", "sugestoes": ["proxima pergunta 1","proxima pergunta 2","proxima pergunta 3"]} — sugestoes = 3 perguntas curtas e completas que a pessoa provavelmente faria a seguir.
 Se nao der para responder com essas views, ou nao for sobre a operacao: {"titulo":"Não consigo responder","sql":"","explicacao":"motivo curto"}.
 O SQL: so SELECT/WITH, sem ponto e virgula, sem comentarios, colunas com nomes legiveis em portugues com AS (ex.: AS "Técnico"), ordenado, no maximo 50 linhas (LIMIT 50) a nao ser que peçam mais (maximo 200).`;
 }
 
-export function buildJotaRequest(question: string, context: JotaContext[] = [], today?: string) {
+// Regras que a IA aprendeu (Acompanhamento da IA): escritas pela gestao, valem na hora para a proxima pergunta.
+export function buildJotaRequest(question: string, context: JotaContext[] = [], today?: string, rules: string[] = []) {
   const previous = context.slice(-3).map((item, index) => `Pergunta anterior ${index + 1}: ${item.pergunta}${item.sql ? `\nSQL dela: ${item.sql}` : ''}`).join('\n');
-  return `${jotaPrompt(today)}\n${previous ? `\nConversa ate aqui (so perguntas e SQL, sem dados):\n${previous}\n` : ''}\nPergunta: ${question}`;
+  const learned = rules.length ? `\nRegras aprendidas com a operacao (siga sempre; valem mais que as regras acima se conflitarem):\n${rules.map((rule) => `- ${rule}`).join('\n')}\n` : '';
+  return `${jotaPrompt(today)}\n${learned}${previous ? `\nConversa ate aqui (so perguntas e SQL, sem dados):\n${previous}\n` : ''}\nPergunta: ${question}`;
 }
 
 // Defesa em profundidade: o banco ja so deixa ler as views jota.* (papel jota_reader, transacao somente leitura).
@@ -79,12 +83,25 @@ export function parseJotaAnswer(raw: string): JotaAnswer | null {
   return { kind: 'query', titulo, sql, explicacao, sugestoes };
 }
 
-export async function askJotaGemini(question: string, context: JotaContext[] = []): Promise<JotaAnswer> {
-  if (!llmConfigured()) throw new Error('O Jota H precisa de uma chave de IA no servidor (GROQ_API_KEY ou GEMINI_API_KEY).');
+export type JotaAiResult = { answer: JotaAnswer; provider: LlmAnswer['provider']; model: string; aiMs: number };
+export async function askJotaGemini(question: string, context: JotaContext[] = [], rules: string[] = [], env: NodeJS.ProcessEnv = process.env): Promise<JotaAiResult> {
+  return askJotaPrompt(buildJotaRequest(question, context, undefined, rules), env);
+}
+
+// Autocorrecao (26/11/2026): o banco recusou o SQL (ex.: UNION com LIMIT, FILTER fora de agregacao). Manda o erro de
+// volta para a IA uma vez, no mesmo formato. Nao manda nenhum dado, so o SQL e a mensagem do PostgreSQL.
+export async function askJotaFix(question: string, sql: string, dbError: string, context: JotaContext[] = [], rules: string[] = [], env: NodeJS.ProcessEnv = process.env): Promise<JotaAiResult> {
+  const prompt = `${buildJotaRequest(question, context, undefined, rules)}\n\nVoce ja respondeu esta pergunta com o SQL abaixo, mas o PostgreSQL recusou. Corrija o SQL (mesma intencao) e responda no mesmo formato JSON.\nSQL recusado: ${sql.slice(0, 4000)}\nErro do banco: ${dbError.slice(0, 400)}`;
+  return askJotaPrompt(prompt, env);
+}
+
+async function askJotaPrompt(prompt: string, env: NodeJS.ProcessEnv): Promise<JotaAiResult> {
+  if (!llmConfigured(env)) throw new Error('O Jota H precisa de uma chave de IA no servidor (GROQ_API_KEY ou GEMINI_API_KEY).');
   // llm.ts: Groq primeiro; se falhar (cota, fora do ar), os modelos do Gemini, cada um com cota propria.
   let answer;
+  const started = Date.now();
   try {
-    answer = await askLlmJson(buildJotaRequest(question, context), { temperature: 0.1, timeoutMs: 20_000, label: 'Jota H', geminiModels: jotaModels() });
+    answer = await askLlmJson(prompt, { temperature: 0.1, timeoutMs: 20_000, label: 'Jota H', geminiModels: jotaModels(env) }, undefined, env);
   } catch (error) {
     const status = error instanceof LlmError ? error.status : 0;
     if (status === 429) throw new Error('A cota de uso da IA acabou por agora (HTTP 429), no Groq e no Gemini. Tente de novo em alguns minutos.');
@@ -92,7 +109,17 @@ export async function askJotaGemini(question: string, context: JotaContext[] = [
   }
   const parsed = parseJotaAnswer(answer.text);
   if (!parsed) throw new Error('A IA respondeu num formato que não deu para ler. Tente perguntar de outro jeito.');
-  return parsed;
+  return { answer: parsed, provider: answer.provider, model: answer.model, aiMs: Date.now() - started };
+}
+
+// Teste automatico: o resultado da IA bate com o SQL certo? Compara so os valores (nome de coluna e ordem das linhas
+// nao importam); numeros com ate 2 casas.
+export function jotaResultKey(rows: Record<string, unknown>[]) {
+  const cell = (value: unknown) => (typeof value === 'number' ? String(Math.round(value * 100) / 100) : value === null || value === undefined ? '' : /^-?\d+(\.\d+)?$/.test(String(value)) ? String(Math.round(Number(value) * 100) / 100) : String(value).trim());
+  return rows.map((row) => Object.values(row).map(cell).join('\u0001')).sort().join('\u0002');
+}
+export function sameJotaResult(expected: Record<string, unknown>[], actual: Record<string, unknown>[]) {
+  return jotaResultKey(expected) === jotaResultKey(actual);
 }
 
 // Modelo principal + reservas (JOTA_H_FALLBACK_MODELS, separados por virgula), sem repetir.

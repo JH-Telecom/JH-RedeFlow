@@ -1677,6 +1677,116 @@
     color: #4f5d73
 }
 
+/* jota-monitor.css */
+:where(:root:not([data-theme="dark"])) .jm-health-main h2 {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-health-main p {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-health-icon {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-health.is-ok .jm-health-icon {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jm-health.is-fail .jm-health-icon {
+    color: #ffffff
+}
+:where(:root:not([data-theme="dark"])) .jm-provider-top {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-provider-role {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-provider.is-fail .jm-provider-role {
+    color: #a52f2f
+}
+:where(:root:not([data-theme="dark"])) .jm-provider small {
+    color: #5d6b80
+}
+:where(:root:not([data-theme="dark"])) .jm-demo {
+    color: #5d6b80
+}
+:where(:root:not([data-theme="dark"])) .jm-kpis span {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-kpis strong {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-kpis small {
+    color: #5d6b80
+}
+:where(:root:not([data-theme="dark"])) .jm-legend {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-tabs button {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-tabs button b {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-tabs button.is-active {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-tabs button:hover {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-table th {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-table td {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-detail {
+    color: #5d6b80
+}
+:where(:root:not([data-theme="dark"])) .jm-sql {
+    color: #27354d
+}
+:where(:root:not([data-theme="dark"])) .jm-section-head h2 {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-section-head small {
+    color: #5d6b80
+}
+:where(:root:not([data-theme="dark"])) .jm-rule-list li.is-off .jm-rule-body p, :where(:root:not([data-theme="dark"])) .jm-rule-list li.is-off .jm-rule-body small {
+    color: #5e6a7b
+}
+:where(:root:not([data-theme="dark"])) .jm-rule-body p {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-rule-body small {
+    color: #5d6b80
+}
+:where(:root:not([data-theme="dark"])) .jm-rule-form textarea {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-rule-form-actions label {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-rule-form-actions select {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .jm-origin {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-test-badge {
+    color: #4d5b70
+}
+:where(:root:not([data-theme="dark"])) .jm-test-list li.is-ok .jm-test-badge {
+    color: #11734d
+}
+:where(:root:not([data-theme="dark"])) .jm-test-list li.is-diferente .jm-test-badge {
+    color: #8a5300
+}
+:where(:root:not([data-theme="dark"])) .jm-test-list li.is-erro .jm-test-badge {
+    color: #a52f2f
+}
+:where(:root:not([data-theme="dark"])) .jm-muted {
+    color: #5d6b80
+}
+
 /* missing-region.css */
 :where(:root:not([data-theme="dark"])) .sr-notice {
     color: #116b40

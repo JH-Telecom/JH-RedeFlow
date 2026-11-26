@@ -47,7 +47,7 @@ import { BELL_WINDOW_MINUTES, nearDeadlineCalls, WHATSAPP_WINDOW_MINUTES, whatsa
 import { listIntegrationEvents, recordIntegrationEvent } from './store/integration-events.js';
 import { sendWhatsAppImage, sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
 import { weeklyIgpText } from './weekly-igp.js';
-import { llmConfigured } from './llm.js';
+import { checkLlmProviders, groqModels, llmConfigured, type LlmCheck } from './llm.js';
 import { analyzeAddressesWithAi, applyAddressAi, badAddress, badNeighborhood, regionExamples } from './address-ai.js';
 import { attendanceCalls, attendanceImageSpec, dueSendTime, parseSendTimes, renderImagePng } from './update-image.js';
 import { deliverOltNotice } from './olt-notice-delivery.js';
@@ -59,13 +59,14 @@ import { reacceptActivation } from './store/activations.js';
 import { buildSystemStatus } from './system-status.js';
 import { backupConfig } from './db-backup.js';
 import { addNightRuns, getNightRouterSettings, listNightRuns, listNightShifts, replaceNightShifts, saveNightRouterSettings } from './store/night-router.js';
-import { askJotaGemini, validateJotaSql } from './jota-h.js';
+import { askJotaFix, askJotaGemini, jotaModels, sameJotaResult, validateJotaSql, type JotaAnswer } from './jota-h.js';
+import { addJotaRule, addJotaTest, activeJotaRuleTexts, deleteJotaRule, deleteJotaTest, jotaRulesVersion, listJotaRules, listJotaTests, saveJotaTestResult, updateJotaRule, type JotaTestResult } from './store/jota-admin.js';
 import { DUTY_STATUSES } from './duty-status.js';
 import { getIgpRules, importGigaWorkbook, listGigaImports, listGigaOrders, reconcile, saveIgpRules } from './store/giga.js';
 import { scoreIgp } from './igp-score.js';
 import { normalizeOltCode, resolveOltRegion } from './integrations/wuzapi/noc-consolidation.js';
 import { isMissingRegion, knownRegions, missingRegionCalls, sameOltMissing, suggestRegion } from './missing-region.js';
-import { addJotaLog, jotaUsage, setJotaFeedback, type JotaLogStatus } from './store/jota-log.js';
+import { addJotaLog, jotaPanel, normalizeJotaQuestion, setJotaFeedback, type JotaLogStatus, type JotaProvider } from './store/jota-log.js';
 import { isNightWindow, nightStartIso, nightSummary, pickNightOrders, singleNightTechnician } from './night-router.js';
 import { nightRouterActor, sweepNightActivations } from './night-auto-accept.js';
 import { missingForAutoAccept, sweepDayActivations } from './day-auto-accept.js';
@@ -1671,10 +1672,25 @@ app.put('/api/roteirizador/escala', auth, requirePermission('settings.manage'), 
     return response.json({ shifts: await replaceNightShifts(parsed.data.shifts) });
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar a escala.' }); }
 });
-// Jota H: pergunta em portugues -> Gemini monta o SELECT (sem ver dados) -> roda no banco so leitura (jota_consultar)
-// -> volta a tabela. Quem ve os indicadores pode usar. No maximo 20 perguntas por minuto por pessoa. Cada pergunta fica
-// registrada (sem o resultado) para o painel de uso e a avaliacao 👍/👎.
+// Jota H: pergunta em portugues -> IA (Groq, reserva Gemini) monta o SELECT (sem ver dados) -> roda no banco so leitura
+// (jota_consultar) -> volta a tabela. Quem ve os indicadores pode usar. No maximo 20 perguntas por minuto por pessoa.
+// Cada pergunta fica registrada (sem o resultado) para o Acompanhamento da IA e a avaliacao 👍/👎.
+// 26/11/2026: regras aprendidas no prompt; cache do dia (mesma pergunta, mesmo dia: reaproveita o SQL e roda de novo,
+// sem gastar a IA); se o banco recusar o SQL, a IA corrige uma vez com a mensagem de erro.
 const jotaRate = new Map<string, number[]>();
+const jotaCache = new Map<string, Extract<JotaAnswer, { kind: 'query' }>>();
+const isJotaLeader = (user: AuthUser) => user.role.permissions.includes('settings.manage');
+const jotaCacheKey = (question: string, leader: boolean) => `${toOperationalDate()}|${leader ? 1 : 0}|${jotaRulesVersion()}|${normalizeJotaQuestion(question)}`;
+const jotaDbMessage = (message: string) => /jota_consultar/.test(message) && /function|exist/i.test(message) ? 'O Jota H ainda não foi instalado no banco (falta a migração jota_h).'
+  : /statement timeout|canceling statement/i.test(message) ? 'A consulta demorou mais de 8 segundos. Tente um período menor.'
+  : `O banco não aceitou a consulta: ${message}`;
+// Erro que outra versao do SQL pode resolver (sintaxe, coluna, funcao); tempo esgotado e falta de instalacao, nao.
+const jotaFixable = (message: string) => !/statement timeout|canceling statement|jota_consultar/i.test(message);
+async function runJotaSql(sql: string) {
+  const started = Date.now();
+  const { data, error } = await getSupabaseAdmin().rpc('jota_consultar', { consulta: sql });
+  return { rows: Array.isArray(data) ? data as Record<string, unknown>[] : [], error: error?.message || '', durationMs: Date.now() - started };
+}
 app.post('/api/jota-h', auth, requirePermission('dashboard.view'), async (request: AuthRequest, response) => {
   const parsed = z.object({
     pergunta: z.string().trim().min(3).max(500),
@@ -1687,39 +1703,64 @@ app.post('/api/jota-h', auth, requirePermission('dashboard.view'), async (reques
   if (recent.length >= 20) return response.status(429).json({ message: 'Muitas perguntas seguidas. Espere um minuto.' });
   jotaRate.set(user.id, [...recent, now]);
   const question = parsed.data.pergunta;
-  const log = async (entry: { status: JotaLogStatus; title?: string; sql?: string; rowCount?: number | null; durationMs?: number | null; error?: string }) => {
-    try { return await addJotaLog({ userId: user.id, userName: user.name, question, title: entry.title || '', sql: entry.sql || '', status: entry.status, rowCount: entry.rowCount ?? null, durationMs: entry.durationMs ?? null, error: entry.error || '' }); }
+  const context = parsed.data.contexto || [];
+  const leader = isJotaLeader(user);
+  const log = async (entry: { status: JotaLogStatus; title?: string; sql?: string; rowCount?: number | null; durationMs?: number | null; error?: string; provider?: JotaProvider | null; model?: string; cached?: boolean; repaired?: boolean; aiMs?: number | null }) => {
+    try { return await addJotaLog({ userId: user.id, userName: user.name, question, title: entry.title || '', sql: entry.sql || '', status: entry.status, rowCount: entry.rowCount ?? null, durationMs: entry.durationMs ?? null, error: entry.error || '', provider: entry.provider ?? null, model: entry.model, cached: entry.cached, repaired: entry.repaired, aiMs: entry.aiMs ?? null }); }
     catch (error) { console.warn(`[Jota H] nao registrou o uso: ${error instanceof Error ? error.message : error}`); return null; }
   };
-  // Modo demonstracao (preview): sem banco nem Gemini, responde um exemplo com os chamados em memoria.
+  // Modo demonstracao (preview): sem banco nem IA, responde um exemplo com os chamados em memoria.
   if (!isSupabaseConfigured()) {
     const counts = new Map<string, number>();
     (await listCalls()).forEach((call) => counts.set(call.region || 'Sem região', (counts.get(call.region || 'Sem região') ?? 0) + 1));
     const linhas = [...counts].sort((left, right) => right[1] - left[1]).map(([region, total]) => ({ 'Região': region, 'Chamados': total }));
-    const logId = await log({ status: 'ok', title: 'Exemplo (modo demonstração)', rowCount: linhas.length });
+    const logId = await log({ status: 'ok', title: 'Exemplo (modo demonstração)', rowCount: linhas.length, provider: 'demo', durationMs: 5, aiMs: 0 });
     return response.json({ kind: 'query', logId, titulo: 'Exemplo (modo demonstração)', sql: 'SELECT regiao AS "Região", count(*) AS "Chamados" FROM chamados GROUP BY 1 ORDER BY 2 DESC', explicacao: 'No modo demonstração o Jota H não chama a IA: mostra este exemplo com os chamados de teste.', sugestoes: ['Quantos chamados entraram hoje?', 'Ranking de técnicos este mês', 'TME da semana passada'], linhas, colunas: ['Região', 'Chamados'], limite: false });
   }
   try {
-    const answer = await askJotaGemini(question, parsed.data.contexto);
-    if (answer.kind === 'question') return response.json({ ...answer, logId: await log({ status: 'pergunta', title: answer.texto }) });
-    if (answer.kind === 'refused') return response.json({ ...answer, logId: await log({ status: 'recusada', title: answer.titulo, error: answer.explicacao }) });
-    const checked = validateJotaSql(answer.sql);
-    if (!checked.ok) return response.json({ kind: 'refused', titulo: 'Não consigo responder', explicacao: checked.message, sql: answer.sql, logId: await log({ status: 'recusada', title: answer.titulo, sql: answer.sql, error: checked.message }) });
-    const started = Date.now();
-    const { data, error } = await getSupabaseAdmin().rpc('jota_consultar', { consulta: checked.sql });
-    if (error) {
-      const message = /jota_consultar/.test(error.message) && /function|exist/i.test(error.message) ? 'O Jota H ainda não foi instalado no banco (falta a migração jota_h).'
-        : /statement timeout|canceling statement/i.test(error.message) ? 'A consulta demorou mais de 8 segundos. Tente um período menor.'
-        : `O banco não aceitou a consulta: ${error.message}`;
-      console.warn(`[Jota H] ${user.name}: consulta recusada (${error.message})`);
-      const logId = await log({ status: 'erro', title: answer.titulo, sql: checked.sql, durationMs: Date.now() - started, error: error.message });
-      return response.json({ kind: 'error', titulo: answer.titulo, explicacao: message, sql: checked.sql, sugestoes: answer.sugestoes, logId });
+    // Cache do dia: so a primeira pergunta da conversa (com contexto, a mesma frase pode querer outra coisa).
+    const cacheKey = context.length ? '' : jotaCacheKey(question, leader);
+    const cachedAnswer = cacheKey ? jotaCache.get(cacheKey) : undefined;
+    if (cachedAnswer) {
+      const result = await runJotaSql(cachedAnswer.sql);
+      if (!result.error) {
+        const logId = await log({ status: result.rows.length ? 'ok' : 'vazio', title: cachedAnswer.titulo, sql: cachedAnswer.sql, rowCount: result.rows.length, durationMs: result.durationMs, provider: 'cache', cached: true, aiMs: 0 });
+        return response.json({ ...cachedAnswer, logId, linhas: result.rows, colunas: result.rows.length ? Object.keys(result.rows[0]) : [], limite: result.rows.length >= 200 });
+      }
+      jotaCache.delete(cacheKey);
     }
-    const rows = Array.isArray(data) ? data as Record<string, unknown>[] : [];
-    const durationMs = Date.now() - started;
-    console.log(`[Jota H] ${user.name}: ${rows.length} linha(s) em ${durationMs} ms`);
-    const logId = await log({ status: rows.length ? 'ok' : 'vazio', title: answer.titulo, sql: checked.sql, rowCount: rows.length, durationMs });
-    return response.json({ ...answer, logId, linhas: rows, colunas: rows.length ? Object.keys(rows[0]) : [], limite: rows.length >= 200 });
+    const rules = await activeJotaRuleTexts(leader);
+    const ai = await askJotaGemini(question, context, rules);
+    const meta = { provider: ai.provider, model: ai.model, aiMs: ai.aiMs };
+    let answer = ai.answer;
+    if (answer.kind === 'question') return response.json({ ...answer, logId: await log({ status: 'pergunta', title: answer.texto, ...meta }) });
+    if (answer.kind === 'refused') return response.json({ ...answer, logId: await log({ status: 'recusada', title: answer.titulo, error: answer.explicacao, ...meta }) });
+    let checked = validateJotaSql(answer.sql);
+    if (!checked.ok) return response.json({ kind: 'refused', titulo: 'Não consigo responder', explicacao: checked.message, sql: answer.sql, logId: await log({ status: 'recusada', title: answer.titulo, sql: answer.sql, error: checked.message, ...meta }) });
+    let result = await runJotaSql(checked.sql);
+    let repaired = false;
+    if (result.error && jotaFixable(result.error)) {
+      console.warn(`[Jota H] ${user.name}: banco recusou (${result.error}); pedindo correcao a IA`);
+      try {
+        const fix = await askJotaFix(question, checked.sql, result.error, context, rules);
+        meta.aiMs += fix.aiMs; meta.provider = fix.provider; meta.model = fix.model;
+        const fixedSql = fix.answer.kind === 'query' ? validateJotaSql(fix.answer.sql) : null;
+        if (fix.answer.kind === 'query' && fixedSql?.ok) {
+          const second = await runJotaSql(fixedSql.sql);
+          if (!second.error) { answer = fix.answer; checked = fixedSql; result = second; repaired = true; }
+        }
+      } catch (error) { console.warn(`[Jota H] correcao falhou: ${error instanceof Error ? error.message : error}`); }
+    }
+    if (result.error) {
+      console.warn(`[Jota H] ${user.name}: consulta recusada (${result.error})`);
+      const logId = await log({ status: 'erro', title: answer.titulo, sql: checked.sql, durationMs: result.durationMs, error: result.error, ...meta });
+      return response.json({ kind: 'error', titulo: answer.titulo, explicacao: jotaDbMessage(result.error), sql: checked.sql, sugestoes: answer.sugestoes, logId });
+    }
+    const final = { ...answer, sql: checked.sql };
+    if (cacheKey) { if (jotaCache.size >= 500) jotaCache.clear(); jotaCache.set(cacheKey, final); }
+    console.log(`[Jota H] ${user.name}: ${result.rows.length} linha(s) em ${result.durationMs} ms (${meta.provider}${repaired ? ', SQL corrigido' : ''})`);
+    const logId = await log({ status: result.rows.length ? 'ok' : 'vazio', title: answer.titulo, sql: checked.sql, rowCount: result.rows.length, durationMs: result.durationMs, repaired, ...meta });
+    return response.json({ ...final, logId, linhas: result.rows, colunas: result.rows.length ? Object.keys(result.rows[0]) : [], limite: result.rows.length >= 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'O Jota H não conseguiu responder agora.';
     await log({ status: 'erro', error: message });
@@ -1732,10 +1773,94 @@ app.post('/api/jota-h/:id/avaliacao', auth, requirePermission('dashboard.view'),
   try { return (await setJotaFeedback(String(request.params.id), request.authUser!.id, parsed.data.util ? 1 : -1)) ? response.json({ ok: true }) : response.status(404).json({ message: 'Pergunta não encontrada.' }); }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível salvar a avaliação.' }); }
 });
-// Painel de uso (botão de grafico no bot): quem gerencia as configuracoes.
-app.get('/api/jota-h/uso', auth, requirePermission('settings.manage'), async (_request, response) => {
-  try { return response.json(await jotaUsage()); }
-  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível carregar o uso do Jota H.' }); }
+
+// Acompanhamento da IA (26/11/2026, pagina /acompanhamento-ia): uso, erros, regras aprendidas e testes. Quem gerencia
+// as configuracoes. A verificacao das IAs e os testes so rodam quando alguem clica (nao gastam cota sozinhos).
+let jotaLastCheck: { at: string; providers: LlmCheck[] } | null = null;
+const jotaProvidersInfo = () => ({
+  groq: { configured: Boolean(process.env.GROQ_API_KEY?.trim()), model: groqModels()[0] },
+  gemini: { configured: Boolean(process.env.GEMINI_API_KEY?.trim()), model: jotaModels()[0] },
+});
+const jotaFail = (response: Response, error: unknown, fallback: string) => response.status(500).json({ message: error instanceof Error ? error.message : fallback });
+app.get('/api/jota-h/acompanhamento', auth, requirePermission('settings.manage'), async (request, response) => {
+  const days = request.query.dias === '30' ? 30 : 7;
+  try {
+    const [panel, rules, tests] = await Promise.all([jotaPanel(days), listJotaRules().catch(() => null), listJotaTests().catch(() => null)]);
+    return response.json({ panel, rules, tests, lastCheck: jotaLastCheck, providers: jotaProvidersInfo(), demo: !isSupabaseConfigured() });
+  } catch (error) { return jotaFail(response, error, 'Não foi possível carregar o acompanhamento.'); }
+});
+app.post('/api/jota-h/verificar', auth, requirePermission('settings.manage'), async (_request, response) => {
+  try { jotaLastCheck = { at: new Date().toISOString(), providers: await checkLlmProviders(jotaModels()) }; return response.json(jotaLastCheck); }
+  catch (error) { return jotaFail(response, error, 'Não foi possível verificar as IAs.'); }
+});
+const jotaRuleBody = z.object({ texto: z.string().trim().min(5).max(1500), escopo: z.enum(['todos', 'lideranca']).default('todos'), origem: z.string().trim().max(500).optional() });
+app.post('/api/jota-h/regras', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const parsed = jotaRuleBody.safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Escreva a regra (de 5 a 1500 letras).' });
+  try { return response.status(201).json({ rule: await addJotaRule({ text: parsed.data.texto, scope: parsed.data.escopo, author: request.authUser!.name, origin: parsed.data.origem }) }); }
+  catch (error) { return jotaFail(response, error, 'Não foi possível salvar a regra.'); }
+});
+app.patch('/api/jota-h/regras/:id', auth, requirePermission('settings.manage'), async (request, response) => {
+  const parsed = z.object({ texto: z.string().trim().min(5).max(1500).optional(), escopo: z.enum(['todos', 'lideranca']).optional(), ativo: z.boolean().optional() }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Regra inválida.' });
+  try {
+    const rule = await updateJotaRule(String(request.params.id), { text: parsed.data.texto, scope: parsed.data.escopo, active: parsed.data.ativo });
+    return rule ? response.json({ rule }) : response.status(404).json({ message: 'Regra não encontrada.' });
+  } catch (error) { return jotaFail(response, error, 'Não foi possível salvar a regra.'); }
+});
+app.delete('/api/jota-h/regras/:id', auth, requirePermission('settings.manage'), async (request, response) => {
+  try { return (await deleteJotaRule(String(request.params.id))) ? response.json({ ok: true }) : response.status(404).json({ message: 'Regra não encontrada.' }); }
+  catch (error) { return jotaFail(response, error, 'Não foi possível excluir a regra.'); }
+});
+app.post('/api/jota-h/testes', auth, requirePermission('settings.manage'), async (request: AuthRequest, response) => {
+  const parsed = z.object({ pergunta: z.string().trim().min(3).max(500), sql: z.string().trim().min(8).max(6000) }).safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Informe a pergunta e o SQL certo.' });
+  const checked = validateJotaSql(parsed.data.sql);
+  if (!checked.ok) return response.status(422).json({ message: checked.message });
+  try {
+    const existing = (await listJotaTests()).find((test) => normalizeJotaQuestion(test.question) === normalizeJotaQuestion(parsed.data.pergunta));
+    if (existing) return response.status(409).json({ message: 'Essa pergunta já é um teste.' });
+    return response.status(201).json({ test: await addJotaTest({ question: parsed.data.pergunta, sql: checked.sql, author: request.authUser!.name }) });
+  } catch (error) { return jotaFail(response, error, 'Não foi possível salvar o teste.'); }
+});
+app.delete('/api/jota-h/testes/:id', auth, requirePermission('settings.manage'), async (request, response) => {
+  try { return (await deleteJotaTest(String(request.params.id))) ? response.json({ ok: true }) : response.status(404).json({ message: 'Teste não encontrado.' }); }
+  catch (error) { return jotaFail(response, error, 'Não foi possível excluir o teste.'); }
+});
+// Rodar testes: cada pergunta vai para a IA (com as regras de "todos", sem cache) e o resultado e comparado com o do SQL
+// certo. No maximo 15 por rodada. "Só o Groq" tira o Gemini da rodada (para ver se o principal sozinho acerta).
+let jotaTestsRunning = false;
+app.post('/api/jota-h/testes/rodar', auth, requirePermission('settings.manage'), async (request, response) => {
+  if (!isSupabaseConfigured()) return response.status(422).json({ message: 'Os testes só rodam com o banco de verdade (no modo demonstração não há IA).' });
+  if (jotaTestsRunning) return response.status(409).json({ message: 'Os testes já estão rodando.' });
+  const onlyGroq = request.body?.soGroq === true;
+  if (onlyGroq && !process.env.GROQ_API_KEY?.trim()) return response.status(422).json({ message: 'O Groq não está configurado no servidor.' });
+  jotaTestsRunning = true;
+  try {
+    const env = onlyGroq ? { ...process.env, GEMINI_API_KEY: '' } : process.env;
+    const rules = await activeJotaRuleTexts(false);
+    const results: { id: string; result: JotaTestResult; detail: string }[] = [];
+    for (const test of (await listJotaTests()).slice(0, 15)) {
+      let result: JotaTestResult = 'erro';
+      let detail = '';
+      try {
+        const expected = await runJotaSql(test.sql);
+        if (expected.error) throw new Error(`O SQL certo deu erro: ${expected.error}`);
+        const ai = await askJotaGemini(test.question, [], rules, env);
+        if (ai.answer.kind !== 'query') throw new Error(ai.answer.kind === 'question' ? `A IA perguntou de volta: ${ai.answer.texto}` : `A IA não respondeu: ${ai.answer.explicacao}`);
+        const checked = validateJotaSql(ai.answer.sql);
+        if (!checked.ok) throw new Error(checked.message);
+        const actual = await runJotaSql(checked.sql);
+        if (actual.error) throw new Error(`O SQL da IA deu erro: ${actual.error}`);
+        result = sameJotaResult(expected.rows, actual.rows) ? 'ok' : 'diferente';
+        detail = result === 'ok' ? `Mesmo resultado (${actual.rows.length} linha(s)) · ${ai.provider}` : `Esperado ${expected.rows.length} linha(s), a IA trouxe ${actual.rows.length} · ${ai.provider}. SQL da IA: ${checked.sql}`;
+      } catch (error) { detail = error instanceof Error ? error.message : 'Falhou.'; }
+      await saveJotaTestResult(test.id, result, detail).catch(() => undefined);
+      results.push({ id: test.id, result, detail });
+    }
+    return response.json({ results, tests: await listJotaTests() });
+  } catch (error) { return jotaFail(response, error, 'Não foi possível rodar os testes.'); }
+  finally { jotaTestsRunning = false; }
 });
 // Planilha da Giga (12/11/2026): importar o "JH (NN).xlsx", pontuacao do IGP ACESSO, conciliacao e regras.
 app.post('/api/igp/giga', auth, requirePermission('imports.create'), async (request: AuthRequest, response) => {

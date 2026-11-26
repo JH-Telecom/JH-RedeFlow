@@ -38,26 +38,46 @@ test('prompt carries dates and previous questions but no data', () => {
   assert.match(text, /Pergunta: e ontem\?$/);
 });
 
-test('usage summary counts today, the week, errors, people, thumbs and empty answers', async () => {
-  const { summarizeJotaUsage } = await import('../src/store/jota-log.js');
-  const log = (id: string, userId: string, userName: string, createdAt: string, status: 'ok' | 'vazio' | 'erro' | 'recusada' | 'pergunta', feedback: -1 | 1 | null = null) => ({ id, userId, userName, question: `pergunta ${id}`, title: '', sql: '', status, rowCount: 0, durationMs: 0, error: status === 'erro' ? 'falhou' : '', feedback, createdAt });
-  const usage = summarizeJotaUsage([
-    log('1', 'u1', 'Wallaf Lucas', '2026-11-12T13:00:00Z', 'ok', 1),
-    log('2', 'u1', 'Wallaf Lucas', '2026-11-12T12:00:00Z', 'erro'),
-    log('3', 'u2', 'Daniela Soares', '2026-11-10T15:00:00Z', 'vazio', -1),
-    log('4', 'u2', 'Daniela Soares', '2026-11-12T02:30:00Z', 'ok'),
+test('Acompanhamento da IA: period totals, providers, cache, median time, top questions and lists', async () => {
+  const { summarizeJotaPanel, normalizeJotaQuestion } = await import('../src/store/jota-log.js');
+  type Status = 'ok' | 'vazio' | 'erro' | 'recusada' | 'pergunta';
+  const log = (id: string, userId: string, userName: string, createdAt: string, status: Status, extra: Record<string, unknown> = {}) => ({ id, userId, userName, question: `pergunta ${id}`, title: '', sql: 'SELECT 1', status, rowCount: 0, durationMs: 100, error: status === 'erro' ? 'falhou' : '', feedback: null as -1 | 1 | null, createdAt, provider: 'groq' as const, model: 'm', cached: false, repaired: false, aiMs: 1000, ...extra });
+  const panel = summarizeJotaPanel([
+    log('1', 'u1', 'Wallaf Lucas', '2026-11-12T13:00:00Z', 'ok', { feedback: 1, question: 'Quantos chamados hoje?' }),
+    log('2', 'u1', 'Wallaf Lucas', '2026-11-12T12:00:00Z', 'erro', { provider: 'gemini' }),
+    log('3', 'u2', 'Daniela Soares', '2026-11-10T15:00:00Z', 'vazio', { feedback: -1, aiMs: 3000 }),
+    log('4', 'u2', 'Daniela Soares', '2026-11-12T02:30:00Z', 'ok', { cached: true, provider: 'cache', aiMs: 0, question: 'quantos chamados hoje' }),
     log('5', 'u3', 'Antiga', '2026-11-01T15:00:00Z', 'ok'),
-  ], '2026-11-12');
-  assert.equal(usage.today, 2);
-  assert.equal(usage.week, 4);
-  assert.equal(usage.errors, 1);
-  assert.equal(usage.errorRate, 25);
-  assert.equal(usage.people, 2);
-  assert.deepEqual([usage.thumbsUp, usage.thumbsDown], [1, 1]);
-  assert.deepEqual(usage.byDay.map((day) => day.total), [0, 0, 0, 0, 1, 1, 2]);
-  assert.deepEqual(usage.byPerson.map((person) => [person.name, person.today, person.week, person.errors]), [['Wallaf Lucas', 2, 2, 1], ['Daniela Soares', 0, 2, 0]]);
-  assert.deepEqual(usage.empty.map((item) => item.question), ['pergunta 3']);
-  assert.equal(usage.recentErrors[0].question, 'pergunta 2');
+  ], 7, '2026-11-12');
+  assert.equal(panel.today, 2);
+  assert.equal(panel.total, 4);
+  assert.equal(panel.errors, 1);
+  assert.equal(panel.okRate, 75);
+  assert.equal(panel.people, 2);
+  assert.deepEqual([panel.thumbsUp, panel.thumbsDown], [1, 1]);
+  assert.deepEqual([panel.cached, panel.cacheRate], [1, 25]);
+  assert.deepEqual(panel.byProvider, { groq: 2, gemini: 1, cache: 1, demo: 0 });
+  assert.equal(panel.medianMs, 2100);
+  assert.deepEqual(panel.byDay.map((day) => day.total), [0, 0, 0, 0, 1, 1, 2]);
+  assert.deepEqual(panel.byPerson.map((person) => [person.name, person.today, person.total, person.errors]), [['Wallaf Lucas', 2, 2, 1], ['Daniela Soares', 0, 2, 0]]);
+  assert.deepEqual(panel.top[0], { question: 'Quantos chamados hoje?', count: 2, lastAt: '2026-11-12T13:00:00Z' });
+  assert.deepEqual(panel.empty.map((item) => item.question), ['pergunta 3']);
+  assert.deepEqual(panel.disliked.map((item) => item.id), ['3']);
+  assert.deepEqual(panel.liked.map((item) => item.id), ['1']);
+  assert.equal(panel.errorList[0].question, 'pergunta 2');
+  assert.equal(summarizeJotaPanel([], 30, '2026-11-12').byDay.length, 30);
+  assert.equal(normalizeJotaQuestion('  Técnicos   em CAMPO?? '), 'tecnicos em campo');
+});
+
+test('learned rules go into the prompt; results compare by values only', async () => {
+  const { buildJotaRequest, sameJotaResult } = await import('../src/jota-h.js');
+  const text = buildJotaRequest('quantos hoje?', [], '2026-11-26', ['Baixar conta como finalizado']);
+  assert.match(text, /Regras aprendidas[^\n]*\n- Baixar conta como finalizado/);
+  assert.doesNotMatch(buildJotaRequest('quantos hoje?', [], '2026-11-26'), /Regras aprendidas/);
+  assert.match(text, /NUNCA use UNION/);
+  assert.equal(sameJotaResult([{ a: 'X', b: 2 }, { a: 'Y', b: '1.004' }], [{ 'Região': 'Y', Total: 1 }, { 'Região': 'X', Total: '2' }]), true);
+  assert.equal(sameJotaResult([{ a: 'X', b: 2 }], [{ a: 'X', b: 3 }]), false);
+  assert.equal(sameJotaResult([{ a: 1 }], [{ a: 1 }, { a: 1 }]), false);
 });
 
 test('falls back to the next Gemini model on 429 and explains when all are out of quota', async () => {
@@ -70,7 +90,8 @@ test('falls back to the next Gemini model on 429 and explains when all are out o
   try {
     globalThis.fetch = (async (url: string) => { const model = String(url).match(/models\/([^:]+):/)![1]; called.push(model); return model === 'principal' ? new Response('{}', { status: 429 }) : new Response(ok, { status: 200 }); }) as typeof fetch;
     const answer = await askJotaGemini('quantos chamados hoje?');
-    assert.equal(answer.kind, 'query');
+    assert.equal(answer.answer.kind, 'query');
+    assert.deepEqual([answer.provider, answer.model], ['gemini', 'reserva']);
     assert.deepEqual(called, ['principal', 'reserva']);
     globalThis.fetch = (async () => new Response('{}', { status: 429 })) as typeof fetch;
     await assert.rejects(() => askJotaGemini('quantos chamados hoje?'), /cota de uso da IA acabou/);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ChartColumn, Check, ChevronLeft, ChevronRight, Code2, Copy, Download, Hourglass, KeyRound, ListChecks, Lock, Maximize2, Minimize2, MoonStar, Repeat2, RotateCcw, Send, ThumbsDown, ThumbsUp, UsersRound, BellRing, X } from "lucide-react";
-import { api, type JotaAnswer, type JotaUsage } from "../api";
+import { useNavigate } from "react-router-dom";
+import { api, type JotaAnswer } from "../api";
 import { jotaGreetingText, jotaLook, parseJotaTestDate, spDateKey, type JotaAccessory } from "../lib/jota-accessories";
 
 // Jota H: assistente flutuante (balao no canto inferior direito, em qualquer tela). A pessoa pergunta em portugues, o
@@ -233,74 +234,15 @@ function ResultTable({ answer }: { answer: QueryAnswer }) {
   );
 }
 
-function UsageChart({ days }: { days: JotaUsage["byDay"] }) {
-  const width = 320, height = 120, pad = 22;
-  const max = Math.max(4, ...days.map((day) => day.total));
-  const x = (index: number) => pad + (index * (width - pad * 2)) / Math.max(1, days.length - 1);
-  const y = (value: number) => height - pad - (value / max) * (height - pad * 2);
-  const line = days.map((day, index) => `${index ? "L" : "M"}${x(index).toFixed(1)},${y(day.total).toFixed(1)}`).join(" ");
-  const area = `${line} L${x(days.length - 1).toFixed(1)},${height - pad} L${x(0).toFixed(1)},${height - pad} Z`;
-  return (
-    <svg className="jw-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Perguntas por dia: ${days.map((day) => `${day.day.slice(8, 10)}/${day.day.slice(5, 7)} ${day.total}`).join(", ")}`}>
-      {[0, 0.5, 1].map((step) => <line key={step} x1={pad} x2={width - pad} y1={y(max * step)} y2={y(max * step)} className="jw-chart-grid" />)}
-      <text x={pad - 4} y={y(max) + 3} textAnchor="end" className="jw-chart-label">{max}</text>
-      <text x={pad - 4} y={y(0) + 3} textAnchor="end" className="jw-chart-label">0</text>
-      <path d={area} className="jw-chart-area" />
-      <path d={line} className="jw-chart-line" />
-      {days.map((day, index) => (
-        <g key={day.day}>
-          <circle cx={x(index)} cy={y(day.total)} r={4} className="jw-chart-dot"><title>{`${day.day.slice(8, 10)}/${day.day.slice(5, 7)}: ${day.total} pergunta(s), ${day.errors} com erro`}</title></circle>
-          <text x={x(index)} y={height - 6} textAnchor="middle" className="jw-chart-label">{`${day.day.slice(8, 10)}/${day.day.slice(5, 7)}`}</text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function UsagePanel() {
-  const [usage, setUsage] = useState<JotaUsage | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => { void api.jotaUsage().then(setUsage).catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar o uso.")); }, []);
-  if (error) return <p className="form-error">{error}</p>;
-  if (!usage) return <p className="jw-muted">Carregando o uso…</p>;
-  return (
-    <section className="jw-usage" aria-label="Uso do Jota H nos últimos 7 dias">
-      <h3><ChartColumn size={16} aria-hidden="true" /> Uso do Jota H — últimos 7 dias</h3>
-      <div className="jw-usage-tiles">
-        <div><span>Perguntas hoje</span><strong>{usage.today}</strong></div>
-        <div><span>Nos 7 dias</span><strong>{usage.week}</strong></div>
-        <div><span>Com erro</span><strong>{usage.errors} <small>({usage.errorRate}%)</small></strong></div>
-        <div><span>Pessoas</span><strong>{usage.people}</strong></div>
-        <div><span>Avaliações</span><strong><ThumbsUp size={14} aria-label="Útil" /> {usage.thumbsUp} / <ThumbsDown size={14} aria-label="Não ajudou" /> {usage.thumbsDown}</strong></div>
-      </div>
-      <UsageChart days={usage.byDay} />
-      <div className="jw-table-wrap">
-        <table className="jw-table">
-          <thead><tr><th scope="col">Pessoa</th><th scope="col">Hoje</th><th scope="col">7 dias</th><th scope="col">Erros</th></tr></thead>
-          <tbody>{usage.byPerson.length ? usage.byPerson.map((person) => <tr key={person.name}><td>{person.name}</td><td>{person.today}</td><td>{person.week}</td><td>{person.errors}</td></tr>) : <tr><td colSpan={4}>Ninguém perguntou ainda.</td></tr>}</tbody>
-        </table>
-      </div>
-      <h4>Últimas perguntas com erro</h4>
-      {usage.recentErrors.length ? (
-        <div className="jw-table-wrap">
-          <table className="jw-table">
-            <thead><tr><th scope="col">Quando</th><th scope="col">Quem</th><th scope="col">Pergunta</th></tr></thead>
-            <tbody>{usage.recentErrors.map((item, index) => <tr key={index} title={item.error}><td>{dateTime(item.at)}</td><td>{item.name}</td><td className="jw-wrap">{item.question}</td></tr>)}</tbody>
-          </table>
-        </div>
-      ) : <p className="jw-muted">Nenhum erro na semana.</p>}
-      <h4>Responderam vazio (pode ser pergunta mal entendida)</h4>
-      {usage.empty.length ? <ul className="jw-empty-list">{usage.empty.map((item, index) => <li key={index}>{item.question} — <span>{item.name}</span></li>)}</ul> : <p className="jw-muted">Nenhuma na semana.</p>}
-    </section>
-  );
-}
+// Abre o Jota H de qualquer tela (ex.: botao "Abrir o chat" do Acompanhamento da IA).
+export const JOTA_OPEN_EVENT = "jota-h:open";
 
 export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSeeUsage: boolean }) {
   // closed -> open -> closing (animacao de saida, ainda montado) -> closed
   const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
   const open = phase === "open";
   const [expanded, setExpanded] = useState(false);
-  const [showUsage, setShowUsage] = useState(false);
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>(() => restoreMessages(userName));
   const [text, setText] = useState("");
   const [showSql, setShowSql] = useState<Record<number, boolean>>({});
@@ -337,7 +279,8 @@ export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSe
   useEffect(() => { document.body.classList.add("has-jota-h"); return () => document.body.classList.remove("has-jota-h"); }, []);
   useEffect(() => () => window.clearTimeout(closeTimer.current), []);
   useEffect(() => { saveMessages(userName, messages); }, [messages, userName]);
-  useEffect(() => { if (open && !showUsage) bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" }); }, [messages, open, showUsage]);
+  useEffect(() => { if (open) bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: "smooth" }); }, [messages, open]);
+  useEffect(() => { const show = () => openPanel(); window.addEventListener(JOTA_OPEN_EVENT, show); return () => window.removeEventListener(JOTA_OPEN_EVENT, show); }, []);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
   // Esc fecha; clique (pointerdown) fora do painel e do balao fecha sem perder a conversa. Selecionar texto que
   // comecou dentro do painel nao fecha (o pointerdown foi dentro).
@@ -388,7 +331,6 @@ export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSe
   async function ask(raw: string) {
     const question = raw.trim();
     if (question.length < 3 || busy) return;
-    setShowUsage(false);
     const contexto = messages.flatMap((message) => (message.from === "bot" && message.kind === "answer" && message.answer.kind === "query" ? [{ pergunta: message.question, sql: message.answer.sql }] : [])).slice(-3);
     push({ from: "user", text: question });
     const loadingId = push({ from: "bot", kind: "loading" });
@@ -409,7 +351,7 @@ export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSe
     setCopied({ id, ok: await copyText(answerText(answer)) });
   }
   const submit = (event: FormEvent) => { event.preventDefault(); void ask(text); };
-  const reset = () => { setMessages([]); setShowSql({}); setShowUsage(false); inputRef.current?.focus(); };
+  const reset = () => { setMessages([]); setShowSql({}); inputRef.current?.focus(); };
 
   return (
     <>
@@ -423,14 +365,14 @@ export function JotaHWidget({ userName, canSeeUsage }: { userName: string; canSe
             </div>
             <div className="jw-head-actions">
               <button type="button" className="jw-head-button" onClick={() => setExpanded(!expanded)} aria-label={expanded ? "Diminuir" : "Ampliar"} title={expanded ? "Diminuir" : "Ampliar"}>{expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}</button>
-              {canSeeUsage && <button type="button" className="jw-head-button" onClick={() => setShowUsage(!showUsage)} aria-pressed={showUsage} aria-label="Uso do Jota H" title="Uso do Jota H"><ChartColumn size={15} /></button>}
+              {canSeeUsage && <button type="button" className="jw-head-button" onClick={() => { closePanel(false); navigate("/acompanhamento-ia"); }} aria-label="Acompanhamento da IA" title="Acompanhamento da IA"><ChartColumn size={15} /></button>}
               <button type="button" className="jw-head-button" onClick={reset} aria-label="Nova conversa" title="Nova conversa"><RotateCcw size={15} /></button>
               <button type="button" className="jw-head-button" onClick={() => closePanel(true)} aria-label="Fechar o Jota H" title="Fechar (Esc)"><X size={16} /></button>
             </div>
           </header>
 
           <div className="jw-body" ref={bodyRef} aria-live="polite">
-            {showUsage ? <UsagePanel /> : (
+            {(
               <>
                 <div className="jw-row">
                   <span className="jw-avatar" aria-hidden="true"><BotFace size={16} /></span>

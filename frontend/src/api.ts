@@ -100,7 +100,12 @@ export type JotaAnswer =
   | { kind: 'question'; texto: string; opcoes: string[]; logId?: string | null }
   | { kind: 'refused'; titulo: string; explicacao: string; sql?: string; logId?: string | null }
   | { kind: 'error'; titulo: string; explicacao: string; sql?: string; sugestoes?: string[]; logId?: string | null };
-export type JotaUsage = { today: number; week: number; errors: number; errorRate: number; people: number; thumbsUp: number; thumbsDown: number; byDay: { day: string; total: number; errors: number }[]; byPerson: { name: string; today: number; week: number; errors: number }[]; recentErrors: { at: string; name: string; question: string; error: string }[]; empty: { at: string; name: string; question: string }[] };
+export type JotaLogItem = { id: string; at: string; name: string; question: string; title: string; sql: string; error: string; status: string };
+export type JotaPanel = { days: number; total: number; today: number; people: number; errors: number; okRate: number; medianMs: number | null; cached: number; cacheRate: number; byProvider: Record<'groq' | 'gemini' | 'cache' | 'demo', number>; repaired: number; thumbsUp: number; thumbsDown: number; byDay: { day: string; total: number; errors: number }[]; byPerson: { name: string; today: number; total: number; errors: number }[]; errorList: JotaLogItem[]; top: { question: string; count: number; lastAt: string }[]; disliked: JotaLogItem[]; empty: JotaLogItem[]; liked: JotaLogItem[] };
+export type JotaRule = { id: string; text: string; scope: 'todos' | 'lideranca'; active: boolean; author: string; origin: string; createdAt: string; updatedAt: string };
+export type JotaTest = { id: string; question: string; sql: string; author: string; lastResult: 'ok' | 'diferente' | 'erro' | null; lastDetail: string; lastRunAt: string | null; createdAt: string };
+export type JotaCheck = { provider: 'groq' | 'gemini'; role: 'principal' | 'reserva'; configured: boolean; ok: boolean; ms: number | null; model: string; error: string };
+export type JotaMonitor = { panel: JotaPanel; rules: JotaRule[] | null; tests: JotaTest[] | null; lastCheck: { at: string; providers: JotaCheck[] } | null; providers: Record<'groq' | 'gemini', { configured: boolean; model: string }>; demo: boolean };
 export type NightRouterSettings = { enabled: boolean; testMode: boolean; singleTechnicianId: string | null; updatedAt: string | null; updatedBy: string | null };
 export type NightShift = { region: string; weekday: number; technicianId: string };
 export type NightRun = { id: string; callId: string | null; orderNumber: string; region: string; technicianId: string | null; technicianName: string; result: 'Movida' | 'Teste' | 'Erro' | 'Pulada'; message: string; testMode: boolean; createdAt: string };
@@ -420,7 +425,14 @@ export const api = {
   setCallRegion: (id: string, region: string, aplicarOlt: boolean) => request<{ others: number; oltSaved: boolean }>(`/api/chamados/${encodeURIComponent(id)}/regiao`, { method: 'POST', body: JSON.stringify({ region, aplicarOlt }) }),
   jotaH: (pergunta: string, contexto: { pergunta: string; sql?: string }[]) => request<JotaAnswer>('/api/jota-h', { method: 'POST', body: JSON.stringify({ pergunta, contexto }) }),
   jotaFeedback: (logId: string, util: boolean) => request<{ ok: boolean }>(`/api/jota-h/${encodeURIComponent(logId)}/avaliacao`, { method: 'POST', body: JSON.stringify({ util }) }),
-  jotaUsage: () => request<JotaUsage>('/api/jota-h/uso'),
+  jotaMonitor: (days: 7 | 30) => request<JotaMonitor>(`/api/jota-h/acompanhamento?dias=${days}`, {}, { noCache: true }),
+  jotaCheck: () => request<{ at: string; providers: JotaCheck[] }>('/api/jota-h/verificar', { method: 'POST' }),
+  jotaAddRule: (texto: string, escopo: JotaRule['scope'], origem?: string) => request<{ rule: JotaRule }>('/api/jota-h/regras', { method: 'POST', body: JSON.stringify({ texto, escopo, origem }) }),
+  jotaUpdateRule: (id: string, patch: { texto?: string; escopo?: JotaRule['scope']; ativo?: boolean }) => request<{ rule: JotaRule }>(`/api/jota-h/regras/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  jotaDeleteRule: (id: string) => request<{ ok: boolean }>(`/api/jota-h/regras/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  jotaAddTest: (pergunta: string, sql: string) => request<{ test: JotaTest }>('/api/jota-h/testes', { method: 'POST', body: JSON.stringify({ pergunta, sql }) }),
+  jotaDeleteTest: (id: string) => request<{ ok: boolean }>(`/api/jota-h/testes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  jotaRunTests: (soGroq: boolean) => request<{ results: { id: string; result: string; detail: string }[]; tests: JotaTest[] }>('/api/jota-h/testes/rodar', { method: 'POST', body: JSON.stringify({ soGroq }) }),
   nightRouter: () => request<NightRouterData>('/api/roteirizador'),
   saveNightRouterSettings: (data: { enabled: boolean; testMode: boolean; singleTechnicianId?: string | null }) => request<{ settings: NightRouterSettings }>('/api/roteirizador/config', { method: 'PUT', body: JSON.stringify(data) }),
   saveNightShifts: (shifts: NightShift[]) => request<{ shifts: NightShift[] }>('/api/roteirizador/escala', { method: 'PUT', body: JSON.stringify({ shifts }) }),

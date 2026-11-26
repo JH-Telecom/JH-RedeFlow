@@ -49,6 +49,27 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // Erro que outro modelo pode resolver: cota (429), modelo fora/inexistente (404, 5xx) ou rede.
 const retryable = (status: number) => status === 0 || status === 429 || status === 404 || status === 413 || status >= 500;
 
+// Verificacao do Acompanhamento da IA (botao "Verificar agora"): uma pergunta minima para cada IA configurada, com o
+// tempo de resposta e o modelo que respondeu. So roda quando alguem clica (nao gasta cota sozinho).
+export type LlmCheck = { provider: 'groq' | 'gemini'; role: 'principal' | 'reserva'; configured: boolean; ok: boolean; ms: number | null; model: string; error: string };
+export async function checkLlmProviders(geminiModels: string[], env: NodeJS.ProcessEnv = process.env, fetcher: Fetcher = fetch as Fetcher): Promise<LlmCheck[]> {
+  const hasGroq = Boolean(env.GROQ_API_KEY?.trim());
+  const hasGemini = Boolean(env.GEMINI_API_KEY?.trim());
+  const one = async (provider: 'groq' | 'gemini', configured: boolean, role: LlmCheck['role']): Promise<LlmCheck> => {
+    const model = provider === 'groq' ? groqModels(env)[0] : geminiModels[0] || env.GEMINI_MODEL || 'gemini-2.5-flash';
+    if (!configured) return { provider, role, configured, ok: false, ms: null, model, error: 'Sem chave no servidor.' };
+    const started = Date.now();
+    try {
+      const only = provider === 'groq' ? { ...env, GEMINI_API_KEY: '' } : { ...env, GROQ_API_KEY: '' };
+      const answer = await askLlmJson('Responda exatamente {"ok":true}', { timeoutMs: 12_000, label: 'verificação', geminiModels }, fetcher, only);
+      return { provider, role, configured, ok: true, ms: Date.now() - started, model: answer.model, error: '' };
+    } catch (error) {
+      return { provider, role, configured, ok: false, ms: Date.now() - started, model, error: error instanceof LlmError && error.status ? `HTTP ${error.status}` : 'Sem resposta.' };
+    }
+  };
+  return Promise.all([one('groq', hasGroq, 'principal'), one('gemini', hasGemini, hasGroq ? 'reserva' : 'principal')]);
+}
+
 export async function askLlmJson(prompt: string, options: LlmOptions = {}, fetcher: Fetcher = fetch as Fetcher, env: NodeJS.ProcessEnv = process.env): Promise<LlmAnswer> {
   const timeout = options.timeoutMs ?? 15_000;
   const temperature = options.temperature ?? 0;

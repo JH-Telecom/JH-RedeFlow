@@ -2930,6 +2930,242 @@
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .sr-only {
     border: 0
 }
+/* light · jota-monitor.css */
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-page .primary-button.compact {
+    box-shadow: none
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health.is-ok {
+    background: #eefaf4;
+    border-color: #bfe9d3
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health.is-fail {
+    background: #fff3f3;
+    border-color: #f3c3c3
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health-main h2 {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health-main p {
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health-icon {
+    background: #f1ebf4;
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health.is-ok .jm-health-icon {
+    background: #1a9c6b;
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-health.is-fail .jm-health-icon {
+    background: #c63d3d;
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider {
+    border: 1px solid var(--line);
+    background: #ffffff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider-top {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider-role {
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider-role i {
+    background: #aca0b1
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider.is-ok .jm-provider-role i {
+    background: #1a9c6b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider.is-fail .jm-provider-role i {
+    background: #c63d3d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider.is-fail .jm-provider-role {
+    color: #a52f2f
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-provider small {
+    color: #74637a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-demo {
+    color: #74637a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis > div {
+    border-left: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis > div:first-child {
+    border-left: 0
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis span {
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis strong {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis small {
+    color: #74637a
+}
+@media (max-width: 1100px) {
+    :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis > div:nth-child(4) {
+        border-left: 0
+    }
+}
+@media (max-width: 1100px) {
+    :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis > div:nth-child(n+4) {
+        border-top: 1px solid var(--line)
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis > div {
+        border-left: 0;
+        border-top: 1px solid var(--line)
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis > div:nth-child(-n+2) {
+        border-top: 0
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-kpis > div:nth-child(even) {
+        border-left: 1px solid var(--line)
+    }
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-chart-grid {
+    stroke: #ebe5ee
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-chart-label {
+    fill: #74637a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-bar-ok {
+    fill: #9f3bbb
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-bar-error {
+    fill: #d33b3b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-bar-zero {
+    fill: #d7cdda
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-legend {
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-legend i.is-ok {
+    background: #9f3bbb
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-legend i.is-error {
+    background: #d33b3b
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-tabs {
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-tabs button {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-tabs button b {
+    background: #eef2f7;
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-tabs button.is-active {
+    color: var(--ink);
+    border-bottom-color: var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-tabs button:hover {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-table th {
+    background: #ffffff;
+    color: #64536a;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-table td {
+    border-bottom: 1px solid #eef2f7;
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-table tbody tr:nth-child(even) td {
+    background: #f8fafc
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-detail {
+    color: #74637a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-sql {
+    background: #f2f5f9;
+    color: #402c46
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-section-head h2 {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-section-head small {
+    color: #74637a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-list li, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-test-list li {
+    border: 1px solid var(--line);
+    background: #ffffff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-list li.is-off .jm-rule-body p, :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-list li.is-off .jm-rule-body small {
+    color: #726376
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-body p {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-body small {
+    color: #74637a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-form {
+    border: 1px dashed #cebfd3;
+    background: #f8fafc
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-form textarea {
+    border: 1px solid #d9cedc;
+    color: var(--ink);
+    background: #ffffff
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-form-actions label {
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-rule-form-actions select {
+    border: 1px solid #d9cedc;
+    background: #ffffff;
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-origin {
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-switch span {
+    background: #d1c7d4
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-switch span::after {
+    background: #ffffff;
+    box-shadow: 0 1px 2px #0000002e
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-switch input:checked + span {
+    background: #9f3bbb
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-switch input:focus-visible + span {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-test-badge {
+    background: #eef2f7;
+    color: #64536a
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-test-list li.is-ok .jm-test-badge {
+    background: #e3f6ec;
+    color: #11734d
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-test-list li.is-diferente .jm-test-badge {
+    background: #fff3dc;
+    color: #8a5300
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-test-list li.is-erro .jm-test-badge {
+    background: #fde8e8;
+    color: #a52f2f
+}
+:where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .jm-muted {
+    color: #74637a
+}
 /* light · missing-region.css */
 :where(:root[data-palette="nevoa"]:not([data-theme="dark"])) .sr-notice {
     border: 1px solid #b9e4cf;
@@ -8602,6 +8838,242 @@
 }
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .sr-only {
     border: 0
+}
+/* dark · jota-monitor.css */
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-page .primary-button.compact {
+    box-shadow: none
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health {
+    border: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health.is-ok {
+    background: #0b1913;
+    border-color: #104932
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health.is-fail {
+    background: #1f1213;
+    border-color: #623234
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health-main h2 {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health-main p {
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health-icon {
+    background: #1b151e;
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health.is-ok .jm-health-icon {
+    background: #1a9c6b;
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-health.is-fail .jm-health-icon {
+    background: #c63d3d;
+    color: #ffffff
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider {
+    border: 1px solid var(--line);
+    background: #1f1a20
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider-top {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider-role {
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider-role i {
+    background: #433846
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider.is-ok .jm-provider-role i {
+    background: #1a9c6b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider.is-fail .jm-provider-role i {
+    background: #c63d3d
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider.is-fail .jm-provider-role {
+    color: #ff8c84
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-provider small {
+    color: #b3adb5
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-demo {
+    color: #b3adb5
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis > div {
+    border-left: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis > div:first-child {
+    border-left: 0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis span {
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis strong {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis small {
+    color: #b3adb5
+}
+@media (max-width: 1100px) {
+    :where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis > div:nth-child(4) {
+        border-left: 0
+    }
+}
+@media (max-width: 1100px) {
+    :where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis > div:nth-child(n+4) {
+        border-top: 1px solid var(--line)
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis > div {
+        border-left: 0;
+        border-top: 1px solid var(--line)
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis > div:nth-child(-n+2) {
+        border-top: 0
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-kpis > div:nth-child(even) {
+        border-left: 1px solid var(--line)
+    }
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-chart-grid {
+    stroke: #3d3740
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-chart-label {
+    fill: #b3adb5
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-bar-ok {
+    fill: #aa46c6
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-bar-error {
+    fill: #d33b3b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-bar-zero {
+    fill: #493d4d
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-legend {
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-legend i.is-ok {
+    background: #9f3bbb
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-legend i.is-error {
+    background: #d33b3b
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-tabs {
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-tabs button {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-tabs button b {
+    background: #1a151b;
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-tabs button.is-active {
+    color: var(--ink);
+    border-bottom-color: var(--blue)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-tabs button:hover {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-table th {
+    background: #1f1a20;
+    color: #beb8c0;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-table td {
+    border-bottom: 1px solid #39343b;
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-table tbody tr:nth-child(even) td {
+    background: #19141a
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-detail {
+    color: #b3adb5
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-sql {
+    background: #19141b;
+    color: #dbd4dd
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-section-head h2 {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-section-head small {
+    color: #b3adb5
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-list li, :where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-test-list li {
+    border: 1px solid var(--line);
+    background: #1f1a20
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-list li.is-off .jm-rule-body p, :where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-list li.is-off .jm-rule-body small {
+    color: #a4a8ad
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-body p {
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-body small {
+    color: #b3adb5
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-form {
+    border: 1px dashed #514057;
+    background: #19141a
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-form textarea {
+    border: 1px solid #493d4e;
+    color: var(--ink);
+    background: #1f1a20
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-form-actions label {
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-rule-form-actions select {
+    border: 1px solid #493d4e;
+    background: #1f1a20;
+    color: var(--ink)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-origin {
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-switch span {
+    background: #241828
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-switch span::after {
+    background: #1f1a20;
+    box-shadow: 0 1px 2px #00000065
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-switch input:checked + span {
+    background: #9f3bbb
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-switch input:focus-visible + span {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-test-badge {
+    background: #1a151b;
+    color: #beb8c0
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-test-list li.is-ok .jm-test-badge {
+    background: #031c12;
+    color: #77cca1
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-test-list li.is-diferente .jm-test-badge {
+    background: #211300;
+    color: #e6a968
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-test-list li.is-erro .jm-test-badge {
+    background: #261011;
+    color: #ff8c84
+}
+:where(:root[data-palette="nevoa"][data-theme="dark"]) .jm-muted {
+    color: #b3adb5
 }
 /* dark · missing-region.css */
 :where(:root[data-palette="nevoa"][data-theme="dark"]) .sr-notice {

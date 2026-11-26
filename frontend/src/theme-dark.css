@@ -2958,6 +2958,243 @@
     border: 0
 }
 
+/* jota-monitor.css */
+:where(:root[data-theme="dark"]) .jm-page .primary-button.compact {
+    box-shadow: none
+}
+:where(:root[data-theme="dark"]) .jm-health {
+    border: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .jm-health.is-ok {
+    background: #0b1913;
+    border-color: #104932
+}
+:where(:root[data-theme="dark"]) .jm-health.is-fail {
+    background: #1f1213;
+    border-color: #623234
+}
+:where(:root[data-theme="dark"]) .jm-health-main h2 {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-health-main p {
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-health-icon {
+    background: #121820;
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-health.is-ok .jm-health-icon {
+    background: #1a9c6b;
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .jm-health.is-fail .jm-health-icon {
+    background: #c63d3d;
+    color: #ffffff
+}
+:where(:root[data-theme="dark"]) .jm-provider {
+    border: 1px solid var(--line);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .jm-provider-top {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-provider-role {
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-provider-role i {
+    background: #333d4a
+}
+:where(:root[data-theme="dark"]) .jm-provider.is-ok .jm-provider-role i {
+    background: #1a9c6b
+}
+:where(:root[data-theme="dark"]) .jm-provider.is-fail .jm-provider-role i {
+    background: #c63d3d
+}
+:where(:root[data-theme="dark"]) .jm-provider.is-fail .jm-provider-role {
+    color: #ff8c84
+}
+:where(:root[data-theme="dark"]) .jm-provider small {
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .jm-demo {
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .jm-kpis > div {
+    border-left: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .jm-kpis > div:first-child {
+    border-left: 0
+}
+:where(:root[data-theme="dark"]) .jm-kpis span {
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-kpis strong {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-kpis small {
+    color: #abb0b7
+}
+@media (max-width: 1100px) {
+    :where(:root[data-theme="dark"]) .jm-kpis > div:nth-child(4) {
+        border-left: 0
+    }
+}
+@media (max-width: 1100px) {
+    :where(:root[data-theme="dark"]) .jm-kpis > div:nth-child(n+4) {
+        border-top: 1px solid var(--line)
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-theme="dark"]) .jm-kpis > div {
+        border-left: 0;
+        border-top: 1px solid var(--line)
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-theme="dark"]) .jm-kpis > div:nth-child(-n+2) {
+        border-top: 0
+    }
+}
+@media (max-width: 620px) {
+    :where(:root[data-theme="dark"]) .jm-kpis > div:nth-child(even) {
+        border-left: 1px solid var(--line)
+    }
+}
+:where(:root[data-theme="dark"]) .jm-chart-grid {
+    stroke: #343a42
+}
+:where(:root[data-theme="dark"]) .jm-chart-label {
+    fill: #abb0b7
+}
+:where(:root[data-theme="dark"]) .jm-bar-ok {
+    fill: #2f6ef7
+}
+:where(:root[data-theme="dark"]) .jm-bar-error {
+    fill: #d33b3b
+}
+:where(:root[data-theme="dark"]) .jm-bar-zero {
+    fill: #394351
+}
+:where(:root[data-theme="dark"]) .jm-legend {
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-legend i.is-ok {
+    background: #2563eb
+}
+:where(:root[data-theme="dark"]) .jm-legend i.is-error {
+    background: #d33b3b
+}
+:where(:root[data-theme="dark"]) .jm-tabs {
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .jm-tabs button {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-tabs button b {
+    background: #13171d;
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-tabs button.is-active {
+    color: var(--ink);
+    border-bottom-color: var(--blue)
+}
+:where(:root[data-theme="dark"]) .jm-tabs button:hover {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-table th {
+    background: #181c22;
+    color: #b6bbc2;
+    border-bottom: 1px solid var(--line)
+}
+:where(:root[data-theme="dark"]) .jm-table td {
+    border-bottom: 1px solid #32363d;
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-table tbody tr:nth-child(even) td {
+    background: #12161c
+}
+:where(:root[data-theme="dark"]) .jm-detail {
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .jm-sql {
+    background: #13161d;
+    color: #d1d7e0
+}
+:where(:root[data-theme="dark"]) .jm-section-head h2 {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-section-head small {
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .jm-rule-list li, :where(:root[data-theme="dark"]) .jm-test-list li {
+    border: 1px solid var(--line);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .jm-rule-list li.is-off .jm-rule-body p, :where(:root[data-theme="dark"]) .jm-rule-list li.is-off .jm-rule-body small {
+    color: #a4a8ad
+}
+:where(:root[data-theme="dark"]) .jm-rule-body p {
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-rule-body small {
+    color: #abb0b7
+}
+:where(:root[data-theme="dark"]) .jm-rule-form {
+    border: 1px dashed #39485d;
+    background: #12161c
+}
+:where(:root[data-theme="dark"]) .jm-rule-form textarea {
+    border: 1px solid #374352;
+    color: var(--ink);
+    background: #181c22
+}
+:where(:root[data-theme="dark"]) .jm-rule-form-actions label {
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-rule-form-actions select {
+    border: 1px solid #374352;
+    background: #181c22;
+    color: var(--ink)
+}
+:where(:root[data-theme="dark"]) .jm-origin {
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-switch span {
+    background: #131e2c
+}
+:where(:root[data-theme="dark"]) .jm-switch span::after {
+    background: #181c22;
+    box-shadow: 0 1px 2px #00000065
+}
+:where(:root[data-theme="dark"]) .jm-switch input:checked + span {
+    background: #2563eb
+}
+:where(:root[data-theme="dark"]) .jm-switch input:focus-visible + span {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-theme="dark"]) .jm-test-badge {
+    background: #13171d;
+    color: #b6bbc2
+}
+:where(:root[data-theme="dark"]) .jm-test-list li.is-ok .jm-test-badge {
+    background: #031c12;
+    color: #77cca1
+}
+:where(:root[data-theme="dark"]) .jm-test-list li.is-diferente .jm-test-badge {
+    background: #211300;
+    color: #e6a968
+}
+:where(:root[data-theme="dark"]) .jm-test-list li.is-erro .jm-test-badge {
+    background: #261011;
+    color: #ff8c84
+}
+:where(:root[data-theme="dark"]) .jm-muted {
+    color: #abb0b7
+}
+
 /* missing-region.css */
 :where(:root[data-theme="dark"]) .sr-notice {
     border: 1px solid #104b35;

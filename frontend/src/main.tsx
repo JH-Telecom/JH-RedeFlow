@@ -30,6 +30,7 @@ import './pop-keys.css';
 import './status-page.css';
 import './night-router.css';
 import './jota-h.css';
+import './jota-monitor.css';
 import './missing-region.css';
 import './igp-score.css';
 import './select-search.css';
