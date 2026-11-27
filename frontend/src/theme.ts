@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { applyCustomVars, loadCustomThemeCss, type CustomThemeSpec } from "./lib/custom-theme";
 
 export type Theme = "light" | "dark";
 const STORAGE_KEY = "jh-redeflow:theme";
@@ -59,7 +60,8 @@ export function useTheme() {
 // ---- Temas de cor (Perfil > Tema) ----
 // O tema fica no perfil de cada login (servidor) e numa copia local, para abrir ja com a cor certa.
 // Cada tema tem versao clara e escura: o claro/escuro continua sendo o botao do topo.
-export type PaletteId = "padrao" | "jh-azul" | "ardosia" | "nevoa" | "flor" | "aurora" | "neon";
+// "custom": tema criado pela equipe (Perfil > Tema > Criar tema); as cores vem do perfil (customTheme).
+export type PaletteId = "padrao" | "jh-azul" | "ardosia" | "nevoa" | "flor" | "aurora" | "neon" | "custom";
 // preview: lateral, fundo e cor de destaque do cartaozinho do seletor (claro / escuro).
 type PalettePreview = { side: string; page: string; accent: string };
 export const PALETTES: { id: PaletteId; label: string; swatch: string; light: PalettePreview; dark: PalettePreview }[] = [
@@ -79,10 +81,11 @@ const paletteCss: Partial<Record<PaletteId, () => Promise<unknown>>> = {
   flor: () => import("./themes/flor.css"),
   aurora: () => import("./themes/aurora.css"),
   neon: () => import("./themes/neon.css"),
+  custom: loadCustomThemeCss,
 };
 
 export function isPaletteId(value: unknown): value is PaletteId {
-  return PALETTES.some((palette) => palette.id === value);
+  return value === "custom" || PALETTES.some((palette) => palette.id === value);
 }
 
 export function currentPalette(): PaletteId {
@@ -90,7 +93,10 @@ export function currentPalette(): PaletteId {
   return isPaletteId(value) ? value : "padrao";
 }
 
-export function applyPalette(id: PaletteId) {
+// custom: sem as cores (abertura), mantem as variaveis que o index.html ja aplicou da copia local.
+export function applyPalette(id: PaletteId, custom?: CustomThemeSpec | null) {
+  if (id !== "custom") applyCustomVars(null);
+  else if (custom) applyCustomVars(custom);
   void paletteCss[id]?.().catch(() => undefined);
   if (id === "padrao") delete document.documentElement.dataset.palette;
   else document.documentElement.dataset.palette = id;

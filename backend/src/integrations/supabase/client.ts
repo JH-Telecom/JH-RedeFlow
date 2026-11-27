@@ -134,23 +134,32 @@ export async function saveSupabaseUserStatus(userId: string, status: { text: str
 }
 
 // Preferencias do perfil: apelido (so aparece para a propria pessoa) e tema de cor.
-export async function getSupabaseUserPreferences(userId: string): Promise<{ nickname: string | null; palette: string | null }> {
-  const { data, error } = await getSupabaseAdmin().from('user_avatars').select('nickname, palette').eq('user_id', userId).maybeSingle();
+type StoredThemeSpec = { name: string; accent: string; side: string; background: 'colorido' | 'neutro' };
+const storedTheme = (value: unknown): StoredThemeSpec | null => {
+  const item = value as Partial<StoredThemeSpec> | null;
+  return item && typeof item === 'object' && typeof item.name === 'string' && /^#[0-9a-f]{6}$/i.test(String(item.accent)) && /^#[0-9a-f]{6}$/i.test(String(item.side)) && (item.background === 'colorido' || item.background === 'neutro') ? { name: item.name, accent: item.accent!, side: item.side!, background: item.background } : null;
+};
+export async function getSupabaseUserPreferences(userId: string): Promise<{ nickname: string | null; palette: string | null; customTheme: StoredThemeSpec | null }> {
+  let result = await getSupabaseAdmin().from('user_avatars').select('nickname, palette, custom_theme').eq('user_id', userId).maybeSingle();
+  // Antes da migracao dos temas da equipe a coluna custom_theme nao existe: le so o resto.
+  if (result.error && /custom_theme/.test(result.error.message)) result = await getSupabaseAdmin().from('user_avatars').select('nickname, palette').eq('user_id', userId).maybeSingle() as typeof result;
+  const { data, error } = result;
   if (error) throw new Error(error.message);
   const row = (data || {}) as Record<string, unknown>;
-  return { nickname: typeof row.nickname === 'string' && row.nickname ? row.nickname : null, palette: typeof row.palette === 'string' && row.palette ? row.palette : null };
+  return { nickname: typeof row.nickname === 'string' && row.nickname ? row.nickname : null, palette: typeof row.palette === 'string' && row.palette ? row.palette : null, customTheme: storedTheme(row.custom_theme) };
 }
 
-export async function saveSupabaseUserPreferences(userId: string, preferences: { nickname: string | null; palette: string | null }): Promise<void> {
+export async function saveSupabaseUserPreferences(userId: string, preferences: { nickname: string | null; palette: string | null; customTheme?: StoredThemeSpec | null }): Promise<void> {
   const admin = getSupabaseAdmin();
   const { data: existing, error: readError } = await admin.from('user_avatars').select('user_id').eq('user_id', userId).maybeSingle();
   if (readError) throw new Error(readError.message);
   const now = new Date().toISOString();
   if (!existing && !preferences.nickname && !preferences.palette) return;
   const { error } = existing
-    ? await admin.from('user_avatars').update({ nickname: preferences.nickname, palette: preferences.palette, updated_at: now }).eq('user_id', userId)
-    : await admin.from('user_avatars').insert({ user_id: userId, data_url: '', nickname: preferences.nickname, palette: preferences.palette, updated_at: now });
+    ? await admin.from('user_avatars').update({ nickname: preferences.nickname, palette: preferences.palette, custom_theme: preferences.customTheme ?? null, updated_at: now }).eq('user_id', userId)
+    : await admin.from('user_avatars').insert({ user_id: userId, data_url: '', nickname: preferences.nickname, palette: preferences.palette, custom_theme: preferences.customTheme ?? null, updated_at: now });
   if (error) {
+    if (/custom_theme/.test(error.message)) throw new Error('Os temas da equipe ainda não podem ser salvos: falta aplicar a migração 202611270001_team_themes no banco.');
     if (/nickname|palette/.test(error.message)) throw new Error('O apelido e o tema ainda não podem ser salvos: falta aplicar a migração 202611060001_user_preferences no banco.');
     throw new Error(error.message);
   }

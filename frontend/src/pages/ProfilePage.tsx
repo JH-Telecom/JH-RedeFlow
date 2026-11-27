@@ -3,6 +3,7 @@ import { Camera, Check, Download, Image as ImageIcon, Moon, Palette, ShieldCheck
 import { Link } from "react-router-dom";
 import { api, type ProfilePreferences, type Role, type User, type UserStatus } from "../api";
 import { StatusEditor } from "../components/StatusEditor";
+import { TeamThemes } from "../components/TeamThemes";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { resizeBannerImage } from "../lib/banner-image";
 import { PALETTES, type PaletteId, type Theme } from "../theme";
@@ -139,7 +140,7 @@ export function ProfilePage({ user, profile, preferences, onSavePreferences, the
       <section className="panel pf-card" aria-labelledby="pf-theme-title">
         <div className="pf-card-heading">
           <span className="pf-card-icon"><Palette size={18} /></span>
-          <div><h2 id="pf-theme-title">Tema</h2><p>Cada login escolhe o seu. Todos têm versão clara e escura; vermelho de crítico e verde de meta ficam iguais em todos.</p></div>
+          <div><h2 id="pf-theme-title">Tema</h2><p>Cada login escolhe o seu (ou cria um em Temas da equipe). Todos têm versão clara e escura; vermelho de crítico e verde de meta ficam iguais em todos.</p></div>
           <div className="pf-mode" role="group" aria-label="Claro ou escuro">
             <button type="button" className={theme === "light" ? "is-active" : ""} aria-pressed={theme === "light"} onClick={() => theme !== "light" && onToggleTheme()}><Sun size={14} /> Claro</button>
             <button type="button" className={theme === "dark" ? "is-active" : ""} aria-pressed={theme === "dark"} onClick={() => theme !== "dark" && onToggleTheme()}><Moon size={14} /> Escuro</button>
@@ -160,6 +161,7 @@ export function ProfilePage({ user, profile, preferences, onSavePreferences, the
             );
           })}
         </div>
+        <TeamThemes theme={theme} preferences={preferences} onSavePreferences={onSavePreferences} feedback={feedback} />
       </section>
 
       <NewsCard user={user} />

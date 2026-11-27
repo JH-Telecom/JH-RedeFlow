@@ -1,3 +1,4 @@
+import type { CustomThemeSpec } from './lib/custom-theme';
 const isVercelDeployment = import.meta.env.PROD && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
 const API_URL = (isVercelDeployment ? '' : import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : 'https://jh-redeflow-api.onrender.com')).replace(/\/+$/, '');
 export type Permission = { code: string; description: string };
@@ -198,7 +199,8 @@ async function requestCallMutation<T>(path: string, init: RequestInit = {}) {
   return result;
 }
 // Perfil: apelido (so para a propria pessoa) e tema de cor; palette nulo = Padrao.
-export type ProfilePreferences = { nickname: string | null; palette: string | null };
+export type ProfilePreferences = { nickname: string | null; palette: string | null; customTheme?: CustomThemeSpec | null };
+export type TeamTheme = CustomThemeSpec & { id: string; authorId: string | null; authorName: string; uses: number; createdAt: string; mine: boolean; canDelete: boolean };
 // Relatorios do lote 2.
 export type ProductivityRow = { name: string; detail?: string; finished: number; onTime: number; late: number; outliers: number; onTimePercent: number | null; avgHours: number | null };
 export type ProductivityReport = { total: number; technicians: ProductivityRow[]; supervisors: ProductivityRow[] };
@@ -292,6 +294,10 @@ export const api = {
   saveMyStatus: (status: UserStatus | null) => request<{ status: UserStatus | null }>('/api/auth/status', { method: 'PUT', body: JSON.stringify(status ?? { status: null }) }),
   markNotificationsRead: (ids?: string[]) => request<{ read: number }>('/api/notificacoes/lidas', { method: 'POST', body: JSON.stringify(ids ? { ids } : {}) }),
   highlights: (month?: string) => request<{ month: string; highlights: Highlight[] }>(`/api/destaques${month ? `?month=${month}` : ''}`),
+  teamThemes: () => request<{ themes: TeamTheme[] }>('/api/temas', {}, { noCache: true }),
+  createTeamTheme: (spec: CustomThemeSpec) => request<{ theme: TeamTheme; preferences: ProfilePreferences }>('/api/temas', { method: 'POST', body: JSON.stringify(spec) }),
+  useTeamTheme: (id: string) => request<{ preferences: ProfilePreferences }>(`/api/temas/${encodeURIComponent(id)}/usar`, { method: 'POST' }),
+  deleteTeamTheme: (id: string) => request<{ ok: boolean }>(`/api/temas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   saveProfilePreferences: (preferences: ProfilePreferences) => request<ProfilePreferences>('/api/auth/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
   changePassword: (currentPassword: string, newPassword: string) => request<{ user: User & { role: Role } }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
   dashboard: (filters?: { from?: string; to?: string }) => request<{ metrics: DashboardMetrics }>(`/api/dashboards/operacao${filters?.from || filters?.to ? `?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as string[][])}` : ''}`),

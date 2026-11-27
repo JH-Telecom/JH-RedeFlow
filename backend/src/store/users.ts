@@ -233,11 +233,12 @@ export async function saveUserBanner(userId: string, bannerDataUrl: string | nul
   if (bannerDataUrl) userBanners.set(userId, bannerDataUrl); else userBanners.delete(userId);
 }
 
-// Preferencias do perfil: apelido (aparece so para a propria pessoa, no lugar do nome) e tema de cor.
-export type UserPreferences = { nickname: string | null; palette: string | null };
+// Preferencias do perfil: apelido (aparece so para a propria pessoa, no lugar do nome) e tema de cor. Com palette
+// "custom", customTheme guarda a copia das cores do tema da equipe que a pessoa escolheu.
+export type UserPreferences = { nickname: string | null; palette: string | null; customTheme?: { name: string; accent: string; side: string; background: 'colorido' | 'neutro' } | null };
 export async function getUserPreferences(userId: string): Promise<UserPreferences> {
   if (isSupabaseConfigured()) return await getSupabaseUserPreferences(userId);
-  return userPreferences.get(userId) ?? { nickname: null, palette: null };
+  return userPreferences.get(userId) ?? { nickname: null, palette: null, customTheme: null };
 }
 
 export async function saveUserPreferences(userId: string, preferences: UserPreferences): Promise<UserPreferences> {

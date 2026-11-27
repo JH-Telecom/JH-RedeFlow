@@ -171,7 +171,7 @@ export function Shell({
   const [profilePhotoError, setProfilePhotoError] = useState("");
   const [savingProfilePhoto, setSavingProfilePhoto] = useState(false);
   // Apelido (so para a propria pessoa) e tema de cor do perfil.
-  const [preferences, setPreferences] = useState<ProfilePreferences>({ nickname: null, palette: null });
+  const [preferences, setPreferences] = useState<ProfilePreferences>({ nickname: null, palette: null, customTheme: null });
   const displayName = preferences.nickname || user.name;
   const [myStatus, setMyStatus] = useState<UserStatus | null>(null);
   // Usuario ligado a um tecnico: aparece "Meus chamados" (tela do celular).
@@ -232,19 +232,19 @@ export function Shell({
     api.profilePreferences().then((next) => {
       if (!active) return;
       setPreferences(next);
-      applyPalette(isPaletteId(next.palette) ? next.palette : "padrao");
+      applyPalette(isPaletteId(next.palette) && (next.palette !== "custom" || next.customTheme) ? next.palette : "padrao", next.customTheme);
     }).catch(() => {});
     return () => { active = false; };
   }, [user.id]);
   async function savePreferences(next: ProfilePreferences) {
     const previous = preferences;
     setPreferences(next);
-    if (next.palette !== previous.palette) applyPalette(isPaletteId(next.palette) ? next.palette : "padrao");
+    if (next.palette !== previous.palette || next.customTheme !== previous.customTheme) applyPalette(isPaletteId(next.palette) ? next.palette : "padrao", next.customTheme);
     try {
       setPreferences(await api.saveProfilePreferences(next));
     } catch (error) {
       setPreferences(previous);
-      applyPalette(isPaletteId(previous.palette) ? previous.palette : "padrao");
+      applyPalette(isPaletteId(previous.palette) ? previous.palette : "padrao", previous.customTheme);
       throw error;
     }
   }

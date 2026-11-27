@@ -48,6 +48,7 @@ import { listIntegrationEvents, recordIntegrationEvent } from './store/integrati
 import { sendWhatsAppImage, sendWhatsAppText, whatsappConfig } from './integrations/wuzapi/sender.js';
 import { weeklyIgpText } from './weekly-igp.js';
 import { checkLlmProviders, groqModels, llmConfigured, type LlmCheck } from './llm.js';
+import { addThemeUse, countThemesBy, createTeamTheme, deleteTeamTheme, getTeamTheme, listTeamThemes, MAX_THEMES_PER_PERSON, themeSpecSchema, type TeamTheme } from './store/team-themes.js';
 import { analyzeAddressesWithAi, applyAddressAi, badAddress, badNeighborhood, regionExamples } from './address-ai.js';
 import { attendanceCalls, attendanceImageSpec, dueSendTime, parseSendTimes, renderImagePng } from './update-image.js';
 import { deliverOltNotice } from './olt-notice-delivery.js';
@@ -361,7 +362,7 @@ app.delete('/api/auth/avatar', auth, async (request: AuthRequest, response) => {
   } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel remover a foto de perfil.' }); }
 });
 // Preferencias do perfil: apelido opcional (so aparece para a propria pessoa) e tema de cor.
-const PALETTE_IDS = ['padrao', 'jh-azul', 'ardosia', 'nevoa', 'flor', 'aurora', 'neon'] as const;
+const PALETTE_IDS = ['padrao', 'jh-azul', 'ardosia', 'nevoa', 'flor', 'aurora', 'neon', 'custom'] as const;
 app.get('/api/auth/preferences', auth, async (request: AuthRequest, response) => {
   try { return response.json(await getUserPreferences(request.authUser!.id)); }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel carregar o perfil.' }); }
@@ -370,10 +371,55 @@ app.put('/api/auth/preferences', auth, async (request: AuthRequest, response) =>
   const parsed = z.object({
     nickname: z.string().trim().max(40).nullish().transform((value) => value || null),
     palette: z.enum(PALETTE_IDS).nullish().transform((value) => (value && value !== 'padrao' ? value : null)),
+    customTheme: themeSpecSchema.nullish().transform((value) => value ?? null),
   }).safeParse(request.body);
   if (!parsed.success) return response.status(400).json({ message: 'Apelido com ate 40 caracteres e um tema valido.' });
-  try { return response.json(await saveUserPreferences(request.authUser!.id, parsed.data)); }
+  // Tema da equipe so com as cores; nos temas prontos a copia das cores sai do perfil.
+  if (parsed.data.palette === 'custom' && !parsed.data.customTheme) return response.status(400).json({ message: 'Escolha um tema da equipe.' });
+  try { return response.json(await saveUserPreferences(request.authUser!.id, { ...parsed.data, customTheme: parsed.data.palette === 'custom' ? parsed.data.customTheme : null })); }
   catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Nao foi possivel salvar o perfil.' }); }
+});
+
+// Temas da equipe (27/11/2026): qualquer login cria; o tema ja aparece para todos (sem publicar) e quem quiser usa
+// (copia as cores para o proprio perfil). Apagar: o autor ou quem gerencia as configuracoes. Ate 20 temas por pessoa.
+const themeOut = (theme: TeamTheme, user: AuthUser) => ({ ...theme, mine: theme.authorId === user.id, canDelete: theme.authorId === user.id || user.role.permissions.includes('settings.manage') });
+const specOf = (theme: TeamTheme) => ({ name: theme.name, accent: theme.accent, side: theme.side, background: theme.background });
+app.get('/api/temas', auth, async (request: AuthRequest, response) => {
+  try { return response.json({ themes: (await listTeamThemes()).map((theme) => themeOut(theme, request.authUser!)) }); }
+  catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível carregar os temas.' }); }
+});
+app.post('/api/temas', auth, async (request: AuthRequest, response) => {
+  const parsed = themeSpecSchema.safeParse(request.body);
+  if (!parsed.success) return response.status(400).json({ message: 'Dê um nome (2 a 40 letras) e escolha as cores do tema.' });
+  const user = request.authUser!;
+  try {
+    if ((await countThemesBy(user.id)) >= MAX_THEMES_PER_PERSON) return response.status(422).json({ message: `Cada pessoa cria até ${MAX_THEMES_PER_PERSON} temas. Apague um dos seus para criar outro.` });
+    const theme = await createTeamTheme(parsed.data, { id: user.id, name: user.name });
+    const current = await getUserPreferences(user.id);
+    const preferences = await saveUserPreferences(user.id, { nickname: current.nickname, palette: 'custom', customTheme: specOf(theme) });
+    return response.status(201).json({ theme: themeOut(theme, user), preferences });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível criar o tema.' }); }
+});
+app.post('/api/temas/:id/usar', auth, async (request: AuthRequest, response) => {
+  const user = request.authUser!;
+  try {
+    const theme = await getTeamTheme(String(request.params.id));
+    if (!theme) return response.status(404).json({ message: 'Esse tema foi apagado.' });
+    const current = await getUserPreferences(user.id);
+    const preferences = await saveUserPreferences(user.id, { nickname: current.nickname, palette: 'custom', customTheme: specOf(theme) });
+    if (theme.authorId !== user.id) await addThemeUse(theme).catch(() => undefined);
+    return response.json({ preferences });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível usar o tema.' }); }
+});
+app.delete('/api/temas/:id', auth, async (request: AuthRequest, response) => {
+  const user = request.authUser!;
+  try {
+    const theme = await getTeamTheme(String(request.params.id));
+    if (!theme) return response.status(404).json({ message: 'Esse tema já foi apagado.' });
+    if (!themeOut(theme, user).canDelete) return response.status(403).json({ message: 'Só quem criou o tema (ou quem gerencia o sistema) pode apagar.' });
+    await deleteTeamTheme(theme.id);
+    return response.json({ ok: true });
+  } catch (error) { return response.status(500).json({ message: error instanceof Error ? error.message : 'Não foi possível apagar o tema.' }); }
 });
 
 // Status personalizado (como no Discord): emoji + texto, opcionalmente ate uma hora. Aparece na aba Pessoas.

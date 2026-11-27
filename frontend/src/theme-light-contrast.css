@@ -1116,6 +1116,33 @@
 :where(:root:not([data-theme="dark"])) .mention {
     color: var(--blue)
 }
+:where(:root:not([data-theme="dark"])) .tt-head h3 {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .tt-head p {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .tt-name {
+    color: #3c4a60
+}
+:where(:root:not([data-theme="dark"])) .tt-name input {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .tt-color legend {
+    color: #3c4a60
+}
+:where(:root:not([data-theme="dark"])) .tt-hex {
+    color: var(--ink)
+}
+:where(:root:not([data-theme="dark"])) .tt-note {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .tt-meta {
+    color: #5f6d84
+}
+:where(:root:not([data-theme="dark"])) .tt-delete {
+    color: #a52f2f
+}
 
 /* admin.css */
 :where(:root:not([data-theme="dark"])) .admin-form label, :where(:root:not([data-theme="dark"])) .settings-fields label {

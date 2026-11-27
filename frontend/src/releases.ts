@@ -9,6 +9,14 @@ export type Release = { id: string; label: string; items: ReleaseItem[] };
 
 export const RELEASES: Release[] = [
   {
+    id: "2026-11-27",
+    label: "27/11",
+    items: [
+      { icon: "user", tag: "Novo", title: "Crie o seu tema", text: "Em Meu perfil > Tema > Temas da equipe, escolha a cor de destaque, a da lateral e o fundo, e veja o sistema mudando na hora. O tema já fica disponível para toda a equipe usar, sem precisar publicar." },
+      { icon: "chart", tag: "Novo", title: "Acompanhamento da IA", text: "Em Administração, veja se o Jota H está respondendo, quem usa, onde erra, e ensine regras que valem na próxima pergunta.", permission: "settings.manage" },
+    ],
+  },
+  {
     id: "2026-11-18",
     label: "18/11",
     items: [

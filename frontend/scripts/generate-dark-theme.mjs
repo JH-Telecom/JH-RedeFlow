@@ -253,6 +253,9 @@ export const PALETTES = {
   flor: { hue: 355, chroma: 0.95, neutral: 1.1 },
   aurora: { hue: 290, chroma: 1, neutral: 1.4 },
   neon: { hue: 280, chroma: 1.15, neutral: 1.4 },
+  // Temas criados pela equipe (27/11/2026): o matiz e a intensidade vem de variaveis CSS que o navegador define
+  // (--ct-hue, --ct-chroma, --ct-neutral), entao um unico arquivo serve para qualquer cor escolhida.
+  custom: { variable: true },
 };
 const DEG = Math.PI / 180;
 const isBrandHue = (h) => { const deg = ((h / DEG) % 360 + 360) % 360; return deg >= 235 && deg <= 290; };
@@ -262,6 +265,10 @@ function paletteColor(text, palette, mode) {
   const [L, C, h] = rgbToOklch(parsed.rgb);
   // No escuro os cinzas do gerador ja vem com um toque de azul (C ~0.014): eles tambem ganham o matiz do tema.
   if (C < (mode === 'dark' ? 0.009 : 0.012) || !isBrandHue(h)) return text;
+  if (palette.variable) {
+    const chroma = C < 0.06 ? `calc(${C.toFixed(4)} * var(--ct-neutral, 1))` : `min(calc(${C.toFixed(4)} * var(--ct-chroma, 1)), 0.32)`;
+    return `oklch(${L.toFixed(4)} ${chroma} var(--ct-hue, 262)${parsed.alpha < 0.999 ? ` / ${parsed.alpha.toFixed(3)}` : ''})`;
+  }
   const nextC = C < 0.06 ? C * palette.neutral : Math.min(C * palette.chroma, 0.32);
   return formatColor(oklchToRgb([L, nextC, palette.hue * DEG]), parsed.alpha);
 }
@@ -293,8 +300,11 @@ function paletteRulesFor(css, from, id, palette, mode, isManual = false) {
         if (role === 'text' && !node.prop.startsWith('--')) value = value.replace(/var\(--blue(?:-deep)?\)/g, 'var(--accent-text)');
       }
       value = value.replace(COLOR_PATTERN, (match) => {
+        const fixText = mode === 'light' && role === 'text' && !node.prop.startsWith('--') && !LIGHT_SKIP.test(rule.selector);
+        // Tema com variaveis: o ajuste de contraste vem antes (a cor final e uma expressao oklch(), que nao da para medir).
+        if (palette.variable) return paletteColor(fixText ? lightConvert(match) : match, palette, mode);
         const shifted = paletteColor(match, palette, mode);
-        return mode === 'light' && role === 'text' && !node.prop.startsWith('--') && !LIGHT_SKIP.test(rule.selector) ? lightConvert(shifted) : shifted;
+        return fixText ? lightConvert(shifted) : shifted;
       });
       COLOR_PATTERN.lastIndex = 0;
       // Tokens e ajustes manuais so entram se mudaram; as demais declaracoes de cor sao todas copiadas,

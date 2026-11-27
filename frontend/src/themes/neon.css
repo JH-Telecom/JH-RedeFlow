@@ -1947,6 +1947,67 @@
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .notification-item.is-personal {
     border-left: 3px solid var(--blue)
 }
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt {
+    border-top: 1px solid var(--line)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-head h3 {
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-head p {
+    color: #66698d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-editor {
+    border: 1px dashed #bfc3df;
+    background: #f8fafc
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-name {
+    color: #434668
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-name input {
+    border: 1px solid #ced0e6;
+    background: #fff;
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-color {
+    border: 0
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-color legend {
+    color: #434668
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-swatches > button {
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #1e1e4329
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-swatches > button.is-selected {
+    box-shadow: 0 0 0 2px var(--ink)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-swatches > button:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-picker {
+    border: 1px solid #ced0e6;
+    background: conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #695cff, #d946ef, #f43f5e)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-picker input {
+    border: 0
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-hex {
+    border: 1px solid #ced0e6;
+    background: #fff;
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-note {
+    color: #66698d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-actions .primary-button.compact {
+    box-shadow: none
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-meta {
+    color: #66698d
+}
+:where(:root[data-palette="neon"]:not([data-theme="dark"])) .tt-delete {
+    color: #a52f2f
+}
 /* light · admin.css */
 :where(:root[data-palette="neon"]:not([data-theme="dark"])) .brand-logo-image {
     box-shadow: 0 8px 18px #5f49f72b
@@ -7855,6 +7916,67 @@
 }
 :where(:root[data-palette="neon"][data-theme="dark"]) .notification-item.is-personal {
     border-left: 3px solid var(--blue)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt {
+    border-top: 1px solid var(--line)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-head h3 {
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-head p {
+    color: #abadb9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-editor {
+    border: 1px dashed #414465;
+    background: #14151e
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-name {
+    color: #c4c6d2
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-name input {
+    border: 1px solid #3d4058;
+    background: #1a1b24;
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-color {
+    border: 0
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-color legend {
+    color: #c4c6d2
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-swatches > button {
+    border: 2px solid #2e2f3b;
+    box-shadow: 0 0 0 1px #0000005a
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-swatches > button.is-selected {
+    box-shadow: 0 0 0 2px var(--ink)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-swatches > button:focus-visible {
+    outline: 2px solid var(--blue)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-picker {
+    border: 1px solid #3d4058;
+    background: conic-gradient(#f43f5e, #f59e0b, #22c55e, #06b6d4, #695cff, #d946ef, #f43f5e)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-picker input {
+    border: 0
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-hex {
+    border: 1px solid #3d4058;
+    background: #1a1b24;
+    color: var(--ink)
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-note {
+    color: #abadb9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-actions .primary-button.compact {
+    box-shadow: none
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-meta {
+    color: #abadb9
+}
+:where(:root[data-palette="neon"][data-theme="dark"]) .tt-delete {
+    color: #ff8c84
 }
 /* dark · admin.css */
 :where(:root[data-palette="neon"][data-theme="dark"]) .brand-logo-image {

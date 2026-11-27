@@ -21,6 +21,10 @@
 :root[data-palette="neon"] { --pal-side: linear-gradient(180deg, #101845 0%, #1d0d4a 100%); --pal-side-2: #1d0d4a; --pal-side-muted: #bcc3ef; --pal-page: linear-gradient(160deg, #f5f8ff 0%, #eef0ff 55%, #f1e9ff 100%); --pal-base: #eef0ff; --pal-top: #ffffffc4; }
 :root[data-palette="neon"][data-theme="dark"] { --pal-side: linear-gradient(180deg, #080c26 0%, #12072c 100%); --pal-side-2: #12072c; --pal-side-muted: #aab2e6; --pal-page: linear-gradient(160deg, #080b1a 0%, #0f0f2c 55%, #1c0c3a 100%); --pal-base: #0f0f2c; --pal-top: #0a0c20cc; }
 
+/* Tema criado pela equipe: as cores vem das variaveis --ct-* que o navegador calcula (lib/custom-theme.ts). */
+:root[data-palette="custom"] { --pal-side: var(--ct-side, #0f2b52); --pal-side-2: var(--ct-side-2, #0a1d3a); --pal-side-muted: var(--ct-side-muted, #a9bdd9); --pal-page: var(--ct-page, #f7f9fc); --pal-base: var(--ct-base, #f7f9fc); --pal-top: #ffffffc4; }
+:root[data-palette="custom"][data-theme="dark"] { --pal-side: var(--ct-side-d, #0b1730); --pal-side-2: var(--ct-side-2-d, #070f22); --pal-side-muted: var(--ct-side-muted-d, #9fb2cf); --pal-page: var(--ct-page-d, #12151b); --pal-base: var(--ct-base-d, #12151b); --pal-top: var(--ct-top-d, #12151bcc); }
+
 /* Ardosia claro: o azul-ardosia gerado fica no limite de contraste sobre o fundo; um tom mais fechado. */
 :root[data-palette="ardosia"]:not([data-theme="dark"]) { --blue: #4a6886; }
 

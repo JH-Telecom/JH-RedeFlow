@@ -198,15 +198,15 @@ test('users can save their own nickname and color theme', async () => {
   });
   const session = await loginResponse.json() as { token: string };
   const headers = { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
-  type Prefs = { nickname: string | null; palette: string | null };
+  type Prefs = { nickname: string | null; palette: string | null; customTheme?: unknown };
 
   const initial = await fetch(`${baseUrl}/api/auth/preferences`, { headers });
-  assert.deepEqual(await initial.json() as Prefs, { nickname: null, palette: null });
+  assert.deepEqual(await initial.json() as Prefs, { nickname: null, palette: null, customTheme: null });
 
   const save = await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: '  Teteu  ', palette: 'aurora' }) });
   assert.equal(save.status, 200);
   const saved = await fetch(`${baseUrl}/api/auth/preferences`, { headers });
-  assert.deepEqual(await saved.json() as Prefs, { nickname: 'Teteu', palette: 'aurora' });
+  assert.deepEqual(await saved.json() as Prefs, { nickname: 'Teteu', palette: 'aurora', customTheme: null });
 
   const invalid = await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: 'x', palette: 'arco-iris' }) });
   assert.equal(invalid.status, 400);
@@ -214,7 +214,40 @@ test('users can save their own nickname and color theme', async () => {
   // Padrao e apelido vazio voltam a "nada salvo".
   await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers, body: JSON.stringify({ nickname: '', palette: 'padrao' }) });
   const cleared = await fetch(`${baseUrl}/api/auth/preferences`, { headers });
-  assert.deepEqual(await cleared.json() as Prefs, { nickname: null, palette: null });
+  assert.deepEqual(await cleared.json() as Prefs, { nickname: null, palette: null, customTheme: null });
+});
+
+test('team themes: created themes show up for everyone, others use a copy, only the author or an admin deletes', async () => {
+  const login = async (email: string) => {
+    const session = await (await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'RedeFlow@2026' }) })).json() as { token: string };
+    return { 'content-type': 'application/json', authorization: `Bearer ${session.token}` };
+  };
+  const author = await login('matheus@jhtelecom.com');
+  const other = await login('joao@jhtelecom.com');
+  const admin = await login('admin@jhtelecom.com');
+  const spec = { name: 'Verde Campo', accent: '#1F9D55', side: '#123d36', background: 'colorido' };
+  const created = await fetch(`${baseUrl}/api/temas`, { method: 'POST', headers: author, body: JSON.stringify(spec) });
+  assert.equal(created.status, 201);
+  const { theme, preferences } = await created.json() as { theme: { id: string; mine: boolean; uses: number }; preferences: { palette: string; customTheme: { accent: string } } };
+  assert.equal(theme.mine, true);
+  assert.deepEqual([preferences.palette, preferences.customTheme.accent], ['custom', '#1f9d55']);
+  // Sem publicar: ja aparece para outra pessoa, que nao pode apagar.
+  const list = await (await fetch(`${baseUrl}/api/temas`, { headers: other })).json() as { themes: { id: string; mine: boolean; canDelete: boolean; authorName: string }[] };
+  const seen = list.themes.find((item) => item.id === theme.id)!;
+  assert.deepEqual([seen.mine, seen.canDelete, seen.authorName], [false, false, 'Matheus Terra']);
+  assert.equal((await fetch(`${baseUrl}/api/temas/${theme.id}`, { method: 'DELETE', headers: other })).status, 403);
+  const used = await (await fetch(`${baseUrl}/api/temas/${theme.id}/usar`, { method: 'POST', headers: other })).json() as { preferences: { palette: string; customTheme: { name: string } } };
+  assert.deepEqual([used.preferences.palette, used.preferences.customTheme.name], ['custom', 'Verde Campo']);
+  const after = await (await fetch(`${baseUrl}/api/temas`, { headers: other })).json() as { themes: { id: string; uses: number }[] };
+  assert.equal(after.themes.find((item) => item.id === theme.id)!.uses, 2);
+  // Apagado da galeria (admin), quem usa continua com a copia.
+  assert.equal((await fetch(`${baseUrl}/api/temas/${theme.id}`, { method: 'DELETE', headers: admin })).status, 200);
+  const kept = await (await fetch(`${baseUrl}/api/auth/preferences`, { headers: other })).json() as { palette: string; customTheme: { name: string } };
+  assert.deepEqual([kept.palette, kept.customTheme.name], ['custom', 'Verde Campo']);
+  assert.equal((await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers: other, body: JSON.stringify({ nickname: null, palette: 'custom' }) })).status, 400);
+  assert.equal((await fetch(`${baseUrl}/api/temas`, { method: 'POST', headers: author, body: JSON.stringify({ ...spec, accent: 'url(x)' }) })).status, 400);
+  await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers: other, body: JSON.stringify({ nickname: null, palette: 'padrao' }) });
+  await fetch(`${baseUrl}/api/auth/preferences`, { method: 'PUT', headers: author, body: JSON.stringify({ nickname: null, palette: 'padrao' }) });
 });
 
 test('new users must change their password once before using the API', async () => {

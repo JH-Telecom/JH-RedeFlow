@@ -82,7 +82,7 @@ export const observationAttachments = new Map<string, StoredCallObservationAttac
 
 export const userBanners = new Map<string, string>();
 export const userAvatars = new Map<string, string>();
-export const userPreferences = new Map<string, { nickname: string | null; palette: string | null }>();
+export const userPreferences = new Map<string, { nickname: string | null; palette: string | null; customTheme?: { name: string; accent: string; side: string; background: 'colorido' | 'neutro' } | null }>();
 
 export const auditLogs = new Map<string, CallAuditLog>();
 
